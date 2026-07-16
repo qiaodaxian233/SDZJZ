@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生电终结者 · 刷线机结构核心（无电力蓝图）</title>
+<style>
+  :root{
+    --bg:#070b13; --panel:#0c1422; --panel2:#0f1a2c; --slot:#0b1526;
+    --line:#1b3050; --line2:#274668; --cyan:#38c9e6; --blue:#3d80f5;
+    --green:#2fd07a; --red:#e04a4a; --amber:#e0a53a; --purple:#9a6cf0;
+    --tx:#d6e4f7; --tx2:#8299b8; --tx3:#59708f;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:13px;padding:14px}
+  .app{max-width:1640px;margin:0 auto;border:1px solid var(--line2);border-radius:12px;
+       background:linear-gradient(180deg,#0a1220,#070c15);overflow:hidden}
+  /* header */
+  .head{display:flex;align-items:center;gap:20px;padding:12px 18px;border-bottom:1px solid var(--line);background:#0a1424}
+  .brand{display:flex;align-items:center;gap:12px}
+  .cube{width:34px;height:34px;border:1.5px solid var(--cyan);border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--cyan);font-size:18px}
+  .brand h1{font-size:19px;font-weight:600;letter-spacing:.5px}
+  .brand .sub{font-size:10px;color:var(--tx3);letter-spacing:2px}
+  .tabs{display:flex;gap:8px}
+  .tab{padding:8px 16px;border-radius:7px;color:var(--tx2);font-size:13px;cursor:default}
+  .tab.on{background:var(--cyan);color:#04222b;font-weight:600}
+  .head .right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--tx3);font-size:12px}
+  .wc{width:24px;height:22px;border:1px solid var(--line2);border-radius:5px;display:inline-flex;align-items:center;justify-content:center;color:var(--tx2)}
+  /* layout */
+  .grid{display:grid;grid-template-columns:340px 1fr 380px;gap:14px;padding:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .ptitle{display:flex;align-items:center;gap:8px;color:var(--cyan);font-size:13px;font-weight:600;margin-bottom:12px}
+  .ptitle .i{opacity:.9}
+  .ptitle .r{margin-left:auto;color:var(--tx3);font-weight:400;font-size:12px}
+  .sub{color:var(--tx2);font-size:12px;font-weight:600;margin:6px 0 10px}
+  /* item slot */
+  .slot{width:62px;height:62px;border:1px solid var(--line);border-radius:8px;background:var(--slot);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative}
+  .px{width:26px;height:26px;border-radius:4px}
+  .slot .nm{font-size:10px;color:var(--tx2)}
+  .slot .ct{position:absolute;right:3px;bottom:2px;font-size:10px;color:var(--cyan);font-family:var(--mono)}
+  .empty{border-style:dashed;color:var(--tx3)}
+  .empty .plus{font-size:20px;color:var(--tx3)}
+  /* recipe */
+  .recipe{display:flex;align-items:center;gap:14px}
+  .rgrid{display:grid;grid-template-columns:repeat(3,62px);gap:6px}
+  .arrow{color:var(--cyan);font-size:22px}
+  .result .px{width:40px;height:40px}
+  .result{width:90px;height:90px;border:1px solid var(--line2)}
+  .note{color:var(--tx2);font-size:12px;line-height:1.9;margin-top:14px}
+  .note b{color:var(--tx);font-weight:600}
+  ul.b{list-style:none;color:var(--tx2);font-size:12px;line-height:2}
+  ul.b li:before{content:"▪";color:var(--cyan);margin-right:8px}
+  .unlock{margin-top:12px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;color:var(--green);font-size:12px;background:#0a1a16}
+  /* machine slots */
+  .mslots{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .mslot{border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:10px 8px;text-align:center;position:relative}
+  .mslot.run{border-color:#2a6fb0;box-shadow:inset 0 0 0 1px #163a5e}
+  .mslot .dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .mslot .mc{width:40px;height:40px;margin:6px auto 8px;border-radius:6px;border:1px solid var(--line2);
+             background:radial-gradient(circle at 50% 40%,#12406a,#0b1c30);display:flex;align-items:center;justify-content:center;color:var(--cyan);font-size:20px}
+  .mslot .t{font-size:12px;color:var(--tx)}
+  .mslot .s{font-size:11px;color:var(--green);margin-top:2px}
+  .mslot.empty{border-style:dashed;background:transparent}
+  .mslot.empty .mc{border-style:dashed;background:none;color:var(--tx3)}
+  .mslot.empty .t{color:var(--tx3)}
+  /* controls */
+  .ctl{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;margin-top:14px}
+  .btn{padding:14px;border-radius:9px;text-align:center;font-size:15px;font-weight:600;border:1px solid}
+  .btn.go{color:var(--green);border-color:#1f6e46;background:#0b1f16}
+  .btn.pause{color:var(--tx2);border-color:var(--line2);background:var(--panel2)}
+  .btn.stop{color:var(--red);border-color:#7a2626;background:#1f0d0d}
+  .ctl .lab{grid-column:1/-1;text-align:center;color:var(--tx3);font-size:12px;margin-bottom:2px}
+  /* two-col under center */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .up{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .upc{border:1px solid var(--line);border-radius:9px;padding:12px 10px;text-align:center;background:var(--panel2)}
+  .upc .ic{font-size:22px;margin-bottom:6px}
+  .upc .nm{font-size:12px;color:var(--tx);font-weight:600}
+  .upc .lv{font-size:11px;color:var(--tx2);margin:2px 0 10px}
+  .upc .ef{font-size:12px;color:var(--cyan);font-family:var(--mono)}
+  .stat .row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px dashed #142238}
+  .stat .row:last-child{border:0}
+  .stat .k{color:var(--tx2)} .stat .v{color:var(--tx);font-family:var(--mono)}
+  .bar{height:8px;border-radius:5px;background:#0b1a2c;border:1px solid var(--line);margin-top:8px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--cyan)}
+  /* output modes */
+  .omode{border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:12px;background:var(--panel2)}
+  .omode .h{display:flex;align-items:center;font-size:12px;color:var(--blue);font-weight:600;margin-bottom:10px}
+  .omode .conn{margin-left:auto;color:var(--green);font-size:11px}
+  .flow{display:flex;align-items:center;gap:8px;justify-content:center}
+  .fico{width:38px;height:38px;border-radius:7px;border:1px solid var(--line2);background:var(--slot);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--cyan)}
+  .fico.pipe{color:var(--blue)} .fico.data{color:var(--purple)}
+  .flow .ar{color:var(--tx3)}
+  .omode .cap{text-align:center;color:var(--tx3);font-size:11px;margin-top:8px}
+  .wf{display:flex;align-items:center;gap:10px;justify-content:center;padding:6px 0}
+  /* bottom */
+  .bottom{display:grid;grid-template-columns:1.5fr 1.1fr 1fr;gap:14px;padding:0 14px 14px}
+  .brow{display:flex;gap:8px;flex-wrap:wrap}
+  .obtn{padding:12px 16px;border:1px solid var(--line2);border-radius:8px;color:var(--tx2);font-size:13px}
+  .obtn.on{background:var(--cyan);color:#04222b;font-weight:600;border-color:var(--cyan)}
+  .omodes{display:flex;gap:10px;flex-wrap:wrap}
+  /* status bar */
+  .statusbar{display:flex;align-items:center;gap:26px;padding:10px 18px;border-top:1px solid var(--line);background:#0a1424;color:var(--tx2);font-size:12px;flex-wrap:wrap}
+  .statusbar .k{color:var(--tx3)} .statusbar .v{color:var(--tx);font-family:var(--mono)}
+  .statusbar .ok{color:var(--green)}
+  .pill{padding:2px 8px;border:1px solid var(--line2);border-radius:12px;color:var(--tx2);font-size:11px}
+  .removed{opacity:.4;text-decoration:line-through}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="head">
+    <div class="brand">
+      <div class="cube">◈</div>
+      <div><h1>生电终结者 · 刷线机结构核心</h1><div class="sub">GENERATOR TERMINATOR · WIRE BRUSHER CORE</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab on">控制面板</div><div class="tab">结构管理</div>
+      <div class="tab">性能监控</div><div class="tab">日志记录</div><div class="tab">设置</div>
+    </div>
+    <div class="right">
+      <span>FA MC 1.21.1 / Fabric API</span>
+      <span class="wc">?</span><span class="wc">□</span><span class="wc">✕</span>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- 左：刷线机合成 -->
+    <div class="panel">
+      <div class="ptitle"><span class="i">◆</span> 刷线机合成 <span class="r">ⓘ</span></div>
+      <div class="sub">合成配方（工作台）</div>
+      <div class="recipe">
+        <div class="rgrid">
+          <div class="slot"><div class="px" style="background:#c9ccd4"></div><div class="nm">铁锭</div></div>
+          <div class="slot"><div class="px" style="background:#5b6b7a"></div><div class="nm">观察者</div></div>
+          <div class="slot"><div class="px" style="background:#c9ccd4"></div><div class="nm">铁锭</div></div>
+          <div class="slot"><div class="px" style="background:#c0342e"></div><div class="nm">红石粉</div></div>
+          <div class="slot"><div class="px" style="background:#2a86c9"></div><div class="nm">核心模块</div></div>
+          <div class="slot"><div class="px" style="background:#c0342e"></div><div class="nm">红石粉</div></div>
+          <div class="slot"><div class="px" style="background:#c47a3a"></div><div class="nm">铜锭</div></div>
+          <div class="slot"><div class="px" style="background:#e6e2d6"></div><div class="nm">线</div></div>
+          <div class="slot"><div class="px" style="background:#c47a3a"></div><div class="nm">铜锭</div></div>
+        </div>
+        <div class="arrow">➜</div>
+        <div class="slot result"><div class="px" style="background:radial-gradient(circle at 50% 40%,#1a5a8f,#0c2438)"></div><div class="nm">刷线机</div></div>
+      </div>
+      <div class="note">自动刷取线的生产设备<br>可放入结构方块 / 结构核心批量工作</div>
+      <div class="sub" style="margin-top:16px">刷线机说明</div>
+      <ul class="b">
+        <li>自动击杀蜘蛛并刷取线</li>
+        <li>需放入结构方块 / 结构核心才能工作</li>
+        <li>支持多台并发，提高产能</li>
+        <li>支持多种输出方式与升级强化</li>
+      </ul>
+      <div class="sub" style="margin-top:14px">配方解锁</div>
+      <div class="unlock">✓ 已解锁</div>
+    </div>
+
+    <!-- 中：结构核心插槽 + 控制 + 升级 + 状态 -->
+    <div>
+      <div class="panel">
+        <div class="ptitle"><span class="i">▦</span> 结构方块内部（结构核心插槽）<span class="r">已放置刷线机：4 / 8</span></div>
+        <div class="mslots">
+          <div class="mslot run"><span class="dot"></span><div class="mc">◈</div><div class="t">刷线机 #1</div><div class="s">运行中</div></div>
+          <div class="mslot run"><span class="dot"></span><div class="mc">◈</div><div class="t">刷线机 #2</div><div class="s">运行中</div></div>
+          <div class="mslot run"><span class="dot"></span><div class="mc">◈</div><div class="t">刷线机 #3</div><div class="s">运行中</div></div>
+          <div class="mslot run"><span class="dot"></span><div class="mc">◈</div><div class="t">刷线机 #4</div><div class="s">运行中</div></div>
+          <div class="mslot empty"><div class="mc">+</div><div class="t">空槽位 5</div></div>
+          <div class="mslot empty"><div class="mc">+</div><div class="t">空槽位 6</div></div>
+          <div class="mslot empty"><div class="mc">+</div><div class="t">空槽位 7</div></div>
+          <div class="mslot empty"><div class="mc">+</div><div class="t">空槽位 8</div></div>
+        </div>
+        <div class="ctl">
+          <div class="lab">核心控制</div>
+          <div class="btn go">▶ 开机</div>
+          <div class="btn pause">❚❚ 暂停</div>
+          <div class="btn stop">■ 停止</div>
+        </div>
+      </div>
+
+      <div class="duo">
+        <div class="panel">
+          <div class="ptitle"><span class="i">⚙</span> 升级模块 <span class="r">提升整组刷线机</span></div>
+          <div class="up">
+            <div class="upc"><div class="ic" style="color:var(--cyan)">⇈</div><div class="nm">速度升级</div><div class="lv">等级 III</div><div class="ef">+150% 速度</div></div>
+            <div class="upc"><div class="ic" style="color:var(--purple)">▤</div><div class="nm">数量升级</div><div class="lv">等级 II</div><div class="ef">+8 产出/次</div></div>
+            <div class="upc"><div class="ic" style="color:var(--green)">⛬</div><div class="nm">并发升级</div><div class="lv">等级 III</div><div class="ef">+4 并发数</div></div>
+          </div>
+        </div>
+        <div class="panel stat">
+          <div class="ptitle"><span class="i">▲</span> 生产状态</div>
+          <div class="row"><span class="k">当前速度</span><span class="v">512.0 /s</span></div>
+          <div class="row"><span class="k">并发数量</span><span class="v">4 台</span></div>
+          <div class="row"><span class="k">每秒产出</span><span class="v">512 线/s</span></div>
+          <div class="row"><span class="k">在线机器</span><span class="v">4 / 4 台</span></div>
+          <div class="row"><span class="k">运行时间</span><span class="v">02:18:47</span></div>
+          <div class="row"><span class="k">结构完整度</span><span class="v" style="color:var(--green)">100%</span></div>
+          <div class="row"><span class="k">缓存容量</span><span class="v">64,000 / 64,000</span></div>
+          <div class="bar"><i style="width:100%"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：输出与传输 -->
+    <div class="panel">
+      <div class="ptitle"><span class="i">◈</span> 输出与传输 <span class="r">ⓘ</span></div>
+      <div class="omode">
+        <div class="h">模式 1：管道输出（物品管道）<span class="conn">● 已连接</span></div>
+        <div class="flow"><div class="fico">◈</div><span class="ar">➜</span><div class="fico pipe">▤</div><span class="ar">➜</span><div class="fico" style="color:var(--amber)">▣</div></div>
+        <div class="cap">刷线机 → 物品管道 → 箱子</div>
+      </div>
+      <div class="omode">
+        <div class="h">模式 2：数据化输出（数据线）<span class="conn">● 已连接</span></div>
+        <div class="flow"><div class="fico">◈</div><span class="ar">➜</span><div class="fico data">◇</div><span class="ar">⇢</span><div class="fico" style="color:var(--amber)">▣</div></div>
+        <div class="cap">刷线机 → 数据线 → 箱子 / 数据面板</div>
+      </div>
+      <div class="sub" style="margin-top:6px">输出统计（本次运行）</div>
+      <div class="stat">
+        <div class="row"><span class="k">总产出</span><span class="v">61,440 线</span></div>
+        <div class="row"><span class="k">平均每秒</span><span class="v">512 线/s</span></div>
+        <div class="row"><span class="k">最大缓存</span><span class="v">64,000 线</span></div>
+      </div>
+      <div class="unlock" style="color:var(--tx2);background:var(--panel2);text-align:center;margin-top:10px">清空统计</div>
+      <div class="sub" style="margin-top:16px">工作流程</div>
+      <div class="wf"><div class="fico">◈</div><span class="ar">➜</span><div class="fico pipe">▤</div><span class="ar">➜</span><div class="fico" style="color:var(--amber)">▣</div><span class="ar">+</span><div class="fico data">◇</div></div>
+    </div>
+
+  </div>
+
+  <!-- 底部 -->
+  <div class="bottom">
+    <div class="panel">
+      <div class="ptitle"><span class="i">▤</span> 输入缓存（自动补充）<span class="r" style="color:var(--green)">● 已启用</span></div>
+      <div class="brow">
+        <div class="slot"><div class="px" style="background:#c9ccd4"></div><div class="nm">铁锭</div><span class="ct">12K</span></div>
+        <div class="slot"><div class="px" style="background:#c47a3a"></div><div class="nm">铜锭</div><span class="ct">8.6K</span></div>
+        <div class="slot"><div class="px" style="background:#c0342e"></div><div class="nm">红石粉</div><span class="ct">16K</span></div>
+        <div class="slot"><div class="px" style="background:#e6e2d6"></div><div class="nm">线</div><span class="ct">32K</span></div>
+        <div class="slot"><div class="px" style="background:#2a86c9"></div><div class="nm">核心模块</div><span class="ct">2.1K</span></div>
+        <div class="slot"><div class="px" style="background:#5b6b7a"></div><div class="nm">观察者</div><span class="ct">4.1K</span></div>
+        <div class="slot empty"><span class="plus">+</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ptitle"><span class="i">▣</span> 输出缓存（已连接）<span class="r" style="color:var(--green)">● 缓存：64K / 64K</span></div>
+      <div class="brow">
+        <div class="slot"><div class="px" style="background:#e6e2d6"></div><div class="nm">线</div><span class="ct">64K</span></div>
+        <div class="slot empty"><span class="plus">+</span></div>
+        <div class="slot empty"><span class="plus">+</span></div>
+        <div class="slot empty"><span class="plus">+</span></div>
+        <div class="slot empty"><span class="plus">+</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ptitle"><span class="i">◇</span> 输出模式</div>
+      <div class="omodes">
+        <div class="obtn on">自动输出</div>
+        <div class="obtn">喷射输出</div>
+        <div class="obtn">管道优先</div>
+        <div class="obtn">数据线优先</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态栏（电力已移除） -->
+  <div class="statusbar">
+    <span><span class="k">结构方块位置：</span><span class="v">X: 128　Y: 64　Z: -256</span></span>
+    <span><span class="k">维度：</span><span class="v">overworld</span></span>
+    <span><span class="k">朝向：</span><span class="v">北</span></span>
+    <span><span class="k">结构完整度：</span><span class="v ok">100%</span></span>
+    <span><span class="k">结构方块：</span><span class="ok">已激活</span></span>
+    <span><span class="k">延迟：</span><span class="v">8ms</span></span>
+    <span class="pill">⚡ 电力系统已移除</span>
+  </div>
+
+</div>
+</body>
+</html>
