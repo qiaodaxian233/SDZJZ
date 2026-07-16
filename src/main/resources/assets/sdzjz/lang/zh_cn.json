@@ -1,3 +1,12 @@
 {
-  "itemGroup.sdzjz.main": "生电终结者"
+  "itemGroup.sdzjz.main": "生电终结者",
+  "item.sdzjz.core_module": "核心模块",
+  "item.sdzjz.wire_brusher": "刷线机",
+  "item.sdzjz.speed_upgrade": "速度升级",
+  "item.sdzjz.count_upgrade": "数量升级",
+  "item.sdzjz.parallel_upgrade": "并发升级",
+  "item.sdzjz.capture_cage": "抓物笼子",
+  "block.sdzjz.structure_core": "结构核心",
+  "block.sdzjz.super_bench": "超大工作台",
+  "container.sdzjz.structure_core": "结构核心"
 }

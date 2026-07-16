@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["BIB","IMI","BIB"],
+  "key":{"B":"minecraft:iron_bars","I":"minecraft:iron_ingot","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:capture_cage","count":1} }

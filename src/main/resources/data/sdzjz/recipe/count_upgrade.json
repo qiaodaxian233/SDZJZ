@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["AAA","AMA","AAA"],
+  "key":{"A":"minecraft:amethyst_shard","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:count_upgrade","count":1} }

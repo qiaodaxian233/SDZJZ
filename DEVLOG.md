@@ -59,3 +59,25 @@
 - 抓物笼子（Capture Cage）= 原版刷怪笼/试炼刷怪器的对应物：抓一只怪供应对应「刷X机」，抓到即前置成本、掉落免费出（符合不喂料）。多生物机器如刷铁机=村民+僵尸。
 - 已核 1.21 事实：旋风人（试炼刷怪器刷出→旋风棒）、沼泽骷髅（骨/箭/毒箭/剪蘑菇）、铁傀儡农场（3村民+床+工作方块+僵尸恐吓→铁+罂粟）。
 - 下一步：把清单逐条落进 machine/Machines.java + 抓物笼子物品与捕获逻辑。纯文档，configVersion 仍 2。
+
+## m8 — Phase 1 核心竖切（结构核心 + 刷线机 + 升级 + 抓物笼子）【待编译验证】
+
+作者「先写、先完善代码、再修 BUG」。落地整条：合成刷线机 → 塞进结构核心 → 开机免费出线 → 推入正下方容器。
+
+新增：
+- 物品：core_module / wire_brusher / speed_upgrade / count_upgrade / parallel_upgrade / capture_cage（CaptureCageItem 右键活体捕获，存 CUSTOM_DATA + 改名 + discard）。
+- 方块：structure_core(tier1) / super_bench(tier2 更高并发×产量)，StructureCoreBlock(BlockWithEntity, onUse 开 GUI, 服务端 ticker)。
+- 方块实体 StructureCoreBlockEntity：8 机器槽+3 升级槽+8 输出槽；tick 免费产线（速度缩周期/数量放大单产/并发提同时台数），产物进缓存并推正下方容器，满则暂停不掉落物；NBT + ExtendedScreenHandlerFactory<BlockPos>。
+- GUI：StructureCoreScreenHandler（槽位限制 + quickMove + 开机/停止按钮 onButtonClick）+ 客户端 StructureCoreScreen（纯色面板+按钮）+ 注册。
+- 阶梯配方：core_module（铜+红石+石英）→ wire_brusher/三升级/结构核心 → super_bench（结构核心×4+核心模块×4+钻石块）。
+- 模型/blockstate/中英 lang 齐（贴图未画=品红占位，art TODO）。
+
+**首次本地编译大概率要盯的点（沙箱编不了，逐个核）**：
+1. `StructureCoreBlock.onUse` 覆盖签名——1.21.1 是否为 `onUse(BlockState,World,BlockPos,PlayerEntity,BlockHitResult)`；若报错看是否要用 `onUseWithItem` 或参数不符，按 IDE 提示改。
+2. `ExtendedScreenHandlerFactory#getScreenOpeningData(ServerPlayerEntity)` 与 `ExtendedScreenHandlerType(constructor, BlockPos.PACKET_CODEC)` 签名。
+3. `new Item(new Item.Settings())` / `AbstractBlock.Settings.copy(...)`（1.21.1 无需 registryKey；1.21.2+ 才要）。
+4. 配方 result 用 `{"id":..,"count":..}`、数据包目录 `data/sdzjz/recipe/`（1.21 单数）——已按此写。
+5. `NbtComponent`：用 `copyNbt().contains(...)`（已改）。
+6. `HandledScreens.register` / `drawBackground(DrawContext,float,int,int)` 客户端签名。
+
+configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。

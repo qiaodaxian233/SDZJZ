@@ -1,3 +1,12 @@
 {
-  "itemGroup.sdzjz.main": "Redstone Terminator"
+  "itemGroup.sdzjz.main": "Redstone Terminator",
+  "item.sdzjz.core_module": "Core Module",
+  "item.sdzjz.wire_brusher": "Wire Brusher",
+  "item.sdzjz.speed_upgrade": "Speed Upgrade",
+  "item.sdzjz.count_upgrade": "Count Upgrade",
+  "item.sdzjz.parallel_upgrade": "Parallel Upgrade",
+  "item.sdzjz.capture_cage": "Capture Cage",
+  "block.sdzjz.structure_core": "Structure Core",
+  "block.sdzjz.super_bench": "Super Bench",
+  "container.sdzjz.structure_core": "Structure Core"
 }
