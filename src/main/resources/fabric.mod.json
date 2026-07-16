@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "sdzjz",
+  "version": "${version}",
+  "name": "生电终结者",
+  "description": "ComfyUI 式模块化量产 · 控制器方块 + 可连线节点画布 + 电力系统。合成面板即用，不再搭红石。",
+  "authors": ["qiaodaxian233"],
+  "contact": { "sources": "https://github.com/qiaodaxian233/SDZJZ" },
+  "license": "ARR",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.sdzjz.Sdzjz"],
+    "client": ["com.sdzjz.SdzjzClient"]
+  },
+  "mixins": ["sdzjz.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
