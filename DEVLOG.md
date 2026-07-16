@@ -27,3 +27,9 @@
 - 作者上传《完整设计文档.md》（1358 行，数据面板/无限逻辑仓储/生产核心矩阵/喷射输出/原版生电交互/性能与防复制/版本路线），纳入仓库作为**权威设计**；DESIGN.md 顶部加指针。
 - 按文档 §7.4「不用传统电力」，从 SdzjzConfig 撤掉上一轮的电力字段（enablePower/energyCapacity/accelEnergyExponent），换成每tick操作预算（core/chunk/network）+ 加速下限周期 + 散热开关 + 喷射实体上限 + 休眠开关。**configVersion 1→2**。
 - 未决：ComfyUI 节点画布的落位（编排层 A / 全画布 B），待作者拍板后进 Phase 1 排期。
+
+## m3 — 核心愿景校正 + 节点图数据模型
+
+- 作者澄清核心愿景：**给不会搭生电的人用的 ComfyUI 式节点工厂**（一头输入 → 拖几个模块 → 另一头出材料）。不把「不免费复制/平衡」当硬约束（推翻文档 §12 硬性平衡），默认好上手、可配。**A/B 定为 B**（整个界面就是画布）。文档里矩阵/喷射/无限仓储降级为可选扩展层。DESIGN.md 顶部加「核心愿景」段。
+- 落地 Phase 1 地基：`graph` 包 —— `ProductionGraph`（Node + Edge 纯数据模型 + Codec，从头按「节点+边」存，画布与运行时共用）+ `NodeKinds`（MVP 节点类型 input/craft/smelt/output）。
+- **待编译验证**：`RecordCodecBuilder` / `Codec.optionalFieldOf` / `listOf` 形状（DFU 标准 API，把握较高）。configVersion 不变（仍 2）。
