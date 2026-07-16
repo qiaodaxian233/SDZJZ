@@ -16,17 +16,19 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 1;
+    public int configVersion = 2;
 
-    // ===== 电力系统（Phase 2 起用，先占位）=====
-    public boolean enablePower = true;
-    public long controllerEnergyCapacity = 1_000_000L; // 单控制器电网缓冲上限
-    public double accelEnergyExponent = 1.35;           // 加速模块耗电超线性指数（>1 = 越加速越费电）
+    // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
+    public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
+    public long maxRecipesPerChunkTick = 262_144L;      // 每区块每tick上限
+    public long maxRecipesPerNetworkTick = 1_048_576L;  // 每玩家网络每tick上限
+    public int accelMinPeriodTicks = 1;                 // 加速叠加后的最小周期下限
+    public boolean enableThermalThrottle = false;       // 高速产热/需散热框架（默认关，可选平衡）
 
-    // ===== 防卡顿 =====
-    public int globalTickInterval = 20;   // 面板产出统一节拍（tick）
-    public int perPanelBufferSlots = 27;  // 单面板内部缓冲槽数（满则暂停，绝不掉落物）
-    public int maxPanelsPerController = 64;
+    // ===== 防卡顿 / 输出 =====
+    public int maxSprayEntitiesPerTick = 32;  // 每tick最大喷射实体数（§8.3 防实体爆炸）
+    public int coreBufferSlots = 27;          // 生产核心输出缓存槽数（满则按面板设置停机/喷射）
+    public boolean sleepWhenIdle = true;      // 无红石/缺料/堵塞/无人加载时休眠停tick（§15.3）
 
     // ===== 基调（偏硬核，全可调；越大越休闲）=====
     public double productionRateMultiplier = 1.0;
