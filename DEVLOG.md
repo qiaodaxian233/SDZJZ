@@ -124,3 +124,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 作者提供了 structure_core_gui.png（科幻边框+电路，空心中间）。缩到 360×256 存 assets/sdzjz/textures/gui/。
 - StructureCoreScreen.drawBackground：全窗 BACKDROP 铺底后，用 drawTexture 画该贴图当面板（1:1），去掉原纯色面板与分区底板；槽底/文字/按钮仍代码画在上层保证对齐。
 - 盯点：drawTexture 签名（1.21.1 用 `drawTexture(Identifier,int x,int y,float u,float v,int w,int h,int texW,int texH)`）——若报错按 IDE 提示换重载。
+
+## m18 — GUI 科技化【待编译验证】
+
+- 槽格从扁平深色改成科技风：深色内凹 + 青色四角。
+- 开机/停止按钮从原版灰按钮换成自绘 SciButton（深底青边，悬停发光变亮），nested ButtonWidget 覆盖 renderWidget。
+- 分区标题前加青色竖条。并发数值用青色高亮。
+- 盯点：ButtonWidget 7 参构造(narrationSupplier 传 lambda s->s.get())、renderWidget/isHovered/drawCenteredTextWithShadow 1.21.1 签名。
+- 说明：升级等级 = 升级槽内该升级物品数量(叠加)；速度-4t/级、数量+8/次/级、并发+4/级。
