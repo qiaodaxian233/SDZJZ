@@ -112,11 +112,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (be.ticks % interval != 0) continue;
             int parallelCap = (4 + parallelLv * 4) * tier;
             int running = Math.min(e.getValue(), parallelCap);
-            int perCycle = (def.baseOutputPerCycle() + countLv * 8) * tier;
-            int total = Math.min(running * perCycle, 64 * OUTPUT_SLOTS);
-            Item product = Registries.ITEM.get(Identifier.of(def.product()));
-            be.addOutput(new ItemStack(product, total));
-            produced = true;
+            for (MachineDef.Drop d : def.outputs()) {
+                if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
+                int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
+                if (amt <= 0) continue;
+                int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                Item product = Registries.ITEM.get(Identifier.of(d.item()));
+                be.addOutput(new ItemStack(product, total));
+                produced = true;
+            }
         }
         if (produced) {
             be.pushDown(world, pos);

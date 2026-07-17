@@ -40,6 +40,9 @@ public class ModItems {
     public static final Item SAND_MAKER     = reg("sand_maker",     new MachineItem(new Item.Settings(), Machines.SAND_MAKER));
     public static final Item ICE_MAKER      = reg("ice_maker",      new MachineItem(new Item.Settings(), Machines.ICE_MAKER));
     public static final Item OBSIDIAN_MAKER = reg("obsidian_maker", new MachineItem(new Item.Settings(), Machines.OBSIDIAN_MAKER));
+    public static final Item SWAMP_SPAWNER  = reg("swamp_spawner",  new MachineItem(new Item.Settings(), Machines.SWAMP_SPAWNER));
+    public static final Item WITCH_TOWER    = reg("witch_tower",    new MachineItem(new Item.Settings(), Machines.WITCH_TOWER));
+    public static final Item GUARDIAN_FARM  = reg("guardian_farm",  new MachineItem(new Item.Settings(), Machines.GUARDIAN_FARM));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -74,6 +77,9 @@ public class ModItems {
             entries.add(SAND_MAKER);
             entries.add(ICE_MAKER);
             entries.add(OBSIDIAN_MAKER);
+            entries.add(SWAMP_SPAWNER);
+            entries.add(WITCH_TOWER);
+            entries.add(GUARDIAN_FARM);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

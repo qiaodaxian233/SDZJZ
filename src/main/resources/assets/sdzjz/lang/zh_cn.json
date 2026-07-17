@@ -23,5 +23,8 @@
   "item.sdzjz.bamboo_farm": "竹子农场",
   "item.sdzjz.sand_maker": "刷沙机",
   "item.sdzjz.ice_maker": "刷冰机",
-  "item.sdzjz.obsidian_maker": "黑曜石机"
+  "item.sdzjz.obsidian_maker": "黑曜石机",
+  "item.sdzjz.swamp_spawner": "沼泽刷怪塔",
+  "item.sdzjz.witch_tower": "女巫塔",
+  "item.sdzjz.guardian_farm": "守卫者农场"
 }

@@ -2,14 +2,11 @@ package com.sdzjz.machine;
 
 import java.util.List;
 
-/**
- * 内置机器表（Phase 2 批量：农场类，consumesInputs=false 免费出，对齐原版刷怪/采集农场）。
- * 加工/合成类（consumesInputs=true）下一步做。加机器：这里加一条 + ModItems 注册 MachineItem + 配方/模型/lang。
- */
+/** 内置机器表。单产用 def()，多掉落用 defMulti()。全为农场类（免费出）。 */
 public final class Machines {
     private Machines() {}
 
-    //                                     id              product                 每次  周期t 消耗  输入
+    // ---- 单产农场 ----
     public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);
     public static final MachineDef COBBLE_MAKER   = def("cobble_maker",   "minecraft:cobblestone",  1, 10);
     public static final MachineDef BONE_FARM      = def("bone_farm",      "minecraft:bone",         1, 20);
@@ -25,7 +22,31 @@ public final class Machines {
     public static final MachineDef ICE_MAKER      = def("ice_maker",      "minecraft:ice",          1, 20);
     public static final MachineDef OBSIDIAN_MAKER = def("obsidian_maker", "minecraft:obsidian",     1, 40);
 
+    // ---- 多掉落农场 ----
+    public static final MachineDef SWAMP_SPAWNER = defMulti("swamp_spawner", 20,
+            drop("minecraft:string", 0, 2), drop("minecraft:gunpowder", 0, 2), drop("minecraft:bone", 0, 2),
+            drop("minecraft:arrow", 0, 2), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:spider_eye", 0, 1),
+            drop("minecraft:slime_ball", 0, 1));
+
+    public static final MachineDef WITCH_TOWER = defMulti("witch_tower", 25,
+            drop("minecraft:redstone", 0, 2), drop("minecraft:glowstone_dust", 0, 2), drop("minecraft:sugar", 0, 2),
+            drop("minecraft:glass_bottle", 0, 1), drop("minecraft:gunpowder", 0, 1), drop("minecraft:stick", 0, 2),
+            drop("minecraft:spider_eye", 0, 1));
+
+    public static final MachineDef GUARDIAN_FARM = defMulti("guardian_farm", 25,
+            drop("minecraft:prismarine_shard", 0, 2), drop("minecraft:prismarine_crystals", 0, 1),
+            drop("minecraft:cod", 0, 1));
+
+    // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
-        return new MachineDef(id, product, perCycle, interval, false, List.of());
+        return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());
+    }
+
+    private static MachineDef defMulti(String id, int interval, MachineDef.Drop... drops) {
+        return new MachineDef(id, List.of(drops), interval, false, List.of());
+    }
+
+    private static MachineDef.Drop drop(String item, int min, int max) {
+        return new MachineDef.Drop(item, min, max, 1f);
     }
 }

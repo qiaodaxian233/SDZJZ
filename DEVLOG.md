@@ -104,3 +104,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 再加 6 台单产农场：树场/甘蔗/竹子/刷沙/刷冰/黑曜石（共 14 台）。
 - 新增 机器路线图.md：把作者 1.21.1 生电大全分 6 桶（A单产已支持 / B多掉落需MachineDef加权 / C消耗类走consumesInputs / D抓物笼子供生物 / E规模多方块 / F红石工程装置超范围）。
 - configVersion 仍 2。
+
+## m12 — 多掉落系统 + 3 台多掉落机器【待编译验证】
+
+- MachineDef 升级：product 单产 → outputs=List<Drop>(item,min,max,chance)，保留 Input。Machines 单产走 def() 包成单条 Drop，新增 defMulti()。BE tick 遍历 outputs 按概率+数量区间产出（数量升级仍 +8/条，并发/tier 生效），用 world.getRandom()。
+- 新增 3 台多掉落：沼泽刷怪塔(线/火药/骨/箭/腐肉/蜘蛛眼/粘液)、女巫塔(红石/发光粉/糖/瓶/火药/棍/蜘蛛眼)、守卫者农场(海晶碎片/晶体/鳕鱼)。共 17 台机器。
+- 新增 TEXTURES.md：25 张贴图清单(22 物品+3 方块，16×16 透明)给作者用 GPT 做，放对目录即可无需改代码。
+- configVersion 仍 2。
