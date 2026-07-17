@@ -18,8 +18,14 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -35,6 +41,23 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public static final int PAGE = 54;
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();
+
+    // ---- 面板位置登记表（无线连接查找用，仅服务端）----
+    private static final Map<RegistryKey<World>, Set<BlockPos>> PANELS = new HashMap<>();
+
+    public static void register(World world, BlockPos pos) {
+        if (world.isClient) return;
+        PANELS.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>()).add(pos.toImmutable());
+    }
+
+    public static void unregister(World world, BlockPos pos) {
+        Set<BlockPos> s = PANELS.get(world.getRegistryKey());
+        if (s != null) s.remove(pos);
+    }
+
+    public static Set<BlockPos> panelsIn(World world) {
+        return PANELS.getOrDefault(world.getRegistryKey(), Set.of());
+    }
     public final SimpleInventory display = new SimpleInventory(PAGE);
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {
@@ -43,7 +66,14 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
         if (world.isClient) return;
+        register(world, pos);
         be.refreshDisplay();
+    }
+
+    @Override
+    public void markRemoved() {
+        if (this.world != null) unregister(this.world, this.pos);
+        super.markRemoved();
     }
 
     /** 存入（消耗传入 stack）。 */

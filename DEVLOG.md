@@ -164,3 +164,12 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 脚本生成：Machines 常量、ModItems 注册+创造组、配方(统一 IOI/RMR/CSC 模板, S=对应引子)、物品模型、中英名、128×128 品红占位贴图；绘图名单追加 10 项。
 - 机器物品总数 22→32。configVersion 仍 2。
 - 贴图待画(占位品红)：cactus_farm/nether_wart_farm/kelp_farm/blaze_farm/wither_skeleton_farm/honey_farm/iron_smelter/gold_smelter/charcoal_kiln/glass_kiln。
+
+## m23 — 中期无线(WiFi)连接【待编译验证】
+
+- 新增 WirelessNodeBlock「无线节点」。接在核心相邻或其数据线网络上即启用无线。
+- 数据面板加静态"位置登记表"(Map<RegistryKey<World>,Set<BlockPos>>)：tick 登记、markRemoved 注销。
+- StructureCoreBlockEntity 加 hasWirelessNode(BFS 找网络上的无线节点) + nearestWirelessPanel(登记表内同维度、range内最近面板)。产出 pushOutput 与消耗机取料均"有线优先，无线兜底"。
+- 配置加 wirelessRange=48，configVersion 2→3。
+- 无线节点：配方(铜4+末影珍珠4+核心模块)、方块/物品模型、blockstate、中英名、创造组、64×64占位贴图；绘图名单+wireless_node。
+- 连接系统.md 记录无线已实现；后续卫星/多核心绑定/手持终端。

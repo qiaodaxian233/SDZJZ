@@ -43,5 +43,6 @@
   "item.sdzjz.iron_smelter": "铁熔炉",
   "item.sdzjz.gold_smelter": "金熔炉",
   "item.sdzjz.charcoal_kiln": "木炭窑",
-  "item.sdzjz.glass_kiln": "玻璃窑"
+  "item.sdzjz.glass_kiln": "玻璃窑",
+  "block.sdzjz.wireless_node": "无线节点"
 }

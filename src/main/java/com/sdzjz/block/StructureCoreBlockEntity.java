@@ -116,6 +116,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (def.consumesInputs()) {
                 // 消耗类：从连接的数据面板取料，产物入缓存
                 DataPanelBlockEntity src = be.findPanel(world, pos);
+                if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
                 if (src == null) continue;
                 boolean ok = true;
                 for (MachineDef.Input in : def.inputs())
@@ -169,6 +170,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 把输出缓存送到：相邻的数据面板/箱子，或顺着数据线 BFS 连到的存储。 */
     private void pushOutput(World world, BlockPos corePos) {
         Object target = findTarget(world, corePos);
+        if (target == null && hasWirelessNode(world, corePos)) target = nearestWirelessPanel(world, corePos);
         if (target == null) return;
         for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
             ItemStack slot = items.get(i);
@@ -200,7 +202,42 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return null;
     }
 
-    /** BFS 找连接的数据面板（消耗类取料用）。 */
+    /** 核心相邻或其数据线网络上是否接了无线节点。 */
+    private boolean hasWirelessNode(World world, BlockPos corePos) {
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
+        java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();
+        q.add(corePos);
+        seen.add(corePos);
+        int budget = 128;
+        while (!q.isEmpty() && budget-- > 0) {
+            BlockPos cur = q.poll();
+            for (Direction d : Direction.values()) {
+                BlockPos np = cur.offset(d);
+                if (!seen.add(np)) continue;
+                var block = world.getBlockState(np).getBlock();
+                if (block instanceof WirelessNodeBlock) return true;
+                if (block instanceof DataCableBlock) q.add(np);
+            }
+        }
+        return false;
+    }
+
+    /** 登记表里、范围内、同维度最近的数据面板。 */
+    private DataPanelBlockEntity nearestWirelessPanel(World world, BlockPos corePos) {
+        long range = SdzjzConfig.get().wirelessRange;
+        long r2 = range * range, best = Long.MAX_VALUE;
+        DataPanelBlockEntity found = null;
+        for (BlockPos p : DataPanelBlockEntity.panelsIn(world)) {
+            long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
+            long d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 > r2 || d2 >= best) continue;
+            if (world.getBlockEntity(p) instanceof DataPanelBlockEntity panel) {
+                best = d2;
+                found = panel;
+            }
+        }
+        return found;
+    }
     private DataPanelBlockEntity findPanel(World world, BlockPos corePos) {
         java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
         java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();

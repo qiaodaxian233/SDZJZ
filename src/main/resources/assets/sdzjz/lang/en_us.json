@@ -43,5 +43,6 @@
   "item.sdzjz.iron_smelter": "Iron Smelter",
   "item.sdzjz.gold_smelter": "Gold Smelter",
   "item.sdzjz.charcoal_kiln": "Charcoal Kiln",
-  "item.sdzjz.glass_kiln": "Glass Kiln"
+  "item.sdzjz.glass_kiln": "Glass Kiln",
+  "block.sdzjz.wireless_node": "Wireless Node"
 }
