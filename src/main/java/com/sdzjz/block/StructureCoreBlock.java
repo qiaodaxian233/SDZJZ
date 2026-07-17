@@ -1,5 +1,8 @@
 package com.sdzjz.block;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.sdzjz.registry.ModBlockEntities;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
@@ -20,9 +23,20 @@ import org.jetbrains.annotations.Nullable;
 public class StructureCoreBlock extends BlockWithEntity {
     public final int tier;
 
+    public static final MapCodec<StructureCoreBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
+            instance.group(
+                    createSettingsCodec(),
+                    Codec.INT.fieldOf("tier").forGetter(b -> b.tier)
+            ).apply(instance, StructureCoreBlock::new));
+
     public StructureCoreBlock(Settings settings, int tier) {
         super(settings);
         this.tier = tier;
+    }
+
+    @Override
+    protected MapCodec<? extends BlockWithEntity> getCodec() {
+        return CODEC;
     }
 
     @Override
