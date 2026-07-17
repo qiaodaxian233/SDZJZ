@@ -1,0 +1,4 @@
+{ "type":"minecraft:crafting_shaped","pattern":["GLG","ECE","GMG"],
+  "key":{"G":"minecraft:glass","L":"minecraft:lapis_lazuli","E":"minecraft:ender_pearl",
+         "C":"minecraft:chest","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:data_panel","count":1} }

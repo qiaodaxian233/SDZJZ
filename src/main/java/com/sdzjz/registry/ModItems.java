@@ -47,6 +47,7 @@ public class ModItems {
             entries.add(CAPTURE_CAGE);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
+            entries.add(ModBlocks.DATA_PANEL);
         });
     }
 }

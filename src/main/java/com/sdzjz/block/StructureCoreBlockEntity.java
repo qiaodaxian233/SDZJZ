@@ -109,6 +109,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 把输出缓存推入正下方容器。 */
     private void pushDown(World world, BlockPos pos) {
         BlockEntity below = world.getBlockEntity(pos.down());
+        if (below instanceof DataPanelBlockEntity panel) {
+            for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
+                ItemStack slot = items.get(i);
+                if (slot.isEmpty()) continue;
+                panel.deposit(slot);
+                if (slot.isEmpty()) items.set(i, ItemStack.EMPTY);
+            }
+            return;
+        }
         if (!(below instanceof Inventory target)) return;
         for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
             ItemStack slot = items.get(i);

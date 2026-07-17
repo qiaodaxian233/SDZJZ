@@ -8,5 +8,7 @@
   "item.sdzjz.capture_cage": "抓物笼子",
   "block.sdzjz.structure_core": "结构核心",
   "block.sdzjz.super_bench": "超大工作台",
-  "container.sdzjz.structure_core": "结构核心"
+  "container.sdzjz.structure_core": "结构核心",
+  "block.sdzjz.data_panel": "数据面板",
+  "container.sdzjz.data_panel": "数据面板"
 }

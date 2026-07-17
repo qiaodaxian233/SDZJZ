@@ -81,3 +81,12 @@
 6. `HandledScreens.register` / `drawBackground(DrawContext,float,int,int)` 客户端签名。
 
 configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
+
+## m9 — 数据面板（数字化仓储终端）【待编译验证】
+
+- 新增数据面板：DataPanelBlock + DataPanelBlockEntity（逻辑仓储 id→long，近乎无限；服务端每 tick 从 store 前 54 种刷新 54 格展示；deposit/withdraw；NBT 存 store 列表）。
+- GUI：DataPanelScreenHandler（6×9 展示格只取不放、取出即扣 store；玩家背包 shift 存入面板）+ 客户端 DataPanelScreen；已注册 BE/方块/物品/ScreenHandler/Screen，创造组加入。
+- 结构核心 pushDown 改：下方是数据面板则直接 deposit（否则走原 Inventory 逻辑）。→ 核心放数据面板上即自动入库。
+- 配方：玻璃×4+青金×2+末影珍珠×2+箱子+核心模块 → 数据面板。模型/blockstate/中英 lang 齐（贴图占位）。
+- 之前 m8 成功编译（仅 getCodec 一错已修）；ModBlockEntities 的 deprecation 只是警告，暂留。
+- Phase 2 简化/待办：展示不翻页（类型>54 暂不显示多的）；取物的 partial/右键细节按需再调。configVersion 仍 2。

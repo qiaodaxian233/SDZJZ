@@ -8,5 +8,7 @@
   "item.sdzjz.capture_cage": "Capture Cage",
   "block.sdzjz.structure_core": "Structure Core",
   "block.sdzjz.super_bench": "Super Bench",
-  "container.sdzjz.structure_core": "Structure Core"
+  "container.sdzjz.structure_core": "Structure Core",
+  "block.sdzjz.data_panel": "Data Panel",
+  "container.sdzjz.data_panel": "Data Panel"
 }

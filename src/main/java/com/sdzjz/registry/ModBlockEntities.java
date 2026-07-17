@@ -1,6 +1,7 @@
 package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
+import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.block.StructureCoreBlockEntity;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.entity.BlockEntityType;
@@ -14,7 +15,10 @@ public class ModBlockEntities {
                     FabricBlockEntityTypeBuilder.create(StructureCoreBlockEntity::new,
                             ModBlocks.STRUCTURE_CORE, ModBlocks.SUPER_BENCH).build());
 
-    public static void init() {
-        // 触发静态初始化
-    }
+    public static final BlockEntityType<DataPanelBlockEntity> DATA_PANEL_BE =
+            Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("data_panel"),
+                    FabricBlockEntityTypeBuilder.create(DataPanelBlockEntity::new,
+                            ModBlocks.DATA_PANEL).build());
+
+    public static void init() {}
 }
