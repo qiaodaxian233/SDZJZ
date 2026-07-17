@@ -23,6 +23,8 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -172,13 +174,45 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 右键把机器/笼子作为一个节点加入画布（无数量上限）。 */
+    /** 右键把机器/笼子作为一个节点加入画布（无上限）；首次自动布局位置。 */
     public boolean insertMachine(ItemStack held) {
         if (held.isEmpty()) return false;
-        machineNodes.add(held.copy());
+        ItemStack node = held.copy();
+        NbtCompound n = node.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        if (!n.contains("nx")) {
+            int i = machineNodes.size(), cols = 6;
+            n.putInt("nx", 20 + (i % cols) * 112);
+            n.putInt("ny", 20 + (i / cols) * 66);
+            node.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        }
+        machineNodes.add(node);
         held.setCount(0);
         markDirty();
         syncToClient();
         return true;
+    }
+
+    /** 读节点画布坐标（无则给默认）。 */
+    public int nodeX(ItemStack s, int def) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        return n.contains("nx") ? n.getInt("nx") : def;
+    }
+
+    public int nodeY(ItemStack s, int def) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        return n.contains("ny") ? n.getInt("ny") : def;
+    }
+
+    /** 设置某节点画布坐标（服务端会同步客户端；客户端调用仅本地视觉）。 */
+    public void setNodePos(int index, int nx, int ny) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        n.putInt("nx", nx);
+        n.putInt("ny", ny);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
     }
 
     /** 右键把升级放入升级槽。 */

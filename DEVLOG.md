@@ -259,3 +259,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 报错：net.minecraft.block.ItemScatterer 找不到。Yarn 1.21 API 确认其位于 net.minecraft.util.ItemScatterer。
 - StructureCoreBlockEntity import 改 net.minecraft.util.ItemScatterer；StructureCoreBlock 不再直接用它，删除该 import。
 - dropAll 两 spawn 重载确认存在：spawn(World,BlockPos,Inventory) / spawn(World,double,double,double,ItemStack)。
+
+## m35 — 画布 Phase2：节点拖动 + 位置保存【待编译验证】
+- 新增 com/sdzjz/net/NodeMovePayload：C2S 自定义包(BlockPos+index+nx+ny)，CustomPayload + PacketCodec.tuple(BlockPos.PACKET_CODEC/PacketCodecs.INTEGER)。查证 fabric-api 0.115.6+1.21.1 网络 API。
+- Sdzjz.onInitialize：PayloadTypeRegistry.playC2S().register(通用init=双端注册) + ServerPlayNetworking.registerGlobalReceiver → 服务端 core.setNodePos。
+- BE：节点位置存进各自 ItemStack 的 CUSTOM_DATA(nx,ny)；insertMachine 首次自动网格布局；nodeX/nodeY 读取、setNodePos 写入(服务端同步/客户端本地视觉)。
+- StructureCoreScreen：按节点保存坐标渲染；mouseClicked 命中节点开始拖动、mouseDragged 拖节点(本地即时)或平移、mouseReleased 发 NodeMovePayload 持久化。
+- 盯点：PacketCodec.tuple 四字段重载、playC2S 双端注册。
+- 后续：Phase3 连线；Phase4 缩放。超大工作台 12×12 合成台。

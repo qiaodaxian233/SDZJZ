@@ -1,11 +1,16 @@
 package com.sdzjz;
 
+import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.config.SdzjzConfig;
+import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +26,19 @@ public class Sdzjz implements ModInitializer {
         ModBlockEntities.init();
         ModScreenHandlers.init();
         ModItems.init();
-        LOGGER.info("[生电终结者] Phase 1 已加载：结构核心 + 刷线机 + 升级 + 抓物笼子。");
+
+        // 网络：画布节点拖动位置（C2S）
+        PayloadTypeRegistry.playC2S().register(NodeMovePayload.ID, NodeMovePayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.setNodePos(payload.index(), payload.nx(), payload.ny());
+                }
+            });
+        });
+
+        LOGGER.info("[生电终结者] 已加载：结构核心画布 + 机器 + 升级 + 连接系统。");
     }
 
     public static Identifier id(String path) {

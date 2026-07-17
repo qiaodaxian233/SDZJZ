@@ -1,7 +1,9 @@
 package com.sdzjz.client;
 
 import com.sdzjz.block.StructureCoreBlockEntity;
+import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.screen.StructureCoreScreenHandler;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -30,6 +32,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int NODEFRM  = 0xFF1C5A80;
 
     private double panX = 0, panY = 0;
+    private int dragIndex = -1, dragOffX, dragOffY;
 
     public StructureCoreScreen(StructureCoreScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
@@ -66,15 +69,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int x = ox; x < this.width; x += step) ctx.fill(x, 34, x + 1, this.height, GRID);
         for (int y = 34 + oy; y < this.height; y += step) ctx.fill(0, y, this.width, y + 1, GRID);
 
-        // 节点
+        // 节点（按各自保存的画布坐标）
         StructureCoreBlockEntity be = be();
         if (be != null) {
             List<ItemStack> nodes = be.nodes();
-            int cols = Math.max(1, (this.width - 40) / 112);
             for (int i = 0; i < nodes.size(); i++) {
                 ItemStack st = nodes.get(i);
-                int nx = 20 + (i % cols) * 112 + (int) panX;
-                int ny = 60 + (i / cols) * 66 + (int) panY;
+                int nx = be.nodeX(st, 20 + (i % 6) * 112) + (int) panX;
+                int ny = be.nodeY(st, 60 + (i / 6) * 66) + (int) panY;
                 drawNode(ctx, nx, ny, st);
             }
         }
@@ -110,17 +112,63 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 + " 数量Lv" + this.handler.countLv()
                 + " 并发Lv" + this.handler.parallelLv();
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "手持机器右键核心=放入 · 潜行右键=弹出 · 拖动空白=平移", 10, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键核心=放入 · 潜行右键=弹出 · 拖节点=移动 · 拖空白=平移", 10, this.height - 12, SUB, false);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && mouseY > 34) {
+            StructureCoreBlockEntity be = be();
+            if (be != null) {
+                List<ItemStack> nodes = be.nodes();
+                for (int i = nodes.size() - 1; i >= 0; i--) {
+                    ItemStack st = nodes.get(i);
+                    int nx = be.nodeX(st, 20 + (i % 6) * 112) + (int) panX;
+                    int ny = be.nodeY(st, 60 + (i / 6) * 66) + (int) panY;
+                    if (mouseX >= nx && mouseX <= nx + 100 && mouseY >= ny && mouseY <= ny + 52) {
+                        dragIndex = i;
+                        dragOffX = (int) mouseX - nx;
+                        dragOffY = (int) mouseY - ny;
+                        return true;
+                    }
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (button == 0 && dragIndex >= 0) {
+            StructureCoreBlockEntity be = be();
+            if (be != null && dragIndex < be.nodes().size()) {
+                int nx = (int) mouseX - dragOffX - (int) panX;
+                int ny = (int) mouseY - dragOffY - (int) panY;
+                be.setNodePos(dragIndex, nx, ny); // 本地即时视觉
+            }
+            return true;
+        }
         if (button == 0 && mouseY > 34) {
             panX += deltaX;
             panY += deltaY;
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0 && dragIndex >= 0) {
+            StructureCoreBlockEntity be = be();
+            BlockPos p = this.handler.blockPos();
+            if (be != null && p != null && dragIndex < be.nodes().size()) {
+                ItemStack st = be.nodes().get(dragIndex);
+                ClientPlayNetworking.send(new NodeMovePayload(p, dragIndex, be.nodeX(st, 0), be.nodeY(st, 0)));
+            }
+            dragIndex = -1;
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
