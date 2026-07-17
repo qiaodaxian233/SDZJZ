@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["RER","EME","RER"],
+  "key":{"R":"minecraft:redstone","E":"minecraft:ender_pearl","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:linker","count":1} }

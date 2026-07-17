@@ -16,6 +16,8 @@ import com.sdzjz.item.MachineItem;
 import com.sdzjz.machine.MachineDef;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,6 +49,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static final int SIZE = MACHINE_SLOTS + UPGRADE_SLOTS + OUTPUT_SLOTS; // 19
 
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
+    private BlockPos boundPanelPos;
+    private String boundPanelDim;
     public boolean running = false;
     private long ticks = 0;
 
@@ -115,7 +119,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
             if (def.consumesInputs()) {
                 // 消耗类：从连接的数据面板取料，产物入缓存
-                DataPanelBlockEntity src = be.findPanel(world, pos);
+                DataPanelBlockEntity src = be.boundPanel(world, pos);
+                if (src == null) src = be.findPanel(world, pos);
                 if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
                 if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
                 if (src == null) continue;
@@ -170,7 +175,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 把输出缓存推入正下方容器。 */
     /** 把输出缓存送到：相邻的数据面板/箱子，或顺着数据线 BFS 连到的存储。 */
     private void pushOutput(World world, BlockPos corePos) {
-        Object target = findTarget(world, corePos);
+        Object target = boundPanel(world, corePos);
+        if (target == null) target = findTarget(world, corePos);
         if (target == null && hasWirelessNode(world, corePos)) target = nearestWirelessPanel(world, corePos);
         if (target == null && hasSatelliteNode(world, corePos)) target = findSatellitePanel(world, corePos);
         if (target == null) return;
@@ -261,6 +267,54 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return false;
     }
 
+    /** 数据链接器设置的绑定目标面板。 */
+    public void setBound(BlockPos pos, String dim) {
+        this.boundPanelPos = pos == null ? null : pos.toImmutable();
+        this.boundPanelDim = dim;
+        markDirty();
+    }
+
+    /** 绑定目标可达则返回（同维度需无线/卫星/有线可达；跨维度需卫星）。优先级最高。 */
+    private DataPanelBlockEntity boundPanel(World world, BlockPos corePos) {
+        if (boundPanelPos == null || boundPanelDim == null) return null;
+        RegistryKey<World> dimKey = RegistryKey.of(RegistryKeys.WORLD, Identifier.of(boundPanelDim));
+        boolean sameDim = world.getRegistryKey().equals(dimKey);
+        if (sameDim) {
+            long dx = boundPanelPos.getX() - corePos.getX(), dy = boundPanelPos.getY() - corePos.getY(), dz = boundPanelPos.getZ() - corePos.getZ();
+            long d2 = dx * dx + dy * dy + dz * dz, range = SdzjzConfig.get().wirelessRange;
+            boolean ok = hasSatelliteNode(world, corePos)
+                    || (hasWirelessNode(world, corePos) && d2 <= range * range)
+                    || wiredReaches(world, corePos, boundPanelPos);
+            if (!ok) return null;
+            return world.getBlockEntity(boundPanelPos) instanceof DataPanelBlockEntity p ? p : null;
+        }
+        if (!hasSatelliteNode(world, corePos)) return null;
+        if (world instanceof net.minecraft.server.world.ServerWorld sw) {
+            net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(dimKey);
+            if (ow != null && ow.getBlockEntity(boundPanelPos) instanceof DataPanelBlockEntity p) return p;
+        }
+        return null;
+    }
+
+    /** 目标面板是否经相邻/数据线有线可达。 */
+    private boolean wiredReaches(World world, BlockPos corePos, BlockPos target) {
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
+        java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();
+        q.add(corePos);
+        seen.add(corePos);
+        int budget = 256;
+        while (!q.isEmpty() && budget-- > 0) {
+            BlockPos cur = q.poll();
+            for (Direction d : Direction.values()) {
+                BlockPos np = cur.offset(d);
+                if (!seen.add(np)) continue;
+                if (np.equals(target)) return true;
+                if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
+            }
+        }
+        return false;
+    }
+
     /** 卫星：本维度最近(无距离上限)优先，否则其它已加载维度里任意一个数据面板。 */
     private DataPanelBlockEntity findSatellitePanel(World world, BlockPos corePos) {
         long best = Long.MAX_VALUE;
@@ -325,6 +379,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
         Inventories.writeNbt(nbt, items, lookup);
+        if (boundPanelPos != null && boundPanelDim != null) {
+            nbt.putLong("boundPos", boundPanelPos.asLong());
+            nbt.putString("boundDim", boundPanelDim);
+        }
         nbt.putBoolean("running", running);
     }
 
@@ -332,6 +390,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         Inventories.readNbt(nbt, items, lookup);
+        if (nbt.contains("boundPos")) {
+            boundPanelPos = BlockPos.fromLong(nbt.getLong("boundPos"));
+            boundPanelDim = nbt.getString("boundDim");
+        } else {
+            boundPanelPos = null; boundPanelDim = null;
+        }
         running = nbt.getBoolean("running");
     }
 

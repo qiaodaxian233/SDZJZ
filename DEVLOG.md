@@ -182,3 +182,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - DataPanel 暴露 dimensionsWithPanels()。
 - 卫星节点：配方(无线节点×3+末影之眼×4+下界之星+核心模块)、模型/blockstate/物品模型、中英名、创造组、占位贴图；绘图名单+satellite_node。
 - 连接三期完成：连线✅ 无线✅ 卫星✅。configVersion 仍 3。
+
+## m25 — 数据面板绑定多核心 / 指定目标面板【待编译验证】
+
+- 新增 LinkerItem「数据链接器」：右键面板记录目标(pos+dim→CUSTOM_DATA)，右键核心 setBound 绑定；潜行右键核心解绑。
+- StructureCoreBlockEntity：boundPanelPos/boundPanelDim 字段 + NBT 读写；boundPanel() 解析可达绑定目标(同维度=无线&范围内/卫星/wiredReaches；跨维度=卫星)；wiredReaches() 目标定向BFS。
+- 路由优先级：绑定 → 有线 → 无线 → 卫星（产出与消耗机取料一致）。多核心绑同一面板即聚合。
+- 链接器：配方(红石4+末影珍珠4+核心模块)、模型、中英名、占位贴图、创造组；绘图名单+linker。
+- configVersion 仍 3。
