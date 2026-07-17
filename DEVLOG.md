@@ -90,3 +90,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 配方：玻璃×4+青金×2+末影珍珠×2+箱子+核心模块 → 数据面板。模型/blockstate/中英 lang 齐（贴图占位）。
 - 之前 m8 成功编译（仅 getCodec 一错已修）；ModBlockEntities 的 deprecation 只是警告，暂留。
 - Phase 2 简化/待办：展示不翻页（类型>54 暂不显示多的）；取物的 partial/右键细节按需再调。configVersion 仍 2。
+
+## m10 — 结构核心通用化 + 一批机器【待编译验证】
+
+- 结构核心 tick 从"只认刷线机、只出线"改为**按 MachineDef 跑任意机器**：机器做成 MachineItem（携带 def），tick 按类型分组，各自按 def 的产物/周期/单产运行，共享 速度/数量/并发 升级；改用单调计数 ticks + 每 def interval 取模，支持不同机器不同周期。
+- 机器槽 canInsert 泛化为接受任意 MachineItem。
+- 新增 7 台农场类机器（consumesInputs=false 免费出）：刷石机(cobblestone,10t)/刷骨机(bone)/刷火药机(gunpowder,25t)/刷腐肉机(rotten_flesh)/刷珍珠机(ender_pearl,30t)/刷史莱姆机(slime_ball)/刷铁机(iron_ingot,40t)。配方统一模板（铁+观察者+核心模块+红石+铜 + 1个目标产物引子），物品模型+中英名齐。
+- 加工/合成类（consumesInputs=true）仍跳过，下一步做。修了一次自己引入的括号错（误删 countUpgrade 签名）。configVersion 仍 2。
