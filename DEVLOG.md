@@ -97,3 +97,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 机器槽 canInsert 泛化为接受任意 MachineItem。
 - 新增 7 台农场类机器（consumesInputs=false 免费出）：刷石机(cobblestone,10t)/刷骨机(bone)/刷火药机(gunpowder,25t)/刷腐肉机(rotten_flesh)/刷珍珠机(ender_pearl,30t)/刷史莱姆机(slime_ball)/刷铁机(iron_ingot,40t)。配方统一模板（铁+观察者+核心模块+红石+铜 + 1个目标产物引子），物品模型+中英名齐。
 - 加工/合成类（consumesInputs=true）仍跳过，下一步做。修了一次自己引入的括号错（误删 countUpgrade 签名）。configVersion 仍 2。
+
+## m11 — 结构核心 GUI 通用状态化 + 再加 6 台机器 + 路线图【待编译验证】
+
+- GUI 通用化以"兼容所有机器"：StructureCoreBlockEntity 加 PropertyDelegate(运行/机器数/tier/速度·数量·并发Lv)；ScreenHandler 走 addProperties + 状态 getter；客户端 Screen drawForeground 显示 运行状态/tier名/机器数/升级等级。机器槽本就接受任意 MachineItem。
+- 再加 6 台单产农场：树场/甘蔗/竹子/刷沙/刷冰/黑曜石（共 14 台）。
+- 新增 机器路线图.md：把作者 1.21.1 生电大全分 6 桶（A单产已支持 / B多掉落需MachineDef加权 / C消耗类走consumesInputs / D抓物笼子供生物 / E规模多方块 / F红石工程装置超范围）。
+- configVersion 仍 2。

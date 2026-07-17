@@ -17,5 +17,11 @@
   "item.sdzjz.flesh_farm": "Rotten Flesh Farm",
   "item.sdzjz.pearl_farm": "Ender Pearl Farm",
   "item.sdzjz.slime_farm": "Slime Farm",
-  "item.sdzjz.iron_farm": "Iron Farm"
+  "item.sdzjz.iron_farm": "Iron Farm",
+  "item.sdzjz.tree_farm": "Tree Farm",
+  "item.sdzjz.sugarcane_farm": "Sugarcane Farm",
+  "item.sdzjz.bamboo_farm": "Bamboo Farm",
+  "item.sdzjz.sand_maker": "Sand Maker",
+  "item.sdzjz.ice_maker": "Ice Maker",
+  "item.sdzjz.obsidian_maker": "Obsidian Maker"
 }

@@ -18,6 +18,12 @@ public final class Machines {
     public static final MachineDef PEARL_FARM     = def("pearl_farm",     "minecraft:ender_pearl",  1, 30);
     public static final MachineDef SLIME_FARM     = def("slime_farm",     "minecraft:slime_ball",   1, 25);
     public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
+    public static final MachineDef TREE_FARM      = def("tree_farm",      "minecraft:oak_log",      1, 30);
+    public static final MachineDef SUGARCANE_FARM = def("sugarcane_farm", "minecraft:sugar_cane",   1, 20);
+    public static final MachineDef BAMBOO_FARM    = def("bamboo_farm",    "minecraft:bamboo",       1, 15);
+    public static final MachineDef SAND_MAKER     = def("sand_maker",     "minecraft:sand",         1, 15);
+    public static final MachineDef ICE_MAKER      = def("ice_maker",      "minecraft:ice",          1, 20);
+    public static final MachineDef OBSIDIAN_MAKER = def("obsidian_maker", "minecraft:obsidian",     1, 40);
 
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, product, perCycle, interval, false, List.of());

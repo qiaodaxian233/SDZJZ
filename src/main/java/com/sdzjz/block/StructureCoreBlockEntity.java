@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
@@ -47,6 +48,36 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     public boolean running = false;
     private long ticks = 0;
+
+    /** GUI 状态同步：0=运行 1=机器数 2=tier 3=速度Lv 4=数量Lv 5=并发Lv。 */
+    public final PropertyDelegate propertyDelegate = new PropertyDelegate() {
+        @Override public int get(int i) {
+            return switch (i) {
+                case 0 -> running ? 1 : 0;
+                case 1 -> machineCount();
+                case 2 -> tierOf();
+                case 3 -> countUpgrade(ModItems.SPEED_UPGRADE);
+                case 4 -> countUpgrade(ModItems.COUNT_UPGRADE);
+                case 5 -> countUpgrade(ModItems.PARALLEL_UPGRADE);
+                default -> 0;
+            };
+        }
+        @Override public void set(int i, int v) { if (i == 0) running = (v != 0); }
+        @Override public int size() { return 6; }
+    };
+
+    private int machineCount() {
+        int n = 0;
+        for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
+            if (items.get(i).getItem() instanceof MachineItem) n += items.get(i).getCount();
+        }
+        return n;
+    }
+
+    private int tierOf() {
+        if (world == null) return 1;
+        return world.getBlockState(pos).getBlock() instanceof StructureCoreBlock scb ? scb.tier : 1;
+    }
 
     public StructureCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.STRUCTURE_CORE_BE, pos, state);

@@ -34,6 +34,12 @@ public class ModItems {
     public static final Item PEARL_FARM     = reg("pearl_farm",     new MachineItem(new Item.Settings(), Machines.PEARL_FARM));
     public static final Item SLIME_FARM     = reg("slime_farm",     new MachineItem(new Item.Settings(), Machines.SLIME_FARM));
     public static final Item IRON_FARM      = reg("iron_farm",      new MachineItem(new Item.Settings(), Machines.IRON_FARM));
+    public static final Item TREE_FARM      = reg("tree_farm",      new MachineItem(new Item.Settings(), Machines.TREE_FARM));
+    public static final Item SUGARCANE_FARM = reg("sugarcane_farm", new MachineItem(new Item.Settings(), Machines.SUGARCANE_FARM));
+    public static final Item BAMBOO_FARM    = reg("bamboo_farm",    new MachineItem(new Item.Settings(), Machines.BAMBOO_FARM));
+    public static final Item SAND_MAKER     = reg("sand_maker",     new MachineItem(new Item.Settings(), Machines.SAND_MAKER));
+    public static final Item ICE_MAKER      = reg("ice_maker",      new MachineItem(new Item.Settings(), Machines.ICE_MAKER));
+    public static final Item OBSIDIAN_MAKER = reg("obsidian_maker", new MachineItem(new Item.Settings(), Machines.OBSIDIAN_MAKER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -62,6 +68,12 @@ public class ModItems {
             entries.add(PEARL_FARM);
             entries.add(SLIME_FARM);
             entries.add(IRON_FARM);
+            entries.add(TREE_FARM);
+            entries.add(SUGARCANE_FARM);
+            entries.add(BAMBOO_FARM);
+            entries.add(SAND_MAKER);
+            entries.add(ICE_MAKER);
+            entries.add(OBSIDIAN_MAKER);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

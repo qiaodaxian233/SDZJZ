@@ -17,5 +17,11 @@
   "item.sdzjz.flesh_farm": "刷腐肉机",
   "item.sdzjz.pearl_farm": "刷珍珠机",
   "item.sdzjz.slime_farm": "刷史莱姆机",
-  "item.sdzjz.iron_farm": "刷铁机"
+  "item.sdzjz.iron_farm": "刷铁机",
+  "item.sdzjz.tree_farm": "全自动树场",
+  "item.sdzjz.sugarcane_farm": "甘蔗机",
+  "item.sdzjz.bamboo_farm": "竹子农场",
+  "item.sdzjz.sand_maker": "刷沙机",
+  "item.sdzjz.ice_maker": "刷冰机",
+  "item.sdzjz.obsidian_maker": "黑曜石机"
 }
