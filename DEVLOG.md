@@ -148,3 +148,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - DataPanelBlockEntity 加 count(id)。BE 加 findPanel(BFS)。
 - 连接系统.md 补作者存储分期：前期连线→中期无线WiFi→后期卫星；数据面板绑定多核心；手持终端远程开面板；全程无电力。
 - configVersion 仍 2。
+
+## m21 — 一键建造结构（建造蓝图）第一版【待编译验证】
+
+- 作者用 ObjToSchematic 导出 .mcfunction（38021 行 setblock，相对~坐标、无方块状态、纯原版方块）。放入 src/main/resources/structures/block_mesh.mcfunction。
+- 新增 StructureBlueprintItem：右键地面 → 解析(缓存) mcfunction → 在点击点上方(pos.up())按相对坐标一次性 setBlockState(NOTIFY_LISTENERS) 摆出整个结构 → 非创造消耗 1 蓝图。
+- 注册 structure_blueprint 物品(配方 纸7+钻石块+核心模块)、模型、中英名、创造组。贴图待画(已加绘图名单)。
+- 盯点/已知：(1) 作者用 1.21.7 图集，个别 1.21.7 新方块在 1.21.1 不存在→get 返回 AIR 会留空洞(多数常见方块没问题)；(2) 3.8万方块一次性放置可能瞬时卡顿，后续可分tick;(3) 材料清单校验暂无(先消耗蓝图)，为后续。
+- configVersion 仍 2。
