@@ -171,6 +171,46 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
     }
 
+    /** 右键把机器/笼子放入机器槽（合并+空槽）。 */
+    public boolean insertMachine(ItemStack held) { return insertInto(held, MACHINE_START, MACHINE_START + MACHINE_SLOTS); }
+
+    /** 右键把升级放入升级槽。 */
+    public boolean insertUpgrade(ItemStack held) { return insertInto(held, UPGRADE_START, UPGRADE_START + UPGRADE_SLOTS); }
+
+    private boolean insertInto(ItemStack held, int start, int end) {
+        boolean changed = false;
+        for (int i = start; i < end && !held.isEmpty(); i++) {
+            ItemStack s = items.get(i);
+            if (!s.isEmpty() && ItemStack.areItemsAndComponentsEqual(s, held)) {
+                int move = Math.min(s.getMaxCount() - s.getCount(), held.getCount());
+                if (move > 0) { s.increment(move); held.decrement(move); changed = true; }
+            }
+        }
+        for (int i = start; i < end && !held.isEmpty(); i++) {
+            if (items.get(i).isEmpty()) {
+                int move = Math.min(held.getMaxCount(), held.getCount());
+                items.set(i, held.copyWithCount(move)); held.decrement(move); changed = true;
+            }
+        }
+        if (changed) markDirty();
+        return changed;
+    }
+
+    /** 潜行空手右键：弹出第一台机器/升级给玩家。 */
+    public void ejectOne(PlayerEntity player) {
+        for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) if (pop(player, i)) return;
+        for (int i = UPGRADE_START; i < UPGRADE_START + UPGRADE_SLOTS; i++) if (pop(player, i)) return;
+    }
+
+    private boolean pop(PlayerEntity player, int i) {
+        ItemStack s = items.get(i);
+        if (s.isEmpty()) return false;
+        if (!player.getInventory().insertStack(s.copy())) player.dropItem(s.copy(), false);
+        items.set(i, ItemStack.EMPTY);
+        markDirty();
+        return true;
+    }
+
     private int countUpgrade(net.minecraft.item.Item up) {
         int n = 0;
         for (int i = UPGRADE_START; i < UPGRADE_START + UPGRADE_SLOTS; i++) {

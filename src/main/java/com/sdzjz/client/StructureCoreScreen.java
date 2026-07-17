@@ -50,8 +50,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int i = 0; i < 8; i++) cell(ctx, x + 24 + (i % 4) * 20, y + 42 + (i / 4) * 20);
         for (int i = 0; i < 3; i++) cell(ctx, x + 24 + i * 20, y + 98);
         for (int i = 0; i < 8; i++) cell(ctx, x + 190 + (i % 4) * 20, y + 42 + (i / 4) * 20);
-        for (int r = 0; r < 3; r++) for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 176 + r * 18);
-        for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 232);
     }
 
     /** 科技风槽格：深色内凹 + 青色四角。 */
@@ -81,7 +79,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         header(ctx, "升级", 16, 84);
         header(ctx, "产出", 184, 28);
         header(ctx, "状态", 184, 84);
-        header(ctx, "背包", 99, 162);
 
         ctx.drawText(this.textRenderer, "机器数 " + this.handler.machineCount(), 190, 98, TXT, false);
         ctx.drawText(this.textRenderer, "速度 Lv" + this.handler.speedLv(), 190, 110, TXT, false);

@@ -236,3 +236,12 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 机器总数 32→39。配方统一模板；占位品红贴图；绘图名单+7项。
 - 待办(单独排)：超大工作台=专用合成台(自定义3×3合成机器/塔)；村民繁殖机+交易所+打折机(独立UI)。
 - 结构核心背包：handler 本含玩家背包槽(x99 y176/232)，screen 已画格；需作者确认"不显示背包"具体所指。
+
+## m32 — 结构核心去玩家背包 + 右键放入/弹出【待编译验证】
+
+- StructureCoreScreenHandler 移除玩家背包槽(3×9+快捷栏)；quickMove 停用(无处可去,返回EMPTY)。
+- StructureCoreScreen 去掉背包格与"背包"标题。
+- StructureCoreBlock.onUse 重写：手持机器/笼子→insertMachine；手持升级→insertUpgrade；其它物品→PASS(可正常放置);空手→开面板;潜行空手→ejectOne 弹出一台。
+- StructureCoreBlockEntity 加 insertMachine/insertUpgrade/insertInto/ejectOne/pop。
+- StructureCoreBlock 加 onStateReplaced：破坏时 ItemScatterer 掉落全部内容(防丢机器)。
+- 未做(待定):超大工作台=专用合成台需 128×128 含义澄清后建;届时把机器配方从原版工作台迁到合成台(在此之前保留原版配方,避免再次无法合成)。

@@ -63,12 +63,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
                 @Override public boolean canInsert(ItemStack s) { return false; }
             });
         }
-        // 玩家背包（底部居中）
-        for (int r = 0; r < 3; r++)
-            for (int c = 0; c < 9; c++)
-                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 176 + r * 18));
-        for (int c = 0; c < 9; c++)
-            this.addSlot(new Slot(playerInv, c, 99 + c * 18, 232));
+        // 结构核心不显示玩家背包（改为右键方块放入/弹出机器）
     }
 
     private static StructureCoreBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
@@ -98,21 +93,6 @@ public class StructureCoreScreenHandler extends ScreenHandler {
 
     @Override
     public ItemStack quickMove(PlayerEntity player, int index) {
-        ItemStack newStack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasStack()) {
-            ItemStack original = slot.getStack();
-            newStack = original.copy();
-            int coreEnd = StructureCoreBlockEntity.SIZE;
-            int invEnd = coreEnd + 36;
-            if (index < coreEnd) {
-                if (!this.insertItem(original, coreEnd, invEnd, true)) return ItemStack.EMPTY;
-            } else {
-                if (!this.insertItem(original, 0, StructureCoreBlockEntity.OUTPUT_START, false)) return ItemStack.EMPTY;
-            }
-            if (original.isEmpty()) slot.setStack(ItemStack.EMPTY);
-            else slot.markDirty();
-        }
-        return newStack;
+        return ItemStack.EMPTY; // 无玩家背包槽，禁用 shift 快速移动
     }
 }
