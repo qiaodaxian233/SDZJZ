@@ -66,11 +66,7 @@ public class StructureCoreBlock extends BlockWithEntity {
                 core.insertMachine(held);
                 return ActionResult.SUCCESS;
             }
-            if (held.isOf(ModItems.SPEED_UPGRADE) || held.isOf(ModItems.COUNT_UPGRADE) || held.isOf(ModItems.PARALLEL_UPGRADE)) {
-                core.insertUpgrade(held);
-                return ActionResult.SUCCESS;
-            }
-            return ActionResult.PASS; // 其它物品放行（可正常放置方块等）
+            return ActionResult.PASS; // 其它物品放行（升级改在画布节点格里加）
         }
         if (player.isSneaking()) {
             core.ejectOne(player);

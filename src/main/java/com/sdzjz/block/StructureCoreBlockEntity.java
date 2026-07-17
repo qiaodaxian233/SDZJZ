@@ -70,9 +70,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 case 0 -> running ? 1 : 0;
                 case 1 -> machineCount();
                 case 2 -> tierOf();
-                case 3 -> countUpgrade(ModItems.SPEED_UPGRADE);
-                case 4 -> countUpgrade(ModItems.COUNT_UPGRADE);
-                case 5 -> countUpgrade(ModItems.PARALLEL_UPGRADE);
+                case 3 -> totalNodeUpgrade("spd");
+                case 4 -> totalNodeUpgrade("cnt");
+                case 5 -> totalNodeUpgrade("par");
                 default -> 0;
             };
         }
@@ -100,72 +100,64 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (world.isClient || !be.running) return;
 
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
-        int speedLv = be.countUpgrade(ModItems.SPEED_UPGRADE);
-        int countLv = be.countUpgrade(ModItems.COUNT_UPGRADE);
-        int parallelLv = be.countUpgrade(ModItems.PARALLEL_UPGRADE);
         SdzjzConfig cfg = SdzjzConfig.get();
-
         be.ticks++;
-
-        // 按机器类型分组，统计每种装了几台
-        Map<MachineDef, Integer> counts = new LinkedHashMap<>();
-        Map<String, Integer> cages = new LinkedHashMap<>();
-        for (ItemStack st : be.machineNodes) {
-            if (st.getItem() instanceof MachineItem mi) {
-                counts.merge(mi.def(), st.getCount(), Integer::sum);
-            } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
-                String mob = CaptureCageItem.cagedType(st);
-                if (mob != null) cages.merge(mob, st.getCount(), Integer::sum);
-            }
-        }
-        if (counts.isEmpty() && cages.isEmpty()) return;
+        if (be.machineNodes.isEmpty()) return;
 
         boolean produced = false;
-        for (Map.Entry<MachineDef, Integer> e : counts.entrySet()) {
-            MachineDef def = e.getKey();
-            int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
-            if (be.ticks % interval != 0) continue;
-            int parallelCap = (4 + parallelLv * 4) * tier;
-            int running = Math.min(e.getValue(), parallelCap);
+        DataPanelBlockEntity src = null;
+        boolean srcResolved = false;
 
-            if (def.consumesInputs()) {
-                // 消耗类：从连接的数据面板取料，产物入缓存
-                DataPanelBlockEntity src = be.boundPanel(world, pos);
-                if (src == null) src = be.findPanel(world, pos);
-                if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
-                if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
-                if (src == null) continue;
-                boolean ok = true;
-                for (MachineDef.Input in : def.inputs())
-                    if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
-                if (!ok) continue;
-                for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
-            }
+        for (ItemStack st : be.machineNodes) {
+            int speedLv = be.nodeSpeed(st);
+            int countLv = be.nodeCount(st);
+            int parallelLv = be.nodePar(st);
 
-            for (MachineDef.Drop d : def.outputs()) {
-                if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
-                int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
-                if (amt <= 0) continue;
-                int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                Item product = Registries.ITEM.get(Identifier.of(d.item()));
-                be.addOutput(new ItemStack(product, total));
-                produced = true;
-            }
-        }
-        // 抓物笼子：按笼中生物掉落表产出（自由产出，30t 基础周期，同样吃升级）
-        for (Map.Entry<String, Integer> e : cages.entrySet()) {
-            java.util.List<MachineDef.Drop> drops = MobDrops.get(e.getKey());
-            if (drops == null) continue;
-            int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
-            if (be.ticks % interval != 0) continue;
-            int running = Math.min(e.getValue(), (4 + parallelLv * 4) * tier);
-            for (MachineDef.Drop d : drops) {
-                if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
-                int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
-                if (amt <= 0) continue;
-                int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
-                produced = true;
+            if (st.getItem() instanceof MachineItem mi) {
+                MachineDef def = mi.def();
+                int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
+                if (be.ticks % interval != 0) continue;
+                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+
+                if (def.consumesInputs()) {
+                    if (!srcResolved) {
+                        src = be.boundPanel(world, pos);
+                        if (src == null) src = be.findPanel(world, pos);
+                        if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
+                        if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
+                        srcResolved = true;
+                    }
+                    if (src == null) continue;
+                    boolean ok = true;
+                    for (MachineDef.Input in : def.inputs())
+                        if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
+                    if (!ok) continue;
+                    for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
+                }
+
+                for (MachineDef.Drop d : def.outputs()) {
+                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
+                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
+                    if (amt <= 0) continue;
+                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    produced = true;
+                }
+            } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
+                String mob = CaptureCageItem.cagedType(st);
+                java.util.List<MachineDef.Drop> drops = (mob == null) ? null : MobDrops.get(mob);
+                if (drops == null) continue;
+                int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
+                if (be.ticks % interval != 0) continue;
+                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                for (MachineDef.Drop d : drops) {
+                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
+                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
+                    if (amt <= 0) continue;
+                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    produced = true;
+                }
             }
         }
         if (produced) {
@@ -183,7 +175,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (!n.contains("nx")) {
             int i = machineNodes.size(), cols = 6;
             n.putInt("nx", 20 + (i % cols) * 112);
-            n.putInt("ny", 20 + (i / cols) * 66);
+            n.putInt("ny", 20 + (i / cols) * 88);
             node.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         }
         machineNodes.add(node);
@@ -191,6 +183,81 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         markDirty();
         syncToClient();
         return true;
+    }
+
+    /** 读节点各类升级等级。 */
+    public int nodeSpeed(ItemStack s) { return nodeInt(s, "spd"); }
+    public int nodeCount(ItemStack s) { return nodeInt(s, "cnt"); }
+    public int nodePar(ItemStack s)   { return nodeInt(s, "par"); }
+
+    private int nodeInt(ItemStack s, String key) {
+        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt(key);
+    }
+
+    private int totalNodeUpgrade(String key) {
+        int n = 0;
+        for (ItemStack s : machineNodes) n += nodeInt(s, key);
+        return n;
+    }
+
+    /** 从玩家背包扣一个对应升级，加到该节点。 type 0=加速 1=数量 2=并列 */
+    public boolean addNodeUpgrade(PlayerEntity player, int index, int type) {
+        if (index < 0 || index >= machineNodes.size()) return false;
+        Item item = upgradeItem(type);
+        String key = upgradeKey(type);
+        if (item == null || !consumeFromInv(player, item)) return false;
+        ItemStack s = machineNodes.get(index);
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        n.putInt(key, n.getInt(key) + 1);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+        return true;
+    }
+
+    /** 从该节点取回一个升级还给玩家。 */
+    public boolean removeNodeUpgrade(PlayerEntity player, int index, int type) {
+        if (index < 0 || index >= machineNodes.size()) return false;
+        Item item = upgradeItem(type);
+        String key = upgradeKey(type);
+        if (item == null) return false;
+        ItemStack s = machineNodes.get(index);
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        int lv = n.getInt(key);
+        if (lv <= 0) return false;
+        n.putInt(key, lv - 1);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        if (!player.getInventory().insertStack(new ItemStack(item))) player.dropItem(new ItemStack(item), false);
+        markDirty();
+        syncToClient();
+        return true;
+    }
+
+    private static Item upgradeItem(int type) {
+        return switch (type) {
+            case 0 -> ModItems.SPEED_UPGRADE;
+            case 1 -> ModItems.COUNT_UPGRADE;
+            case 2 -> ModItems.PARALLEL_UPGRADE;
+            default -> null;
+        };
+    }
+
+    private static String upgradeKey(int type) {
+        return switch (type) {
+            case 0 -> "spd";
+            case 1 -> "cnt";
+            case 2 -> "par";
+            default -> "";
+        };
+    }
+
+    private boolean consumeFromInv(PlayerEntity player, Item item) {
+        var inv = player.getInventory();
+        for (int i = 0; i < inv.size(); i++) {
+            ItemStack s = inv.getStack(i);
+            if (s.isOf(item)) { s.decrement(1); return true; }
+        }
+        return false;
     }
 
     /** 读节点画布坐标（无则给默认）。 */

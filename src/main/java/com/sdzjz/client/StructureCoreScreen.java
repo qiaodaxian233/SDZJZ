@@ -3,6 +3,8 @@ package com.sdzjz.client;
 import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
+import com.sdzjz.net.NodeUpgradePayload;
+import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.StructureCoreScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
@@ -10,6 +12,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -32,6 +35,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int NODEBG   = 0xE00A1626;
     private static final int NODEFRM  = 0xFF1C5A80;
     private static final int NW = 100, NH = 52;
+    private static final Item[] UPG = { ModItems.SPEED_UPGRADE, ModItems.COUNT_UPGRADE, ModItems.PARALLEL_UPGRADE };
 
     private double panX = 0, panY = 0;
     private int dragIndex = -1, dragOffX, dragOffY;
@@ -69,7 +73,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return be.nodeX(nodes.get(i), 20 + (i % 6) * 112) + (int) panX;
     }
     private int nsy(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) {
-        return be.nodeY(nodes.get(i), 60 + (i / 6) * 66) + (int) panY;
+        return be.nodeY(nodes.get(i), 60 + (i / 6) * 88) + (int) panY;
     }
 
     @Override
@@ -97,9 +101,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 int ax = nsx(be, nodes, linkFrom) + NW, ay = nsy(be, nodes, linkFrom) + NH / 2;
                 drawWire(ctx, ax, ay, mouseX, mouseY, 0xFF88E0FF);
             }
-            // 节点
+            // 节点 + 每节点升级格
             for (int i = 0; i < nodes.size(); i++) {
-                drawNode(ctx, nsx(be, nodes, i), nsy(be, nodes, i), nodes.get(i));
+                int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
+                drawNode(ctx, nx, ny, nodes.get(i));
+                drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i));
             }
         }
     }
@@ -121,9 +127,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 30, y + 20, CYAN, false);
     }
 
+    /** 每节点下方 3 个升级格：加速/数量/并列（图标+等级）。 */
+    private void drawUpgradeSlots(DrawContext ctx, StructureCoreBlockEntity be, int x, int y, ItemStack node) {
+        int[] lv = { be.nodeSpeed(node), be.nodeCount(node), be.nodePar(node) };
+        for (int k = 0; k < 3; k++) {
+            int sx = x + 4 + k * 32, sy = y + NH + 4;
+            ctx.fill(sx - 1, sy - 1, sx + 25, sy + 19, NODEFRM);
+            ctx.fill(sx, sy, sx + 24, sy + 18, 0xFF0C1E30);
+            ctx.drawItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
+            ctx.drawText(this.textRenderer, "" + lv[k], sx + 18, sy + 6, lv[k] > 0 ? ON : SUB, false);
+        }
+    }
+
     /** 采样三次贝塞尔画连线（ComfyUI 水平切线风格）。 */
-    private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
-        int dx = Math.max(40, Math.abs(x2 - x1) / 2);
+    private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {        int dx = Math.max(40, Math.abs(x2 - x1) / 2);
         float c1x = x1 + dx, c2x = x2 - dx;
         int steps = 56;
         for (int s = 0; s <= steps; s++) {
@@ -148,27 +165,41 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 + " 数量Lv" + this.handler.countLv()
                 + " 并发Lv" + this.handler.parallelLv();
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 拖绿口→另一节点=连/断 · 拖空白=平移", 10, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 拖绿口=连线 · 格子左键加/右键取升级 · 拖空白=平移", 10, this.height - 12, SUB, false);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && mouseY > 34) {
+        if (mouseY > 34 && (button == 0 || button == 1)) {
             StructureCoreBlockEntity be = be();
             if (be != null) {
                 List<ItemStack> nodes = be.nodes();
-                // 先判输出口(绿) → 开始连线
-                for (int i = nodes.size() - 1; i >= 0; i--) {
-                    int ox = nsx(be, nodes, i) + NW, oy = nsy(be, nodes, i) + NH / 2;
-                    if (Math.abs(mouseX - ox) <= 6 && Math.abs(mouseY - oy) <= 6) {
-                        linking = true; linkFrom = i; return true;
-                    }
-                }
-                // 再判节点体 → 拖动
+                // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
                     int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
-                    if (mouseX >= nx && mouseX <= nx + NW && mouseY >= ny && mouseY <= ny + NH) {
-                        dragIndex = i; dragOffX = (int) mouseX - nx; dragOffY = (int) mouseY - ny; return true;
+                    for (int k = 0; k < 3; k++) {
+                        int sx = nx + 4 + k * 32, sy = ny + NH + 4;
+                        if (mouseX >= sx && mouseX <= sx + 24 && mouseY >= sy && mouseY <= sy + 18) {
+                            BlockPos p = this.handler.blockPos();
+                            if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0));
+                            return true;
+                        }
+                    }
+                }
+                if (button == 0) {
+                    // 输出口(绿) → 开始连线
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        int ox = nsx(be, nodes, i) + NW, oy = nsy(be, nodes, i) + NH / 2;
+                        if (Math.abs(mouseX - ox) <= 6 && Math.abs(mouseY - oy) <= 6) {
+                            linking = true; linkFrom = i; return true;
+                        }
+                    }
+                    // 节点体 → 拖动
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
+                        if (mouseX >= nx && mouseX <= nx + NW && mouseY >= ny && mouseY <= ny + NH) {
+                            dragIndex = i; dragOffX = (int) mouseX - nx; dragOffY = (int) mouseY - ny; return true;
+                        }
                     }
                 }
             }

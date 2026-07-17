@@ -274,3 +274,12 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 画布：节点左青(输入)/右绿(输出)端口；三次贝塞尔连线(56采样点, 水平切线 ComfyUI 风格)画在节点下层；按住绿输出口拖到另一节点=连/断(临时连线跟随鼠标)。
 - 连线运行效果(A输出→B输入)未接，为后续。tuple 3/4 字段重载已由 Phase2 全绿佐证。
 - 后续：Phase4 缩放；连线运行语义；超大工作台 12×12。
+
+## m37 — 每节点独立升级 + 节点升级格【待编译验证】
+- 升级从"全局3槽"改为"每台机器节点各自持有"，存进节点 ItemStack CUSTOM_DATA(spd/cnt/par)。
+- tick 重写：不再按类型分组用全局升级；改为逐节点独立运行，各读各的 speed/count/parallel(周期用 be.ticks % 各自interval, 无需存每节点计时器)。
+- BE：nodeSpeed/nodeCount/nodePar 读取；addNodeUpgrade(从玩家背包扣一个对应升级并+1)/removeNodeUpgrade(‑1并还给玩家)；consumeFromInv；totalNodeUpgrade(状态栏总数)。propertyDelegate 3/4/5 改报总数。
+- 新增 NodeUpgradePayload(pos,index,type,add) C2S(PacketCodecs.BOOLEAN)；Sdzjz 注册+接收器→add/removeNodeUpgrade。
+- 画布：每节点下方 3 个升级格(加速/数量/并列, 图标+等级)；左键加(扣背包)/右键取(还背包)；自动布局纵距 66→88 给格子留位。
+- 方块 onUse 去掉全局升级放入分支(升级只走画布节点格)；countUpgrade/insertUpgrade 变未用(留着无害)。
+- 后续：Phase4 缩放；连线运行语义；超大工作台 12×12。
