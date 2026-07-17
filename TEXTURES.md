@@ -38,3 +38,46 @@
 
 > GPT 出图提示可用：「16x16 pixel art, Minecraft item icon style, transparent background, <描述>」。
 > 想要更精细可后续给方块做多面贴图（顶/侧/底分开），到时我改模型。
+
+---
+
+## 提示词（复制即用）
+
+> 注意：图像模型出的是"像素风"大图，不是真 16×16。生成后按**最近邻**缩到 16×16 再放进目录。
+
+**万能模板**（每张都用这个开头，把 Subject 换掉）：
+```
+Minecraft item icon, pixel art, single object centered, thick clean outline,
+limited flat palette, simple shading, transparent background, no text, no drop shadow.
+Subject: <描述>
+```
+**机器统一机身**：`a dark navy sci-fi machine cube with a glowing cyan core, emitting <产物>`
+
+### 物品 Subject
+- core_module: a blue circuit chip core, glowing cyan lines
+- speed_upgrade: an upgrade chip with an upward double arrow, cyan
+- count_upgrade: an upgrade chip with stacked cubes, purple
+- parallel_upgrade: an upgrade chip with a branching fork icon, green
+- capture_cage: a small empty iron barred cage
+- wire_brusher: machine cube emitting a white string ball
+- cobble_maker: machine cube emitting gray cobblestone
+- bone_farm: machine cube emitting a white bone
+- gunpowder_farm: machine cube emitting gray gunpowder
+- flesh_farm: machine cube emitting pink-brown rotten flesh
+- pearl_farm: machine cube emitting a green ender pearl
+- slime_farm: machine cube emitting a green slime ball
+- iron_farm: machine cube emitting an iron ingot
+- tree_farm: machine cube emitting a small green tree
+- sugarcane_farm: machine cube emitting green sugar cane
+- bamboo_farm: machine cube emitting bamboo stalks
+- sand_maker: machine cube emitting yellow sand
+- ice_maker: machine cube emitting a pale-blue ice block
+- obsidian_maker: machine cube emitting a purple-black obsidian block
+- swamp_spawner: machine cube with mixed drops, swampy green tint
+- witch_tower: machine cube with a purple witch hat and potion
+- guardian_farm: machine cube emitting a teal prismarine shard
+
+### 方块 Subject（一张铺满六面）
+- structure_core: dark navy sci-fi machine block face, glowing cyan hex core, metal frame
+- super_bench: ornate dark machine block face, glowing purple-gold core
+- data_panel: dark terminal block face, glowing cyan holographic data grid
