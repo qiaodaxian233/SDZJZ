@@ -7,31 +7,32 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 
-/** 结构核心 GUI：纯色面板 + 通用状态显示（对任意机器生效）+ 开机/停止。 */
+/** 结构核心界面（全屏仪表盘）：深色背景铺满窗口，中间大面板分区：机器/升级/产出/状态/背包。 */
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
 
-    private static final int PANEL = 0xFF0C1422;
-    private static final int SLOTBG = 0xFF0B1526;
-    private static final int BORDER = 0xFF1B3050;
+    private static final int BACKDROP = 0xFF080B12; // 铺满窗口，盖住世界=全屏
+    private static final int PANEL    = 0xFF0C1422;
+    private static final int PANEL2   = 0xFF10192B;
+    private static final int BORDER   = 0xFF25406B;
+    private static final int SLOTBG   = 0xFF0B1526;
+    private static final int TXT      = 0xFFBFD2EC;
+    private static final int SUB      = 0xFF7C90B0;
+    private static final int ON       = 0xFF33D07A;
 
     public StructureCoreScreen(StructureCoreScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
-        this.backgroundWidth = 176;
-        this.backgroundHeight = 186;
+        this.backgroundWidth = 360;
+        this.backgroundHeight = 256;
     }
 
     @Override
     protected void init() {
         super.init();
-        this.titleY = 6;
-        this.playerInventoryTitleY = this.backgroundHeight - 94;
-
-        int bx = (this.width - this.backgroundWidth) / 2;
-        int by = (this.height - this.backgroundHeight) / 2;
+        int bx = this.x, by = this.y;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("▶ 开机"), b -> click(0))
-                .dimensions(bx + 8, by + 90, 78, 12).build());
+                .dimensions(bx + 24, by + 140, 150, 16).build());
         this.addDrawableChild(ButtonWidget.builder(Text.literal("■ 停止"), b -> click(1))
-                .dimensions(bx + 90, by + 90, 78, 12).build());
+                .dimensions(bx + 186, by + 140, 150, 16).build());
     }
 
     private void click(int id) {
@@ -42,30 +43,47 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
-        int x = (this.width - this.backgroundWidth) / 2;
-        int y = (this.height - this.backgroundHeight) / 2;
-        ctx.fill(x - 1, y - 1, x + this.backgroundWidth + 1, y + this.backgroundHeight + 1, BORDER);
-        ctx.fill(x, y, x + this.backgroundWidth, y + this.backgroundHeight, PANEL);
-        drawRow(ctx, x + 8, y + 20, 8);
-        drawRow(ctx, x + 8, y + 46, 3);
-        drawRow(ctx, x + 8, y + 72, 8);
+        ctx.fill(0, 0, this.width, this.height, BACKDROP);
+        int x = this.x, y = this.y;
+        ctx.fill(x - 2, y - 2, x + backgroundWidth + 2, y + backgroundHeight + 2, BORDER);
+        ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
+        // 分区底板
+        ctx.fill(x + 16, y + 38, x + 116, y + 84, PANEL2);   // 机器
+        ctx.fill(x + 16, y + 94, x + 116, y + 118, PANEL2);  // 升级
+        ctx.fill(x + 182, y + 38, x + 282, y + 84, PANEL2);  // 产出
+        ctx.fill(x + 182, y + 94, x + 344, y + 134, PANEL2); // 状态
+        ctx.fill(x + 95, y + 172, x + 265, y + 250, PANEL2); // 背包
+        // 槽底
+        for (int i = 0; i < 8; i++) sq(ctx, x + 24 + (i % 4) * 20, y + 42 + (i / 4) * 20);
+        for (int i = 0; i < 3; i++) sq(ctx, x + 24 + i * 20, y + 98);
+        for (int i = 0; i < 8; i++) sq(ctx, x + 190 + (i % 4) * 20, y + 42 + (i / 4) * 20);
+        for (int r = 0; r < 3; r++) for (int c = 0; c < 9; c++) sq(ctx, x + 99 + c * 18, y + 176 + r * 18);
+        for (int c = 0; c < 9; c++) sq(ctx, x + 99 + c * 18, y + 232);
     }
 
-    private void drawRow(DrawContext ctx, int x, int y, int n) {
-        for (int i = 0; i < n; i++) ctx.fill(x + i * 18, y, x + i * 18 + 16, y + 16, SLOTBG);
+    private void sq(DrawContext ctx, int sx, int sy) {
+        ctx.fill(sx, sy, sx + 16, sy + 16, SLOTBG);
     }
 
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
-        super.drawForeground(ctx, mouseX, mouseY);
-        boolean run = this.handler.isRunning();
-        String s1 = run ? "▶ 运行中" : "■ 已停止";
-        int c1 = run ? 0x33D07A : 0x8299B8;
-        ctx.drawText(this.textRenderer, s1, this.backgroundWidth - 8 - this.textRenderer.getWidth(s1), 6, c1, false);
+        // 相对面板左上角坐标
         String tierName = this.handler.tier() >= 2 ? "超大工作台" : "结构核心";
-        String s2 = tierName + " 机" + this.handler.machineCount()
-                + "  速" + this.handler.speedLv() + " 量" + this.handler.countLv() + " 并" + this.handler.parallelLv();
-        ctx.drawText(this.textRenderer, s2, this.backgroundWidth - 8 - this.textRenderer.getWidth(s2), 16, 0x8299B8, false);
+        ctx.drawText(this.textRenderer, tierName, 24, 12, TXT, false);
+        boolean run = this.handler.isRunning();
+        String st = run ? "● 运行中" : "○ 已停止";
+        ctx.drawText(this.textRenderer, st, backgroundWidth - 24 - this.textRenderer.getWidth(st), 12, run ? ON : SUB, false);
+
+        ctx.drawText(this.textRenderer, "机器", 18, 28, SUB, false);
+        ctx.drawText(this.textRenderer, "升级", 18, 84, SUB, false);
+        ctx.drawText(this.textRenderer, "产出", 184, 28, SUB, false);
+        ctx.drawText(this.textRenderer, "状态", 184, 84, SUB, false);
+        ctx.drawText(this.textRenderer, "背包", 99, 162, SUB, false);
+
+        ctx.drawText(this.textRenderer, "机器数 " + this.handler.machineCount(), 190, 98, TXT, false);
+        ctx.drawText(this.textRenderer, "速度 Lv" + this.handler.speedLv(), 190, 110, TXT, false);
+        ctx.drawText(this.textRenderer, "数量 Lv" + this.handler.countLv(), 190, 122, TXT, false);
+        ctx.drawText(this.textRenderer, "并发 Lv" + this.handler.parallelLv(), 268, 98, TXT, false);
     }
 
     @Override

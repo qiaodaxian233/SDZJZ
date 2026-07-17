@@ -41,32 +41,34 @@ public class StructureCoreScreenHandler extends ScreenHandler {
         this.inv.onOpen(playerInv.player);
         addProperties(props);
 
-        // 机器槽 0..7（任意 MachineItem）
+        // 机器槽 0..7（2×4）
         for (int i = 0; i < StructureCoreBlockEntity.MACHINE_SLOTS; i++) {
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.MACHINE_START + i, 8 + i * 18, 20) {
+            int x = 24 + (i % 4) * 20, y = 42 + (i / 4) * 20;
+            this.addSlot(new Slot(inv, StructureCoreBlockEntity.MACHINE_START + i, x, y) {
                 @Override public boolean canInsert(ItemStack s) { return s.getItem() instanceof MachineItem; }
             });
         }
         // 升级槽 8..10
         for (int i = 0; i < StructureCoreBlockEntity.UPGRADE_SLOTS; i++) {
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.UPGRADE_START + i, 8 + i * 18, 46) {
+            this.addSlot(new Slot(inv, StructureCoreBlockEntity.UPGRADE_START + i, 24 + i * 20, 98) {
                 @Override public boolean canInsert(ItemStack s) {
                     return s.isOf(ModItems.SPEED_UPGRADE) || s.isOf(ModItems.COUNT_UPGRADE) || s.isOf(ModItems.PARALLEL_UPGRADE);
                 }
             });
         }
-        // 输出槽 11..18（只取）
+        // 输出槽 11..18（2×4，只取）
         for (int i = 0; i < StructureCoreBlockEntity.OUTPUT_SLOTS; i++) {
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.OUTPUT_START + i, 8 + i * 18, 72) {
+            int x = 190 + (i % 4) * 20, y = 42 + (i / 4) * 20;
+            this.addSlot(new Slot(inv, StructureCoreBlockEntity.OUTPUT_START + i, x, y) {
                 @Override public boolean canInsert(ItemStack s) { return false; }
             });
         }
-
+        // 玩家背包（底部居中）
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++)
-                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 8 + c * 18, 104 + r * 18));
+                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 176 + r * 18));
         for (int c = 0; c < 9; c++)
-            this.addSlot(new Slot(playerInv, c, 8 + c * 18, 162));
+            this.addSlot(new Slot(playerInv, c, 99 + c * 18, 232));
     }
 
     private static StructureCoreBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
