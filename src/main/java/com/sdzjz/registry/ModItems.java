@@ -43,6 +43,10 @@ public class ModItems {
     public static final Item SWAMP_SPAWNER  = reg("swamp_spawner",  new MachineItem(new Item.Settings(), Machines.SWAMP_SPAWNER));
     public static final Item WITCH_TOWER    = reg("witch_tower",    new MachineItem(new Item.Settings(), Machines.WITCH_TOWER));
     public static final Item GUARDIAN_FARM  = reg("guardian_farm",  new MachineItem(new Item.Settings(), Machines.GUARDIAN_FARM));
+    public static final Item MAGMA_FARM     = reg("magma_farm",     new MachineItem(new Item.Settings(), Machines.MAGMA_FARM));
+    public static final Item SHULKER_FARM   = reg("shulker_farm",   new MachineItem(new Item.Settings(), Machines.SHULKER_FARM));
+    public static final Item RAID_TOWER     = reg("raid_tower",     new MachineItem(new Item.Settings(), Machines.RAID_TOWER));
+    public static final Item PIGMAN_TOWER   = reg("pigman_tower",   new MachineItem(new Item.Settings(), Machines.PIGMAN_TOWER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -80,6 +84,10 @@ public class ModItems {
             entries.add(SWAMP_SPAWNER);
             entries.add(WITCH_TOWER);
             entries.add(GUARDIAN_FARM);
+            entries.add(MAGMA_FARM);
+            entries.add(SHULKER_FARM);
+            entries.add(RAID_TOWER);
+            entries.add(PIGMAN_TOWER);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

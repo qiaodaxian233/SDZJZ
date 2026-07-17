@@ -37,6 +37,13 @@ public final class Machines {
             drop("minecraft:prismarine_shard", 0, 2), drop("minecraft:prismarine_crystals", 0, 1),
             drop("minecraft:cod", 0, 1));
 
+    public static final MachineDef MAGMA_FARM    = def("magma_farm",   "minecraft:magma_cream",   1, 25);
+    public static final MachineDef SHULKER_FARM  = def("shulker_farm", "minecraft:shulker_shell", 1, 60);
+    public static final MachineDef RAID_TOWER = defMulti("raid_tower", 30,
+            drop("minecraft:emerald", 0, 3), drop("minecraft:arrow", 0, 2), drop("minecraft:totem_of_undying", 1, 1, 0.1f));
+    public static final MachineDef PIGMAN_TOWER = defMulti("pigman_tower", 25,
+            drop("minecraft:gold_nugget", 0, 3), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:gold_ingot", 1, 1, 0.15f));
+
     // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());
@@ -48,5 +55,9 @@ public final class Machines {
 
     private static MachineDef.Drop drop(String item, int min, int max) {
         return new MachineDef.Drop(item, min, max, 1f);
+    }
+
+    private static MachineDef.Drop drop(String item, int min, int max, float chance) {
+        return new MachineDef.Drop(item, min, max, chance);
     }
 }
