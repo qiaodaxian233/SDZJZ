@@ -44,6 +44,11 @@ public class DataPanelBlock extends BlockWithEntity {
 
     @Override
     protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+        // 手持终端/链接器时放行，让物品的 useOnBlock 去绑定，而不是直接开界面
+        net.minecraft.item.Item held = player.getMainHandStack().getItem();
+        if (held instanceof com.sdzjz.item.TerminalItem || held instanceof com.sdzjz.item.LinkerItem) {
+            return ActionResult.PASS;
+        }
         if (!world.isClient) {
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof DataPanelBlockEntity panel) {

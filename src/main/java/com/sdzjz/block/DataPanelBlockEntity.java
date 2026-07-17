@@ -122,7 +122,12 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
             int max = new ItemStack(item).getMaxCount();
             int show = (int) Math.min(e.getValue(), (long) max);
-            display.setStack(i, new ItemStack(item, Math.max(1, show)));
+            ItemStack st = new ItemStack(item, Math.max(1, show));
+            NbtCompound tag = new NbtCompound();
+            tag.putLong("amt", e.getValue());           // 真实总量(long)，界面自绘
+            st.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                    net.minecraft.component.type.NbtComponent.of(tag));
+            display.setStack(i, st);
             i++;
         }
         for (; i < PAGE; i++) display.setStack(i, ItemStack.EMPTY);

@@ -220,3 +220,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 数据面板 GUI 改全屏科技风(对齐结构核心)：DataPanelScreen backgroundWidth/Height=360×256，深色 BACKDROP 铺满，复用 structure_core_gui.png 作边框贴图，青角槽格 cell()，分区标题"存储/背包"带青竖条，标题"数据面板"+右上"种类 N/54"。
 - DataPanelScreenHandler 槽位改居中布局：存储6×9 @ (99+c*18,30+r*18)，背包3×9 @ (…,158+…)，快捷栏 @ (…,216)。screen 绘制坐标同步。
 - 后续作者可出 data_panel_gui.png 专属背景再替换 BG 常量。configVersion 仍 3。
+
+## m30 — 修复：终端绑定/面板大数显示/猪人塔掉落【待编译验证】
+
+- 终端绑定失败：DataPanelBlock.onUse 在手持 TerminalItem/LinkerItem 时返回 PASS，让物品 useOnBlock 去绑定(不再被方块开界面拦截)。右键面板=绑定，空手右键面板=开界面。
+- 面板计数只到 ~9999/被64截断：存储本为 long 无封顶；refreshDisplay 给展示物品附带真实总量组件("amt":long)；DataPanelScreen.drawSlot 自绘该总量(K/M/B/T)，隐藏原版≤64计数。→ 显示与存储突破 9999 与 int(2147483647)，上限为 long(~9.2e18)。
+- 猪人塔掉落调准僵尸猪人：金粒1-3、腐肉0-1、金锭5%、金剑5%(原先金锭15%偏高)。
+- 说明：图2面板里的绿宝石/箭/不死图腾来自袭击塔，金粒/腐肉/金锭来自猪人塔，两台共用面板，非bug。
+- 超大工作台界面：当前=二档结构核心(同仪表盘,更高并发/tier)，见回复中的说明与提问。

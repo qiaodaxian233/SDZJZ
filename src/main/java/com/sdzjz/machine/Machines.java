@@ -44,7 +44,8 @@ public final class Machines {
     public static final MachineDef RAID_TOWER = defMulti("raid_tower", 30,
             drop("minecraft:emerald", 0, 3), drop("minecraft:arrow", 0, 2), drop("minecraft:totem_of_undying", 1, 1, 0.1f));
     public static final MachineDef PIGMAN_TOWER = defMulti("pigman_tower", 25,
-            drop("minecraft:gold_nugget", 0, 3), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:gold_ingot", 1, 1, 0.15f));
+            drop("minecraft:gold_nugget", 1, 3), drop("minecraft:rotten_flesh", 0, 1),
+            drop("minecraft:gold_ingot", 0, 1, 0.05f), drop("minecraft:golden_sword", 0, 1, 0.05f));
 
     // ---- 消耗类（从连接的数据面板取料）----
     public static final MachineDef PIGLIN_BARTER = defConsume("piglin_barter", 30,

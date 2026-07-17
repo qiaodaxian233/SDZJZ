@@ -66,6 +66,46 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     }
 
     @Override
+    protected void drawSlot(DrawContext ctx, net.minecraft.screen.slot.Slot slot) {
+        // 存储格：画物品图标 + 自绘真实总量(隐藏原版≤64计数)
+        if (!(slot.inventory instanceof PlayerInventory) && slot.hasStack()) {
+            net.minecraft.item.ItemStack st = slot.getStack();
+            ctx.drawItem(st, slot.x, slot.y);
+            String s = fmt(amtOf(st));
+            int tx = slot.x + 17 - this.textRenderer.getWidth(s);
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate(0, 0, 200);
+            ctx.drawText(this.textRenderer, s, tx, slot.y + 9, 0xFFFFFFFF, true);
+            ctx.getMatrices().pop();
+        } else {
+            super.drawSlot(ctx, slot);
+        }
+    }
+
+    private static long amtOf(net.minecraft.item.ItemStack st) {
+        var c = st.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (c != null) {
+            var t = c.copyNbt();
+            if (t.contains("amt")) return t.getLong("amt");
+        }
+        return st.getCount();
+    }
+
+    /** 人类可读大数：<1000 精确；否则 K/M/B/T。 */
+    private static String fmt(long n) {
+        if (n < 1000) return Long.toString(n);
+        if (n < 1_000_000L) return trim(n / 1_000.0) + "K";
+        if (n < 1_000_000_000L) return trim(n / 1_000_000.0) + "M";
+        if (n < 1_000_000_000_000L) return trim(n / 1_000_000_000.0) + "B";
+        return trim(n / 1_000_000_000_000.0) + "T";
+    }
+
+    private static String trim(double v) {
+        String s = String.format("%.1f", v);
+        return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
+    }
+
+    @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
