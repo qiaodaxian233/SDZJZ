@@ -46,5 +46,12 @@
   "block.sdzjz.wireless_node": "Wireless Node",
   "block.sdzjz.satellite_node": "Satellite Node",
   "item.sdzjz.linker": "Data Linker",
-  "item.sdzjz.terminal": "Portable Terminal"
+  "item.sdzjz.terminal": "Portable Terminal",
+  "item.sdzjz.rail_machine": "Rail Machine",
+  "item.sdzjz.carpet_machine": "Carpet Machine",
+  "item.sdzjz.mob_tower": "Mob Tower",
+  "item.sdzjz.nether_tree_farm": "Nether Tree Farm",
+  "item.sdzjz.chorus_farm": "Chorus Farm",
+  "item.sdzjz.drowned_tower": "Drowned Tower",
+  "item.sdzjz.super_smelter": "Super Smelter"
 }

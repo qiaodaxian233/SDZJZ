@@ -46,5 +46,12 @@
   "block.sdzjz.wireless_node": "无线节点",
   "block.sdzjz.satellite_node": "卫星节点",
   "item.sdzjz.linker": "数据链接器",
-  "item.sdzjz.terminal": "手持终端"
+  "item.sdzjz.terminal": "手持终端",
+  "item.sdzjz.rail_machine": "铁轨机",
+  "item.sdzjz.carpet_machine": "地毯机",
+  "item.sdzjz.mob_tower": "普通刷怪塔",
+  "item.sdzjz.nether_tree_farm": "下界树场",
+  "item.sdzjz.chorus_farm": "紫颂果农场",
+  "item.sdzjz.drowned_tower": "溺尸塔",
+  "item.sdzjz.super_smelter": "超级熔炉组"
 }

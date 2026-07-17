@@ -67,6 +67,15 @@ public final class Machines {
     public static final MachineDef CHARCOAL_KILN = defConsume("charcoal_kiln", 20, List.of(in("minecraft:oak_log", 1)), drop("minecraft:charcoal", 1, 1));
     public static final MachineDef GLASS_KILN = defConsume("glass_kiln", 15, List.of(in("minecraft:sand", 1)), drop("minecraft:glass", 1, 1));
 
+    // ---- 追加机器(m31) ----
+    public static final MachineDef RAIL_MACHINE = def("rail_machine", "minecraft:rail", 2, 20);
+    public static final MachineDef CARPET_MACHINE = def("carpet_machine", "minecraft:white_carpet", 2, 20);
+    public static final MachineDef MOB_TOWER = defMulti("mob_tower", 25, drop("minecraft:bone", 0, 2), drop("minecraft:gunpowder", 0, 1), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:string", 0, 2), drop("minecraft:arrow", 0, 1));
+    public static final MachineDef NETHER_TREE_FARM = defMulti("nether_tree_farm", 30, drop("minecraft:crimson_stem", 1, 2), drop("minecraft:warped_stem", 0, 1), drop("minecraft:nether_wart_block", 0, 1, 0.2f), drop("minecraft:shroomlight", 0, 1, 0.1f));
+    public static final MachineDef CHORUS_FARM = def("chorus_farm", "minecraft:chorus_fruit", 1, 30);
+    public static final MachineDef DROWNED_TOWER = defMulti("drowned_tower", 30, drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:copper_ingot", 0, 1, 0.5f), drop("minecraft:nautilus_shell", 0, 1, 0.03f), drop("minecraft:trident", 0, 1, 0.015f));
+    public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 2, List.of(in("minecraft:raw_iron", 1)), drop("minecraft:iron_ingot", 1, 1));
+
     // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());

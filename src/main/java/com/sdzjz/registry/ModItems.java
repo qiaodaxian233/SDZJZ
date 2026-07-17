@@ -62,6 +62,13 @@ public class ModItems {
     public static final Item GOLD_SMELTER = reg("gold_smelter", new MachineItem(new Item.Settings(), Machines.GOLD_SMELTER));
     public static final Item CHARCOAL_KILN = reg("charcoal_kiln", new MachineItem(new Item.Settings(), Machines.CHARCOAL_KILN));
     public static final Item GLASS_KILN = reg("glass_kiln", new MachineItem(new Item.Settings(), Machines.GLASS_KILN));
+    public static final Item RAIL_MACHINE = reg("rail_machine", new MachineItem(new Item.Settings(), Machines.RAIL_MACHINE));
+    public static final Item CARPET_MACHINE = reg("carpet_machine", new MachineItem(new Item.Settings(), Machines.CARPET_MACHINE));
+    public static final Item MOB_TOWER = reg("mob_tower", new MachineItem(new Item.Settings(), Machines.MOB_TOWER));
+    public static final Item NETHER_TREE_FARM = reg("nether_tree_farm", new MachineItem(new Item.Settings(), Machines.NETHER_TREE_FARM));
+    public static final Item CHORUS_FARM = reg("chorus_farm", new MachineItem(new Item.Settings(), Machines.CHORUS_FARM));
+    public static final Item DROWNED_TOWER = reg("drowned_tower", new MachineItem(new Item.Settings(), Machines.DROWNED_TOWER));
+    public static final Item SUPER_SMELTER = reg("super_smelter", new MachineItem(new Item.Settings(), Machines.SUPER_SMELTER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -116,6 +123,13 @@ public class ModItems {
             entries.add(GOLD_SMELTER);
             entries.add(CHARCOAL_KILN);
             entries.add(GLASS_KILN);
+            entries.add(RAIL_MACHINE);
+            entries.add(CARPET_MACHINE);
+            entries.add(MOB_TOWER);
+            entries.add(NETHER_TREE_FARM);
+            entries.add(CHORUS_FARM);
+            entries.add(DROWNED_TOWER);
+            entries.add(SUPER_SMELTER);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);
