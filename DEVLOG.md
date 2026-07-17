@@ -293,3 +293,15 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 盯点：MatrixStack.translate/scale、mouseScrolled(4参)、drawItem 在缩放矩阵内(若不随缩放则大小固定但位置对)。
 - 连线语义为粗粒度(所有出线者共享一个内部池给所有入线消耗机)，精确按边路由为后续。
 - 下一轮：超大工作台 12×12 合成台(独立大件)。
+
+## m40 — 绘图名单更新 + 超大工作台 12×12 合成台【待编译验证】
+- 绘图名单.md：移除全部已完成条目(几乎全就位)，仅剩 data_cable.png 待画；structure_blueprint 移除(功能搁置)。
+- 超大工作台从"tier2 结构核心"改为独立合成站：
+  - SuperBenchBlock(仿原版工作台, 无BE, onUse→SimpleNamedScreenHandlerFactory 开界面)。
+  - SuperBenchScreenHandler：12×12 输入网格 + 结果槽 + 玩家背包；无形状(多重集精确)匹配；结果取出时消耗对应材料；关界面掉落网格；quickMove 网格↔背包。
+  - SuperBenchRecipes：由 39 个机器配方 JSON 自动生成的多重集配方表(位置随意, 需精确材料)。
+  - SuperBenchScreen：深色科技风 12×12 界面(284×316)。
+  - 注册：ModBlocks 改 SuperBenchBlock；ModBlockEntities 从 STRUCTURE_CORE_BE 移除 super_bench；ModScreenHandlers 加 SUPER_BENCH(ScreenHandlerType+FeatureFlags.VANILLA_FEATURES)；SdzjzClient 注册界面。
+  - 删除 39 个机器原版合成配方 → 机器现只能在超大工作台合成；基础物品(核心模块/升级/笼子/线/节点/面板/核心/工作台/linker/terminal)仍原版可合成。
+- 盯点：FeatureFlags.VANILLA_FEATURES、ScreenHandlerType(Factory,FeatureSet)、SimpleNamedScreenHandlerFactory、CraftingResultInventory、Block.onUse 签名。
+- 注：super_bench 不再是 tier2 核心，画布 tier 恒为1(tier2 分支变死代码, 无害)。

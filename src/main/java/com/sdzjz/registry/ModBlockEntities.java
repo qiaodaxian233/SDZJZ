@@ -13,7 +13,7 @@ public class ModBlockEntities {
     public static final BlockEntityType<StructureCoreBlockEntity> STRUCTURE_CORE_BE =
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("structure_core"),
                     FabricBlockEntityTypeBuilder.create(StructureCoreBlockEntity::new,
-                            ModBlocks.STRUCTURE_CORE, ModBlocks.SUPER_BENCH).build());
+                            ModBlocks.STRUCTURE_CORE).build());
 
     public static final BlockEntityType<DataPanelBlockEntity> DATA_PANEL_BE =
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("data_panel"),

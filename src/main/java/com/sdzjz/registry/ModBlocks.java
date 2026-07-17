@@ -6,6 +6,7 @@ import com.sdzjz.block.SatelliteNodeBlock;
 import com.sdzjz.block.WirelessNodeBlock;
 import com.sdzjz.block.DataPanelBlock;
 import com.sdzjz.block.StructureCoreBlock;
+import com.sdzjz.block.SuperBenchBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -19,8 +20,8 @@ public class ModBlocks {
     public static final StructureCoreBlock STRUCTURE_CORE =
             reg("structure_core", new StructureCoreBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque(), 1));
 
-    public static final StructureCoreBlock SUPER_BENCH =
-            reg("super_bench", new StructureCoreBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque(), 2));
+    public static final SuperBenchBlock SUPER_BENCH =
+            reg("super_bench", new SuperBenchBlock(AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE)));
 
     public static final DataPanelBlock DATA_PANEL =
             reg("data_panel", new DataPanelBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));

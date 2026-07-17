@@ -3,9 +3,11 @@ package com.sdzjz.registry;
 import com.sdzjz.Sdzjz;
 import com.sdzjz.screen.DataPanelScreenHandler;
 import com.sdzjz.screen.StructureCoreScreenHandler;
+import com.sdzjz.screen.SuperBenchScreenHandler;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.util.math.BlockPos;
 
@@ -18,6 +20,10 @@ public class ModScreenHandlers {
     public static final ScreenHandlerType<DataPanelScreenHandler> DATA_PANEL =
             Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("data_panel"),
                     new ExtendedScreenHandlerType<>(DataPanelScreenHandler::new, BlockPos.PACKET_CODEC));
+
+    public static final ScreenHandlerType<SuperBenchScreenHandler> SUPER_BENCH =
+            Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("super_bench"),
+                    new ScreenHandlerType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_FEATURES));
 
     public static void init() {}
 }
