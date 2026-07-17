@@ -205,3 +205,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 结构核心 tick：机器槽里的抓物笼子(isCaged)按 cagedType 分组，用 MobDrops 表产出，自由产出、30t 基础周期，同吃速度/数量/并发/tier；未收录生物不产。
 - 机器槽 canInsert 放开：允许 CaptureCageItem；机器数(machineCount)计入笼子。
 - 抓物笼子↔机器(路线图 D)打通。configVersion 仍 3。
+
+## m28 — 结构建造：分tick摆放 + 材料清单【待编译验证】
+
+- 新增 com.sdzjz.structure.StructureBuilder：plan()解析缓存、tally()材料统计、enqueue()入队、tick()每服务端tick按 config.structureBlocksPerTick(默认1024)分批 setBlockState。
+- StructureBlueprintItem 重写：改为入队分批建(不再一次性摆)，消掉卡顿；config.structureConsumeMaterials=true 时先 tryConsume 扣背包(够料才建)。
+- Sdzjz.onInitialize 注册 ServerTickEvents.END_SERVER_TICK -> StructureBuilder.tick。
+- 配置加 structureBlocksPerTick=1024 / structureConsumeMaterials=false（加键不升版本，GSON 取默认）。
+- 盯点：ServerTickEvents(fabric lifecycle v1) 依赖存在即可。

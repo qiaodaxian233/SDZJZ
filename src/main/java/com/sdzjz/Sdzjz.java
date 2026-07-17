@@ -5,7 +5,9 @@ import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
+import com.sdzjz.structure.StructureBuilder;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ public class Sdzjz implements ModInitializer {
         ModBlockEntities.init();
         ModScreenHandlers.init();
         ModItems.init();
+        ServerTickEvents.END_SERVER_TICK.register(StructureBuilder::tick);
         LOGGER.info("[生电终结者] Phase 1 已加载：结构核心 + 刷线机 + 升级 + 抓物笼子。");
     }
 
