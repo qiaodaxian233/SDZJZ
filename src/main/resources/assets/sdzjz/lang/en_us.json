@@ -10,5 +10,12 @@
   "block.sdzjz.super_bench": "Super Bench",
   "container.sdzjz.structure_core": "Structure Core",
   "block.sdzjz.data_panel": "Data Panel",
-  "container.sdzjz.data_panel": "Data Panel"
+  "container.sdzjz.data_panel": "Data Panel",
+  "item.sdzjz.cobble_maker": "Cobblestone Maker",
+  "item.sdzjz.bone_farm": "Bone Farm",
+  "item.sdzjz.gunpowder_farm": "Gunpowder Farm",
+  "item.sdzjz.flesh_farm": "Rotten Flesh Farm",
+  "item.sdzjz.pearl_farm": "Ender Pearl Farm",
+  "item.sdzjz.slime_farm": "Slime Farm",
+  "item.sdzjz.iron_farm": "Iron Farm"
 }

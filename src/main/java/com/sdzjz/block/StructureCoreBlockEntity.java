@@ -12,7 +12,13 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import com.sdzjz.item.MachineItem;
+import com.sdzjz.machine.MachineDef;
+import net.minecraft.item.Item;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.ScreenHandler;
@@ -40,13 +46,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     public boolean running = false;
-    private int timer = 0;
+    private long ticks = 0;
 
     public StructureCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.STRUCTURE_CORE_BE, pos, state);
     }
 
-    // ================= 运行时 =================
+    // ================= 运行时（通用：按 MachineDef 跑任意机器）=================
     public static void tick(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         if (world.isClient || !be.running) return;
 
@@ -56,29 +62,35 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int parallelLv = be.countUpgrade(ModItems.PARALLEL_UPGRADE);
         SdzjzConfig cfg = SdzjzConfig.get();
 
-        int interval = Math.max(cfg.accelMinPeriodTicks, 20 - speedLv * 4);
-        if (++be.timer < interval) return;
-        be.timer = 0;
+        be.ticks++;
 
-        int machines = be.countMachines(ModItems.WIRE_BRUSHER);
-        if (machines == 0) return;
-
-        int parallelCap = (4 + parallelLv * 4) * tier;
-        int running = Math.min(machines, parallelCap);
-        int perCycle = (1 + countLv * 8) * tier;
-        int total = running * perCycle;
-
-        be.addOutput(new ItemStack(Items.STRING, Math.min(total, 64 * OUTPUT_SLOTS)));
-        be.pushDown(world, pos);
-        be.markDirty();
-    }
-
-    private int countMachines(net.minecraft.item.Item machine) {
-        int n = 0;
+        // 按机器类型分组，统计每种装了几台
+        Map<MachineDef, Integer> counts = new LinkedHashMap<>();
         for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
-            if (items.get(i).isOf(machine)) n += items.get(i).getCount();
+            if (be.items.get(i).getItem() instanceof MachineItem mi) {
+                counts.merge(mi.def(), be.items.get(i).getCount(), Integer::sum);
+            }
         }
-        return n;
+        if (counts.isEmpty()) return;
+
+        boolean produced = false;
+        for (Map.Entry<MachineDef, Integer> e : counts.entrySet()) {
+            MachineDef def = e.getKey();
+            if (def.consumesInputs()) continue; // 加工/合成类下一步做
+            int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
+            if (be.ticks % interval != 0) continue;
+            int parallelCap = (4 + parallelLv * 4) * tier;
+            int running = Math.min(e.getValue(), parallelCap);
+            int perCycle = (def.baseOutputPerCycle() + countLv * 8) * tier;
+            int total = Math.min(running * perCycle, 64 * OUTPUT_SLOTS);
+            Item product = Registries.ITEM.get(Identifier.of(def.product()));
+            be.addOutput(new ItemStack(product, total));
+            produced = true;
+        }
+        if (produced) {
+            be.pushDown(world, pos);
+            be.markDirty();
+        }
     }
 
     private int countUpgrade(net.minecraft.item.Item up) {

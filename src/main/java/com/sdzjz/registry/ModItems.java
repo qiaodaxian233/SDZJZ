@@ -2,6 +2,8 @@ package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.item.CaptureCageItem;
+import com.sdzjz.item.MachineItem;
+import com.sdzjz.machine.Machines;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
@@ -16,15 +18,23 @@ import net.minecraft.text.Text;
 
 /** 物品注册 + 创造物品组。 */
 public class ModItems {
-    // ---- 物品 ----
-    public static final Item CORE_MODULE     = reg("core_module", new Item(new Item.Settings()));      // 共用中间件
-    public static final Item WIRE_BRUSHER    = reg("wire_brusher", new Item(new Item.Settings()));     // 刷线机（放进结构核心）
-    public static final Item SPEED_UPGRADE   = reg("speed_upgrade", new Item(new Item.Settings()));    // 速度升级
-    public static final Item COUNT_UPGRADE   = reg("count_upgrade", new Item(new Item.Settings()));    // 数量升级
-    public static final Item PARALLEL_UPGRADE= reg("parallel_upgrade", new Item(new Item.Settings())); // 并发升级
-    public static final Item CAPTURE_CAGE    = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1))); // 抓物笼子
+    // 通用件
+    public static final Item CORE_MODULE      = reg("core_module", new Item(new Item.Settings()));
+    public static final Item SPEED_UPGRADE    = reg("speed_upgrade", new Item(new Item.Settings()));
+    public static final Item COUNT_UPGRADE    = reg("count_upgrade", new Item(new Item.Settings()));
+    public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Settings()));
+    public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
 
-    // ---- 创造物品组 ----
+    // 机器（MachineItem 携带 MachineDef）
+    public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
+    public static final Item COBBLE_MAKER   = reg("cobble_maker",   new MachineItem(new Item.Settings(), Machines.COBBLE_MAKER));
+    public static final Item BONE_FARM      = reg("bone_farm",      new MachineItem(new Item.Settings(), Machines.BONE_FARM));
+    public static final Item GUNPOWDER_FARM = reg("gunpowder_farm", new MachineItem(new Item.Settings(), Machines.GUNPOWDER_FARM));
+    public static final Item FLESH_FARM     = reg("flesh_farm",     new MachineItem(new Item.Settings(), Machines.FLESH_FARM));
+    public static final Item PEARL_FARM     = reg("pearl_farm",     new MachineItem(new Item.Settings(), Machines.PEARL_FARM));
+    public static final Item SLIME_FARM     = reg("slime_farm",     new MachineItem(new Item.Settings(), Machines.SLIME_FARM));
+    public static final Item IRON_FARM      = reg("iron_farm",      new MachineItem(new Item.Settings(), Machines.IRON_FARM));
+
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
     public static final ItemGroup GROUP = FabricItemGroup.builder()
@@ -40,11 +50,18 @@ public class ModItems {
         Registry.register(Registries.ITEM_GROUP, GROUP_KEY, GROUP);
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
             entries.add(CORE_MODULE);
-            entries.add(WIRE_BRUSHER);
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);
             entries.add(CAPTURE_CAGE);
+            entries.add(WIRE_BRUSHER);
+            entries.add(COBBLE_MAKER);
+            entries.add(BONE_FARM);
+            entries.add(GUNPOWDER_FARM);
+            entries.add(FLESH_FARM);
+            entries.add(PEARL_FARM);
+            entries.add(SLIME_FARM);
+            entries.add(IRON_FARM);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

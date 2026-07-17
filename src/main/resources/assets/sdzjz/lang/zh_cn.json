@@ -10,5 +10,12 @@
   "block.sdzjz.super_bench": "超大工作台",
   "container.sdzjz.structure_core": "结构核心",
   "block.sdzjz.data_panel": "数据面板",
-  "container.sdzjz.data_panel": "数据面板"
+  "container.sdzjz.data_panel": "数据面板",
+  "item.sdzjz.cobble_maker": "刷石机",
+  "item.sdzjz.bone_farm": "刷骨机",
+  "item.sdzjz.gunpowder_farm": "刷火药机",
+  "item.sdzjz.flesh_farm": "刷腐肉机",
+  "item.sdzjz.pearl_farm": "刷珍珠机",
+  "item.sdzjz.slime_farm": "刷史莱姆机",
+  "item.sdzjz.iron_farm": "刷铁机"
 }

@@ -1,0 +1,4 @@
+{ "type":"minecraft:crafting_shaped","pattern":["IOI","RMR","CSC"],
+  "key":{"I":"minecraft:iron_ingot","O":"minecraft:observer","R":"minecraft:redstone",
+         "M":"sdzjz:core_module","C":"minecraft:copper_ingot","S":"minecraft:ender_pearl"},
+  "result":{"id":"sdzjz:pearl_farm","count":1} }

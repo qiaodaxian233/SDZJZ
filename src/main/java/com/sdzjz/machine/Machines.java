@@ -3,12 +3,23 @@ package com.sdzjz.machine;
 import java.util.List;
 
 /**
- * 内置机器表。Phase 1 先落刷线机；后续每种产物加一台（刷石机/刷铁机…同套路，配方与产物各异）。
+ * 内置机器表（Phase 2 批量：农场类，consumesInputs=false 免费出，对齐原版刷怪/采集农场）。
+ * 加工/合成类（consumesInputs=true）下一步做。加机器：这里加一条 + ModItems 注册 MachineItem + 配方/模型/lang。
  */
 public final class Machines {
     private Machines() {}
 
-    /** 刷线机：对应蜘蛛农场——蜘蛛自然刷出、杀了掉线，故不消耗、直接出线（每周期出 1，基础 20t）。 */
-    public static final MachineDef WIRE_BRUSHER = new MachineDef(
-            "wire_brusher", "minecraft:string", 1, 20, false, List.of());
+    //                                     id              product                 每次  周期t 消耗  输入
+    public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);
+    public static final MachineDef COBBLE_MAKER   = def("cobble_maker",   "minecraft:cobblestone",  1, 10);
+    public static final MachineDef BONE_FARM      = def("bone_farm",      "minecraft:bone",         1, 20);
+    public static final MachineDef GUNPOWDER_FARM = def("gunpowder_farm", "minecraft:gunpowder",    1, 25);
+    public static final MachineDef FLESH_FARM     = def("flesh_farm",     "minecraft:rotten_flesh", 1, 20);
+    public static final MachineDef PEARL_FARM     = def("pearl_farm",     "minecraft:ender_pearl",  1, 30);
+    public static final MachineDef SLIME_FARM     = def("slime_farm",     "minecraft:slime_ball",   1, 25);
+    public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
+
+    private static MachineDef def(String id, String product, int perCycle, int interval) {
+        return new MachineDef(id, product, perCycle, interval, false, List.of());
+    }
 }

@@ -34,7 +34,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
         // 机器槽 0..7（只收刷线机）
         for (int i = 0; i < StructureCoreBlockEntity.MACHINE_SLOTS; i++) {
             this.addSlot(new Slot(inv, StructureCoreBlockEntity.MACHINE_START + i, 8 + i * 18, 20) {
-                @Override public boolean canInsert(ItemStack s) { return s.isOf(ModItems.WIRE_BRUSHER); }
+                @Override public boolean canInsert(ItemStack s) { return s.getItem() instanceof com.sdzjz.item.MachineItem; }
             });
         }
         // 升级槽 8..10（只收升级）
