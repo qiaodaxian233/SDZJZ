@@ -156,3 +156,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 注册 structure_blueprint 物品(配方 纸7+钻石块+核心模块)、模型、中英名、创造组。贴图待画(已加绘图名单)。
 - 盯点/已知：(1) 作者用 1.21.7 图集，个别 1.21.7 新方块在 1.21.1 不存在→get 返回 AIR 会留空洞(多数常见方块没问题)；(2) 3.8万方块一次性放置可能瞬时卡顿，后续可分tick;(3) 材料清单校验暂无(先消耗蓝图)，为后续。
 - configVersion 仍 2。
+
+## m22 — 扩充 10 台机器【待编译验证】
+
+- 新农场(免费,consumesInputs=false)：仙人掌场、下界疣场、海带场、烈焰人塔、凋灵骷髅塔(骨头/煤/2.5%凋灵骷髅头)、蜂蜜场(蜂巢/蜂蜜瓶)。
+- 新消耗机(从数据面板取料)：铁熔炉(粗铁→铁锭)、金熔炉(粗金→金锭)、木炭窑(橡木原木→木炭)、玻璃窑(沙子→玻璃)。
+- 脚本生成：Machines 常量、ModItems 注册+创造组、配方(统一 IOI/RMR/CSC 模板, S=对应引子)、物品模型、中英名、128×128 品红占位贴图；绘图名单追加 10 项。
+- 机器物品总数 22→32。configVersion 仍 2。
+- 贴图待画(占位品红)：cactus_farm/nether_wart_farm/kelp_farm/blaze_farm/wither_skeleton_farm/honey_farm/iron_smelter/gold_smelter/charcoal_kiln/glass_kiln。

@@ -50,6 +50,16 @@ public class ModItems {
     public static final Item RAID_TOWER     = reg("raid_tower",     new MachineItem(new Item.Settings(), Machines.RAID_TOWER));
     public static final Item PIGMAN_TOWER   = reg("pigman_tower",   new MachineItem(new Item.Settings(), Machines.PIGMAN_TOWER));
     public static final Item PIGLIN_BARTER  = reg("piglin_barter",  new MachineItem(new Item.Settings(), Machines.PIGLIN_BARTER));
+    public static final Item CACTUS_FARM = reg("cactus_farm", new MachineItem(new Item.Settings(), Machines.CACTUS_FARM));
+    public static final Item NETHER_WART_FARM = reg("nether_wart_farm", new MachineItem(new Item.Settings(), Machines.NETHER_WART_FARM));
+    public static final Item KELP_FARM = reg("kelp_farm", new MachineItem(new Item.Settings(), Machines.KELP_FARM));
+    public static final Item BLAZE_FARM = reg("blaze_farm", new MachineItem(new Item.Settings(), Machines.BLAZE_FARM));
+    public static final Item WITHER_SKELETON_FARM = reg("wither_skeleton_farm", new MachineItem(new Item.Settings(), Machines.WITHER_SKELETON_FARM));
+    public static final Item HONEY_FARM = reg("honey_farm", new MachineItem(new Item.Settings(), Machines.HONEY_FARM));
+    public static final Item IRON_SMELTER = reg("iron_smelter", new MachineItem(new Item.Settings(), Machines.IRON_SMELTER));
+    public static final Item GOLD_SMELTER = reg("gold_smelter", new MachineItem(new Item.Settings(), Machines.GOLD_SMELTER));
+    public static final Item CHARCOAL_KILN = reg("charcoal_kiln", new MachineItem(new Item.Settings(), Machines.CHARCOAL_KILN));
+    public static final Item GLASS_KILN = reg("glass_kiln", new MachineItem(new Item.Settings(), Machines.GLASS_KILN));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -93,6 +103,16 @@ public class ModItems {
             entries.add(RAID_TOWER);
             entries.add(PIGMAN_TOWER);
             entries.add(PIGLIN_BARTER);
+            entries.add(CACTUS_FARM);
+            entries.add(NETHER_WART_FARM);
+            entries.add(KELP_FARM);
+            entries.add(BLAZE_FARM);
+            entries.add(WITHER_SKELETON_FARM);
+            entries.add(HONEY_FARM);
+            entries.add(IRON_SMELTER);
+            entries.add(GOLD_SMELTER);
+            entries.add(CHARCOAL_KILN);
+            entries.add(GLASS_KILN);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

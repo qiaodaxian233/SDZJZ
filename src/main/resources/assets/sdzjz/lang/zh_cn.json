@@ -33,5 +33,15 @@
   "item.sdzjz.pigman_tower": "猪人塔",
   "block.sdzjz.data_cable": "数据线",
   "item.sdzjz.piglin_barter": "猪灵交易塔",
-  "item.sdzjz.structure_blueprint": "建造蓝图"
+  "item.sdzjz.structure_blueprint": "建造蓝图",
+  "item.sdzjz.cactus_farm": "仙人掌场",
+  "item.sdzjz.nether_wart_farm": "下界疣场",
+  "item.sdzjz.kelp_farm": "海带场",
+  "item.sdzjz.blaze_farm": "烈焰人塔",
+  "item.sdzjz.wither_skeleton_farm": "凋灵骷髅塔",
+  "item.sdzjz.honey_farm": "蜂蜜场",
+  "item.sdzjz.iron_smelter": "铁熔炉",
+  "item.sdzjz.gold_smelter": "金熔炉",
+  "item.sdzjz.charcoal_kiln": "木炭窑",
+  "item.sdzjz.glass_kiln": "玻璃窑"
 }
