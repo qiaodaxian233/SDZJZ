@@ -22,6 +22,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
     private final Inventory inv;
     private final StructureCoreBlockEntity core;
     private final PropertyDelegate props;
+    private final BlockPos blockPos;
 
     // 客户端
     public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
@@ -38,33 +39,13 @@ public class StructureCoreScreenHandler extends ScreenHandler {
         this.core = be;
         this.inv = (be != null) ? be : new SimpleInventory(StructureCoreBlockEntity.SIZE);
         this.props = props;
+        this.blockPos = (be != null) ? be.getPos() : null;
         this.inv.onOpen(playerInv.player);
         addProperties(props);
-
-        // 机器槽 0..7（2×4）
-        for (int i = 0; i < StructureCoreBlockEntity.MACHINE_SLOTS; i++) {
-            int x = 24 + (i % 4) * 20, y = 42 + (i / 4) * 20;
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.MACHINE_START + i, x, y) {
-                @Override public boolean canInsert(ItemStack s) { return s.getItem() instanceof MachineItem || s.getItem() instanceof com.sdzjz.item.CaptureCageItem; }
-            });
-        }
-        // 升级槽 8..10
-        for (int i = 0; i < StructureCoreBlockEntity.UPGRADE_SLOTS; i++) {
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.UPGRADE_START + i, 24 + i * 20, 98) {
-                @Override public boolean canInsert(ItemStack s) {
-                    return s.isOf(ModItems.SPEED_UPGRADE) || s.isOf(ModItems.COUNT_UPGRADE) || s.isOf(ModItems.PARALLEL_UPGRADE);
-                }
-            });
-        }
-        // 输出槽 11..18（2×4，只取）
-        for (int i = 0; i < StructureCoreBlockEntity.OUTPUT_SLOTS; i++) {
-            int x = 190 + (i % 4) * 20, y = 42 + (i / 4) * 20;
-            this.addSlot(new Slot(inv, StructureCoreBlockEntity.OUTPUT_START + i, x, y) {
-                @Override public boolean canInsert(ItemStack s) { return false; }
-            });
-        }
-        // 结构核心不显示玩家背包（改为右键方块放入/弹出机器）
+        // 画布界面：无槽位（机器=节点；机器/升级经右键方块放入；产出自动推送到连接的存储）
     }
+
+    public BlockPos blockPos() { return blockPos; }
 
     private static StructureCoreBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
         BlockEntity be = playerInv.player.getWorld().getBlockEntity(pos);

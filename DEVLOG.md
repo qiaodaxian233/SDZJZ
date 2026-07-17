@@ -245,3 +245,12 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - StructureCoreBlockEntity 加 insertMachine/insertUpgrade/insertInto/ejectOne/pop。
 - StructureCoreBlock 加 onStateReplaced：破坏时 ItemScatterer 掉落全部内容(防丢机器)。
 - 未做(待定):超大工作台=专用合成台需 128×128 含义澄清后建;届时把机器配方从原版工作台迁到合成台(在此之前保留原版配方,避免再次无法合成)。
+
+## m33 — 结构核心 ComfyUI 画布 Phase1【待编译验证】
+
+- 机器从"8固定槽"改为无上限「节点列表」(machineNodes: List<ItemStack>)。tick/机器数/放入/弹出/破坏掉落均改走节点。升级仍走 items 槽8-10(右键放入)，产出仍 items 槽11-18(自动推送)。
+- BE：insertMachine 加节点、ejectOne 先弹节点、nodes() 供画布读、dropAll 破坏掉落(含节点)、syncToClient + toUpdatePacket + toInitialChunkDataNbt(节点存 NBT 并同步客户端)。
+- StructureCoreScreenHandler：去掉全部 GUI 槽位(画布无槽)，加 blockPos() 供画布定位客户端 BE；保留状态 props + 开机/停止按钮。
+- StructureCoreScreen 重写为画布：全屏深底+网格、节点框(图标+名+×数)、拖空白平移、顶栏状态、开机/停止、操作提示。
+- 盯点(1.21.1 API)：toUpdatePacket/BlockEntityUpdateS2CPacket、toInitialChunkDataNbt、ItemStack.encode/fromNbt、mouseDragged 签名。
+- 后续：Phase2 节点拖动+位置保存(C2S)；Phase3 连线；Phase4 缩放。超大工作台 12×12 合成台单独做。

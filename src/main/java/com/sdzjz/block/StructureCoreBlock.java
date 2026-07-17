@@ -85,7 +85,7 @@ public class StructureCoreBlock extends BlockWithEntity {
     protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
         if (!state.isOf(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof StructureCoreBlockEntity core) {
-                ItemScatterer.spawn(world, pos, core);
+                core.dropAll(world, pos);
             }
             super.onStateReplaced(state, world, pos, newState, moved);
         }

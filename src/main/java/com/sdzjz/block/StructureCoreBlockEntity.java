@@ -24,6 +24,9 @@ import net.minecraft.util.Identifier;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.block.ItemScatterer;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.PropertyDelegate;
 import net.minecraft.screen.ScreenHandler;
@@ -51,6 +54,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static final int SIZE = MACHINE_SLOTS + UPGRADE_SLOTS + OUTPUT_SLOTS; // 19
 
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
+    private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -75,10 +79,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private int machineCount() {
         int n = 0;
-        for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
-            if (items.get(i).getItem() instanceof MachineItem
-                    || items.get(i).getItem() instanceof CaptureCageItem) n += items.get(i).getCount();
-        }
+        for (ItemStack st : machineNodes) n += st.getCount();
         return n;
     }
 
@@ -106,8 +107,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // 按机器类型分组，统计每种装了几台
         Map<MachineDef, Integer> counts = new LinkedHashMap<>();
         Map<String, Integer> cages = new LinkedHashMap<>();
-        for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
-            ItemStack st = be.items.get(i);
+        for (ItemStack st : be.machineNodes) {
             if (st.getItem() instanceof MachineItem mi) {
                 counts.merge(mi.def(), st.getCount(), Integer::sum);
             } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
@@ -171,8 +171,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
     }
 
-    /** 右键把机器/笼子放入机器槽（合并+空槽）。 */
-    public boolean insertMachine(ItemStack held) { return insertInto(held, MACHINE_START, MACHINE_START + MACHINE_SLOTS); }
+    /** 右键把机器/笼子作为一个节点加入画布（无数量上限）。 */
+    public boolean insertMachine(ItemStack held) {
+        if (held.isEmpty()) return false;
+        machineNodes.add(held.copy());
+        held.setCount(0);
+        markDirty();
+        syncToClient();
+        return true;
+    }
 
     /** 右键把升级放入升级槽。 */
     public boolean insertUpgrade(ItemStack held) { return insertInto(held, UPGRADE_START, UPGRADE_START + UPGRADE_SLOTS); }
@@ -196,10 +203,32 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return changed;
     }
 
-    /** 潜行空手右键：弹出第一台机器/升级给玩家。 */
+    /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
     public void ejectOne(PlayerEntity player) {
-        for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) if (pop(player, i)) return;
+        if (!machineNodes.isEmpty()) {
+            ItemStack s = machineNodes.remove(machineNodes.size() - 1);
+            if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+            markDirty();
+            syncToClient();
+            return;
+        }
         for (int i = UPGRADE_START; i < UPGRADE_START + UPGRADE_SLOTS; i++) if (pop(player, i)) return;
+    }
+
+    /** 画布渲染读取（客户端）。 */
+    public java.util.List<ItemStack> nodes() { return machineNodes; }
+
+    /** 破坏时掉落全部（升级/产出 + 机器节点）。 */
+    public void dropAll(World world, BlockPos pos) {
+        ItemScatterer.spawn(world, pos, this);
+        for (ItemStack s : machineNodes) ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), s);
+        machineNodes.clear();
+    }
+
+    private void syncToClient() {
+        if (world != null && !world.isClient) {
+            world.updateListeners(pos, getCachedState(), getCachedState(), net.minecraft.block.Block.NOTIFY_ALL);
+        }
     }
 
     private boolean pop(PlayerEntity player, int i) {
@@ -443,6 +472,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
         Inventories.writeNbt(nbt, items, lookup);
+        NbtList mn = new NbtList();
+        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.encode(lookup));
+        nbt.put("machineNodes", mn);
         if (boundPanelPos != null && boundPanelDim != null) {
             nbt.putLong("boundPos", boundPanelPos.asLong());
             nbt.putString("boundDim", boundPanelDim);
@@ -454,6 +486,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         Inventories.readNbt(nbt, items, lookup);
+        machineNodes.clear();
+        NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < mn.size(); i++) ItemStack.fromNbt(lookup, mn.getCompound(i)).ifPresent(machineNodes::add);
         if (nbt.contains("boundPos")) {
             boundPanelPos = BlockPos.fromLong(nbt.getLong("boundPos"));
             boundPanelDim = nbt.getString("boundDim");
@@ -461,6 +496,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             boundPanelPos = null; boundPanelDim = null;
         }
         running = nbt.getBoolean("running");
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup lookup) {
+        NbtCompound nbt = new NbtCompound();
+        writeNbt(nbt, lookup);
+        return nbt;
+    }
+
+    @Override
+    public net.minecraft.network.packet.Packet<net.minecraft.network.listener.ClientPlayPacketListener> toUpdatePacket() {
+        return net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket.create(this);
     }
 
     // ================= GUI 工厂 =================
