@@ -46,5 +46,6 @@
   "item.sdzjz.glass_kiln": "Glass Kiln",
   "block.sdzjz.wireless_node": "Wireless Node",
   "block.sdzjz.satellite_node": "Satellite Node",
-  "item.sdzjz.linker": "Data Linker"
+  "item.sdzjz.linker": "Data Linker",
+  "item.sdzjz.terminal": "Portable Terminal"
 }

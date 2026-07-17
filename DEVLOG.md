@@ -190,3 +190,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 路由优先级：绑定 → 有线 → 无线 → 卫星（产出与消耗机取料一致）。多核心绑同一面板即聚合。
 - 链接器：配方(红石4+末影珍珠4+核心模块)、模型、中英名、占位贴图、创造组；绘图名单+linker。
 - configVersion 仍 3。
+
+## m26 — 手持终端（远程开面板）【待编译验证】
+
+- 新增 TerminalItem「手持终端」：useOnBlock 右键面板→绑定(pos+dim→CUSTOM_DATA)；use() 右键空手/地面→远程 openHandledScreen(真实面板BE)。
+- 利用现有 DataPanelScreenHandler：服务端持真实 BE，槽位内容同步下发，客户端无需该方块实体→跨维度/远处可显示；取出经服务端面板扣数。
+- 限制：目标面板区块须已加载。盯点：Item.use 在 1.21.1 返回 TypedActionResult<ItemStack>（若签名不符按报错改）。
+- 终端：配方(玻璃板3+末影珍珠2+核心模块+铁锭3)、模型、中英名、占位贴图、创造组；绘图名单+terminal。
+- configVersion 仍 3。

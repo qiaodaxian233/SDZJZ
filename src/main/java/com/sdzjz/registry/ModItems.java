@@ -5,6 +5,7 @@ import com.sdzjz.item.CaptureCageItem;
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.item.LinkerItem;
 import com.sdzjz.item.StructureBlueprintItem;
+import com.sdzjz.item.TerminalItem;
 import com.sdzjz.machine.Machines;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
@@ -28,6 +29,7 @@ public class ModItems {
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item STRUCTURE_BLUEPRINT = reg("structure_blueprint", new StructureBlueprintItem(new Item.Settings().maxCount(16)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
+    public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
 
     // 机器（MachineItem 携带 MachineDef）
     public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
@@ -84,6 +86,7 @@ public class ModItems {
             entries.add(CAPTURE_CAGE);
             entries.add(STRUCTURE_BLUEPRINT);
             entries.add(LINKER);
+            entries.add(TERMINAL);
             entries.add(WIRE_BRUSHER);
             entries.add(COBBLE_MAKER);
             entries.add(BONE_FARM);

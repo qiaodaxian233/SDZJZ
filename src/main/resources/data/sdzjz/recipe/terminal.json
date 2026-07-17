@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["GGG","EME","III"],
+  "key":{"G":"minecraft:glass_pane","E":"minecraft:ender_pearl","M":"sdzjz:core_module","I":"minecraft:iron_ingot"},
+  "result":{"id":"sdzjz:terminal","count":1} }

@@ -46,5 +46,6 @@
   "item.sdzjz.glass_kiln": "玻璃窑",
   "block.sdzjz.wireless_node": "无线节点",
   "block.sdzjz.satellite_node": "卫星节点",
-  "item.sdzjz.linker": "数据链接器"
+  "item.sdzjz.linker": "数据链接器",
+  "item.sdzjz.terminal": "手持终端"
 }
