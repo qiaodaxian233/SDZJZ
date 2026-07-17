@@ -91,6 +91,7 @@ public class ModItems {
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);
+            entries.add(ModBlocks.DATA_CABLE);
         });
     }
 }

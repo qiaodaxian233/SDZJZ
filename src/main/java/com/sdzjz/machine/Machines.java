@@ -15,7 +15,9 @@ public final class Machines {
     public static final MachineDef PEARL_FARM     = def("pearl_farm",     "minecraft:ender_pearl",  1, 30);
     public static final MachineDef SLIME_FARM     = def("slime_farm",     "minecraft:slime_ball",   1, 25);
     public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
-    public static final MachineDef TREE_FARM      = def("tree_farm",      "minecraft:oak_log",      1, 30);
+    public static final MachineDef TREE_FARM = defMulti("tree_farm", 30,
+            drop("minecraft:oak_log", 1, 2), drop("minecraft:stick", 0, 2),
+            drop("minecraft:apple", 0, 1, 0.15f), drop("minecraft:oak_sapling", 0, 1, 0.4f));
     public static final MachineDef SUGARCANE_FARM = def("sugarcane_farm", "minecraft:sugar_cane",   1, 20);
     public static final MachineDef BAMBOO_FARM    = def("bamboo_farm",    "minecraft:bamboo",       1, 15);
     public static final MachineDef SAND_MAKER     = def("sand_maker",     "minecraft:sand",         1, 15);

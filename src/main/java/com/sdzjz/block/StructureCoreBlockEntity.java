@@ -26,6 +26,7 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
@@ -123,7 +124,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
         if (produced) {
-            be.pushDown(world, pos);
+            be.pushOutput(world, pos);
             be.markDirty();
         }
     }
@@ -154,24 +155,38 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 把输出缓存推入正下方容器。 */
-    private void pushDown(World world, BlockPos pos) {
-        BlockEntity below = world.getBlockEntity(pos.down());
-        if (below instanceof DataPanelBlockEntity panel) {
-            for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
-                ItemStack slot = items.get(i);
-                if (slot.isEmpty()) continue;
-                panel.deposit(slot);
-                if (slot.isEmpty()) items.set(i, ItemStack.EMPTY);
-            }
-            return;
-        }
-        if (!(below instanceof Inventory target)) return;
+    /** 把输出缓存送到：相邻的数据面板/箱子，或顺着数据线 BFS 连到的存储。 */
+    private void pushOutput(World world, BlockPos corePos) {
+        Object target = findTarget(world, corePos);
+        if (target == null) return;
         for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
             ItemStack slot = items.get(i);
             if (slot.isEmpty()) continue;
-            insertInto(target, slot);
+            if (target instanceof DataPanelBlockEntity panel) panel.deposit(slot);
+            else if (target instanceof Inventory inv) insertInto(inv, slot);
             if (slot.isEmpty()) items.set(i, ItemStack.EMPTY);
         }
+    }
+
+    /** 从核心出发，直连相邻存储；遇数据线则继续路由，返回最近的数据面板/箱子。 */
+    private Object findTarget(World world, BlockPos corePos) {
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
+        java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();
+        q.add(corePos);
+        seen.add(corePos);
+        int budget = 256;
+        while (!q.isEmpty() && budget-- > 0) {
+            BlockPos cur = q.poll();
+            for (Direction d : Direction.values()) {
+                BlockPos np = cur.offset(d);
+                if (!seen.add(np)) continue;
+                BlockEntity be = world.getBlockEntity(np);
+                if (be instanceof DataPanelBlockEntity panel) return panel;
+                if (be instanceof Inventory inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+                if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
+            }
+        }
+        return null;
     }
 
     private static void insertInto(Inventory target, ItemStack stack) {

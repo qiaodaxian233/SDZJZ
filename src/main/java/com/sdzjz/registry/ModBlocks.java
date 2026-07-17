@@ -1,6 +1,7 @@
 package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
+import com.sdzjz.block.DataCableBlock;
 import com.sdzjz.block.DataPanelBlock;
 import com.sdzjz.block.StructureCoreBlock;
 import net.minecraft.block.AbstractBlock;
@@ -21,6 +22,9 @@ public class ModBlocks {
 
     public static final DataPanelBlock DATA_PANEL =
             reg("data_panel", new DataPanelBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+
+    public static final DataCableBlock DATA_CABLE =
+            reg("data_cable", new DataCableBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     private static <T extends Block> T reg(String name, T block) {
         T b = Registry.register(Registries.BLOCK, Sdzjz.id(name), block);

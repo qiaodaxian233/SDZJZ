@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["GGG","RMR","GGG"],
+  "key":{"G":"minecraft:glass","R":"minecraft:redstone","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:data_cable","count":8} }

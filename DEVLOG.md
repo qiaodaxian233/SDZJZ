@@ -132,3 +132,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 分区标题前加青色竖条。并发数值用青色高亮。
 - 盯点：ButtonWidget 7 参构造(narrationSupplier 传 lambda s->s.get())、renderWidget/isHovered/drawCenteredTextWithShadow 1.21.1 签名。
 - 说明：升级等级 = 升级槽内该升级物品数量(叠加)；速度-4t/级、数量+8/次/级、并发+4/级。
+
+## m19 — 树场多掉落 + 数据线连接第一版【待编译验证】
+
+- 树场改多掉落：原木1-2、木棍0-2、苹果15%、树苗40%。
+- 连接系统第一版：新增 DataCableBlock（数据线）。StructureCoreBlockEntity 的 pushDown 改为 pushOutput+findTarget：从核心 BFS，相邻数据面板/箱子直接存；遇数据线则顺着路由到末端存储（上限256格，无电力）。→ 可"核心拉线到远处面板"。
+- 数据线配方(玻璃8+红石+核心模块→8)、方块模型/blockstate/物品模型/lang齐；贴图 data_cable.png 待画(已加进绘图名单)。
+- 新增 连接系统.md：现状 + 参考 AE 的后续路线(多目标分发/共享网络存储/远程终端/细导线模型/输入路由)。
+- 消耗类机器(熔炉组/合成机/交易)仍待做。configVersion 仍 2。
