@@ -31,7 +31,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = c + r * 9;
-                this.addSlot(new Slot(display, idx, 8 + c * 18, 18 + r * 18) {
+                this.addSlot(new Slot(display, idx, 99 + c * 18, 30 + r * 18) {
                     @Override public boolean canInsert(ItemStack s) { return false; }
                     @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
                         if (panel != null && !stack.isEmpty()) {
@@ -45,9 +45,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
         // 玩家背包
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++)
-                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 8 + c * 18, 140 + r * 18));
+                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 158 + r * 18));
         for (int c = 0; c < 9; c++)
-            this.addSlot(new Slot(playerInv, c, 8 + c * 18, 198));
+            this.addSlot(new Slot(playerInv, c, 99 + c * 18, 216));
     }
 
     private static DataPanelBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {

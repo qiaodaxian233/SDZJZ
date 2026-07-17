@@ -1,3 +1,0 @@
-{ "type":"minecraft:crafting_shaped","pattern":["PPP","PDP","PMP"],
-  "key":{"P":"minecraft:paper","D":"minecraft:diamond_block","M":"sdzjz:core_module"},
-  "result":{"id":"sdzjz:structure_blueprint","count":1} }

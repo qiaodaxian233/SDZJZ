@@ -213,3 +213,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - Sdzjz.onInitialize 注册 ServerTickEvents.END_SERVER_TICK -> StructureBuilder.tick。
 - 配置加 structureBlocksPerTick=1024 / structureConsumeMaterials=false（加键不升版本，GSON 取默认）。
 - 盯点：ServerTickEvents(fabric lifecycle v1) 依赖存在即可。
+
+## m29 — 撤销蓝图 + 数据面板 GUI 全屏科技化【待编译验证】
+
+- 撤销结构建造(暂停，作者拟 Blockbench 重做)：删 StructureBlueprintItem/StructureBuilder/block_mesh.mcfunction(1.8M) 及其配方/模型/lang/创造组/Sdzjz tick 挂载。无残留引用。代码保留在 git 历史(m21~m28)可恢复。
+- 数据面板 GUI 改全屏科技风(对齐结构核心)：DataPanelScreen backgroundWidth/Height=360×256，深色 BACKDROP 铺满，复用 structure_core_gui.png 作边框贴图，青角槽格 cell()，分区标题"存储/背包"带青竖条，标题"数据面板"+右上"种类 N/54"。
+- DataPanelScreenHandler 槽位改居中布局：存储6×9 @ (99+c*18,30+r*18)，背包3×9 @ (…,158+…)，快捷栏 @ (…,216)。screen 绘制坐标同步。
+- 后续作者可出 data_panel_gui.png 专属背景再替换 BG 常量。configVersion 仍 3。

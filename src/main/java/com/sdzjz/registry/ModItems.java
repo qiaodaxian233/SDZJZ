@@ -4,7 +4,6 @@ import com.sdzjz.Sdzjz;
 import com.sdzjz.item.CaptureCageItem;
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.item.LinkerItem;
-import com.sdzjz.item.StructureBlueprintItem;
 import com.sdzjz.item.TerminalItem;
 import com.sdzjz.machine.Machines;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
@@ -27,7 +26,6 @@ public class ModItems {
     public static final Item COUNT_UPGRADE    = reg("count_upgrade", new Item(new Item.Settings()));
     public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Settings()));
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
-    public static final Item STRUCTURE_BLUEPRINT = reg("structure_blueprint", new StructureBlueprintItem(new Item.Settings().maxCount(16)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
 
@@ -84,7 +82,6 @@ public class ModItems {
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);
             entries.add(CAPTURE_CAGE);
-            entries.add(STRUCTURE_BLUEPRINT);
             entries.add(LINKER);
             entries.add(TERMINAL);
             entries.add(WIRE_BRUSHER);
