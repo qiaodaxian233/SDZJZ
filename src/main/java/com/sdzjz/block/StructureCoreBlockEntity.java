@@ -57,6 +57,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
+    private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -240,13 +241,30 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
     public void ejectOne(PlayerEntity player) {
         if (!machineNodes.isEmpty()) {
-            ItemStack s = machineNodes.remove(machineNodes.size() - 1);
+            int removed = machineNodes.size() - 1;
+            ItemStack s = machineNodes.remove(removed);
+            connections.removeIf(c -> c[0] == removed || c[1] == removed);
             if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
             markDirty();
             syncToClient();
             return;
         }
         for (int i = UPGRADE_START; i < UPGRADE_START + UPGRADE_SLOTS; i++) if (pop(player, i)) return;
+    }
+
+    /** 画布连线读取（客户端渲染）。 */
+    public java.util.List<int[]> connections() { return connections; }
+
+    /** 连/断一条 from→to 连线（已存在则断开）。 */
+    public void toggleConnection(int from, int to) {
+        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
+        for (int i = 0; i < connections.size(); i++) {
+            int[] c = connections.get(i);
+            if (c[0] == from && c[1] == to) { connections.remove(i); markDirty(); syncToClient(); return; }
+        }
+        connections.add(new int[]{from, to});
+        markDirty();
+        syncToClient();
     }
 
     /** 画布渲染读取（客户端）。 */
@@ -509,6 +527,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         NbtList mn = new NbtList();
         for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.encode(lookup));
         nbt.put("machineNodes", mn);
+        int[] flat = new int[connections.size() * 2];
+        for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
+        nbt.putIntArray("connections", flat);
         if (boundPanelPos != null && boundPanelDim != null) {
             nbt.putLong("boundPos", boundPanelPos.asLong());
             nbt.putString("boundDim", boundPanelDim);
@@ -523,6 +544,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         machineNodes.clear();
         NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < mn.size(); i++) ItemStack.fromNbt(lookup, mn.getCompound(i)).ifPresent(machineNodes::add);
+        connections.clear();
+        int[] flat = nbt.getIntArray("connections");
+        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
         if (nbt.contains("boundPos")) {
             boundPanelPos = BlockPos.fromLong(nbt.getLong("boundPos"));
             boundPanelDim = nbt.getString("boundDim");

@@ -267,3 +267,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - StructureCoreScreen：按节点保存坐标渲染；mouseClicked 命中节点开始拖动、mouseDragged 拖节点(本地即时)或平移、mouseReleased 发 NodeMovePayload 持久化。
 - 盯点：PacketCodec.tuple 四字段重载、playC2S 双端注册。
 - 后续：Phase3 连线；Phase4 缩放。超大工作台 12×12 合成台。
+
+## m36 — 画布 Phase3：节点连线（数据+渲染+拖拽连接）【待编译验证】
+- BE：connections List<int[]>{from,to} + connections()/toggleConnection(存在则断) + ejectOne 移除末节点时剪枝相关连线 + NBT(putIntArray/getIntArray 扁平存储, 老存档空数组安全)。
+- 新增 NodeLinkPayload(pos,from,to) C2S；Sdzjz 注册 + 接收器 → core.toggleConnection。
+- 画布：节点左青(输入)/右绿(输出)端口；三次贝塞尔连线(56采样点, 水平切线 ComfyUI 风格)画在节点下层；按住绿输出口拖到另一节点=连/断(临时连线跟随鼠标)。
+- 连线运行效果(A输出→B输入)未接，为后续。tuple 3/4 字段重载已由 Phase2 全绿佐证。
+- 后续：Phase4 缩放；连线运行语义；超大工作台 12×12。

@@ -2,6 +2,7 @@ package com.sdzjz;
 
 import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.config.SdzjzConfig;
+import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
@@ -27,13 +28,22 @@ public class Sdzjz implements ModInitializer {
         ModScreenHandlers.init();
         ModItems.init();
 
-        // 网络：画布节点拖动位置（C2S）
+        // 网络：画布节点拖动位置 + 连线（C2S）
         PayloadTypeRegistry.playC2S().register(NodeMovePayload.ID, NodeMovePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(NodeLinkPayload.ID, NodeLinkPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     core.setNodePos(payload.index(), payload.nx(), payload.ny());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(NodeLinkPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.toggleConnection(payload.from(), payload.to());
                 }
             });
         });
