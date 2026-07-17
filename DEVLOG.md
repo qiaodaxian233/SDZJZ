@@ -118,3 +118,9 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 槽位在 handler 里重排成仪表盘：机器 2×4、升级 1×3、产出 2×4、背包底部居中；开机/停止改成两个大按钮。
 - drawForeground 显示 tier名/运行状态/各区标题/状态读数(机器数·速度·数量·并发 Lv)。
 - 纯客户端 + 槽坐标改动，无服务端逻辑变化。数据面板 GUI 暂仍为小窗，需要的话下次也可全屏化。configVersion 仍 2。
+
+## m17 — 结构核心 GUI 用上背景贴图【待编译验证】
+
+- 作者提供了 structure_core_gui.png（科幻边框+电路，空心中间）。缩到 360×256 存 assets/sdzjz/textures/gui/。
+- StructureCoreScreen.drawBackground：全窗 BACKDROP 铺底后，用 drawTexture 画该贴图当面板（1:1），去掉原纯色面板与分区底板；槽底/文字/按钮仍代码画在上层保证对齐。
+- 盯点：drawTexture 签名（1.21.1 用 `drawTexture(Identifier,int x,int y,float u,float v,int w,int h,int texW,int texH)`）——若报错按 IDE 提示换重载。

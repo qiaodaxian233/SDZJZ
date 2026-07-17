@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 /** 结构核心界面（全屏仪表盘）：深色背景铺满窗口，中间大面板分区：机器/升级/产出/状态/背包。 */
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
@@ -18,6 +19,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int TXT      = 0xFFBFD2EC;
     private static final int SUB      = 0xFF7C90B0;
     private static final int ON       = 0xFF33D07A;
+
+    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/structure_core_gui.png");
 
     public StructureCoreScreen(StructureCoreScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
@@ -45,15 +48,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         int x = this.x, y = this.y;
-        ctx.fill(x - 2, y - 2, x + backgroundWidth + 2, y + backgroundHeight + 2, BORDER);
-        ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
-        // 分区底板
-        ctx.fill(x + 16, y + 38, x + 116, y + 84, PANEL2);   // 机器
-        ctx.fill(x + 16, y + 94, x + 116, y + 118, PANEL2);  // 升级
-        ctx.fill(x + 182, y + 38, x + 282, y + 84, PANEL2);  // 产出
-        ctx.fill(x + 182, y + 94, x + 344, y + 134, PANEL2); // 状态
-        ctx.fill(x + 95, y + 172, x + 265, y + 250, PANEL2); // 背包
-        // 槽底
+        // 面板背景贴图（1:1，360×256）
+        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
+        // 槽底画在贴图上层，保证槽可见并对齐
         for (int i = 0; i < 8; i++) sq(ctx, x + 24 + (i % 4) * 20, y + 42 + (i / 4) * 20);
         for (int i = 0; i < 3; i++) sq(ctx, x + 24 + i * 20, y + 98);
         for (int i = 0; i < 8; i++) sq(ctx, x + 190 + (i % 4) * 20, y + 42 + (i / 4) * 20);
