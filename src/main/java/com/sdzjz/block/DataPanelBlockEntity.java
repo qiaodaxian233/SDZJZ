@@ -58,6 +58,10 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public static Set<BlockPos> panelsIn(World world) {
         return PANELS.getOrDefault(world.getRegistryKey(), Set.of());
     }
+
+    public static Set<RegistryKey<World>> dimensionsWithPanels() {
+        return PANELS.keySet();
+    }
     public final SimpleInventory display = new SimpleInventory(PAGE);
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {

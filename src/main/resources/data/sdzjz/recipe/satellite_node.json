@@ -1,0 +1,3 @@
+{ "type":"minecraft:crafting_shaped","pattern":["EWE","WSW","EME"],
+  "key":{"E":"minecraft:ender_eye","W":"sdzjz:wireless_node","S":"minecraft:nether_star","M":"sdzjz:core_module"},
+  "result":{"id":"sdzjz:satellite_node","count":1} }

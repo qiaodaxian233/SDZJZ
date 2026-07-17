@@ -173,3 +173,12 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 配置加 wirelessRange=48，configVersion 2→3。
 - 无线节点：配方(铜4+末影珍珠4+核心模块)、方块/物品模型、blockstate、中英名、创造组、64×64占位贴图；绘图名单+wireless_node。
 - 连接系统.md 记录无线已实现；后续卫星/多核心绑定/手持终端。
+
+## m24 — 后期卫星连接（跨维度/全局）【待编译验证】
+
+- 新增 SatelliteNodeBlock「卫星节点」。接在核心相邻或数据线网络上启用。
+- StructureCoreBlockEntity 加 hasSatelliteNode(BFS) + findSatellitePanel(本维度最近无上限→否则遍历 dimensionsWithPanels 其它已加载维度取任一面板, 跨维度 getWorld)。
+- 路由链完整：有线 → 无线(48格) → 卫星(全局)，产出与消耗机取料一致。
+- DataPanel 暴露 dimensionsWithPanels()。
+- 卫星节点：配方(无线节点×3+末影之眼×4+下界之星+核心模块)、模型/blockstate/物品模型、中英名、创造组、占位贴图；绘图名单+satellite_node。
+- 连接三期完成：连线✅ 无线✅ 卫星✅。configVersion 仍 3。

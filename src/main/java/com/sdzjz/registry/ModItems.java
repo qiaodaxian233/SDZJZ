@@ -118,6 +118,7 @@ public class ModItems {
             entries.add(ModBlocks.DATA_PANEL);
             entries.add(ModBlocks.DATA_CABLE);
             entries.add(ModBlocks.WIRELESS_NODE);
+            entries.add(ModBlocks.SATELLITE_NODE);
         });
     }
 }
