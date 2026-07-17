@@ -7,11 +7,13 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.CraftingResultInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerContext;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -104,6 +106,44 @@ public class SuperBenchScreenHandler extends ScreenHandler {
     @Override
     public boolean canUse(PlayerEntity player) {
         return true;
+    }
+
+    /** 配方浏览器点击：把 #id 配方的材料从背包填入网格（先清空网格还给玩家）。 */
+    @Override
+    public boolean onButtonClick(PlayerEntity player, int id) {
+        if (id < 0 || id >= SuperBenchRecipes.ALL.size()) return false;
+        SuperBenchRecipes.Recipe r = SuperBenchRecipes.ALL.get(id);
+        // 清空网格→还给玩家
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (!s.isEmpty()) {
+                if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+                input.setStack(i, ItemStack.EMPTY);
+            }
+        }
+        // 从背包取料放入网格
+        int slot = 0;
+        for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
+            Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
+            int got = takeFromInv(player, item, e.getValue());
+            while (got > 0 && slot < GRID_SLOTS) {
+                int put = Math.min(got, item.getMaxCount());
+                input.setStack(slot++, new ItemStack(item, put));
+                got -= put;
+            }
+        }
+        input.markDirty();
+        return true;
+    }
+
+    private int takeFromInv(PlayerEntity player, Item item, int need) {
+        int got = 0;
+        PlayerInventory inv = player.getInventory();
+        for (int i = 0; i < inv.size() && got < need; i++) {
+            ItemStack s = inv.getStack(i);
+            if (s.isOf(item)) { int take = Math.min(need - got, s.getCount()); s.decrement(take); got += take; }
+        }
+        return got;
     }
 
     @Override

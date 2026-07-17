@@ -305,3 +305,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
   - 删除 39 个机器原版合成配方 → 机器现只能在超大工作台合成；基础物品(核心模块/升级/笼子/线/节点/面板/核心/工作台/linker/terminal)仍原版可合成。
 - 盯点：FeatureFlags.VANILLA_FEATURES、ScreenHandlerType(Factory,FeatureSet)、SimpleNamedScreenHandlerFactory、CraftingResultInventory、Block.onUse 签名。
 - 注：super_bench 不再是 tier2 核心，画布 tier 恒为1(tier2 分支变死代码, 无害)。
+
+## m41 — 超大工作台配方浏览器（点击自动填料）【待编译验证】
+- 问题：删了原版机器配方后，玩家在 12×12 台前不知道放什么料、也无配方书。
+- SuperBenchScreen 右侧加配方浏览器：列出全部 39 台机器(图标+名, 滚轮翻页)；点一台=选中并显示所需材料(图标+×数)，同时 clickButton(配方下标) 让服务端自动从背包填料入网格。
+- SuperBenchScreenHandler.onButtonClick(id)：先清空网格还给玩家，再按 #id 配方从背包 takeFromInv 取料填入网格→markDirty 重算结果。背包不足则部分填入。
+- 界面加宽到 470×316，左网格/结果/背包 + 右浏览器，中间分隔线。
+- 盯点：interactionManager.clickButton、ScreenHandler.onButtonClick。
