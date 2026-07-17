@@ -286,3 +286,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 
 ## m38 — 修编译：PacketCodecs.BOOL【已查API】
 - 报错 PacketCodecs.BOOLEAN 找不到。Yarn 1.21 API 确认布尔字段名为 PacketCodecs.BOOL(PacketCodec<ByteBuf,Boolean>)。NodeUpgradePayload 改用 BOOL。
+
+## m39 — Phase4 画布缩放 + 连线运行语义【待编译验证】
+- 连线语义(BE)：内部缓存 internalBuffer(id→long)。tick 索引循环 + 连线拓扑 hasOut/hasIn(粗粒度)：有出线节点产物入内部缓存(bufAdd)、有入线消耗机从内部缓存取料(bufCount/bufWithdraw)；无连线者维持原存储行为。缓存封顶 BUF_CAP=20万，溢出回存储。NBT 存内部缓存。
+- 缩放(画布)：MatrixStack push/translate(pan)/scale(zoom) 包住 连线+节点+升级格；网格仍屏幕空间随平移。滚轮缩放(0.4~2.5)对准光标。所有命中测试(格子/端口/节点体/拖动/连线目标)先把鼠标反变换到世界坐标 wmx/wmy；节点坐标改世界坐标 wnx/wny。顶栏显示缩放倍数。
+- 盯点：MatrixStack.translate/scale、mouseScrolled(4参)、drawItem 在缩放矩阵内(若不随缩放则大小固定但位置对)。
+- 连线语义为粗粒度(所有出线者共享一个内部池给所有入线消耗机)，精确按边路由为后续。
+- 下一轮：超大工作台 12×12 合成台(独立大件)。

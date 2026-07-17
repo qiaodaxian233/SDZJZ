@@ -58,6 +58,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
+    private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>(); // 连线内部物流缓存 id→量
+    private static final long BUF_CAP = 200000L;
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -102,13 +104,23 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
         SdzjzConfig cfg = SdzjzConfig.get();
         be.ticks++;
-        if (be.machineNodes.isEmpty()) return;
+        int nSize = be.machineNodes.size();
+        if (nSize == 0) return;
+
+        // 连线拓扑（粗粒度）：有出线的节点产物入内部缓存；有入线的消耗机从内部缓存取料
+        boolean[] hasOut = new boolean[nSize];
+        boolean[] hasIn = new boolean[nSize];
+        for (int[] c : be.connections()) {
+            if (c[0] >= 0 && c[0] < nSize) hasOut[c[0]] = true;
+            if (c[1] >= 0 && c[1] < nSize) hasIn[c[1]] = true;
+        }
 
         boolean produced = false;
         DataPanelBlockEntity src = null;
         boolean srcResolved = false;
 
-        for (ItemStack st : be.machineNodes) {
+        for (int i = 0; i < nSize; i++) {
+            ItemStack st = be.machineNodes.get(i);
             int speedLv = be.nodeSpeed(st);
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
@@ -120,19 +132,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
 
                 if (def.consumesInputs()) {
-                    if (!srcResolved) {
-                        src = be.boundPanel(world, pos);
-                        if (src == null) src = be.findPanel(world, pos);
-                        if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
-                        if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
-                        srcResolved = true;
+                    if (hasIn[i]) {
+                        // 从内部缓存取料（连线喂料）
+                        boolean ok = true;
+                        for (MachineDef.Input in : def.inputs())
+                            if (be.bufCount(in.item()) < (long) in.count() * running) { ok = false; break; }
+                        if (!ok) continue;
+                        for (MachineDef.Input in : def.inputs()) be.bufWithdraw(in.item(), (long) in.count() * running);
+                    } else {
+                        if (!srcResolved) {
+                            src = be.boundPanel(world, pos);
+                            if (src == null) src = be.findPanel(world, pos);
+                            if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
+                            if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
+                            srcResolved = true;
+                        }
+                        if (src == null) continue;
+                        boolean ok = true;
+                        for (MachineDef.Input in : def.inputs())
+                            if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
+                        if (!ok) continue;
+                        for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
                     }
-                    if (src == null) continue;
-                    boolean ok = true;
-                    for (MachineDef.Input in : def.inputs())
-                        if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
-                    if (!ok) continue;
-                    for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
                 }
 
                 for (MachineDef.Drop d : def.outputs()) {
@@ -140,7 +161,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                    be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    if (hasOut[i]) be.bufAdd(d.item(), total);
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
             } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
@@ -155,7 +177,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                    be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    if (hasOut[i]) be.bufAdd(d.item(), total);
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
             }
@@ -322,9 +345,27 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 画布连线读取（客户端渲染）。 */
     public java.util.List<int[]> connections() { return connections; }
 
+    // ===== 连线内部物流缓存 =====
+    private long bufCount(String id) { return internalBuffer.getOrDefault(id, 0L); }
+
+    private void bufWithdraw(String id, long amt) {
+        long left = internalBuffer.getOrDefault(id, 0L) - amt;
+        if (left <= 0) internalBuffer.remove(id); else internalBuffer.put(id, left);
+    }
+
+    private void bufAdd(String id, long amt) {
+        long sum = internalBuffer.getOrDefault(id, 0L) + amt;
+        if (sum > BUF_CAP) {
+            long spill = sum - BUF_CAP;
+            internalBuffer.put(id, BUF_CAP);
+            addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(spill, 64L * OUTPUT_SLOTS)));
+        } else {
+            internalBuffer.put(id, sum);
+        }
+    }
+
     /** 连/断一条 from→to 连线（已存在则断开）。 */
-    public void toggleConnection(int from, int to) {
-        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
+    public void toggleConnection(int from, int to) {        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
         for (int i = 0; i < connections.size(); i++) {
             int[] c = connections.get(i);
             if (c[0] == from && c[1] == to) { connections.remove(i); markDirty(); syncToClient(); return; }
@@ -597,6 +638,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int[] flat = new int[connections.size() * 2];
         for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
         nbt.putIntArray("connections", flat);
+        NbtCompound buf = new NbtCompound();
+        for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
+        nbt.put("internalBuffer", buf);
         if (boundPanelPos != null && boundPanelDim != null) {
             nbt.putLong("boundPos", boundPanelPos.asLong());
             nbt.putString("boundDim", boundPanelDim);
@@ -614,6 +658,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         connections.clear();
         int[] flat = nbt.getIntArray("connections");
         for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        internalBuffer.clear();
+        NbtCompound buf = nbt.getCompound("internalBuffer");
+        for (String k : buf.getKeys()) internalBuffer.put(k, buf.getLong(k));
         if (nbt.contains("boundPos")) {
             boundPanelPos = BlockPos.fromLong(nbt.getLong("boundPos"));
             boundPanelDim = nbt.getString("boundDim");

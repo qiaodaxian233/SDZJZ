@@ -11,6 +11,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -20,9 +21,8 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * 结构核心画布界面（ComfyUI 式 · Phase3）：
- * 机器为无上限「节点」，可平移、拖动、连线。机器/升级经右键方块放入，潜行右键弹出。
- * 连线运行效果（A输出喂B）为后续阶段；缩放为后续阶段。
+ * 结构核心画布界面（ComfyUI 式 · Phase4）：
+ * 无上限机器节点，可平移/拖动/连线/缩放。机器经右键方块放入，潜行右键弹出，升级走每节点格子。
  */
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
 
@@ -37,8 +37,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int NW = 100, NH = 52;
     private static final Item[] UPG = { ModItems.SPEED_UPGRADE, ModItems.COUNT_UPGRADE, ModItems.PARALLEL_UPGRADE };
 
-    private double panX = 0, panY = 0;
-    private int dragIndex = -1, dragOffX, dragOffY;
+    private double panX = 0, panY = 0, zoom = 1.0;
+    private int dragIndex = -1;
+    private double dragOffX, dragOffY;
     private boolean linking = false;
     private int linkFrom = -1;
 
@@ -68,55 +69,58 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return null;
     }
 
-    // 节点在屏幕上的左上角坐标（含平移）
-    private int nsx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) {
-        return be.nodeX(nodes.get(i), 20 + (i % 6) * 112) + (int) panX;
-    }
-    private int nsy(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) {
-        return be.nodeY(nodes.get(i), 60 + (i / 6) * 88) + (int) panY;
-    }
+    // 屏幕鼠标 → 世界坐标
+    private double wmx(double mx) { return (mx - panX) / zoom; }
+    private double wmy(double my) { return (my - panY) / zoom; }
+    // 节点世界坐标（无平移/缩放）
+    private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
+    private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
-        // 画布网格（随平移）
+        // 网格（屏幕空间，随平移）
         int step = 32;
         int ox = ((int) panX) % step, oy = ((int) panY) % step;
         for (int x = ox; x < this.width; x += step) ctx.fill(x, 34, x + 1, this.height, GRID);
         for (int y = 34 + oy; y < this.height; y += step) ctx.fill(0, y, this.width, y + 1, GRID);
 
         StructureCoreBlockEntity be = be();
-        if (be != null) {
-            List<ItemStack> nodes = be.nodes();
-            // 连线（画在节点下层）
-            for (int[] c : be.connections()) {
-                if (c[0] < nodes.size() && c[1] < nodes.size()) {
-                    int ax = nsx(be, nodes, c[0]) + NW, ay = nsy(be, nodes, c[0]) + NH / 2;
-                    int bx = nsx(be, nodes, c[1]),      by = nsy(be, nodes, c[1]) + NH / 2;
-                    drawWire(ctx, ax, ay, bx, by, CYAN);
-                }
-            }
-            // 拖拽中的临时连线
-            if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
-                int ax = nsx(be, nodes, linkFrom) + NW, ay = nsy(be, nodes, linkFrom) + NH / 2;
-                drawWire(ctx, ax, ay, mouseX, mouseY, 0xFF88E0FF);
-            }
-            // 节点 + 每节点升级格
-            for (int i = 0; i < nodes.size(); i++) {
-                int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
-                drawNode(ctx, nx, ny, nodes.get(i));
-                drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i));
+        if (be == null) return;
+        List<ItemStack> nodes = be.nodes();
+
+        MatrixStack m = ctx.getMatrices();
+        m.push();
+        m.translate(panX, panY, 0);
+        m.scale((float) zoom, (float) zoom, 1);
+
+        // 连线（节点下层）
+        for (int[] c : be.connections()) {
+            if (c[0] < nodes.size() && c[1] < nodes.size()) {
+                int ax = wnx(be, nodes, c[0]) + NW, ay = wny(be, nodes, c[0]) + NH / 2;
+                int bx = wnx(be, nodes, c[1]),      by = wny(be, nodes, c[1]) + NH / 2;
+                drawWire(ctx, ax, ay, bx, by, CYAN);
             }
         }
+        if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
+            int ax = wnx(be, nodes, linkFrom) + NW, ay = wny(be, nodes, linkFrom) + NH / 2;
+            drawWire(ctx, ax, ay, (int) wmx(mouseX), (int) wmy(mouseY), 0xFF88E0FF);
+        }
+        // 节点 + 升级格
+        for (int i = 0; i < nodes.size(); i++) {
+            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+            drawNode(ctx, nx, ny, nodes.get(i));
+            drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i));
+        }
+        m.pop();
     }
 
     private void drawNode(DrawContext ctx, int x, int y, ItemStack st) {
         ctx.fill(x - 1, y - 1, x + NW + 1, y + NH + 1, NODEFRM);
         ctx.fill(x, y, x + NW, y + NH, NODEBG);
-        ctx.fill(x, y, x + NW, y + 3, CYAN); // 顶条
-        // 端口：左输入(青) 右输出(绿)
-        ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
-        ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
+        ctx.fill(x, y, x + NW, y + 3, CYAN);
+        ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);      // 输入口
+        ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON); // 输出口
         ctx.drawItem(st, x + 8, y + 16);
         String name = st.getName().getString();
         if (this.textRenderer.getWidth(name) > NW - 12) {
@@ -140,7 +144,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     /** 采样三次贝塞尔画连线（ComfyUI 水平切线风格）。 */
-    private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {        int dx = Math.max(40, Math.abs(x2 - x1) / 2);
+    private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
+        int dx = Math.max(40, Math.abs(x2 - x1) / 2);
         float c1x = x1 + dx, c2x = x2 - dx;
         int steps = 56;
         for (int s = 0; s <= steps; s++) {
@@ -161,11 +166,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         boolean run = this.handler.isRunning();
         ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 10, 18, run ? ON : SUB, false);
         String st = "机器 " + this.handler.machineCount()
-                + "  速度Lv" + this.handler.speedLv()
-                + " 数量Lv" + this.handler.countLv()
-                + " 并发Lv" + this.handler.parallelLv();
+                + "  升级∑ 加速" + this.handler.speedLv()
+                + " 数量" + this.handler.countLv()
+                + " 并列" + this.handler.parallelLv()
+                + "  缩放" + String.format("%.1f", zoom) + "x";
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 拖绿口=连线 · 格子左键加/右键取升级 · 拖空白=平移", 10, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 拖绿口=连线 · 格子左键加/右键取升级 · 滚轮=缩放 · 拖空白=平移", 8, this.height - 12, SUB, false);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (mouseY > 34) {
+            double old = zoom;
+            zoom = Math.max(0.4, Math.min(2.5, zoom * (verticalAmount > 0 ? 1.1 : 0.9)));
+            double wx = (mouseX - panX) / old, wy = (mouseY - panY) / old;
+            panX = mouseX - wx * zoom;
+            panY = mouseY - wy * zoom;
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
@@ -174,12 +193,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             StructureCoreBlockEntity be = be();
             if (be != null) {
                 List<ItemStack> nodes = be.nodes();
+                double wx = wmx(mouseX), wy = wmy(mouseY);
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
-                    int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
+                    int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
-                        if (mouseX >= sx && mouseX <= sx + 24 && mouseY >= sy && mouseY <= sy + 18) {
+                        if (wx >= sx && wx <= sx + 24 && wy >= sy && wy <= sy + 18) {
                             BlockPos p = this.handler.blockPos();
                             if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0));
                             return true;
@@ -187,18 +207,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
                 if (button == 0) {
-                    // 输出口(绿) → 开始连线
+                    // 输出口(绿) → 连线
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        int ox = nsx(be, nodes, i) + NW, oy = nsy(be, nodes, i) + NH / 2;
-                        if (Math.abs(mouseX - ox) <= 6 && Math.abs(mouseY - oy) <= 6) {
+                        int oxp = wnx(be, nodes, i) + NW, oyp = wny(be, nodes, i) + NH / 2;
+                        if (Math.abs(wx - oxp) <= 7 && Math.abs(wy - oyp) <= 7) {
                             linking = true; linkFrom = i; return true;
                         }
                     }
                     // 节点体 → 拖动
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
-                        if (mouseX >= nx && mouseX <= nx + NW && mouseY >= ny && mouseY <= ny + NH) {
-                            dragIndex = i; dragOffX = (int) mouseX - nx; dragOffY = (int) mouseY - ny; return true;
+                        int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                        if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
+                            dragIndex = i; dragOffX = wx - nx; dragOffY = wy - ny; return true;
                         }
                     }
                 }
@@ -209,13 +229,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (linking) return true; // 临时连线跟随鼠标，在 drawBackground 里画
+        if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
             if (be != null && dragIndex < be.nodes().size()) {
-                int nx = (int) mouseX - dragOffX - (int) panX;
-                int ny = (int) mouseY - dragOffY - (int) panY;
-                be.setNodePos(dragIndex, nx, ny); // 本地即时视觉
+                int nx = (int) (wmx(mouseX) - dragOffX);
+                int ny = (int) (wmy(mouseY) - dragOffY);
+                be.setNodePos(dragIndex, nx, ny);
             }
             return true;
         }
@@ -234,10 +254,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             BlockPos p = this.handler.blockPos();
             if (be != null && p != null) {
                 List<ItemStack> nodes = be.nodes();
+                double wx = wmx(mouseX), wy = wmy(mouseY);
                 int target = -1;
                 for (int i = nodes.size() - 1; i >= 0; i--) {
-                    int nx = nsx(be, nodes, i), ny = nsy(be, nodes, i);
-                    if (mouseX >= nx && mouseX <= nx + NW && mouseY >= ny && mouseY <= ny + NH) { target = i; break; }
+                    int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                    if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) { target = i; break; }
                 }
                 if (target >= 0 && target != linkFrom) {
                     ClientPlayNetworking.send(new NodeLinkPayload(p, linkFrom, target));
