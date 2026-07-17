@@ -254,3 +254,8 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - StructureCoreScreen 重写为画布：全屏深底+网格、节点框(图标+名+×数)、拖空白平移、顶栏状态、开机/停止、操作提示。
 - 盯点(1.21.1 API)：toUpdatePacket/BlockEntityUpdateS2CPacket、toInitialChunkDataNbt、ItemStack.encode/fromNbt、mouseDragged 签名。
 - 后续：Phase2 节点拖动+位置保存(C2S)；Phase3 连线；Phase4 缩放。超大工作台 12×12 合成台单独做。
+
+## m34 — 修编译：ItemScatterer 包名【已查API修正】
+- 报错：net.minecraft.block.ItemScatterer 找不到。Yarn 1.21 API 确认其位于 net.minecraft.util.ItemScatterer。
+- StructureCoreBlockEntity import 改 net.minecraft.util.ItemScatterer；StructureCoreBlock 不再直接用它，删除该 import。
+- dropAll 两 spawn 重载确认存在：spawn(World,BlockPos,Inventory) / spawn(World,double,double,double,ItemStack)。
