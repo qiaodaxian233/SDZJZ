@@ -198,3 +198,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 限制：目标面板区块须已加载。盯点：Item.use 在 1.21.1 返回 TypedActionResult<ItemStack>（若签名不符按报错改）。
 - 终端：配方(玻璃板3+末影珍珠2+核心模块+铁锭3)、模型、中英名、占位贴图、创造组；绘图名单+terminal。
 - configVersion 仍 3。
+
+## m27 — 抓物笼子驱动机器【待编译验证】
+
+- 新增 MobDrops：笼中生物 id→掉落表（僵尸/骷髅/苦力怕/蜘蛛/牛猪鸡羊兔/末影人/烈焰人/史莱姆/女巫/守卫者/鱿鱼/凋灵骷髅/猪灵/恶魂/潜影贝/铁傀儡/蜜蜂/monster 等 30+ 种）。
+- 结构核心 tick：机器槽里的抓物笼子(isCaged)按 cagedType 分组，用 MobDrops 表产出，自由产出、30t 基础周期，同吃速度/数量/并发/tier；未收录生物不产。
+- 机器槽 canInsert 放开：允许 CaptureCageItem；机器数(machineCount)计入笼子。
+- 抓物笼子↔机器(路线图 D)打通。configVersion 仍 3。

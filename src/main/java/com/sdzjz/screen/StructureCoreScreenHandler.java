@@ -45,7 +45,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
         for (int i = 0; i < StructureCoreBlockEntity.MACHINE_SLOTS; i++) {
             int x = 24 + (i % 4) * 20, y = 42 + (i / 4) * 20;
             this.addSlot(new Slot(inv, StructureCoreBlockEntity.MACHINE_START + i, x, y) {
-                @Override public boolean canInsert(ItemStack s) { return s.getItem() instanceof MachineItem; }
+                @Override public boolean canInsert(ItemStack s) { return s.getItem() instanceof MachineItem || s.getItem() instanceof com.sdzjz.item.CaptureCageItem; }
             });
         }
         // 升级槽 8..10

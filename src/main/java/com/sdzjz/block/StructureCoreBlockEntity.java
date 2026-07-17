@@ -13,7 +13,9 @@ import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import com.sdzjz.item.MachineItem;
+import com.sdzjz.item.CaptureCageItem;
 import com.sdzjz.machine.MachineDef;
+import com.sdzjz.machine.MobDrops;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -74,7 +76,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private int machineCount() {
         int n = 0;
         for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
-            if (items.get(i).getItem() instanceof MachineItem) n += items.get(i).getCount();
+            if (items.get(i).getItem() instanceof MachineItem
+                    || items.get(i).getItem() instanceof CaptureCageItem) n += items.get(i).getCount();
         }
         return n;
     }
@@ -102,12 +105,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
         // 按机器类型分组，统计每种装了几台
         Map<MachineDef, Integer> counts = new LinkedHashMap<>();
+        Map<String, Integer> cages = new LinkedHashMap<>();
         for (int i = MACHINE_START; i < MACHINE_START + MACHINE_SLOTS; i++) {
-            if (be.items.get(i).getItem() instanceof MachineItem mi) {
-                counts.merge(mi.def(), be.items.get(i).getCount(), Integer::sum);
+            ItemStack st = be.items.get(i);
+            if (st.getItem() instanceof MachineItem mi) {
+                counts.merge(mi.def(), st.getCount(), Integer::sum);
+            } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
+                String mob = CaptureCageItem.cagedType(st);
+                if (mob != null) cages.merge(mob, st.getCount(), Integer::sum);
             }
         }
-        if (counts.isEmpty()) return;
+        if (counts.isEmpty() && cages.isEmpty()) return;
 
         boolean produced = false;
         for (Map.Entry<MachineDef, Integer> e : counts.entrySet()) {
@@ -138,6 +146,22 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
                 Item product = Registries.ITEM.get(Identifier.of(d.item()));
                 be.addOutput(new ItemStack(product, total));
+                produced = true;
+            }
+        }
+        // 抓物笼子：按笼中生物掉落表产出（自由产出，30t 基础周期，同样吃升级）
+        for (Map.Entry<String, Integer> e : cages.entrySet()) {
+            java.util.List<MachineDef.Drop> drops = MobDrops.get(e.getKey());
+            if (drops == null) continue;
+            int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
+            if (be.ticks % interval != 0) continue;
+            int running = Math.min(e.getValue(), (4 + parallelLv * 4) * tier);
+            for (MachineDef.Drop d : drops) {
+                if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
+                int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
+                if (amt <= 0) continue;
+                int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                 produced = true;
             }
         }
