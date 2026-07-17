@@ -47,6 +47,7 @@ public class ModItems {
     public static final Item SHULKER_FARM   = reg("shulker_farm",   new MachineItem(new Item.Settings(), Machines.SHULKER_FARM));
     public static final Item RAID_TOWER     = reg("raid_tower",     new MachineItem(new Item.Settings(), Machines.RAID_TOWER));
     public static final Item PIGMAN_TOWER   = reg("pigman_tower",   new MachineItem(new Item.Settings(), Machines.PIGMAN_TOWER));
+    public static final Item PIGLIN_BARTER  = reg("piglin_barter",  new MachineItem(new Item.Settings(), Machines.PIGLIN_BARTER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -88,6 +89,7 @@ public class ModItems {
             entries.add(SHULKER_FARM);
             entries.add(RAID_TOWER);
             entries.add(PIGMAN_TOWER);
+            entries.add(PIGLIN_BARTER);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

@@ -108,11 +108,22 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         boolean produced = false;
         for (Map.Entry<MachineDef, Integer> e : counts.entrySet()) {
             MachineDef def = e.getKey();
-            if (def.consumesInputs()) continue; // 加工/合成类下一步做
             int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
             if (be.ticks % interval != 0) continue;
             int parallelCap = (4 + parallelLv * 4) * tier;
             int running = Math.min(e.getValue(), parallelCap);
+
+            if (def.consumesInputs()) {
+                // 消耗类：从连接的数据面板取料，产物入缓存
+                DataPanelBlockEntity src = be.findPanel(world, pos);
+                if (src == null) continue;
+                boolean ok = true;
+                for (MachineDef.Input in : def.inputs())
+                    if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
+                if (!ok) continue;
+                for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
+            }
+
             for (MachineDef.Drop d : def.outputs()) {
                 if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                 int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
@@ -183,6 +194,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 BlockEntity be = world.getBlockEntity(np);
                 if (be instanceof DataPanelBlockEntity panel) return panel;
                 if (be instanceof Inventory inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+                if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
+            }
+        }
+        return null;
+    }
+
+    /** BFS 找连接的数据面板（消耗类取料用）。 */
+    private DataPanelBlockEntity findPanel(World world, BlockPos corePos) {
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
+        java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();
+        q.add(corePos);
+        seen.add(corePos);
+        int budget = 256;
+        while (!q.isEmpty() && budget-- > 0) {
+            BlockPos cur = q.poll();
+            for (Direction d : Direction.values()) {
+                BlockPos np = cur.offset(d);
+                if (!seen.add(np)) continue;
+                BlockEntity be = world.getBlockEntity(np);
+                if (be instanceof DataPanelBlockEntity panel) return panel;
                 if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
             }
         }

@@ -46,6 +46,14 @@ public final class Machines {
     public static final MachineDef PIGMAN_TOWER = defMulti("pigman_tower", 25,
             drop("minecraft:gold_nugget", 0, 3), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:gold_ingot", 1, 1, 0.15f));
 
+    // ---- 消耗类（从连接的数据面板取料）----
+    public static final MachineDef PIGLIN_BARTER = defConsume("piglin_barter", 30,
+            java.util.List.of(in("minecraft:gold_ingot", 1)),
+            drop("minecraft:ender_pearl", 1, 1, 0.15f), drop("minecraft:string", 1, 3, 0.2f),
+            drop("minecraft:quartz", 2, 4, 0.2f), drop("minecraft:glowstone_dust", 2, 4, 0.2f),
+            drop("minecraft:obsidian", 1, 1, 0.1f), drop("minecraft:soul_sand", 2, 4, 0.2f),
+            drop("minecraft:magma_cream", 1, 1, 0.1f), drop("minecraft:leather", 1, 1, 0.15f));
+
     // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());
@@ -53,6 +61,14 @@ public final class Machines {
 
     private static MachineDef defMulti(String id, int interval, MachineDef.Drop... drops) {
         return new MachineDef(id, List.of(drops), interval, false, List.of());
+    }
+
+    private static MachineDef defConsume(String id, int interval, List<MachineDef.Input> inputs, MachineDef.Drop... drops) {
+        return new MachineDef(id, List.of(drops), interval, true, inputs);
+    }
+
+    private static MachineDef.Input in(String item, int count) {
+        return new MachineDef.Input(item, count);
     }
 
     private static MachineDef.Drop drop(String item, int min, int max) {

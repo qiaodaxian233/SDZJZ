@@ -55,6 +55,12 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         markDirty();
     }
 
+    /** 查询某类型现有数量。 */
+    public long count(String id) {
+        Long v = store.get(id);
+        return v == null ? 0L : v;
+    }
+
     /** 取出某类型至多 amount 个，返回实际取出数量。 */
     public int withdraw(String id, int amount) {
         Long have = store.get(id);

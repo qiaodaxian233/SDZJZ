@@ -140,3 +140,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 数据线配方(玻璃8+红石+核心模块→8)、方块模型/blockstate/物品模型/lang齐；贴图 data_cable.png 待画(已加进绘图名单)。
 - 新增 连接系统.md：现状 + 参考 AE 的后续路线(多目标分发/共享网络存储/远程终端/细导线模型/输入路由)。
 - 消耗类机器(熔炉组/合成机/交易)仍待做。configVersion 仍 2。
+
+## m20 — 消耗类机器第一版 + 存储分期设计【待编译验证】
+
+- MachineDef 消耗路径落地：结构核心 tick 对 consumesInputs=true 的机器，findPanel 找到连接的数据面板→校验并扣除 inputs(×running)→按 outputs 产出。农场类逻辑不变(合并进同一循环)。
+- 新增 defConsume/in 辅助 + 首台消耗机 猪灵交易塔(piglin_barter，吃金锭1→末影珍珠/线/石英/发光粉/黑曜石/灵魂沙/岩浆膏/皮革 各带概率)。物品/配方/模型/中英名齐，装入 猪灵交易塔.png(素材已清空，仅剩说明)。
+- DataPanelBlockEntity 加 count(id)。BE 加 findPanel(BFS)。
+- 连接系统.md 补作者存储分期：前期连线→中期无线WiFi→后期卫星；数据面板绑定多核心；手持终端远程开面板；全程无电力。
+- configVersion 仍 2。
