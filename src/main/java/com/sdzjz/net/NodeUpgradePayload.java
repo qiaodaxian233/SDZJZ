@@ -17,7 +17,7 @@ public record NodeUpgradePayload(BlockPos pos, int index, int type, boolean add)
             BlockPos.PACKET_CODEC, NodeUpgradePayload::pos,
             PacketCodecs.INTEGER, NodeUpgradePayload::index,
             PacketCodecs.INTEGER, NodeUpgradePayload::type,
-            PacketCodecs.BOOLEAN, NodeUpgradePayload::add,
+            PacketCodecs.BOOL, NodeUpgradePayload::add,
             NodeUpgradePayload::new
     );
 

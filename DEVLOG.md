@@ -283,3 +283,6 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 画布：每节点下方 3 个升级格(加速/数量/并列, 图标+等级)；左键加(扣背包)/右键取(还背包)；自动布局纵距 66→88 给格子留位。
 - 方块 onUse 去掉全局升级放入分支(升级只走画布节点格)；countUpgrade/insertUpgrade 变未用(留着无害)。
 - 后续：Phase4 缩放；连线运行语义；超大工作台 12×12。
+
+## m38 — 修编译：PacketCodecs.BOOL【已查API】
+- 报错 PacketCodecs.BOOLEAN 找不到。Yarn 1.21 API 确认布尔字段名为 PacketCodecs.BOOL(PacketCodec<ByteBuf,Boolean>)。NodeUpgradePayload 改用 BOOL。
