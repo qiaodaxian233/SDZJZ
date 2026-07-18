@@ -415,3 +415,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 面 UV 像素制 → 0..16（÷128×16 / ÷16×16），面向不变、面内 rotation 原样保留。
 - 物品模型 item/generated 2D 图标 → parent 方块模型（背包/手持显示 3D 机器，display 变换随模型内嵌）；旧 2D 图标文件保留未删（想换回说一声）。
 - 方块侧无需改动：已 nonOpaque、渲染 MODEL、blockstate 指向不变。
+
+## m56 — 存储核心动画（BER 复刻 bbmodel 动画，零新依赖）
+- 用户模型自带 animation.core_cycle（4s 循环）：core_energy 绕 Y 匀速转+呼吸缩放 1↔1.08，corner_lights 呼吸 (1.04,1.08,1.04)。原版方块模型不支持动画 → 走方块实体渲染器（箱子开盖同机制）。
+- 拆分：73 静态件留方块模型 JSON；26 动画件生成 StorageCoreAnimGeo（156 个四边形顶点数组，UV 旋转 Python 解算）；物品模型为 99 件全量静态版（背包/手持完整显示，BER 不作用于物品）。
+- StorageCoreRenderer：世界时间驱动（80t 循环连续、三角波呼吸），绑定独立贴图 EntityCutoutNoCull（不吃背面剔除，绕开手写绕序风险），顶点走已查证的 11 参合并 vertex()（1.21.1 文档确认），矩阵自变换（JOML transformPosition/Matrix3f.transform）。
+- 注册走 Fabric BlockEntityRendererRegistry（查证：原版 BlockEntityRendererFactories.register 是 private，不可直调）。
+- 盯点：Entry.getNormalMatrix() 返回 Matrix3f（1.21.1）、Fabric BlockEntityRendererRegistry 包名 client.rendering.v1；四边形 UV 朝向映射为标准约定，动画件多为发光小面，若个别面贴图方向不对按截图微调。
