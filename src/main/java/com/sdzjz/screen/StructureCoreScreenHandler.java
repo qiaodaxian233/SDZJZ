@@ -26,12 +26,12 @@ public class StructureCoreScreenHandler extends ScreenHandler {
 
     // 客户端
     public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
-        this(syncId, playerInv, resolve(playerInv, pos), new ArrayPropertyDelegate(8));
+        this(syncId, playerInv, resolve(playerInv, pos), new ArrayPropertyDelegate(10));
     }
 
     // 服务端
     public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be) {
-        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new ArrayPropertyDelegate(8));
+        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new ArrayPropertyDelegate(10));
     }
 
     private StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be, PropertyDelegate props) {
@@ -61,6 +61,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
     public int parallelLv()      { return props.get(5); }
     /** 经验（低15位+高位拼回，规避属性 short 截断）。 */
     public long xp()             { return ((long) props.get(7) << 15) | (props.get(6) & 0x7FFFL); }
+    public long buffered()       { return ((long) props.get(9) << 15) | (props.get(8) & 0x7FFFL); }
 
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {

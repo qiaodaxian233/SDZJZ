@@ -303,6 +303,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else stor++; }
         String st = "机器 " + this.handler.machineCount()
                 + "  存储 " + stor + " · 终端 " + term
+                + "  缓存 " + fmtNum(this.handler.buffered())
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
