@@ -3,6 +3,7 @@ package com.sdzjz.client;
 import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
+import com.sdzjz.net.NodeRemovePayload;
 import com.sdzjz.net.NodeUpgradePayload;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.StructureCoreScreenHandler;
@@ -187,7 +188,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x";
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 拖绿口=连线 · 格子左键加/右键取升级 · 滚轮=缩放 · 拖空白=平移", 8, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 右键节点=取出 · 拖绿口=连线 · 格左键加/右键取升级 · 滚轮缩放 · 拖空白平移", 8, this.height - 12, SUB, false);
     }
 
     @Override
@@ -218,6 +219,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         if (wx >= sx && wx <= sx + 24 && wy >= sy && wy <= sy + 18) {
                             BlockPos p = this.handler.blockPos();
                             if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0));
+                            return true;
+                        }
+                    }
+                }
+                if (button == 1) {
+                    // 右键节点体 → 取出该机器
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                        if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
+                            BlockPos p = this.handler.blockPos();
+                            if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, i));
                             return true;
                         }
                     }

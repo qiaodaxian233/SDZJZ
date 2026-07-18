@@ -2,6 +2,7 @@ package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.block.DataPanelBlockEntity;
+import com.sdzjz.block.StorageCoreBlockEntity;
 import com.sdzjz.block.StructureCoreBlockEntity;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.entity.BlockEntityType;
@@ -19,6 +20,11 @@ public class ModBlockEntities {
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("data_panel"),
                     FabricBlockEntityTypeBuilder.create(DataPanelBlockEntity::new,
                             ModBlocks.DATA_PANEL).build());
+
+    public static final BlockEntityType<StorageCoreBlockEntity> STORAGE_CORE_BE =
+            Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("storage_core"),
+                    FabricBlockEntityTypeBuilder.create(StorageCoreBlockEntity::new,
+                            ModBlocks.STORAGE_CORE).build());
 
     public static void init() {}
 }

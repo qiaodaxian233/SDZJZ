@@ -25,6 +25,7 @@ public class ModItems {
     public static final Item SPEED_UPGRADE    = reg("speed_upgrade", new Item(new Item.Settings()));
     public static final Item COUNT_UPGRADE    = reg("count_upgrade", new Item(new Item.Settings()));
     public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Settings()));
+    public static final Item STORAGE_UPGRADE   = reg("storage_upgrade", new Item(new Item.Settings()));
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
@@ -88,6 +89,7 @@ public class ModItems {
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);
+            entries.add(STORAGE_UPGRADE);
             entries.add(CAPTURE_CAGE);
             entries.add(LINKER);
             entries.add(TERMINAL);
@@ -133,6 +135,7 @@ public class ModItems {
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);
+            entries.add(ModBlocks.STORAGE_CORE);
             entries.add(ModBlocks.DATA_CABLE);
             entries.add(ModBlocks.WIRELESS_NODE);
             entries.add(ModBlocks.SATELLITE_NODE);

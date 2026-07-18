@@ -6,6 +6,7 @@ import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
+import com.sdzjz.net.NodeRemovePayload;
 import com.sdzjz.net.NodeUpgradePayload;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
@@ -35,6 +36,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeMovePayload.ID, NodeMovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeLinkPayload.ID, NodeLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeUpgradePayload.ID, NodeUpgradePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
@@ -61,8 +63,15 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(DataPanelViewPayload.ID, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(NodeRemovePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.removeNodeAt(p, payload.index());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(DataPanelViewPayload.ID, (payload, context) -> {            ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof DataPanelBlockEntity panel) {
                     panel.setView(payload.search(), payload.scrollRow());

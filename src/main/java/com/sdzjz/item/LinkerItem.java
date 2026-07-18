@@ -1,6 +1,6 @@
 package com.sdzjz.item;
 
-import com.sdzjz.block.DataPanelBlockEntity;
+import com.sdzjz.block.StorageCoreBlockEntity;
 import com.sdzjz.block.StructureCoreBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.component.DataComponentTypes;
@@ -36,7 +36,7 @@ public class LinkerItem extends Item {
         ItemStack stack = ctx.getStack();
         BlockEntity be = world.getBlockEntity(pos);
 
-        if (be instanceof DataPanelBlockEntity) {
+        if (be instanceof StorageCoreBlockEntity) {
             NbtCompound nbt = new NbtCompound();
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.getRegistryKey().getValue().toString());

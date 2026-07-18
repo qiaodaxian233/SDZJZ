@@ -324,3 +324,13 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 绘图名单修正：之前误把洋红占位当完成删了。实测纯洋红=占位=待画，共 22 张(物品19+方块3含 data_cable 无文件)。
 - 盯点：TextFieldWidget 构造/setPlaceholder/setChangedListener、PacketCodecs.STRING。
 - 排下轮(大件)：C 机器配方铺满12×12指定位置(重做39个shaped大配方)；E 核心连数据面板→画布显示可连线的数据面板节点。
+
+## m43 — 画布右键取出节点 + 存储核心(可升级) + 数据面板改纯终端【待编译验证】
+- ① 画布右键取出：NodeRemovePayload(pos,index) C2S；BE.removeNodeAt(返还玩家+连线重索引)；StructureCoreScreen 右键节点体发包。
+- ③ 存储核心 StorageCoreBlock/BE：逻辑仓储(id→long)，类型上限=27×tier；右键存储升级=tier++、空手右键=显示用量；CORES 注册表 + connectedCores(数据线/相邻 BFS)。新增 storage_upgrade 物品。注册 ModBlocks/ModBlockEntities/ModItems + 创造组 + 模型/状态/配方/占位贴图。
+- ④ 数据面板改纯终端：DataPanelBlockEntity 去掉自带 store，count/deposit/withdraw/refreshDisplay 全部代理到 connectedCores 聚合。
+- 机器路由重定向：StructureCoreBlockEntity 全部 DataPanelBlockEntity→StorageCoreBlockEntity，panelsIn→coresIn，dimensionsWithPanels→dimensionsWithCores。LinkerItem 绑定改存储核心。
+- 新架构：机器产出→存储核心(经绑定/数据线/无线/卫星)；数据面板终端→聚合显示相连存储核心；升级存储核心提升类型上限。
+- 绘图名单+2：storage_core、storage_upgrade(占位)。
+- 盯点：StorageCoreBlock createCodec/validateTicker(仿结构核心)、路由重定向。
+- 排下轮：② 机器 12×12 大配方铺满好看摆法。
