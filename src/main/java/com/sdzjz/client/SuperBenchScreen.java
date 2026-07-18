@@ -23,6 +23,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     private static final int TXT   = 0xFFBFD2EC;
     private static final int SUB   = 0xFF7C90B0;
     private static final int SEL   = 0x552EC4FF;
+    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
 
     // 浏览器布局（GUI 相对坐标）
     private static final int PX = 270, PW = 192, LIST_Y = 30, ENTRY_H = 18, LIST_ROWS = 12;
@@ -40,6 +41,9 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         int x = this.x, y = this.y;
         ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
+        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
+        ctx.fill(x, y, x + backgroundWidth, y + 16, 0xB80A1626);                                   // 标题条可读性底
+        ctx.fill(x + PX - 6, y + 16, x + backgroundWidth, y + backgroundHeight, 0xA00A1626);       // 浏览器区可读性底
         ctx.fill(x, y, x + backgroundWidth, y + 1, CYAN);
         ctx.fill(x, y + 15, x + backgroundWidth, y + 16, CYAN);
         ctx.fill(x + PX - 6, y + 18, x + PX - 5, y + backgroundHeight, CYAN); // 分隔线

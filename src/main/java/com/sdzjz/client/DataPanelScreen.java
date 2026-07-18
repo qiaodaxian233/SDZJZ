@@ -21,7 +21,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     private static final int CELL     = 0xFF0A1626;
     private static final int CELLFRM  = 0xFF163049;
 
-    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/structure_core_gui.png");
+    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/data_panel_gui.png");
 
     private TextFieldWidget search;
     private int scroll = 0;

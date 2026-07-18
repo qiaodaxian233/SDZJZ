@@ -376,3 +376,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - **机器 tooltip**：MachineItem.appendTooltip（签名照 Yarn 1.21 Item 文档）显示周期秒数、消耗（红）/免费（绿）、产出列表（区间+概率，青）。44 台机器悬停即懂。
 - **GUI 设计稿**：docs/gui/ 4 张线框（数据面板/交易所/超大工作台/画布边框，标注真实代码坐标）+ GUI素材指南.md（提示词+落位规则），供 GPT 生成专属背景。
 - 待编译验证。盯点：collect(toList) 泛型推断、appendTooltip 覆盖签名。
+
+## m51 — 4张GUI背景落位（用户GPT生成）
+- `textures/gui/` 新增 4 张：`data_panel_gui` / `trade_center_gui`（比例正好，直接 720×512）、`super_bench_gui`（竖版按 470:316 居中裁切→940×632，圆槽保持正圆，代价是上下菱形饰角裁掉）、`structure_core_canvas`（1280×800，画布全屏拉伸）。全部 256 色量化，共约 1.66MB。
+- DataPanelScreen / TradeCenterScreen 切到专属背景（原来借用 structure_core_gui）。
+- SuperBenchScreen 接背景贴图 + 标题条/浏览器区两块半透明可读性底（文字不压花纹）。
+- StructureCoreScreen（画布）：底色之上全屏拉伸绘制科幻边框，网格/节点/顶栏画在其上。
+- 已知取舍：画布贴图静态网格与代码平移网格并存（轻微叠影，可接受）；超大工作台圆饰落点与结果槽不严格重合（GPT 构图 vs 代码坐标，看截图再微调）。

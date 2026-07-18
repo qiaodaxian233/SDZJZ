@@ -27,7 +27,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
     private static final int CELLFRM  = 0xFF163049;
     private static final int ROW_H    = 22;
 
-    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/structure_core_gui.png");
+    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/trade_center_gui.png");
 
     public TradeCenterScreen(TradeCenterScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);

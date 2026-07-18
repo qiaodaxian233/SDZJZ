@@ -17,6 +17,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.List;
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
 
     private static final int BACKDROP = 0xFF080B12;
+    private static final Identifier FRAME = Identifier.of("sdzjz", "textures/gui/structure_core_canvas.png");
     private static final int GRID     = 0x22284A6B;
     private static final int TXT      = 0xFFBFD2EC;
     private static final int SUB      = 0xFF7C90B0;
@@ -96,6 +98,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
+        ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height); // 科幻边框全屏拉伸
         // 网格（屏幕空间，随平移）
         int step = 32;
         int ox = ((int) panX) % step, oy = ((int) panY) % step;
