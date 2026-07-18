@@ -75,6 +75,8 @@ public class ModItems {
     public static final Item BONEMEAL_MACHINE = reg("bonemeal_machine", new MachineItem(new Item.Settings(), Machines.BONEMEAL_MACHINE));
     public static final Item MOSS_FARM = reg("moss_farm", new MachineItem(new Item.Settings(), Machines.MOSS_FARM));
     public static final Item STONECUTTER_MACHINE = reg("stonecutter_machine", new MachineItem(new Item.Settings(), Machines.STONECUTTER_MACHINE));
+    public static final Item VILLAGER_CONTRACT = reg("villager_contract", new Item(new Item.Settings()));
+    public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Settings(), Machines.VILLAGER_BREEDER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -142,6 +144,8 @@ public class ModItems {
             entries.add(BONEMEAL_MACHINE);
             entries.add(MOSS_FARM);
             entries.add(STONECUTTER_MACHINE);
+            entries.add(VILLAGER_CONTRACT);
+            entries.add(VILLAGER_BREEDER);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

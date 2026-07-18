@@ -8,6 +8,7 @@ import com.sdzjz.block.DataPanelBlock;
 import com.sdzjz.block.StructureCoreBlock;
 import com.sdzjz.block.StorageCoreBlock;
 import com.sdzjz.block.SuperBenchBlock;
+import com.sdzjz.block.TradeCenterBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -38,6 +39,9 @@ public class ModBlocks {
 
     public static final SatelliteNodeBlock SATELLITE_NODE =
             reg("satellite_node", new SatelliteNodeBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+
+    public static final TradeCenterBlock TRADE_CENTER =
+            reg("trade_center", new TradeCenterBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     private static <T extends Block> T reg(String name, T block) {
         T b = Registry.register(Registries.BLOCK, Sdzjz.id(name), block);

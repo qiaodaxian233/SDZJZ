@@ -2,6 +2,7 @@ package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.screen.DataPanelScreenHandler;
+import com.sdzjz.screen.TradeCenterScreenHandler;
 import com.sdzjz.screen.StructureCoreScreenHandler;
 import com.sdzjz.screen.SuperBenchScreenHandler;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
@@ -24,6 +25,10 @@ public class ModScreenHandlers {
     public static final ScreenHandlerType<SuperBenchScreenHandler> SUPER_BENCH =
             Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("super_bench"),
                     new ScreenHandlerType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_FEATURES));
+
+    public static final ScreenHandlerType<TradeCenterScreenHandler> TRADE_CENTER =
+            Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("trade_center"),
+                    new ExtendedScreenHandlerType<>(TradeCenterScreenHandler::new, BlockPos.PACKET_CODEC));
 
     public static void init() {}
 }

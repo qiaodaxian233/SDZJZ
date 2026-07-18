@@ -12,6 +12,7 @@ public class SdzjzClient implements ClientModInitializer {
     public void onInitializeClient() {
         HandledScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
         HandledScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
+        HandledScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
         HandledScreens.register(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }

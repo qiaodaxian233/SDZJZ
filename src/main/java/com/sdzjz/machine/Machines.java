@@ -87,6 +87,9 @@ public final class Machines {
     public static final MachineDef STONECUTTER_MACHINE = defConsume("stonecutter_machine", 10,
             List.of(in("minecraft:stone", 1)), drop("minecraft:stone_bricks", 1, 1));
 
+    public static final MachineDef VILLAGER_BREEDER = defConsume("villager_breeder", 60,
+            List.of(in("minecraft:bread", 3)), drop("sdzjz:villager_contract", 1, 1));
+
     // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());

@@ -42,6 +42,7 @@ public final class SuperBenchRecipes {
         add("sdzjz:bonemeal_machine", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:moss_block");
         add("sdzjz:moss_farm", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_carpet");
         add("sdzjz:stonecutter_machine", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone");
+        add("sdzjz:villager_breeder", "minecraft:bread", "minecraft:bread", "minecraft:bread", "minecraft:emerald");
         add("sdzjz:bone_farm", "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
         add("sdzjz:cactus_farm", "minecraft:cactus", "minecraft:cactus", "minecraft:cactus", "minecraft:green_dye");
         add("sdzjz:carpet_machine", "minecraft:white_carpet", "minecraft:white_carpet", "minecraft:white_wool", "minecraft:white_wool");

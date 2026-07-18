@@ -58,5 +58,9 @@
   "item.sdzjz.breeze_farm": "Breeze Farm",
   "item.sdzjz.bonemeal_machine": "Bonemeal Machine",
   "item.sdzjz.moss_farm": "Moss Farm",
-  "item.sdzjz.stonecutter_machine": "Stonecutter Machine"
+  "item.sdzjz.stonecutter_machine": "Stonecutter Machine",
+  "item.sdzjz.villager_contract": "Villager Contract",
+  "item.sdzjz.villager_breeder": "Villager Breeder",
+  "block.sdzjz.trade_center": "Villager Trade Center",
+  "container.sdzjz.trade_center": "Villager Trade Center"
 }
