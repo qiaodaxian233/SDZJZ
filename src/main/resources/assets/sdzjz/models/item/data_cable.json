@@ -1,1 +1,1 @@
-{ "parent":"sdzjz:block/data_cable" }
+{ "parent":"item/generated","textures":{"layer0":"sdzjz:item/data_cable"} }

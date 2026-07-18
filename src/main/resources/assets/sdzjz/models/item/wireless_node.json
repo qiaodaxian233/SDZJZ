@@ -1,1 +1,1 @@
-{ "parent":"sdzjz:block/wireless_node" }
+{ "parent":"item/generated","textures":{"layer0":"sdzjz:item/wireless_node"} }
