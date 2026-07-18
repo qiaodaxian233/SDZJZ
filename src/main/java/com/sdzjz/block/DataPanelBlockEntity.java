@@ -30,6 +30,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private String searchFilter = "";
     private int scrollRow = 0;
     private int filteredCount = 0;
+    private int refreshTicker = 0;
     public final SimpleInventory display = new SimpleInventory(PAGE);
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {
@@ -38,6 +39,8 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
         if (world.isClient) return;
+        // 节流：refreshDisplay 内部要 BFS 聚合存储核心，每 tick 跑是卡顿机器；改每 10 tick。
+        if (++be.refreshTicker % 10 != 0) return;
         be.refreshDisplay();
     }
 

@@ -52,6 +52,22 @@ public class StorageCoreBlockEntity extends BlockEntity {
         return CORES.keySet();
     }
 
+    /** 服务器停止时清空登记表（防跨存档幽灵坐标）。 */
+    public static void clearAll() {
+        CORES.clear();
+    }
+
+    /**
+     * 安全查找：只查已加载区块（getBlockEntity 在服务端会强制加载区块，遍历登记表时绝不能用）。
+     * 区块已加载但不存在存储核心 → 判定为幽灵坐标，顺手从登记表剔除。
+     */
+    public static StorageCoreBlockEntity loadedCoreAt(World world, BlockPos p) {
+        if (!world.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
+        if (world.getBlockEntity(p) instanceof StorageCoreBlockEntity core) return core;
+        unregister(world, p);
+        return null;
+    }
+
     public static void tick(World world, BlockPos pos, BlockState state, StorageCoreBlockEntity be) {
         if (world.isClient) return;
         register(world, pos);

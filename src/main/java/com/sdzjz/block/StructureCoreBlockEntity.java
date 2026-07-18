@@ -328,11 +328,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return changed;
     }
 
-    /** 右键取出指定节点：返还玩家，并修正连线索引。 */
+    /** 右键取出指定节点：内嵌升级折成物品归还，机器本体清掉画布 NBT（可正常堆叠）。 */
     public void removeNodeAt(PlayerEntity player, int index) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.remove(index);
-        if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+        returnNodeClean(player, s);
         java.util.List<int[]> kept = new java.util.ArrayList<>();
         for (int[] c : connections) {
             if (c[0] == index || c[1] == index) continue; // 触及被删节点→断
@@ -346,13 +346,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         syncToClient();
     }
 
+    /** 归还节点：先把嵌在 NBT 里的升级折成升级物品还给玩家，再清掉画布数据返还机器本体。 */
+    private void returnNodeClean(PlayerEntity player, ItemStack s) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        for (int type = 0; type < 3; type++) {
+            int lv = n.getInt(upgradeKey(type));
+            Item item = upgradeItem(type);
+            while (lv-- > 0 && item != null) {
+                ItemStack up = new ItemStack(item);
+                if (!player.getInventory().insertStack(up)) player.dropItem(up, false);
+            }
+        }
+        s.remove(DataComponentTypes.CUSTOM_DATA);
+        if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+    }
+
     /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
     public void ejectOne(PlayerEntity player) {
         if (!machineNodes.isEmpty()) {
             int removed = machineNodes.size() - 1;
             ItemStack s = machineNodes.remove(removed);
             connections.removeIf(c -> c[0] == removed || c[1] == removed);
-            if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+            returnNodeClean(player, s);
             markDirty();
             syncToClient();
             return;
@@ -399,7 +414,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 破坏时掉落全部（升级/产出 + 机器节点）。 */
     public void dropAll(World world, BlockPos pos) {
         ItemScatterer.spawn(world, pos, this);
-        for (ItemStack s : machineNodes) ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), s);
+        for (ItemStack s : machineNodes) {
+            NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+            for (int type = 0; type < 3; type++) {
+                int lv = n.getInt(upgradeKey(type));
+                Item item = upgradeItem(type);
+                if (item != null && lv > 0)
+                    ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), new ItemStack(item, lv));
+            }
+            s.remove(DataComponentTypes.CUSTOM_DATA);
+            ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), s);
+        }
         machineNodes.clear();
     }
 
@@ -506,11 +531,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         long range = SdzjzConfig.get().wirelessRange;
         long r2 = range * range, best = Long.MAX_VALUE;
         StorageCoreBlockEntity found = null;
-        for (BlockPos p : StorageCoreBlockEntity.coresIn(world)) {
+        for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
             long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
             long d2 = dx * dx + dy * dy + dz * dz;
             if (d2 > r2 || d2 >= best) continue;
-            if (world.getBlockEntity(p) instanceof StorageCoreBlockEntity panel) {
+            StorageCoreBlockEntity panel = StorageCoreBlockEntity.loadedCoreAt(world, p);
+            if (panel != null) {
                 best = d2;
                 found = panel;
             }
@@ -557,12 +583,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     || (hasWirelessNode(world, corePos) && d2 <= range * range)
                     || wiredReaches(world, corePos, boundPanelPos);
             if (!ok) return null;
-            return world.getBlockEntity(boundPanelPos) instanceof StorageCoreBlockEntity p ? p : null;
+            return StorageCoreBlockEntity.loadedCoreAt(world, boundPanelPos);
         }
         if (!hasSatelliteNode(world, corePos)) return null;
         if (world instanceof net.minecraft.server.world.ServerWorld sw) {
             net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(dimKey);
-            if (ow != null && ow.getBlockEntity(boundPanelPos) instanceof StorageCoreBlockEntity p) return p;
+            if (ow != null) return StorageCoreBlockEntity.loadedCoreAt(ow, boundPanelPos);
         }
         return null;
     }
@@ -590,10 +616,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private StorageCoreBlockEntity findSatellitePanel(World world, BlockPos corePos) {
         long best = Long.MAX_VALUE;
         StorageCoreBlockEntity found = null;
-        for (BlockPos p : StorageCoreBlockEntity.coresIn(world)) {
+        for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
             long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
             long d2 = dx * dx + dy * dy + dz * dz;
-            if (d2 < best && world.getBlockEntity(p) instanceof StorageCoreBlockEntity panel) {
+            if (d2 >= best) continue;
+            StorageCoreBlockEntity panel = StorageCoreBlockEntity.loadedCoreAt(world, p);
+            if (panel != null) {
                 best = d2;
                 found = panel;
             }
@@ -601,12 +629,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (found != null) return found;
         if (world instanceof net.minecraft.server.world.ServerWorld sw) {
             var server = sw.getServer();
-            for (var key : StorageCoreBlockEntity.dimensionsWithCores()) {
+            for (var key : java.util.List.copyOf(StorageCoreBlockEntity.dimensionsWithCores())) {
                 if (key.equals(world.getRegistryKey())) continue;
                 net.minecraft.server.world.ServerWorld ow = server.getWorld(key);
                 if (ow == null) continue;
-                for (BlockPos p : StorageCoreBlockEntity.coresIn(ow)) {
-                    if (ow.getBlockEntity(p) instanceof StorageCoreBlockEntity panel) return panel;
+                for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(ow))) {
+                    StorageCoreBlockEntity panel = StorageCoreBlockEntity.loadedCoreAt(ow, p);
+                    if (panel != null) return panel;
                 }
             }
         }

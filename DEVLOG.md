@@ -341,3 +341,14 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 标志物设计为每台唯一 → 顺手修掉旧的多重集撞车（bone_farm/mob_tower/wither_skeleton_farm 三撞、super_smelter=iron_smelter、swamp_spawner=flesh_farm）。现在 39 台各自可合成、互不冲突。
 - Recipe 记录改为 (result, layout[144], ingredients)；访问器名不变，其它调用点无需改。
 - 待编译验证（沙箱编不了 Fabric，静态自检括号/引用已过）。
+
+## m47 — BUG 排查修复（m33~m46 大改动全面审查）
+本轮静态审查发现并修复 7 个雷（按严重度）：
+1. **物品凭空丢失（严重）**：数据面板 quickMove 先扣仓储再塞背包——背包满/塞一半时已扣的东西直接消失。改为先试塞干净副本、按实际塞入量扣。
+2. **强制加载区块（性能地雷）**：无线/卫星/绑定路由遍历登记表时直接 `world.getBlockEntity(p)`，服务端会强制同步加载区块。新增 `StorageCoreBlockEntity.loadedCoreAt()`（先 `getChunkManager().isChunkLoaded()`，未加载直接跳过；已加载但无核心=幽灵坐标顺手剔除），5 处路由全部改用；遍历一律走 `List.copyOf` 防 CME。
+3. **跨存档幽灵坐标**：静态 CORES 登记表从不清空，换存档后残留旧坐标。注册 `ServerLifecycleEvents.SERVER_STOPPED` 清空（API 已查证 fabric lifecycle v1）。
+4. **伪造包作弊向量**：5 个 C2S 接收器无任何校验，任何玩家可对任意坐标的核心发拖动/连线/升级/移除包。加"当前打开的界面必须对应该坐标"校验（viewingCore/viewingPanel 查 currentScreenHandler），面板走界面校验而非距离——不破坏手持终端远程操作。
+5. **取出物不可堆叠**：面板展示格取出的物品带着显示大数用的 CUSTOM_DATA("amt")，与普通同类物品叠不了堆。onTakeItem 剥掉组件；quickMove 用干净副本。
+6. **面板每 tick BFS（卡顿机器）**：数据面板每 tick refreshDisplay→BFS(4096) 聚合。节流至每 10 tick；setView 交互仍即时刷新。
+7. **弹出节点升级丢失/不可堆叠**：右键取出/潜行弹出/破坏掉落的机器带着 nx/ny/spd/cnt/par NBT——叠不了堆、内嵌升级隐形。改为：内嵌升级折成升级物品归还，机器本体剥 NBT 干净返还（removeNodeAt/ejectOne/dropAll 三路统一）。
+- 待编译验证。盯点：`ChunkManager.isChunkLoaded(int,int)`（Yarn 文档确认存在）、`ServerLifecycleEvents.SERVER_STOPPED`、`ItemStack.remove(DataComponentTypes.CUSTOM_DATA)`。

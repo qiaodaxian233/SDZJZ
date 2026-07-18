@@ -39,6 +39,8 @@ public class DataPanelScreenHandler extends ScreenHandler {
                         if (panel != null && !stack.isEmpty()) {
                             panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount());
                         }
+                        // 剥掉展示用的数量 NBT，否则取出的物品与普通同类物品无法堆叠
+                        stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
                         super.onTakeItem(player, stack);
                     }
                 });
@@ -71,14 +73,17 @@ public class DataPanelScreenHandler extends ScreenHandler {
         ItemStack stack = slot.getStack();
 
         if (index < DataPanelBlockEntity.PAGE) {
-            // 展示格 → 玩家背包：整格取出并扣 store
-            ItemStack taken = stack.copy();
-            if (panel != null) panel.withdraw(Registries.ITEM.getId(taken.getItem()).toString(), taken.getCount());
-            if (!this.insertItem(stack, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true)) {
-                return ItemStack.EMPTY;
+            // 展示格 → 玩家背包：先试塞（干净副本，无展示 NBT），按实际塞入量扣 store。
+            // 顺序绝不能反：先扣后塞时背包满/塞一半 = 物品凭空消失。
+            ItemStack clean = new ItemStack(stack.getItem(), stack.getCount());
+            int before = clean.getCount();
+            this.insertItem(clean, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+            int inserted = before - clean.getCount();
+            if (inserted > 0 && panel != null) {
+                panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), inserted);
             }
-            slot.setStack(ItemStack.EMPTY);
-            return taken;
+            slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
+            return ItemStack.EMPTY;
         } else {
             // 玩家背包 → 存入面板
             if (panel != null) {
