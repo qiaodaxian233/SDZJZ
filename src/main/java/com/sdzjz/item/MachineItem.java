@@ -32,6 +32,7 @@ public class MachineItem extends Item {
                 .formatted(Formatting.GRAY));
         if ("super_smelter".equals(def.id())) {
             tooltip.add(Text.literal("万能熔炼：接什么烧什么（原版熔炼配方全支持）").formatted(Formatting.GOLD));
+            tooltip.add(Text.literal("须画布接线供料（机器入线/存储供料线），防误烧库存").formatted(Formatting.RED));
             tooltip.add(Text.literal("每周期一组×并行×(1+数量升级)，产物入存储/连线").formatted(Formatting.AQUA));
             return;
         }

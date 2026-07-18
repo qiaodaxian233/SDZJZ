@@ -185,7 +185,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             drawNode(ctx, nx, ny, nodes.get(i));
             drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i));
         }
-        for (int j = 0; j < ends.size(); j++) drawStorageNode(ctx, be, ends.get(j), j);
+        for (int j = 0; j < ends.size(); j++)
+            drawStorageNode(ctx, be, ends.get(j), j, j < be.storageEndpointDimsView().size() ? be.storageEndpointDimsView().get(j) : "");
         m.pop();
     }
 
@@ -195,7 +196,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     /** 存储/终端接口节点：连了几个显示几个。 */
-    private void drawStorageNode(DrawContext ctx, StructureCoreBlockEntity be, long[] ep, int j) {
+    private void drawStorageNode(DrawContext ctx, StructureCoreBlockEntity be, long[] ep, int j, String dim) {
         long pl = ep[0];
         int kind = (int) ep[1];
         int x = snx(be, pl, j), y = sny(be, pl, j);
@@ -216,9 +217,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 5)] + "]", x + 24 + this.textRenderer.getWidth(title) + 4, y + 7,
                 kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
         String sub = bp.getX() + "," + bp.getY() + "," + bp.getZ();
-        if (this.client != null && this.client.world != null
-                && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
-            sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes();
+        boolean sameDim = this.client != null && this.client.world != null
+                && (dim == null || dim.isEmpty()
+                    || dim.equals(this.client.world.getRegistryKey().getValue().toString()));
+        if (sameDim && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
+            sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes(); // 仅同维度读数，防同坐标异维度误读
         }
         ctx.drawText(this.textRenderer, sub, x + 24, y + 22, SUB, false);
     }
@@ -305,7 +308,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x";
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键节点/空白=菜单 · 拖节点=移动 · 拖绿口=连线(拖到存储=定向产出,存储绿口拖到机器=定向供料) · 格左键加/右键取升级 · 滚轮缩放", 8, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线（→存储=定向入库 · 存储→机器=定向供料）· 升级格 左加/右取 · 滚轮缩放", 8, this.height - 12, SUB, false);
     }
 
     @Override

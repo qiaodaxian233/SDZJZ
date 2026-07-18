@@ -93,7 +93,7 @@ public final class SuperBenchRecipes {
     private static void add(String result, int tpl, String... sig) {
         String template = TEMPLATES[tpl];
         String[] layout = new String[SLOTS];
-        Map<String, Integer> ing = new HashMap<>();
+        Map<String, Integer> ing = new java.util.LinkedHashMap<>(); // 保留蓝图遇到顺序：材料清单显示稳定
         int si = 0;
         for (int i = 0; i < SLOTS; i++) {
             char ch = template.charAt(i);

@@ -95,12 +95,12 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         if (selected >= 0 && selected < all.size()) {
             int dy = LIST_Y + LIST_ROWS * ENTRY_H + 14;
             ctx.drawText(this.textRenderer, "需要材料：", PX, dy, SUB, false);
-            int ix = PX, iy = dy + 12, col = 0;
+            int iy = dy + 12, col = 0;
             for (Map.Entry<String, Integer> e : all.get(selected).ingredients().entrySet()) {
                 ItemStack s = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
-                int sx = PX + (col % 5) * 34, sy = iy + (col / 5) * 20;
+                int sx = PX + (col % 6) * 32, sy = iy + (col / 6) * 20; // 6 列×32px：11 种材料两行放下，不越底
                 ctx.drawItem(s, sx, sy);
-                ctx.drawText(this.textRenderer, "×" + e.getValue(), sx + 17, sy + 4, TXT, false);
+                ctx.drawText(this.textRenderer, "×" + e.getValue(), sx + 15, sy + 5, TXT, false);
                 col++;
             }
         }

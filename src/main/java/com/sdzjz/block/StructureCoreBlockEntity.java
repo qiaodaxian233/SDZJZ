@@ -185,12 +185,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int total = (int) (crafts * plan.resultCount());
                 StorageCoreBlockEntity depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.bufAdd(target, total);
-                else if (depositAc != null) depositAc.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
+                else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 for (var en : plan.remainders().entrySet()) { // 容器残留（桶等）返还
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, (long) en.getValue() * crafts);
                     if (hasOut[i]) be.bufAdd(en.getKey(), rc);
-                    else if (depositAc != null) depositAc.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
+                    else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
                 produced = true;
@@ -213,19 +213,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         be.bufWithdraw(id, take);
                         long give = take * (int) out[1];
                         if (hasOut[i]) be.bufAdd((String) out[0], give);
-                        else if (depositSm != null) depositSm.deposit(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += take;
                     }
                 } else {
+                    // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
+                    // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
                     StorageCoreBlockEntity supply = be.supplyFor(world, i);
-                    if (supply == null) {
-                        if (!srcResolved) {
-                            src = be.resolveInputSource(world, pos);
-                            srcResolved = true;
-                        }
-                        supply = src;
-                    }
                     if (supply == null) continue;
                     for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
                         if (done >= capacity) break;
@@ -237,7 +232,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (got <= 0) continue;
                         long give = (long) got * (int) out[1];
                         if (hasOut[i]) be.bufAdd((String) out[0], give);
-                        else if (depositSm != null) depositSm.deposit(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += got;
                     }
@@ -285,7 +280,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
                     if (hasOut[i]) be.bufAdd(d.item(), total);
-                    else if (depositMi != null) depositMi.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
@@ -305,7 +300,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
                     if (hasOut[i]) be.bufAdd(d.item(), total);
-                    else if (depositCg != null) depositCg.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
@@ -654,6 +649,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 storageEndpoints.add(v);
                 storageEndpointDims.add(dims.get(v[0]));
             }
+            storageNodePos.keySet().retainAll(found.keySet()); // 修剪已消失端点的画布坐标
             markDirty();
             syncToClient();
         }
@@ -681,12 +677,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private StorageCoreBlockEntity resolveStorageAt(World world, String dim, long posLong) {
         BlockPos p = BlockPos.fromLong(posLong);
-        if (world.getRegistryKey().getValue().toString().equals(dim)) {
+        String self = world.getRegistryKey().getValue().toString();
+        if (dim == null || dim.isEmpty() || self.equals(dim)) { // 空维度串按本维度处理（老数据兜底）
             if (!world.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
             return world.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
         }
         if (world instanceof net.minecraft.server.world.ServerWorld sw) {
-            RegistryKey<World> key = RegistryKey.of(RegistryKeys.WORLD, Identifier.of(dim));
+            RegistryKey<World> key;
+            try {
+                key = RegistryKey.of(RegistryKeys.WORLD, Identifier.of(dim));
+            } catch (Exception e) {
+                return null; // 畸形维度串：不炸 tick
+            }
             net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(key);
             if (ow == null || !ow.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
             return ow.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
@@ -698,7 +700,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleStorageEdge(int machineIndex, long storagePos, int dir, String dim) {
         if (machineIndex < 0 || machineIndex >= machineNodes.size() || dir < 0 || dir > 1) return;
         boolean known = false; // 只允许连到画布上确实显示的端点，防伪造包连任意坐标
-        for (long[] ep : storageEndpoints) if (ep[0] == storagePos && ep[1] != 5) { known = true; break; }
+        String epDim = null;
+        for (int k = 0; k < storageEndpoints.size(); k++) {
+            long[] ep = storageEndpoints.get(k);
+            if (ep[0] == storagePos && ep[1] != 5) { known = true; epDim = storageEndpointDims.get(k); break; }
+        }
         if (!known) return;
         for (int i = 0; i < storageEdges.size(); i++) {
             long[] e = storageEdges.get(i);
@@ -710,8 +716,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 return;
             }
         }
+        // 维度以服务端端点表为准（客户端传空/伪造都不作数），兜底当前维度
+        String useDim = (epDim != null && !epDim.isEmpty()) ? epDim
+                : (dim != null && !dim.isEmpty()) ? dim
+                : (world != null ? world.getRegistryKey().getValue().toString() : "minecraft:overworld");
         storageEdges.add(new long[]{machineIndex, storagePos, dir});
-        storageEdgeDims.add(dim == null ? "" : dim);
+        storageEdgeDims.add(useDim);
         markDirty();
         syncToClient();
     }
@@ -808,6 +818,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (items.get(i).isOf(up)) n += items.get(i).getCount();
         }
         return n;
+    }
+
+    /** 定向入库兜底：存储核心类型满被拒时回落输出缓存，绝不静默丢物品。 */
+    private void depositOrBuffer(StorageCoreBlockEntity sc, ItemStack stack) {
+        if (stack.isEmpty()) return;
+        sc.deposit(stack); // 收下会清空栈；类型满则原样留着
+        if (!stack.isEmpty()) {
+            addOutput(stack);
+            stack.setCount(0);
+        }
     }
 
     /** 把产物塞进输出缓存，塞不下的丢弃（缓存满=暂停产出，不生成掉落物）。 */
