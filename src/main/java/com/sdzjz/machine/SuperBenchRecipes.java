@@ -8,56 +8,87 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 超大工作台合成表：无形状(多重集精确匹配)。由机器配方 JSON 自动生成。 */
+/**
+ * 超大工作台合成表。每台机器一张固定 12×12 蓝图布局（边框/角螺栓/玻璃窗/红石线/核心节点/中央标志物）。
+ * 匹配仍走多重集（位置无关，手动摆料也友好）；自动填充按 layout 指定位置铺满。
+ * 布局由共享模板 + 每台 4 格标志物生成，标志物保证每台唯一。
+ */
 public final class SuperBenchRecipes {
-    public record Recipe(Map<String, Integer> ingredients, String result) {}
-    public static final List<Recipe> ALL = new ArrayList<>();
+    public static final int GRID = 12;
+    public static final int SLOTS = 144;
+
+    /** 12×12 模板：I=铁 C=铜 R=红石 G=玻璃 O=侦测器 M=核心模块 S=标志物 .=空 */
+    static final String TEMPLATE =
+        "IIIICCCCIIIIIOGR....RGOIIG........GIIR.M....M.RIC....GG....CC...GSSG...CC...GSSG...CC....GG....CIR.M....M.RIIG........GIIOGR....RGOIIIIICCCCIIII";
+    static final Map<Character, String> LEGEND = new HashMap<>();
     static {
-        add("sdzjz:bamboo_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:bamboo", 1);
-        add("sdzjz:blaze_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:blaze_rod", 1);
-        add("sdzjz:bone_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:bone", 1);
-        add("sdzjz:cactus_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:cactus", 1);
-        add("sdzjz:carpet_machine", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:white_carpet", 1);
-        add("sdzjz:charcoal_kiln", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:charcoal", 1);
-        add("sdzjz:chorus_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:chorus_fruit", 1);
-        add("sdzjz:cobble_maker", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:cobblestone", 1);
-        add("sdzjz:drowned_tower", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 3);
-        add("sdzjz:flesh_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:rotten_flesh", 1);
-        add("sdzjz:glass_kiln", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:glass", 1);
-        add("sdzjz:gold_smelter", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:raw_gold", 1);
-        add("sdzjz:guardian_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:prismarine_shard", 1);
-        add("sdzjz:gunpowder_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:gunpowder", 1);
-        add("sdzjz:honey_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:honeycomb", 1);
-        add("sdzjz:ice_maker", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:ice", 1);
-        add("sdzjz:iron_farm", "minecraft:iron_ingot", 3, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2);
-        add("sdzjz:iron_smelter", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:raw_iron", 1);
-        add("sdzjz:kelp_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:kelp", 1);
-        add("sdzjz:magma_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:magma_cream", 1);
-        add("sdzjz:mob_tower", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:bone", 1);
-        add("sdzjz:nether_tree_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:crimson_stem", 1);
-        add("sdzjz:nether_wart_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:nether_wart", 1);
-        add("sdzjz:obsidian_maker", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:obsidian", 1);
-        add("sdzjz:pearl_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:ender_pearl", 1);
-        add("sdzjz:piglin_barter", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:gold_ingot", 1);
-        add("sdzjz:pigman_tower", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:gold_nugget", 1);
-        add("sdzjz:raid_tower", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:emerald", 1);
-        add("sdzjz:rail_machine", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:rail", 1);
-        add("sdzjz:sand_maker", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:sand", 1);
-        add("sdzjz:shulker_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:shulker_shell", 1);
-        add("sdzjz:slime_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:slime_ball", 1);
-        add("sdzjz:sugarcane_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:sugar_cane", 1);
-        add("sdzjz:super_smelter", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:raw_iron", 1);
-        add("sdzjz:swamp_spawner", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:rotten_flesh", 1);
-        add("sdzjz:tree_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:oak_log", 1);
-        add("sdzjz:wire_brusher", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:string", 1);
-        add("sdzjz:witch_tower", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:glowstone_dust", 1);
-        add("sdzjz:wither_skeleton_farm", "minecraft:iron_ingot", 2, "minecraft:observer", 1, "minecraft:redstone", 2, "sdzjz:core_module", 1, "minecraft:copper_ingot", 2, "minecraft:bone", 1);
+        LEGEND.put('I', "minecraft:iron_ingot");
+        LEGEND.put('C', "minecraft:copper_ingot");
+        LEGEND.put('R', "minecraft:redstone");
+        LEGEND.put('G', "minecraft:glass");
+        LEGEND.put('O', "minecraft:observer");
+        LEGEND.put('M', "sdzjz:core_module");
     }
 
-    private static void add(String result, Object... kv) {
-        Map<String, Integer> m = new HashMap<>();
-        for (int i = 0; i < kv.length; i += 2) m.merge((String) kv[i], (Integer) kv[i + 1], Integer::sum);
-        ALL.add(new Recipe(m, result));
+    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。 */
+    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients) {}
+    public static final List<Recipe> ALL = new ArrayList<>();
+
+    static {
+        add("sdzjz:bamboo_farm", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
+        add("sdzjz:blaze_farm", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
+        add("sdzjz:bone_farm", "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
+        add("sdzjz:cactus_farm", "minecraft:cactus", "minecraft:cactus", "minecraft:cactus", "minecraft:green_dye");
+        add("sdzjz:carpet_machine", "minecraft:white_carpet", "minecraft:white_carpet", "minecraft:white_wool", "minecraft:white_wool");
+        add("sdzjz:charcoal_kiln", "minecraft:charcoal", "minecraft:charcoal", "minecraft:charcoal", "minecraft:oak_log");
+        add("sdzjz:chorus_farm", "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:popped_chorus_fruit");
+        add("sdzjz:cobble_maker", "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:stone");
+        add("sdzjz:drowned_tower", "minecraft:copper_ingot", "minecraft:copper_ingot", "minecraft:prismarine_shard", "minecraft:rotten_flesh");
+        add("sdzjz:flesh_farm", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh");
+        add("sdzjz:glass_kiln", "minecraft:glass", "minecraft:glass", "minecraft:sand", "minecraft:sand");
+        add("sdzjz:gold_smelter", "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:gold_ingot");
+        add("sdzjz:guardian_farm", "minecraft:prismarine_shard", "minecraft:prismarine_shard", "minecraft:prismarine_crystals", "minecraft:prismarine_crystals");
+        add("sdzjz:gunpowder_farm", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:tnt");
+        add("sdzjz:honey_farm", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honey_bottle");
+        add("sdzjz:ice_maker", "minecraft:ice", "minecraft:ice", "minecraft:ice", "minecraft:snowball");
+        add("sdzjz:iron_farm", "minecraft:poppy", "minecraft:poppy", "minecraft:iron_ingot", "minecraft:iron_ingot");
+        add("sdzjz:iron_smelter", "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:iron_ingot");
+        add("sdzjz:kelp_farm", "minecraft:kelp", "minecraft:kelp", "minecraft:kelp", "minecraft:dried_kelp");
+        add("sdzjz:magma_farm", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_block");
+        add("sdzjz:mob_tower", "minecraft:bone", "minecraft:gunpowder", "minecraft:string", "minecraft:arrow");
+        add("sdzjz:nether_tree_farm", "minecraft:crimson_stem", "minecraft:crimson_stem", "minecraft:warped_stem", "minecraft:crimson_fungus");
+        add("sdzjz:nether_wart_farm", "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:soul_sand");
+        add("sdzjz:obsidian_maker", "minecraft:obsidian", "minecraft:obsidian", "minecraft:obsidian", "minecraft:crying_obsidian");
+        add("sdzjz:pearl_farm", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:obsidian");
+        add("sdzjz:piglin_barter", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:obsidian");
+        add("sdzjz:pigman_tower", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_ingot");
+        add("sdzjz:raid_tower", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald");
+        add("sdzjz:rail_machine", "minecraft:rail", "minecraft:rail", "minecraft:iron_ingot", "minecraft:stick");
+        add("sdzjz:sand_maker", "minecraft:sand", "minecraft:sand", "minecraft:sand", "minecraft:gravel");
+        add("sdzjz:shulker_farm", "minecraft:shulker_shell", "minecraft:shulker_shell", "minecraft:purpur_block", "minecraft:purpur_block");
+        add("sdzjz:slime_farm", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball");
+        add("sdzjz:sugarcane_farm", "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:paper");
+        add("sdzjz:super_smelter", "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_gold", "minecraft:raw_gold");
+        add("sdzjz:swamp_spawner", "minecraft:rotten_flesh", "minecraft:bone", "minecraft:string", "minecraft:slime_ball");
+        add("sdzjz:tree_farm", "minecraft:oak_log", "minecraft:oak_log", "minecraft:oak_sapling", "minecraft:apple");
+        add("sdzjz:wire_brusher", "minecraft:string", "minecraft:string", "minecraft:string", "minecraft:cobweb");
+        add("sdzjz:witch_tower", "minecraft:glowstone_dust", "minecraft:glowstone_dust", "minecraft:spider_eye", "minecraft:sugar");
+        add("sdzjz:wither_skeleton_farm", "minecraft:bone", "minecraft:coal", "minecraft:coal", "minecraft:soul_sand");
+    }
+
+    private static void add(String result, String... sig) {
+        String[] layout = new String[SLOTS];
+        Map<String, Integer> ing = new HashMap<>();
+        int si = 0;
+        for (int i = 0; i < SLOTS; i++) {
+            char ch = TEMPLATE.charAt(i);
+            String id = null;
+            if (ch == 'S') id = sig[si++];
+            else if (ch != '.') id = LEGEND.get(ch);
+            layout[i] = id;
+            if (id != null) ing.merge(id, 1, Integer::sum);
+        }
+        ALL.add(new Recipe(result, layout, ing));
     }
 
     /** 网格多重集精确匹配到配方。 */

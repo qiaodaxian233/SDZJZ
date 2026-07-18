@@ -121,15 +121,21 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 input.setStack(i, ItemStack.EMPTY);
             }
         }
-        // 从背包取料放入网格
-        int slot = 0;
+        // 从背包按需批量取料，建立可用池
+        Map<String, Integer> pool = new HashMap<>();
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
-            int got = takeFromInv(player, item, e.getValue());
-            while (got > 0 && slot < GRID_SLOTS) {
-                int put = Math.min(got, item.getMaxCount());
-                input.setStack(slot++, new ItemStack(item, put));
-                got -= put;
+            pool.put(e.getKey(), takeFromInv(player, item, e.getValue()));
+        }
+        // 按蓝图布局逐格摆放（1 格 1 件；缺料的格留空）
+        String[] layout = r.layout();
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            String want = layout[i];
+            if (want == null) continue;
+            int have = pool.getOrDefault(want, 0);
+            if (have > 0) {
+                input.setStack(i, new ItemStack(Registries.ITEM.get(Identifier.of(want)), 1));
+                pool.put(want, have - 1);
             }
         }
         input.markDirty();

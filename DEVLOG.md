@@ -334,3 +334,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 绘图名单+2：storage_core、storage_upgrade(占位)。
 - 盯点：StorageCoreBlock createCodec/validateTicker(仿结构核心)、路由重定向。
 - 排下轮：② 机器 12×12 大配方铺满好看摆法。
+
+## m46 — 机器 12×12 大配方（蓝图布局）
+- SuperBenchRecipes 重做：每台机器一张固定 12×12 蓝图布局，共享模板（边框28铁/内框16铜/角螺栓4侦测器/玻璃窗16/红石线8/核心节点4核心模块）+ 中央 2×2 标志物（每台 4 格），共约 80 件/台，铺满约 80/144 格。
+- 匹配仍走多重集（位置无关，手动摆料友好）；自动填充改为按 layout 指定位置逐格铺（批量取料→按格摆放，缺料留空）。
+- 标志物设计为每台唯一 → 顺手修掉旧的多重集撞车（bone_farm/mob_tower/wither_skeleton_farm 三撞、super_smelter=iron_smelter、swamp_spawner=flesh_farm）。现在 39 台各自可合成、互不冲突。
+- Recipe 记录改为 (result, layout[144], ingredients)；访问器名不变，其它调用点无需改。
+- 待编译验证（沙箱编不了 Fabric，静态自检括号/引用已过）。
