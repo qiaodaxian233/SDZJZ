@@ -175,9 +175,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, 0xFF0C1E30);
             String t = StructureCoreBlockEntity.craftTarget(st);
-            if (!t.isEmpty()) ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t))), bx + 2, by + 2);
-            else ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
+            if (!t.isEmpty()) {
+                ItemStack ts = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
+                ctx.drawItem(ts, bx + 2, by + 2);
+                String tn = ts.getName().getString();
+                while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 12) tn = tn.substring(0, tn.length() - 1);
+                ctx.drawText(this.textRenderer, "→" + tn, x + 6, y + 40, ON, false);   // 目标名
+            } else {
+                ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
+                ctx.drawText(this.textRenderer, "点徽章设目标", x + 6, y + 40, SUB, false);
+            }
         }
+    }
+
+    private static String fmtNum(long n) {
+        if (n < 10000L) return String.valueOf(n);
+        if (n < 1_000_000L) return String.format("%.1fK", n / 1000.0);
+        if (n < 1_000_000_000L) return String.format("%.1fM", n / 1_000_000.0);
+        return String.format("%.1fB", n / 1_000_000_000.0);
     }
 
     /** 每节点下方 3 个升级格：加速/数量/并列（图标+等级）。 */
@@ -214,14 +229,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
         boolean run = this.handler.isRunning();
         ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 10, 18, run ? ON : SUB, false);
-        ctx.drawText(this.textRenderer, "经验 " + this.handler.xp(), 72, 18, ON, false);
+        ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), 72, 18, ON, false);
         String st = "机器 " + this.handler.machineCount()
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x";
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 右键节点=取出 · 拖绿口=连线 · 格左键加/右键取升级 · 滚轮缩放 · 拖空白平移", 8, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键核心=放入 · 拖节点=移动 · 右键节点=取出 · 拖绿口=连线 · 点[?]徽章=设合成目标 · 格左键加/右键取升级 · 滚轮缩放", 8, this.height - 12, SUB, false);
     }
 
     @Override

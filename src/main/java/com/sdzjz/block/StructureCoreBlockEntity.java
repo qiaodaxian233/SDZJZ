@@ -80,12 +80,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 case 3 -> totalNodeUpgrade("spd");
                 case 4 -> totalNodeUpgrade("cnt");
                 case 5 -> totalNodeUpgrade("par");
-                case 6 -> (int) Math.min(xpPool, Integer.MAX_VALUE);
+                case 6 -> (int) (((long) xpPool) & 0x7FFF);              // 经验低15位（属性按short网络同步）
+                case 7 -> (int) Math.min(((long) xpPool) >> 15, 32767);  // 经验高位
                 default -> 0;
             };
         }
         @Override public void set(int i, int v) { if (i == 0) running = (v != 0); }
-        @Override public int size() { return 7; }
+        @Override public int size() { return 8; }
     };
 
     private int machineCount() {
@@ -141,7 +142,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (plan == null) continue; // 无合成配方
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
                 long crafts = (long) running * (1 + countLv);
-                crafts = Math.min(crafts, (64L * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // 先封顶再扣料，防白扣
+                int maxStack = Registries.ITEM.get(Identifier.of(target)).getMaxCount();
+                crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // 按产物真实堆叠封顶再扣料（剑/图腾等max=1时防白扣）
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCount(en.getKey()) / en.getValue());
@@ -275,6 +277,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (give <= 0) return;
         player.addExperience(give);
         xpPool -= give;
+        if (world != null) world.playSound(null, pos,
+                net.minecraft.sound.SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
+                net.minecraft.sound.SoundCategory.BLOCKS, 0.6f, 1.0f);
         markDirty();
     }
 

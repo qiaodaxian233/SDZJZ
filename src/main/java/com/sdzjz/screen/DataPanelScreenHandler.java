@@ -89,7 +89,11 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (panel != null) {
                 ItemStack copy = stack.copy();
                 panel.deposit(copy);
-                slot.setStack(ItemStack.EMPTY);
+                // 只按实际存入量扣：无存储核心/类型满时余量留在原槽，绝不凭空消失
+                if (copy.getCount() != stack.getCount()) {
+                    slot.setStack(copy.isEmpty() ? ItemStack.EMPTY : copy);
+                    slot.markDirty();
+                }
                 return ItemStack.EMPTY;
             }
         }
