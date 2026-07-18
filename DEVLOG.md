@@ -408,3 +408,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 修复「名字不对」根因：`storage_upgrade`（存储升级）/`storage_core`（存储核心）语言条目中英文全漏（m43 遗漏），游戏内显示原始键名。已补。
 - 全量校验：模型→贴图、blockstate→模型引用零缺失；151 个原版 id 眼检无拼写错误。
 - 绘图名单重写为扫描核准的待画清单：物品 8（auto_crafter/bonemeal/breeze/ghast/moss/stonecutter/villager_breeder/villager_contract）+ 方块 1（trade_center），附提示词。
+
+## m55 — 用户存储核心模型接入（storage_core.bbmodel）
+- 自由格式 99 元素、0 旋转、模型天然直立（无需转向）；坐标 X/Z ±12 底 Y=0 高 29.1 → 缩放 16/29.1 高度贴满一格、水平内缩至 13.4px（防邻块 z-fight），X/Z 平移 +8 居中。
+- 128×16 金属图集抽出覆盖 textures/block/storage_core.png（原合成图弃用）；第二张 MER 贴图（金属度/自发光，PBR 用）原版 Java 不支持，未接入。
+- 面 UV 像素制 → 0..16（÷128×16 / ÷16×16），面向不变、面内 rotation 原样保留。
+- 物品模型 item/generated 2D 图标 → parent 方块模型（背包/手持显示 3D 机器，display 变换随模型内嵌）；旧 2D 图标文件保留未删（想换回说一声）。
+- 方块侧无需改动：已 nonOpaque、渲染 MODEL、blockstate 指向不变。
