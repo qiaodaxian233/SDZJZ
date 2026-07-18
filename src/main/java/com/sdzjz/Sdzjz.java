@@ -51,6 +51,26 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.StorageLinkPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (payload.dim().length() > 128 || !viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.toggleStorageEdge(payload.machineIndex(), payload.storagePos(), payload.dir(), payload.dim());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.StorageNodeMovePayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.setStorageNodePos(payload.storagePos(), payload.nx(), payload.ny());
+                }
+            });
+        });
         ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {

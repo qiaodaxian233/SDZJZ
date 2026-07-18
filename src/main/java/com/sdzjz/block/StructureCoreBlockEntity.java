@@ -63,6 +63,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
     private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>(); // 连线内部物流缓存 id→量
     private static final long BUF_CAP = 200000L;
+
+    // ===== 存储/终端接口节点（画布右侧显示，连了几个显示几个） =====
+    /** 已扫描到的接口端点：{posLong, kind}，kind 0=绑定 1=有线 2=无线 3=卫星 4=离线(仅被连线引用) 5=数据终端。 */
+    private final java.util.List<long[]> storageEndpoints = new java.util.ArrayList<>();
+    private final java.util.List<String> storageEndpointDims = new java.util.ArrayList<>(); // 与上表同序的维度 id
+    private final java.util.Map<Long, int[]> storageNodePos = new java.util.HashMap<>();    // posLong → 画布坐标
+    /** 机器↔存储 定向连线：{machineIndex, posLong, dir}，dir 0=机器→存储(产出) 1=存储→机器(供料)。 */
+    private final java.util.List<long[]> storageEdges = new java.util.ArrayList<>();
+    private final java.util.List<String> storageEdgeDims = new java.util.ArrayList<>();
+    private long lastEndpointScan = Long.MIN_VALUE;
+    private static final int ENDPOINT_CAP = 8;
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -106,7 +117,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     // ================= 运行时（通用：按 MachineDef 跑任意机器）=================
     public static void tick(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
-        if (world.isClient || !be.running) return;
+        if (world.isClient) return;
+        if (world.getTime() - be.lastEndpointScan >= 40) { // 端点扫描独立于开机状态：画布随时能看到接口
+            be.lastEndpointScan = world.getTime();
+            be.scanStorageEndpoints(world, pos);
+        }
+        if (!be.running) return;
 
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
         SdzjzConfig cfg = SdzjzConfig.get();
@@ -151,23 +167,30 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     for (var en : plan.needs().entrySet())
                         be.bufWithdraw(en.getKey(), (long) en.getValue() * crafts);
                 } else {
-                    if (!srcResolved) {
-                        src = be.resolveInputSource(world, pos);
-                        srcResolved = true;
+                    StorageCoreBlockEntity supply = be.supplyFor(world, i);   // 存储→机器 定向供料连线优先
+                    if (supply == null) {
+                        if (!srcResolved) {
+                            src = be.resolveInputSource(world, pos);
+                            srcResolved = true;
+                        }
+                        supply = src;
                     }
-                    if (src == null) continue;
+                    if (supply == null) continue;
                     for (var en : plan.needs().entrySet())
-                        crafts = Math.min(crafts, src.count(en.getKey()) / en.getValue());
+                        crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
                     if (crafts <= 0) continue;
                     for (var en : plan.needs().entrySet())
-                        src.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
+                        supply.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
                 }
                 int total = (int) (crafts * plan.resultCount());
+                StorageCoreBlockEntity depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.bufAdd(target, total);
+                else if (depositAc != null) depositAc.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 for (var en : plan.remainders().entrySet()) { // 容器残留（桶等）返还
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, (long) en.getValue() * crafts);
                     if (hasOut[i]) be.bufAdd(en.getKey(), rc);
+                    else if (depositAc != null) depositAc.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
                 produced = true;
@@ -186,25 +209,31 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (!ok) continue;
                         for (MachineDef.Input in : def.inputs()) be.bufWithdraw(in.item(), (long) in.count() * running);
                     } else {
-                        if (!srcResolved) {
-                            src = be.resolveInputSource(world, pos);
-                            srcResolved = true;
+                        StorageCoreBlockEntity supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
+                        if (supply == null) {
+                            if (!srcResolved) {
+                                src = be.resolveInputSource(world, pos);
+                                srcResolved = true;
+                            }
+                            supply = src;
                         }
-                        if (src == null) continue;
+                        if (supply == null) continue;
                         boolean ok = true;
                         for (MachineDef.Input in : def.inputs())
-                            if (src.count(in.item()) < (long) in.count() * running) { ok = false; break; }
+                            if (supply.count(in.item()) < (long) in.count() * running) { ok = false; break; }
                         if (!ok) continue;
-                        for (MachineDef.Input in : def.inputs()) src.withdraw(in.item(), in.count() * running);
+                        for (MachineDef.Input in : def.inputs()) supply.withdraw(in.item(), in.count() * running);
                     }
                 }
 
+                StorageCoreBlockEntity depositMi = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : def.outputs()) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
                     if (hasOut[i]) be.bufAdd(d.item(), total);
+                    else if (depositMi != null) depositMi.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
@@ -217,12 +246,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                StorageCoreBlockEntity depositCg = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : drops) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
                     if (hasOut[i]) be.bufAdd(d.item(), total);
+                    else if (depositCg != null) depositCg.deposit(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
@@ -419,6 +450,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         connections.clear();
         connections.addAll(kept);
+        for (int i = storageEdges.size() - 1; i >= 0; i--) { // 存储连线同样剪/移位
+            long[] e = storageEdges.get(i);
+            if (e[0] == index) { storageEdges.remove(i); storageEdgeDims.remove(i); }
+            else if (e[0] > index) e[0]--;
+        }
         markDirty();
         syncToClient();
     }
@@ -444,6 +480,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int removed = machineNodes.size() - 1;
             ItemStack s = machineNodes.remove(removed);
             connections.removeIf(c -> c[0] == removed || c[1] == removed);
+            for (int i = storageEdges.size() - 1; i >= 0; i--) {
+                if (storageEdges.get(i)[0] == removed) { storageEdges.remove(i); storageEdgeDims.remove(i); }
+            }
             returnNodeClean(player, s);
             markDirty();
             syncToClient();
@@ -454,6 +493,197 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 画布连线读取（客户端渲染）。 */
     public java.util.List<int[]> connections() { return connections; }
+
+    // ===== 存储/终端接口节点：扫描 + 定向连线 =====
+    /** 扫描本核心可达的存储核心/数据终端端点（绑定>有线>无线>卫星，封顶8个），变化才同步。 */
+    private void scanStorageEndpoints(World world, BlockPos corePos) {
+        java.util.LinkedHashMap<Long, long[]> found = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashMap<Long, String> dims = new java.util.LinkedHashMap<>();
+        String selfDim = world.getRegistryKey().getValue().toString();
+        // 绑定目标（优先级最高，可跨维度）
+        StorageCoreBlockEntity bound = boundPanel(world, corePos);
+        if (bound != null && bound.getWorld() != null) {
+            long pl = bound.getPos().asLong();
+            found.put(pl, new long[]{pl, 0});
+            dims.put(pl, bound.getWorld().getRegistryKey().getValue().toString());
+        }
+        // 有线：BFS 收集全部存储核心 + 数据终端
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>();
+        java.util.HashSet<BlockPos> seen = new java.util.HashSet<>();
+        q.add(corePos); seen.add(corePos);
+        int budget = 256;
+        while (!q.isEmpty() && budget-- > 0) {
+            BlockPos cur = q.poll();
+            for (Direction d : Direction.values()) {
+                BlockPos np = cur.offset(d);
+                if (!seen.add(np)) continue;
+                BlockEntity nbe = world.getBlockEntity(np);
+                if (nbe instanceof StorageCoreBlockEntity && found.size() < ENDPOINT_CAP) {
+                    long pl = np.asLong();
+                    found.putIfAbsent(pl, new long[]{pl, 1});
+                    dims.putIfAbsent(pl, selfDim);
+                } else if (nbe instanceof DataPanelBlockEntity && found.size() < ENDPOINT_CAP) {
+                    long pl = np.asLong();
+                    found.putIfAbsent(pl, new long[]{pl, 5});
+                    dims.putIfAbsent(pl, selfDim);
+                }
+                if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
+            }
+        }
+        // 无线：范围内已加载的存储核心
+        if (found.size() < ENDPOINT_CAP && hasWirelessNode(world, corePos)) {
+            long range = SdzjzConfig.get().wirelessRange, r2 = range * range;
+            for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
+                if (found.size() >= ENDPOINT_CAP) break;
+                long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
+                if (dx * dx + dy * dy + dz * dz > r2) continue;
+                if (StorageCoreBlockEntity.loadedCoreAt(world, p) == null) continue;
+                long pl = p.asLong();
+                found.putIfAbsent(pl, new long[]{pl, 2});
+                dims.putIfAbsent(pl, selfDim);
+            }
+        }
+        // 卫星：全维度（先本维度，后其它）
+        if (found.size() < ENDPOINT_CAP && hasSatelliteNode(world, corePos)) {
+            for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
+                if (found.size() >= ENDPOINT_CAP) break;
+                if (StorageCoreBlockEntity.loadedCoreAt(world, p) == null) continue;
+                long pl = p.asLong();
+                found.putIfAbsent(pl, new long[]{pl, 3});
+                dims.putIfAbsent(pl, selfDim);
+            }
+            if (world instanceof net.minecraft.server.world.ServerWorld sw) {
+                for (var key : java.util.List.copyOf(StorageCoreBlockEntity.dimensionsWithCores())) {
+                    if (found.size() >= ENDPOINT_CAP || key.equals(world.getRegistryKey())) continue;
+                    net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(key);
+                    if (ow == null) continue;
+                    for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(ow))) {
+                        if (found.size() >= ENDPOINT_CAP) break;
+                        if (StorageCoreBlockEntity.loadedCoreAt(ow, p) == null) continue;
+                        long pl = p.asLong();
+                        found.putIfAbsent(pl, new long[]{pl, 3});
+                        dims.putIfAbsent(pl, key.getValue().toString());
+                    }
+                }
+            }
+        }
+        // 被连线引用但没扫到的端点：显示为离线（不丢用户的接线）；本维度已加载但方块没了→剪掉连线
+        java.util.Iterator<long[]> it = storageEdges.iterator();
+        java.util.Iterator<String> itd = storageEdgeDims.iterator();
+        boolean edgesPruned = false;
+        while (it.hasNext()) {
+            long[] e = it.next();
+            String edim = itd.next();
+            if (found.containsKey(e[1])) continue;
+            if (edim.equals(selfDim)) {
+                BlockPos ep = BlockPos.fromLong(e[1]);
+                if (world.getChunkManager().isChunkLoaded(ep.getX() >> 4, ep.getZ() >> 4)
+                        && !(world.getBlockEntity(ep) instanceof StorageCoreBlockEntity)) {
+                    it.remove(); itd.remove(); edgesPruned = true; // 方块确实没了
+                    continue;
+                }
+            }
+            found.putIfAbsent(e[1], new long[]{e[1], 4}); // 离线占位
+            dims.putIfAbsent(e[1], edim);
+        }
+        // 变化才写回+同步（省网络）
+        boolean changed = edgesPruned || found.size() != storageEndpoints.size();
+        if (!changed) {
+            for (int i = 0; i < storageEndpoints.size(); i++) {
+                long[] old = storageEndpoints.get(i);
+                long[] neu = found.get(old[0]);
+                if (neu == null || neu[1] != old[1]) { changed = true; break; }
+            }
+        }
+        if (changed) {
+            storageEndpoints.clear();
+            storageEndpointDims.clear();
+            for (long[] v : found.values()) {
+                storageEndpoints.add(v);
+                storageEndpointDims.add(dims.get(v[0]));
+            }
+            markDirty();
+            syncToClient();
+        }
+    }
+
+    /** 该机器的定向产出目标（机器→存储 连线；不可用则 null 走默认路由）。 */
+    private StorageCoreBlockEntity depositFor(World world, int machineIndex) {
+        return edgeStorage(world, machineIndex, 0);
+    }
+
+    /** 该机器的定向供料源（存储→机器 连线）。 */
+    private StorageCoreBlockEntity supplyFor(World world, int machineIndex) {
+        return edgeStorage(world, machineIndex, 1);
+    }
+
+    private StorageCoreBlockEntity edgeStorage(World world, int machineIndex, int dir) {
+        for (int i = 0; i < storageEdges.size(); i++) {
+            long[] e = storageEdges.get(i);
+            if (e[0] != machineIndex || e[2] != dir) continue;
+            StorageCoreBlockEntity sc = resolveStorageAt(world, storageEdgeDims.get(i), e[1]);
+            if (sc != null) return sc;
+        }
+        return null;
+    }
+
+    private StorageCoreBlockEntity resolveStorageAt(World world, String dim, long posLong) {
+        BlockPos p = BlockPos.fromLong(posLong);
+        if (world.getRegistryKey().getValue().toString().equals(dim)) {
+            if (!world.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
+            return world.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
+        }
+        if (world instanceof net.minecraft.server.world.ServerWorld sw) {
+            RegistryKey<World> key = RegistryKey.of(RegistryKeys.WORLD, Identifier.of(dim));
+            net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(key);
+            if (ow == null || !ow.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
+            return ow.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
+        }
+        return null;
+    }
+
+    /** 连/断一条 机器↔存储 定向连线（已存在则断开）。dir 0=产出到该存储 1=从该存储供料。 */
+    public void toggleStorageEdge(int machineIndex, long storagePos, int dir, String dim) {
+        if (machineIndex < 0 || machineIndex >= machineNodes.size() || dir < 0 || dir > 1) return;
+        boolean known = false; // 只允许连到画布上确实显示的端点，防伪造包连任意坐标
+        for (long[] ep : storageEndpoints) if (ep[0] == storagePos && ep[1] != 5) { known = true; break; }
+        if (!known) return;
+        for (int i = 0; i < storageEdges.size(); i++) {
+            long[] e = storageEdges.get(i);
+            if (e[0] == machineIndex && e[1] == storagePos && e[2] == dir) {
+                storageEdges.remove(i);
+                storageEdgeDims.remove(i);
+                markDirty();
+                syncToClient();
+                return;
+            }
+        }
+        storageEdges.add(new long[]{machineIndex, storagePos, dir});
+        storageEdgeDims.add(dim == null ? "" : dim);
+        markDirty();
+        syncToClient();
+    }
+
+    /** 设置存储节点画布坐标。 */
+    public void setStorageNodePos(long storagePos, int nx, int ny) {
+        storageNodePos.put(storagePos, new int[]{nx, ny});
+        markDirty();
+        syncToClient();
+    }
+
+    public java.util.List<long[]> storageEndpointsView() { return storageEndpoints; }
+    public java.util.List<String> storageEndpointDimsView() { return storageEndpointDims; }
+    public java.util.List<long[]> storageEdgesView() { return storageEdges; }
+
+    public int storageNodeX(long pl, int def) {
+        int[] v = storageNodePos.get(pl);
+        return v != null ? v[0] : def;
+    }
+
+    public int storageNodeY(long pl, int def) {
+        int[] v = storageNodePos.get(pl);
+        return v != null ? v[1] : def;
+    }
 
     // ===== 连线内部物流缓存 =====
     private long bufCount(String id) { return internalBuffer.getOrDefault(id, 0L); }
@@ -815,6 +1045,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nbt.putBoolean("running", running);
         nbt.putDouble("xpPool", xpPool);
+        NbtList eps = new NbtList(); // 存储端点（同步给画布：连了几个显示几个）
+        for (int i = 0; i < storageEndpoints.size(); i++) {
+            NbtCompound c = new NbtCompound();
+            c.putLong("p", storageEndpoints.get(i)[0]);
+            c.putInt("k", (int) storageEndpoints.get(i)[1]);
+            c.putString("d", storageEndpointDims.get(i));
+            eps.add(c);
+        }
+        nbt.put("storEnds", eps);
+        NbtList seg = new NbtList(); // 机器↔存储 定向连线
+        for (int i = 0; i < storageEdges.size(); i++) {
+            NbtCompound c = new NbtCompound();
+            c.putInt("m", (int) storageEdges.get(i)[0]);
+            c.putLong("p", storageEdges.get(i)[1]);
+            c.putInt("r", (int) storageEdges.get(i)[2]);
+            c.putString("d", storageEdgeDims.get(i));
+            seg.add(c);
+        }
+        nbt.put("storEdges", seg);
+        NbtCompound spn = new NbtCompound(); // 存储节点画布坐标
+        for (var en : storageNodePos.entrySet()) spn.putIntArray(Long.toString(en.getKey()), en.getValue());
+        nbt.put("storNodePos", spn);
     }
 
     @Override
@@ -838,6 +1090,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         running = nbt.getBoolean("running");
         xpPool = nbt.getDouble("xpPool");
+        storageEndpoints.clear();
+        storageEndpointDims.clear();
+        NbtList eps = nbt.getList("storEnds", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < eps.size(); i++) {
+            NbtCompound c = eps.getCompound(i);
+            storageEndpoints.add(new long[]{c.getLong("p"), c.getInt("k")});
+            storageEndpointDims.add(c.getString("d"));
+        }
+        storageEdges.clear();
+        storageEdgeDims.clear();
+        NbtList seg = nbt.getList("storEdges", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < seg.size(); i++) {
+            NbtCompound c = seg.getCompound(i);
+            storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
+            storageEdgeDims.add(c.getString("d"));
+        }
+        storageNodePos.clear();
+        NbtCompound spn = nbt.getCompound("storNodePos");
+        for (String k : spn.getKeys()) {
+            int[] v = spn.getIntArray(k);
+            if (v.length == 2) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {}
+        }
     }
 
     @Override
