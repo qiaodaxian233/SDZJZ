@@ -17,6 +17,7 @@ import net.minecraft.util.math.BlockPos;
 public class DataPanelScreenHandler extends ScreenHandler {
 
     private final DataPanelBlockEntity panel;
+    private final BlockPos blockPos;
 
     public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
         this(syncId, playerInv, resolve(playerInv, pos));
@@ -25,6 +26,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
     public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, DataPanelBlockEntity be) {
         super(ModScreenHandlers.DATA_PANEL, syncId);
         this.panel = be;
+        this.blockPos = (be != null) ? be.getPos() : null;
         Inventory display = (be != null) ? be.display : new SimpleInventory(DataPanelBlockEntity.PAGE);
 
         // 展示区 6×9（只取不放）
@@ -54,6 +56,8 @@ public class DataPanelScreenHandler extends ScreenHandler {
         BlockEntity be = playerInv.player.getWorld().getBlockEntity(pos);
         return be instanceof DataPanelBlockEntity p ? p : null;
     }
+
+    public BlockPos blockPos() { return blockPos; }
 
     @Override
     public boolean canUse(PlayerEntity player) {

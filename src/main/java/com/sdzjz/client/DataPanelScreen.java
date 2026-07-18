@@ -1,13 +1,17 @@
 package com.sdzjz.client;
 
+import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.screen.DataPanelScreenHandler;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 
-/** 数据面板 GUI（全屏科技风：深色铺底 + 科技边框贴图 + 青角槽格 + 分区标题）。 */
+/** 存储终端：搜索 + 滚动 + 大数量显示（仿 Tom's Simple Storage）。 */
 public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     private static final int BACKDROP = 0xFF080B12;
@@ -19,6 +23,9 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/structure_core_gui.png");
 
+    private TextFieldWidget search;
+    private int scroll = 0;
+
     public DataPanelScreen(DataPanelScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 360;
@@ -26,13 +33,33 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     }
 
     @Override
+    protected void init() {
+        super.init();
+        this.search = new TextFieldWidget(this.textRenderer, this.x + 180, this.y + 8, 176, 14, Text.literal("搜索"));
+        this.search.setPlaceholder(Text.literal("搜索物品(英文id)…"));
+        this.search.setChangedListener(s -> { scroll = 0; sendView(); });
+        this.addDrawableChild(this.search);
+    }
+
+    private void sendView() {
+        BlockPos p = this.handler.blockPos();
+        if (p != null) ClientPlayNetworking.send(new DataPanelViewPayload(p, search == null ? "" : search.getText(), scroll));
+    }
+
+    @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         int x = this.x, y = this.y;
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
+        // 搜索框底
+        ctx.fill(x + 178, y + 6, x + 358, y + 24, 0xFF0A1626);
         // 存储 6×9
         for (int r = 0; r < 6; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 30 + r * 18);
+        // 滚动条轨
+        int sbx = x + 99 + 9 * 18 + 3;
+        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 6 * 18, 0xFF0A1626);
+        ctx.fill(sbx, y + 30 + Math.min(5, scroll) * 6, sbx + 6, y + 30 + Math.min(5, scroll) * 6 + 24, CYAN);
         // 背包 3×9 + 快捷栏
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 158 + r * 18);
@@ -55,19 +82,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
-        ctx.drawText(this.textRenderer, "数据面板", 24, 12, TXT, false);
-        int kinds = 0;
-        for (int i = 0; i < 54 && i < this.handler.slots.size(); i++)
-            if (this.handler.slots.get(i).hasStack()) kinds++;
-        String st = "种类 " + kinds + "/54";
-        ctx.drawText(this.textRenderer, st, backgroundWidth - 24 - this.textRenderer.getWidth(st), 12, CYAN, false);
-        header(ctx, "存储", 99, 20);
-        header(ctx, "背包", 99, 148);
+        ctx.drawText(this.textRenderer, "存储终端", 24, 12, TXT, false);
+        header(ctx, "存储 · 滚轮翻页", 99, 20);
+        header(ctx, "物品栏", 99, 148);
     }
 
     @Override
     protected void drawSlot(DrawContext ctx, net.minecraft.screen.slot.Slot slot) {
-        // 存储格：画物品图标 + 自绘真实总量(隐藏原版≤64计数)
         if (!(slot.inventory instanceof PlayerInventory) && slot.hasStack()) {
             net.minecraft.item.ItemStack st = slot.getStack();
             ctx.drawItem(st, slot.x, slot.y);
@@ -82,6 +103,36 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         }
     }
 
+    @Override
+    public boolean mouseScrolled(double mx, double my, double h, double v) {
+        if (v < 0) {
+            boolean bottomFull = false;
+            for (int i = 45; i < 54 && i < this.handler.slots.size(); i++)
+                if (this.handler.slots.get(i).hasStack()) { bottomFull = true; break; }
+            if (bottomFull) { scroll++; sendView(); }
+        } else if (v > 0 && scroll > 0) {
+            scroll--; sendView();
+        }
+        return true;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (search != null && search.isFocused() && keyCode != 256) {
+            search.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (search != null && search.isFocused()) {
+            return search.charTyped(chr, modifiers);
+        }
+        return super.charTyped(chr, modifiers);
+    }
+
     private static long amtOf(net.minecraft.item.ItemStack st) {
         var c = st.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
         if (c != null) {
@@ -91,7 +142,6 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         return st.getCount();
     }
 
-    /** 人类可读大数：<1000 精确；否则 K/M/B/T。 */
     private static String fmt(long n) {
         if (n < 1000) return Long.toString(n);
         if (n < 1_000_000L) return trim(n / 1_000.0) + "K";

@@ -37,6 +37,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int NW = 100, NH = 52;
     private static final Item[] UPG = { ModItems.SPEED_UPGRADE, ModItems.COUNT_UPGRADE, ModItems.PARALLEL_UPGRADE };
 
+    private static final java.util.Map<BlockPos, double[]> VIEW = new java.util.HashMap<>();
+
     private double panX = 0, panY = 0, zoom = 1.0;
     private int dragIndex = -1;
     private double dragOffX, dragOffY;
@@ -52,8 +54,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     protected void init() {
         super.init();
-        this.addDrawableChild(new SciButton(this.width - 220, 8, 100, 18, Text.literal("▶ 开机"), b -> click(0)));
-        this.addDrawableChild(new SciButton(this.width - 112, 8, 100, 18, Text.literal("■ 停止"), b -> click(1)));
+        // 视角记忆：本次游戏内重开画布保持平移/缩放
+        BlockPos p = this.handler.blockPos();
+        if (p != null && VIEW.containsKey(p)) {
+            double[] v = VIEW.get(p);
+            panX = v[0]; panY = v[1]; zoom = v[2];
+        }
+        // 开机/停止放左下角，避开右上创造栏
+        this.addDrawableChild(new SciButton(8, this.height - 56, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
+        this.addDrawableChild(new SciButton(104, this.height - 56, 90, 20, Text.literal("■ 停止"), b -> click(1)));
+    }
+
+    @Override
+    public void removed() {
+        BlockPos p = this.handler.blockPos();
+        if (p != null) VIEW.put(p, new double[]{panX, panY, zoom});
+        super.removed();
     }
 
     private void click(int id) {

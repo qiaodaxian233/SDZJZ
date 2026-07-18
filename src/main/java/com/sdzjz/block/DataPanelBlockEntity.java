@@ -41,6 +41,9 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public static final int PAGE = 54;
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();
+    private String searchFilter = "";
+    private int scrollRow = 0;
+    private int filteredCount = 0;
 
     // ---- 面板位置登记表（无线连接查找用，仅服务端）----
     private static final Map<RegistryKey<World>, Set<BlockPos>> PANELS = new HashMap<>();
@@ -115,20 +118,40 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return null;
     }
 
+    /** 存储终端：设置搜索词与滚动行。 */
+    public void setView(String search, int scroll) {
+        this.searchFilter = (search == null) ? "" : search;
+        this.scrollRow = Math.max(0, scroll);
+        refreshDisplay();
+        markDirty();
+    }
+
+    public int filteredRows() { return (filteredCount + 8) / 9; }
+
     private void refreshDisplay() {
-        int i = 0;
+        java.util.List<Map.Entry<String, Long>> filtered = new java.util.ArrayList<>();
+        String q = searchFilter == null ? "" : searchFilter.toLowerCase();
         for (Map.Entry<String, Long> e : store.entrySet()) {
-            if (i >= PAGE) break;
+            if (q.isEmpty() || e.getKey().toLowerCase().contains(q)) filtered.add(e);
+        }
+        filteredCount = filtered.size();
+        int rows = (filteredCount + 8) / 9;
+        int maxRow = Math.max(0, rows - 6);
+        if (scrollRow > maxRow) scrollRow = maxRow;
+        if (scrollRow < 0) scrollRow = 0;
+
+        int i = 0;
+        for (int idx = scrollRow * 9; idx < filtered.size() && i < PAGE; idx++, i++) {
+            Map.Entry<String, Long> e = filtered.get(idx);
             Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
             int max = new ItemStack(item).getMaxCount();
             int show = (int) Math.min(e.getValue(), (long) max);
             ItemStack st = new ItemStack(item, Math.max(1, show));
             NbtCompound tag = new NbtCompound();
-            tag.putLong("amt", e.getValue());           // 真实总量(long)，界面自绘
+            tag.putLong("amt", e.getValue());
             st.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
                     net.minecraft.component.type.NbtComponent.of(tag));
             display.setStack(i, st);
-            i++;
         }
         for (; i < PAGE; i++) display.setStack(i, ItemStack.EMPTY);
     }

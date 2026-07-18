@@ -312,3 +312,15 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - SuperBenchScreenHandler.onButtonClick(id)：先清空网格还给玩家，再按 #id 配方从背包 takeFromInv 取料填入网格→markDirty 重算结果。背包不足则部分填入。
 - 界面加宽到 470×316，左网格/结果/背包 + 右浏览器，中间分隔线。
 - 盯点：interactionManager.clickButton、ScreenHandler.onButtonClick。
+
+## m42 — 界面被挡修复 + 画布视角记忆 + 数据面板存储终端 + 绘图名单修正【待编译验证】
+- A 界面被挡：结构核心画布 开机/停止 按钮从右上(被创造栏盖住)移到左下角。
+- B 画布视角记忆：StructureCoreScreen 静态 Map<BlockPos,double[]> 记 pan/zoom；init 读回、removed 存(本次游戏内重开保持;跨重启后续再做)。
+- D 数据面板→存储终端(仿 Tom's Simple Storage)：
+  - BE 加 searchFilter/scrollRow；refreshDisplay 改为按 id 子串过滤 + 滚动窗口(每页54)；setView(search,scroll)。
+  - DataPanelViewPayload(pos,search,scrollRow) C2S(PacketCodecs.STRING)；Sdzjz 注册+接收器→panel.setView。
+  - DataPanelScreenHandler 加 blockPos()。
+  - DataPanelScreen 重写：顶部 TextFieldWidget 搜索(改词→scroll归零+发包)、滚轮翻页(底行满才下翻)、滚动条轨、大数量自绘、keyPressed/charTyped 让搜索框优先。
+- 绘图名单修正：之前误把洋红占位当完成删了。实测纯洋红=占位=待画，共 22 张(物品19+方块3含 data_cable 无文件)。
+- 盯点：TextFieldWidget 构造/setPlaceholder/setChangedListener、PacketCodecs.STRING。
+- 排下轮(大件)：C 机器配方铺满12×12指定位置(重做39个shaped大配方)；E 核心连数据面板→画布显示可连线的数据面板节点。
