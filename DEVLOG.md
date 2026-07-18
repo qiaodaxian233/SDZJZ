@@ -422,3 +422,10 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - StorageCoreRenderer：世界时间驱动（80t 循环连续、三角波呼吸），绑定独立贴图 EntityCutoutNoCull（不吃背面剔除，绕开手写绕序风险），顶点走已查证的 11 参合并 vertex()（1.21.1 文档确认），矩阵自变换（JOML transformPosition/Matrix3f.transform）。
 - 注册走 Fabric BlockEntityRendererRegistry（查证：原版 BlockEntityRendererFactories.register 是 private，不可直调）。
 - 盯点：Entry.getNormalMatrix() 返回 Matrix3f（1.21.1）、Fabric BlockEntityRendererRegistry 包名 client.rendering.v1；四边形 UV 朝向映射为标准约定，动画件多为发光小面，若个别面贴图方向不对按截图微调。
+
+## m57 — 数据线升级为连接式（AE 风格自动连接）
+- 根因回应：m53 轴向版放置方向=点击面（点地面→竖直），反直觉且不自动连接。重做为 ConnectingBlock（紫颂基类，API 查证：protected ctor(float radius, Settings)、FACING_PROPERTIES、按连接自动算轮廓；1.20.3+ 抽象 getCodec 照 StorageCoreBlock 已验证写法）。
+- 连接判定（放置+邻居更新实时刷新）：数据线 / 结构核心 / 存储核心 / 数据面板 / 无线节点 / 卫星节点 / 交易所 / 任意容器（Inventory BE，箱子漏斗熔炉都算）。
+- 模型：用户线缆模型对称切半 → 指北"臂"（54 元素，外端连接器朝外）+ 小接头"中心件"（6px 暗壳，UV 借 collar 面）；多部件 blockstate 旋转对照原版紫颂（up x270/down x90）。旧直缆模型删除。
+- 已知影响：旧存档已放的数据线（axis 属性）回退默认态（仅中心件），敲一下邻居或重放即刷新连接；独立放置无邻居时只显示小接头属正常。
+- 盯点：getStateForNeighborUpdate 六参签名（1.21.1）、ConnectingBlock 泛型 getCodec 返回型。

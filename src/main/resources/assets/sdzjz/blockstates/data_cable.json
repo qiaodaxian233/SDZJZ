@@ -1,16 +1,62 @@
 {
- "variants": {
-  "axis=y": {
-   "model": "sdzjz:block/data_cable"
+ "multipart": [
+  {
+   "apply": {
+    "model": "sdzjz:block/data_cable_hub"
+   }
   },
-  "axis=z": {
-   "model": "sdzjz:block/data_cable",
-   "x": 90
+  {
+   "when": {
+    "north": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm"
+   }
   },
-  "axis=x": {
-   "model": "sdzjz:block/data_cable",
-   "x": 90,
-   "y": 90
+  {
+   "when": {
+    "east": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 90
+   }
+  },
+  {
+   "when": {
+    "south": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 180
+   }
+  },
+  {
+   "when": {
+    "west": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 270
+   }
+  },
+  {
+   "when": {
+    "up": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "x": 270
+   }
+  },
+  {
+   "when": {
+    "down": "true"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "x": 90
+   }
   }
- }
+ ]
 }
