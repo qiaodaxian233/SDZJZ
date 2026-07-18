@@ -403,3 +403,8 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - DataCableBlock：Block → PillarBlock（轴向，原木式放置横竖任意走线），blockstate 三轴变体（对照原版原木），细轮廓 6px（可点选、可跨越）；路由 BFS 只认方块类型不受影响。物品图标保留用户 2D 图。
 - 已知取舍：面 UV 旋转统一 +90 近似（细缆侧面几乎不可见，效果不对再按截图微调）；直缆旋转式而非连接式多部件（拐角处两段各自朝向，连接式后续可做）。
 - 盯点：`PillarBlock`/`getOutlineShape(protected)` 签名、`PlayerEntity.addExperience`、`Entity.getRandom`。
+
+## m54 — 名字修复 + 贴图清单核准
+- 修复「名字不对」根因：`storage_upgrade`（存储升级）/`storage_core`（存储核心）语言条目中英文全漏（m43 遗漏），游戏内显示原始键名。已补。
+- 全量校验：模型→贴图、blockstate→模型引用零缺失；151 个原版 id 眼检无拼写错误。
+- 绘图名单重写为扫描核准的待画清单：物品 8（auto_crafter/bonemeal/breeze/ghast/moss/stonecutter/villager_breeder/villager_contract）+ 方块 1（trade_center），附提示词。
