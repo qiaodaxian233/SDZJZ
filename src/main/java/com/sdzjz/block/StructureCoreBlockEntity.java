@@ -194,6 +194,58 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
                 produced = true;
+            } else if (st.getItem() instanceof MachineItem miu && "super_smelter".equals(miu.def().id())) {
+                // 万能熔炉：接什么烧什么（原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料/存储网络。
+                int interval = Math.max(cfg.accelMinPeriodTicks, miu.def().baseIntervalTicks() - speedLv * 4);
+                if (be.ticks % interval != 0) continue;
+                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                StorageCoreBlockEntity depositSm = hasOut[i] ? null : be.depositFor(world, i);
+                long capacity = (long) running * 64L * (1 + countLv); // 每周期一组×并行×(1+数量)
+                if (!hasOut[i] && depositSm == null) capacity = Math.min(capacity, 64L * OUTPUT_SLOTS); // 无存储时按缓存封顶防白扣
+                long done = 0;
+                if (hasIn[i]) {
+                    for (String id : new java.util.ArrayList<>(be.internalBuffer.keySet())) {
+                        if (done >= capacity) break;
+                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, id);
+                        if (out == null) continue;
+                        long take = Math.min(be.bufCount(id), capacity - done);
+                        if (take <= 0) continue;
+                        be.bufWithdraw(id, take);
+                        long give = take * (int) out[1];
+                        if (hasOut[i]) be.bufAdd((String) out[0], give);
+                        else if (depositSm != null) depositSm.deposit(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
+                        done += take;
+                    }
+                } else {
+                    StorageCoreBlockEntity supply = be.supplyFor(world, i);
+                    if (supply == null) {
+                        if (!srcResolved) {
+                            src = be.resolveInputSource(world, pos);
+                            srcResolved = true;
+                        }
+                        supply = src;
+                    }
+                    if (supply == null) continue;
+                    for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
+                        if (done >= capacity) break;
+                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, en.getKey());
+                        if (out == null) continue;
+                        long take = Math.min(en.getValue(), capacity - done);
+                        if (take <= 0) continue;
+                        int got = supply.withdraw(en.getKey(), (int) Math.min(take, Integer.MAX_VALUE));
+                        if (got <= 0) continue;
+                        long give = (long) got * (int) out[1];
+                        if (hasOut[i]) be.bufAdd((String) out[0], give);
+                        else if (depositSm != null) depositSm.deposit(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
+                        done += got;
+                    }
+                }
+                if (done > 0) {
+                    be.xpPool += 0.1 * done; // 熔炼经验：0.1/件（近似原版均值，DEVLOG 有记）
+                    produced = true;
+                }
             } else if (st.getItem() instanceof MachineItem mi) {
                 MachineDef def = mi.def();
                 int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);

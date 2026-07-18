@@ -42,6 +42,7 @@ public class Sdzjz implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             StorageCoreBlockEntity.clearAll();
             CraftPlanner.clearCache();
+            com.sdzjz.machine.SmeltPlanner.clearCache();
         });
 
         // 网络：画布节点拖动位置 + 连线（C2S）

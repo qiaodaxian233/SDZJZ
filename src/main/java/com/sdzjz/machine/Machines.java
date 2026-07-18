@@ -77,7 +77,8 @@ public final class Machines {
     public static final MachineDef NETHER_TREE_FARM = defMulti("nether_tree_farm", 30, drop("minecraft:crimson_stem", 1, 2), drop("minecraft:warped_stem", 0, 1), drop("minecraft:nether_wart_block", 0, 1, 0.2f), drop("minecraft:shroomlight", 0, 1, 0.1f));
     public static final MachineDef CHORUS_FARM = def("chorus_farm", "minecraft:chorus_fruit", 1, 30);
     public static final MachineDef DROWNED_TOWER = defMulti("drowned_tower", 30, drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:copper_ingot", 0, 1, 0.5f), drop("minecraft:nautilus_shell", 0, 1, 0.03f), drop("minecraft:trident", 0, 1, 0.015f));
-    public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 2, List.of(in("minecraft:raw_iron", 1)), drop("minecraft:iron_ingot", 1, 1));
+    /** 万能熔炉：运行时走 SmeltPlanner 原版熔炼表（接什么烧什么），此处 inputs/outputs 仅占位。 */
+    public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 20, List.of(), drop("minecraft:iron_ingot", 1, 1));
 
     // ---- 追加机器(m48：恶魂塔/旋风人塔/骨粉机/苔藓机/切石机) ----
     public static final MachineDef GHAST_TOWER = defMulti("ghast_tower", 35,
