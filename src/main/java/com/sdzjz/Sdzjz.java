@@ -10,6 +10,8 @@ import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.net.NodeRemovePayload;
+import com.sdzjz.machine.CraftPlanner;
+import com.sdzjz.net.NodeTargetPayload;
 import com.sdzjz.net.NodeUpgradePayload;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
@@ -37,12 +39,16 @@ public class Sdzjz implements ModInitializer {
         ModItems.init();
 
         // 服务器停止时清空存储核心登记表（防跨存档幽灵坐标）
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> StorageCoreBlockEntity.clearAll());
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            StorageCoreBlockEntity.clearAll();
+            CraftPlanner.clearCache();
+        });
 
         // 网络：画布节点拖动位置 + 连线（C2S）
         PayloadTypeRegistry.playC2S().register(NodeMovePayload.ID, NodeMovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeLinkPayload.ID, NodeLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeUpgradePayload.ID, NodeUpgradePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
@@ -70,6 +76,15 @@ public class Sdzjz implements ModInitializer {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     if (payload.add()) core.addNodeUpgrade(p, payload.index(), payload.type());
                     else core.removeNodeUpgrade(p, payload.index(), payload.type());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(NodeTargetPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (payload.target().length() > 128 || !viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.setNodeTarget(payload.index(), payload.target());
                 }
             });
         });

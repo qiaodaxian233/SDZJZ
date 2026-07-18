@@ -2,6 +2,7 @@ package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.item.CaptureCageItem;
+import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.item.LinkerItem;
 import com.sdzjz.item.TerminalItem;
@@ -29,6 +30,9 @@ public class ModItems {
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
+
+    // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
+    public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Settings(), Machines.AUTO_CRAFTER));
 
     // 机器（MachineItem 携带 MachineDef）
     public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
@@ -93,6 +97,7 @@ public class ModItems {
         Registry.register(Registries.ITEM_GROUP, GROUP_KEY, GROUP);
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
             entries.add(CORE_MODULE);
+            entries.add(AUTO_CRAFTER);
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);

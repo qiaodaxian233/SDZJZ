@@ -35,6 +35,7 @@ public final class SuperBenchRecipes {
     public static final List<Recipe> ALL = new ArrayList<>();
 
     static {
+        add("sdzjz:auto_crafter", "minecraft:crafting_table", "minecraft:crafting_table", "minecraft:crafter", "minecraft:crafter");
         add("sdzjz:bamboo_farm", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
         add("sdzjz:blaze_farm", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
         add("sdzjz:ghast_tower", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");

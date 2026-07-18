@@ -13,8 +13,10 @@ import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import com.sdzjz.item.MachineItem;
+import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.item.CaptureCageItem;
 import com.sdzjz.machine.MachineDef;
+import com.sdzjz.machine.CraftPlanner;
 import com.sdzjz.machine.MobDrops;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -125,7 +127,45 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
 
-            if (st.getItem() instanceof MachineItem mi) {
+            if (st.getItem() instanceof AutoCrafterItem) {
+                // 自动合成机：按原版配方吃料出货。目标在画布上设置（节点徽章）。
+                String target = craftTarget(st);
+                if (target.isEmpty()) continue;
+                int interval = Math.max(cfg.accelMinPeriodTicks, 40 - speedLv * 4);
+                if (be.ticks % interval != 0) continue;
+                CraftPlanner.Plan plan = CraftPlanner.plan(world, target);
+                if (plan == null) continue; // 无合成配方
+                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                long crafts = (long) running * (1 + countLv);
+                crafts = Math.min(crafts, (64L * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // 先封顶再扣料，防白扣
+                if (hasIn[i]) {
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, be.bufCount(en.getKey()) / en.getValue());
+                    if (crafts <= 0) continue;
+                    for (var en : plan.needs().entrySet())
+                        be.bufWithdraw(en.getKey(), (long) en.getValue() * crafts);
+                } else {
+                    if (!srcResolved) {
+                        src = be.resolveInputSource(world, pos);
+                        srcResolved = true;
+                    }
+                    if (src == null) continue;
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, src.count(en.getKey()) / en.getValue());
+                    if (crafts <= 0) continue;
+                    for (var en : plan.needs().entrySet())
+                        src.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
+                }
+                int total = (int) (crafts * plan.resultCount());
+                if (hasOut[i]) be.bufAdd(target, total);
+                else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
+                for (var en : plan.remainders().entrySet()) { // 容器残留（桶等）返还
+                    int rc = (int) Math.min(64L * OUTPUT_SLOTS, (long) en.getValue() * crafts);
+                    if (hasOut[i]) be.bufAdd(en.getKey(), rc);
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
+                }
+                produced = true;
+            } else if (st.getItem() instanceof MachineItem mi) {
                 MachineDef def = mi.def();
                 int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
                 if (be.ticks % interval != 0) continue;
@@ -221,6 +261,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 从玩家背包扣一个对应升级，加到该节点。 type 0=加速 1=数量 2=并列 */
+    /** 读取自动合成机节点的目标产物 id（无则空串）。 */
+    public static String craftTarget(ItemStack s) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        return n.contains("ct") ? n.getString("ct") : "";
+    }
+
+    /** 设置自动合成机节点的目标产物（画布徽章点选，走 NodeTargetPayload）。 */
+    public void setNodeTarget(int index, String id) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (!(s.getItem() instanceof AutoCrafterItem)) return;
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        n.putString("ct", id);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+    }
+
     public boolean addNodeUpgrade(PlayerEntity player, int index, int type) {
         if (index < 0 || index >= machineNodes.size()) return false;
         Item item = upgradeItem(type);

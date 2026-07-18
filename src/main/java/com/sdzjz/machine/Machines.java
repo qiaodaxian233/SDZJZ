@@ -6,6 +6,9 @@ import java.util.List;
 public final class Machines {
     private Machines() {}
 
+    // ---- 自动合成机（目标动态，画布上设置；此 def 仅作占位元数据）----
+    public static final MachineDef AUTO_CRAFTER = new MachineDef("auto_crafter", List.of(), 40, false, List.of());
+
     // ---- 单产农场 ----
     public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);
     public static final MachineDef COBBLE_MAKER   = def("cobble_maker",   "minecraft:cobblestone",  1, 10);

@@ -383,3 +383,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - SuperBenchScreen 接背景贴图 + 标题条/浏览器区两块半透明可读性底（文字不压花纹）。
 - StructureCoreScreen（画布）：底色之上全屏拉伸绘制科幻边框，网格/节点/顶栏画在其上。
 - 已知取舍：画布贴图静态网格与代码平移网格并存（轻微叠影，可接受）；超大工作台圆饰落点与结果槽不严格重合（GPT 构图 vs 代码坐标，看截图再微调）。
+
+## m52 — 自动合成机（"量产一切"最后一块拼图）
+- 新物品「自动合成机」：放入画布成节点，点节点右上角**目标徽章**弹出选择器（中英文搜索、图标网格），选定后按**原版合成配方**周期性吃料出货。
+- `CraftPlanner`：目标 id → 扫原版合成配方表 → 材料多重集 + 单次产量 + 容器残留（桶等返还）；结果缓存，SERVER_STOPPED 清空。材料取每格 Ingredient 的第一候选（如任意木板→橡木板）。API 已查证：`listAllOfType`/`getResult(WrapperLookup)`/`getIngredients()`，`world.getRegistryManager()` 即 WrapperLookup。
+- 经济诚实：产量=合成次数×配方产量；数量升级=多合成几次（消耗同步放大），不凭空放大产出。先按输出缓存封顶缩量、再扣料，防"白扣材料"。取料走 连线内部缓存 优先，否则存储网络；产出同路返回。
+- 新包 `node_target`（走界面校验 + 长度上限 128）。大配方标志物：工作台×2+合成器×2（唯一，45→46 台零撞车）。
+- 盯点（编译验证项）：`Ingredient.getMatchingStacks()`（1.21.1 返回 ItemStack[]，1.21.2+ 才改流式）、`Item.getRecipeRemainder()`、`TextFieldWidget.setX/setY/setFocused`。
+- 占位贴图 auto_crafter.png（洋红），已进绘图名单。

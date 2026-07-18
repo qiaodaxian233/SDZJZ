@@ -2,8 +2,10 @@ package com.sdzjz.client;
 
 import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.net.NodeLinkPayload;
+import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.net.NodeRemovePayload;
+import com.sdzjz.net.NodeTargetPayload;
 import com.sdzjz.net.NodeUpgradePayload;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.StructureCoreScreenHandler;
@@ -12,14 +14,21 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.RecipeEntry;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -48,6 +57,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private boolean linking = false;
     private int linkFrom = -1;
 
+    // 自动合成机目标选择器
+    private int pickerNode = -1;
+    private TextFieldWidget pickerField;
+    private List<Item> craftables;                       // 客户端配方表里所有可合成产物
+    private final List<Item> pickerFiltered = new ArrayList<>();
+    private static final int PICK_W = 226, PICK_H = 210, PICK_COLS = 10, PICK_ROWS = 7;
+
     public StructureCoreScreen(StructureCoreScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 360;
@@ -66,6 +82,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // 开机/停止放左下角，避开右上创造栏
         this.addDrawableChild(new SciButton(8, this.height - 56, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
         this.addDrawableChild(new SciButton(104, this.height - 56, 90, 20, Text.literal("■ 停止"), b -> click(1)));
+        String keep = pickerField != null ? pickerField.getText() : "";
+        this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
+        this.pickerField.setChangedListener(t -> refilterPicker());
+        this.pickerField.setText(keep);
     }
 
     @Override
@@ -149,6 +169,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 30, y + 20, CYAN, false);
+        if (st.getItem() instanceof AutoCrafterItem) { // 目标徽章：点击选产物
+            int bx = x + NW - 30, by = y + 14;
+            ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
+            ctx.fill(bx, by, bx + 20, by + 20, 0xFF0C1E30);
+            String t = StructureCoreBlockEntity.craftTarget(st);
+            if (!t.isEmpty()) ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t))), bx + 2, by + 2);
+            else ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
+        }
     }
 
     /** 每节点下方 3 个升级格：加速/数量/并列（图标+等级）。 */
@@ -196,6 +224,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (pickerNode >= 0) return true;
         if (mouseY > 34) {
             double old = zoom;
             zoom = Math.max(0.4, Math.min(2.5, zoom * (verticalAmount > 0 ? 1.1 : 0.9)));
@@ -209,6 +238,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (pickerNode >= 0) { // 选择器打开时吞掉所有点击
+            int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
+            if (pickerField.mouseClicked(mouseX, mouseY, button)) return true;
+            int gx = px + 8, gy = py + 44;
+            for (int k = 0; k < pickerFiltered.size(); k++) {
+                int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
+                if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
+                    BlockPos bp = this.handler.blockPos();
+                    if (bp != null) ClientPlayNetworking.send(new NodeTargetPayload(bp, pickerNode,
+                            Registries.ITEM.getId(pickerFiltered.get(k)).toString()));
+                    closePicker();
+                    return true;
+                }
+            }
+            if (mouseX < px || mouseX > px + PICK_W || mouseY < py || mouseY > py + PICK_H) closePicker();
+            return true;
+        }
         if (mouseY > 34 && (button == 0 || button == 1)) {
             StructureCoreBlockEntity be = be();
             if (be != null) {
@@ -238,6 +284,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
                 if (button == 0) {
+                    // 自动合成机目标徽章 → 打开选择器
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        if (!(nodes.get(i).getItem() instanceof AutoCrafterItem)) continue;
+                        int bx = wnx(be, nodes, i) + NW - 30, by = wny(be, nodes, i) + 14;
+                        if (wx >= bx && wx <= bx + 20 && wy >= by && wy <= by + 20) {
+                            openPicker(i);
+                            return true;
+                        }
+                    }
                     // 输出口(绿) → 连线
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int oxp = wnx(be, nodes, i) + NW, oyp = wny(be, nodes, i) + NH / 2;
@@ -260,6 +315,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (pickerNode >= 0) return true;
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
@@ -314,6 +370,91 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
+        if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
+    }
+
+    // ================= 自动合成机目标选择器 =================
+    private void openPicker(int node) {
+        pickerNode = node;
+        if (craftables == null) buildCraftables();
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    private void closePicker() {
+        pickerNode = -1;
+        pickerField.setFocused(false);
+        this.setFocused(null);
+    }
+
+    /** 从客户端配方表收集所有可合成的产物（配方已同步到客户端）。 */
+    private void buildCraftables() {
+        craftables = new ArrayList<>();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null) return;
+        LinkedHashSet<Item> set = new LinkedHashSet<>();
+        for (RecipeEntry<CraftingRecipe> e : mc.world.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
+            try {
+                ItemStack out = e.value().getResult(mc.world.getRegistryManager());
+                if (out != null && !out.isEmpty()) set.add(out.getItem());
+            } catch (Exception ignored) {}
+        }
+        craftables.addAll(set);
+    }
+
+    private void refilterPicker() {
+        pickerFiltered.clear();
+        if (craftables == null) return;
+        String q = pickerField.getText().trim().toLowerCase();
+        for (Item it : craftables) {
+            if (q.isEmpty()
+                    || new ItemStack(it).getName().getString().toLowerCase().contains(q)
+                    || Registries.ITEM.getId(it).getPath().contains(q)) {
+                pickerFiltered.add(it);
+                if (pickerFiltered.size() >= PICK_COLS * PICK_ROWS) break;
+            }
+        }
+    }
+
+    private void renderPicker(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
+        ctx.fill(0, 0, this.width, this.height, 0xA0000000);
+        ctx.fill(px - 1, py - 1, px + PICK_W + 1, py + PICK_H + 1, NODEFRM);
+        ctx.fill(px, py, px + PICK_W, py + PICK_H, 0xF00A1626);
+        ctx.fill(px, py, px + PICK_W, py + 3, CYAN);
+        ctx.drawText(this.textRenderer, "选择目标产物（中文/英文搜索）", px + 8, py + 8, TXT, false);
+        pickerField.setX(px + 8);
+        pickerField.setY(py + 22);
+        pickerField.render(ctx, mouseX, mouseY, delta);
+        int gx = px + 8, gy = py + 44;
+        Item hovered = null;
+        for (int k = 0; k < pickerFiltered.size(); k++) {
+            int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
+            boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
+            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? 0xFF14304A : 0xFF0C1E30);
+            ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
+            if (hov) hovered = pickerFiltered.get(k);
+        }
+        String tip = hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
+        ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, hovered != null ? ON : SUB, false);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (pickerNode >= 0) {
+            if (keyCode == 256) { closePicker(); return true; } // Esc 关选择器而非界面
+            pickerField.keyPressed(keyCode, scanCode, modifiers);
+            return true; // 吞掉（含背包键），防误关界面
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (pickerNode >= 0) return pickerField.charTyped(chr, modifiers);
+        return super.charTyped(chr, modifiers);
     }
 
     /** 深色青边发光按钮。 */
