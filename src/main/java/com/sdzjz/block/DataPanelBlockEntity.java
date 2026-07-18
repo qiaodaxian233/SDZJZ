@@ -81,9 +81,12 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return got;
     }
 
-    public void setView(String search, int scroll) {
+    private java.util.Set<String> matchedIds = java.util.Set.of();
+
+    public void setView(String search, int scroll, java.util.List<String> matched) {
         this.searchFilter = (search == null) ? "" : search;
         this.scrollRow = Math.max(0, scroll);
+        this.matchedIds = (matched == null || matched.isEmpty()) ? java.util.Set.of() : java.util.Set.copyOf(matched);
         refreshDisplay();
     }
 
@@ -94,7 +97,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         java.util.List<Map.Entry<String, Long>> filtered = new java.util.ArrayList<>();
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();
         for (Map.Entry<String, Long> e : agg.entrySet())
-            if (q.isEmpty() || e.getKey().toLowerCase().contains(q)) filtered.add(e);
+            if (q.isEmpty() || e.getKey().toLowerCase().contains(q) || matchedIds.contains(e.getKey())) filtered.add(e);
         filteredCount = filtered.size();
         int rows = (filteredCount + 8) / 9;
         int maxRow = Math.max(0, rows - 6);

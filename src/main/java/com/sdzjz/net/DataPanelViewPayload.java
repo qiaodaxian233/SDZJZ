@@ -7,8 +7,10 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
-/** 客户端→服务端：存储终端的搜索词与滚动行。 */
-public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow) implements CustomPayload {
+import java.util.List;
+
+/** 客户端→服务端：存储终端的搜索词、滚动行、按本地化显示名匹配出的物品 id 列表（支持中文搜索）。 */
+public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow, List<String> matchedIds) implements CustomPayload {
 
     public static final CustomPayload.Id<DataPanelViewPayload> ID =
             new CustomPayload.Id<>(Identifier.of("sdzjz", "panel_view"));
@@ -17,6 +19,7 @@ public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow) i
             BlockPos.PACKET_CODEC, DataPanelViewPayload::pos,
             PacketCodecs.STRING, DataPanelViewPayload::search,
             PacketCodecs.INTEGER, DataPanelViewPayload::scrollRow,
+            PacketCodecs.STRING.collect(PacketCodecs.toList()), DataPanelViewPayload::matchedIds,
             DataPanelViewPayload::new
     );
 

@@ -36,14 +36,31 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     protected void init() {
         super.init();
         this.search = new TextFieldWidget(this.textRenderer, this.x + 180, this.y + 8, 176, 14, Text.literal("搜索"));
-        this.search.setPlaceholder(Text.literal("搜索物品(英文id)…"));
+        this.search.setPlaceholder(Text.literal("搜索物品(支持中文)…"));
         this.search.setChangedListener(s -> { scroll = 0; sendView(); });
         this.addDrawableChild(this.search);
     }
 
     private void sendView() {
         BlockPos p = this.handler.blockPos();
-        if (p != null) ClientPlayNetworking.send(new DataPanelViewPayload(p, search == null ? "" : search.getText(), scroll));
+        if (p == null) return;
+        String q = search == null ? "" : search.getText();
+        ClientPlayNetworking.send(new DataPanelViewPayload(p, q, scroll, matchByLocalName(q)));
+    }
+
+    /** 用客户端本地化显示名匹配物品 id（支持中文搜索），上限 200 条防包过大。 */
+    private static java.util.List<String> matchByLocalName(String q) {
+        if (q == null || q.isBlank()) return java.util.List.of();
+        String lower = q.toLowerCase();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM) {
+            String name = new net.minecraft.item.ItemStack(item).getName().getString().toLowerCase();
+            if (name.contains(lower)) {
+                out.add(net.minecraft.registry.Registries.ITEM.getId(item).toString());
+                if (out.size() >= 200) break;
+            }
+        }
+        return out;
     }
 
     @Override

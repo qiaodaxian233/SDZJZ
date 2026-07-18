@@ -370,3 +370,9 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 破坏掉落用项目已验证的 onStateReplaced 写法。交易所原版合成：绿宝石×4+核心模块+铁×4（无序）。繁殖机大配方标志物 bread×3+emerald（45 台零撞车）。
 - 占位贴图 3 张待画：villager_contract / villager_breeder（item）、trade_center（block）。
 - 待编译验证。盯点：TradeCenterScreen 的 drawBorder/drawItem/clickButton（均为项目内已验证 API 同款用法）。
+
+## m50 — 中文搜索 + 机器 tooltip + GUI 设计稿
+- **数据面板中文搜索**：客户端按本地化显示名匹配全物品注册表→id 列表（上限 200）随 DataPanelViewPayload 发服务端（codec：STRING.collect(PacketCodecs.toList())，Yarn 文档确认）；服务端过滤 = id 包含 或 命中匹配列表。搜"铁"能出铁锭了。
+- **机器 tooltip**：MachineItem.appendTooltip（签名照 Yarn 1.21 Item 文档）显示周期秒数、消耗（红）/免费（绿）、产出列表（区间+概率，青）。44 台机器悬停即懂。
+- **GUI 设计稿**：docs/gui/ 4 张线框（数据面板/交易所/超大工作台/画布边框，标注真实代码坐标）+ GUI素材指南.md（提示词+落位规则），供 GPT 生成专属背景。
+- 待编译验证。盯点：collect(toList) 泛型推断、appendTooltip 覆盖签名。

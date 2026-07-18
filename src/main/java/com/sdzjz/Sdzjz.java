@@ -87,7 +87,7 @@ public class Sdzjz implements ModInitializer {
             p.getServer().execute(() -> {
                 if (!viewingPanel(p, payload.pos())) return; // 校验走界面而非距离——手持终端可远程开面板
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof DataPanelBlockEntity panel) {
-                    panel.setView(payload.search(), payload.scrollRow());
+                    panel.setView(payload.search(), payload.scrollRow(), payload.matchedIds());
                 }
             });
         });
