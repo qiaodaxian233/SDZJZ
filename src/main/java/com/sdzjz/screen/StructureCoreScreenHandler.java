@@ -26,12 +26,12 @@ public class StructureCoreScreenHandler extends ScreenHandler {
 
     // 客户端
     public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
-        this(syncId, playerInv, resolve(playerInv, pos), new ArrayPropertyDelegate(6));
+        this(syncId, playerInv, resolve(playerInv, pos), new ArrayPropertyDelegate(7));
     }
 
     // 服务端
     public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be) {
-        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new ArrayPropertyDelegate(6));
+        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new ArrayPropertyDelegate(7));
     }
 
     private StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be, PropertyDelegate props) {
@@ -59,10 +59,12 @@ public class StructureCoreScreenHandler extends ScreenHandler {
     public int speedLv()         { return props.get(3); }
     public int countLv()         { return props.get(4); }
     public int parallelLv()      { return props.get(5); }
+    public int xp()              { return props.get(6); }
 
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (core == null) return false;
+        if (id == 2) { core.collectXp(player); return true; }
         core.toggleRunning(id == 0);
         return true;
     }

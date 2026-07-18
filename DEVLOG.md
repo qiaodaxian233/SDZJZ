@@ -391,3 +391,15 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 新包 `node_target`（走界面校验 + 长度上限 128）。大配方标志物：工作台×2+合成器×2（唯一，45→46 台零撞车）。
 - 盯点（编译验证项）：`Ingredient.getMatchingStacks()`（1.21.1 返回 ItemStack[]，1.21.2+ 才改流式）、`Item.getRecipeRemainder()`、`TextFieldWidget.setX/setY/setFocused`。
 - 占位贴图 auto_crafter.png（洋红），已进绘图名单。
+
+## m53 — 经验系统 + 用户线缆模型接入
+**经验（补齐 m48 盘点缺口）**：
+- `MachineXp` 经验表，对齐原版：刷怪类每周期=击杀经验（常规敌 5、守卫者/烈焰人/旋风人 10、史莱姆/岩浆怪 2），熔炼类每件（铁 0.7/金 1.0/木炭 0.15/玻璃 0.1）；铁傀儡/切石/猪灵交易/采集类原版就无经验 → 0。
+- 累积=xp×同时运行台数（并列=多杀）；**数量升级不放大经验**（它放大的是掉落，不是击杀数），诚实对齐。
+- 结构核心 `xpPool`（double，NBT 持久化），propertyDelegate 第 7 位实时同步；画布顶栏显示「经验 N」，左下新增「★ 领取经验」按钮（onButtonClick id=2 → addExperience）。
+- 抓物笼子按生物经验表累积；交易所每笔成交给玩家 3-6 经验（原版交易经验）。
+**线缆模型（用户 sci_fi_data_cable.bbmodel）**：
+- 自由格式 112 元素、坐标 ±28、64×16 内嵌图集 → 转换器：绕 Z 轴转 90°（横→竖基准）、缩放至正好 16 高（竖直无缝拼接）、居中，像素 UV→MC 0..16 UV，面向重映射（east→up 等），0 个带旋转元素零丢失。
+- DataCableBlock：Block → PillarBlock（轴向，原木式放置横竖任意走线），blockstate 三轴变体（对照原版原木），细轮廓 6px（可点选、可跨越）；路由 BFS 只认方块类型不受影响。物品图标保留用户 2D 图。
+- 已知取舍：面 UV 旋转统一 +90 近似（细缆侧面几乎不可见，效果不对再按截图微调）；直缆旋转式而非连接式多部件（拐角处两段各自朝向，连接式后续可做）。
+- 盯点：`PillarBlock`/`getOutlineShape(protected)` 签名、`PlayerEntity.addExperience`、`Entity.getRandom`。

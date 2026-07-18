@@ -82,6 +82,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // 开机/停止放左下角，避开右上创造栏
         this.addDrawableChild(new SciButton(8, this.height - 56, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
         this.addDrawableChild(new SciButton(104, this.height - 56, 90, 20, Text.literal("■ 停止"), b -> click(1)));
+        this.addDrawableChild(new SciButton(200, this.height - 56, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
         String keep = pickerField != null ? pickerField.getText() : "";
         this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
         this.pickerField.setChangedListener(t -> refilterPicker());
@@ -213,6 +214,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
         boolean run = this.handler.isRunning();
         ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 10, 18, run ? ON : SUB, false);
+        ctx.drawText(this.textRenderer, "经验 " + this.handler.xp(), 72, 18, ON, false);
         String st = "机器 " + this.handler.machineCount()
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()

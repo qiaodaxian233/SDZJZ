@@ -121,6 +121,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             // 存储满类型收不下：还给玩家，别凭空消失
             if (!player.getInventory().insertStack(out)) player.dropItem(out, false);
         }
+        player.addExperience(3 + player.getRandom().nextInt(4)); // 原版交易经验 3-6
     }
 
     /** 治愈：消耗网络里 1 个金苹果，折扣 +1（最高 5）。 */

@@ -17,6 +17,7 @@ import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.item.CaptureCageItem;
 import com.sdzjz.machine.MachineDef;
 import com.sdzjz.machine.CraftPlanner;
+import com.sdzjz.machine.MachineXp;
 import com.sdzjz.machine.MobDrops;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
@@ -68,6 +69,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private long ticks = 0;
 
     /** GUI 状态同步：0=运行 1=机器数 2=tier 3=速度Lv 4=数量Lv 5=并发Lv。 */
+    private double xpPool; // 经验池（刷怪/熔炼累积，画布领取）
+
     public final PropertyDelegate propertyDelegate = new PropertyDelegate() {
         @Override public int get(int i) {
             return switch (i) {
@@ -77,11 +80,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 case 3 -> totalNodeUpgrade("spd");
                 case 4 -> totalNodeUpgrade("cnt");
                 case 5 -> totalNodeUpgrade("par");
+                case 6 -> (int) Math.min(xpPool, Integer.MAX_VALUE);
                 default -> 0;
             };
         }
         @Override public void set(int i, int v) { if (i == 0) running = (v != 0); }
-        @Override public int size() { return 6; }
+        @Override public int size() { return 7; }
     };
 
     private int machineCount() {
@@ -202,6 +206,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
+                double mxp = MachineXp.of(def.id());
+                if (mxp > 0) { be.xpPool += mxp * running; produced = true; }
             } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
                 String mob = CaptureCageItem.cagedType(st);
                 java.util.List<MachineDef.Drop> drops = (mob == null) ? null : MobDrops.get(mob);
@@ -218,6 +224,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
                 }
+                double cxp = MachineXp.mob(mob);
+                if (cxp > 0) { be.xpPool += cxp * running; produced = true; }
             }
         }
         if (produced) {
@@ -261,6 +269,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 从玩家背包扣一个对应升级，加到该节点。 type 0=加速 1=数量 2=并列 */
+    /** 领取经验池：直接给玩家经验（画布「领取经验」按钮）。 */
+    public void collectXp(PlayerEntity player) {
+        int give = (int) Math.min(xpPool, Integer.MAX_VALUE);
+        if (give <= 0) return;
+        player.addExperience(give);
+        xpPool -= give;
+        markDirty();
+    }
+
     /** 读取自动合成机节点的目标产物 id（无则空串）。 */
     public static String craftTarget(ItemStack s) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
@@ -792,6 +809,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             nbt.putString("boundDim", boundPanelDim);
         }
         nbt.putBoolean("running", running);
+        nbt.putDouble("xpPool", xpPool);
     }
 
     @Override
@@ -814,6 +832,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             boundPanelPos = null; boundPanelDim = null;
         }
         running = nbt.getBoolean("running");
+        xpPool = nbt.getDouble("xpPool");
     }
 
     @Override

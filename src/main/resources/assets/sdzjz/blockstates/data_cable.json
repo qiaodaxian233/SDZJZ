@@ -1,1 +1,16 @@
-{ "variants":{"":{"model":"sdzjz:block/data_cable"}} }
+{
+ "variants": {
+  "axis=y": {
+   "model": "sdzjz:block/data_cable"
+  },
+  "axis=z": {
+   "model": "sdzjz:block/data_cable",
+   "x": 90
+  },
+  "axis=x": {
+   "model": "sdzjz:block/data_cable",
+   "x": 90,
+   "y": 90
+  }
+ }
+}
