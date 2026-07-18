@@ -1,6 +1,7 @@
 package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
+import com.sdzjz.block.DataCableBlockEntity;
 import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.block.StorageCoreBlockEntity;
 import com.sdzjz.block.StructureCoreBlockEntity;
@@ -31,6 +32,11 @@ public class ModBlockEntities {
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("trade_center"),
                     FabricBlockEntityTypeBuilder.create(TradeCenterBlockEntity::new,
                             ModBlocks.TRADE_CENTER).build());
+
+    public static final BlockEntityType<DataCableBlockEntity> DATA_CABLE_BE =
+            Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("data_cable"),
+                    FabricBlockEntityTypeBuilder.create(DataCableBlockEntity::new,
+                            ModBlocks.DATA_CABLE).build());
 
     public static void init() {}
 }

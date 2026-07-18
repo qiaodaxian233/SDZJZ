@@ -429,3 +429,11 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - 模型：用户线缆模型对称切半 → 指北"臂"（54 元素，外端连接器朝外）+ 小接头"中心件"（6px 暗壳，UV 借 collar 面）；多部件 blockstate 旋转对照原版紫颂（up x270/down x90）。旧直缆模型删除。
 - 已知影响：旧存档已放的数据线（axis 属性）回退默认态（仅中心件），敲一下邻居或重放即刷新连接；独立放置无邻居时只显示小接头属正常。
 - 盯点：getStateForNeighborUpdate 六参签名（1.21.1）、ConnectingBlock 泛型 getCodec 返回型。
+
+## m58 — 补线缆动画（m53 漏检）+ 模型接入铁律
+- **铁律入档（SKILL.md）**：用户所有 .bbmodel 都自带动画，接入必须解析 animations 并实现，只转静态几何=未完成。（m53 漏查了线缆动画，本轮补课。）
+- 线缆动画 `animation.energy_flow`（1.5s 循环，5 组脉冲沿缆依次亮起=能量包流动）→ 连接式适配：**每条连接臂一个能量包从外端流向中心**，sin 包络淡入淡出（对应原 0.2↔1 缩放），各方向错相 0.25s。
+- 实现：flow_* 20 元素从臂模型剔除（臂 54→46 静态件），flow_1 组生成 24 四边形局部几何（轴向 Z、中心原点）；DataCableBlockEntity（无数据无 tick 纯渲染挂点）+ DataCableRenderer（按 FACING_PROPERTIES 逐连接方向旋转/平移/缩放发射）；方块实现 BlockEntityProvider。
+- 性能：每根线每帧 ≤ 6 方向 × 24 四边形，无 ticker；大规模走线开销可忽略。
+- 已知影响：m57 之前放的旧线缆没有存量 BE，可能不显示脉冲——重放或邻居刷新即好（与 m57 的旧线缆刷新是同一批操作）。
+- 盯点：Direction 全 6 例 switch、ConnectingBlock.FACING_PROPERTIES 直引、Quaternionf 返回型。

@@ -4,7 +4,9 @@ import com.mojang.serialization.MapCodec;
 import com.sdzjz.registry.ModBlocks;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.ConnectingBlock;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
@@ -18,7 +20,7 @@ import net.minecraft.world.WorldAccess;
  * 模型 = 中心接头 + 每个连接方向一条臂（臂由用户线缆模型对称切半生成）。
  * 路由 BFS 只认方块类型，视觉连接不影响逻辑。
  */
-public class DataCableBlock extends ConnectingBlock {
+public class DataCableBlock extends ConnectingBlock implements BlockEntityProvider {
 
     public static final MapCodec<DataCableBlock> CODEC = createCodec(DataCableBlock::new);
 
@@ -53,6 +55,11 @@ public class DataCableBlock extends ConnectingBlock {
     protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighborState,
                                                    WorldAccess world, BlockPos pos, BlockPos neighborPos) {
         return state.with(FACING_PROPERTIES.get(direction), connectsTo(world, neighborPos, neighborState));
+    }
+
+    @Override
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new com.sdzjz.block.DataCableBlockEntity(pos, state);
     }
 
     /** 连接判定：数据线、网络方块、任意容器（箱子/漏斗/熔炉…）。 */
