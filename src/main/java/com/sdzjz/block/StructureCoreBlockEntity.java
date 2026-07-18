@@ -141,10 +141,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         for (MachineDef.Input in : def.inputs()) be.bufWithdraw(in.item(), (long) in.count() * running);
                     } else {
                         if (!srcResolved) {
-                            src = be.boundPanel(world, pos);
-                            if (src == null) src = be.findPanel(world, pos);
-                            if (src == null && be.hasWirelessNode(world, pos)) src = be.nearestWirelessPanel(world, pos);
-                            if (src == null && be.hasSatelliteNode(world, pos)) src = be.findSatellitePanel(world, pos);
+                            src = be.resolveInputSource(world, pos);
                             srcResolved = true;
                         }
                         if (src == null) continue;
@@ -468,13 +465,57 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
     }
 
-    /** 把输出缓存推入正下方容器。 */
-    /** 把输出缓存送到：相邻的数据面板/箱子，或顺着数据线 BFS 连到的存储。 */
-    private void pushOutput(World world, BlockPos corePos) {
+    // ===== 输出路由缓存：目标坐标缓存 40 tick，避免每个生产周期反复 BFS =====
+    private BlockPos cachedOutPos;
+    private long cachedOutUntil;
+    private BlockPos cachedInPos;
+    private long cachedInUntil;
+
+    /** 解析消耗机取料源（存储核心），带缓存。 */
+    StorageCoreBlockEntity resolveInputSource(World world, BlockPos corePos) {
+        long now = world.getTime();
+        if (cachedInPos != null && now < cachedInUntil
+                && world.getChunkManager().isChunkLoaded(cachedInPos.getX() >> 4, cachedInPos.getZ() >> 4)
+                && world.getBlockEntity(cachedInPos) instanceof StorageCoreBlockEntity sc) {
+            return sc;
+        }
+        cachedInPos = null;
+        StorageCoreBlockEntity src = boundPanel(world, corePos);
+        if (src == null) src = findPanel(world, corePos);
+        if (src == null && hasWirelessNode(world, corePos)) src = nearestWirelessPanel(world, corePos);
+        if (src == null && hasSatelliteNode(world, corePos)) src = findSatellitePanel(world, corePos);
+        if (src != null && src.getWorld() == world) {
+            cachedInPos = src.getPos().toImmutable();
+            cachedInUntil = now + 40;
+        }
+        return src;
+    }
+
+    /** 解析输出目标（存储核心或普通容器），带缓存。仅缓存同维度目标。 */
+    private Object resolveOutTarget(World world, BlockPos corePos) {
+        long now = world.getTime();
+        if (cachedOutPos != null && now < cachedOutUntil
+                && world.getChunkManager().isChunkLoaded(cachedOutPos.getX() >> 4, cachedOutPos.getZ() >> 4)) {
+            BlockEntity be = world.getBlockEntity(cachedOutPos);
+            if (be instanceof StorageCoreBlockEntity sc) return sc;
+            if (be instanceof Inventory inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+        }
+        cachedOutPos = null;
         Object target = boundPanel(world, corePos);
         if (target == null) target = findTarget(world, corePos);
         if (target == null && hasWirelessNode(world, corePos)) target = nearestWirelessPanel(world, corePos);
         if (target == null && hasSatelliteNode(world, corePos)) target = findSatellitePanel(world, corePos);
+        if (target instanceof BlockEntity tbe && tbe.getWorld() == world) {
+            cachedOutPos = tbe.getPos().toImmutable();
+            cachedOutUntil = now + 40;
+        }
+        return target;
+    }
+
+    /** 把输出缓存推入正下方容器。 */
+    /** 把输出缓存送到：相邻的数据面板/箱子，或顺着数据线 BFS 连到的存储。 */
+    private void pushOutput(World world, BlockPos corePos) {
+        Object target = resolveOutTarget(world, corePos);
         if (target == null) return;
         for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
             ItemStack slot = items.get(i);

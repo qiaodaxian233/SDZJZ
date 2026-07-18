@@ -352,3 +352,9 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 6. **面板每 tick BFS（卡顿机器）**：数据面板每 tick refreshDisplay→BFS(4096) 聚合。节流至每 10 tick；setView 交互仍即时刷新。
 7. **弹出节点升级丢失/不可堆叠**：右键取出/潜行弹出/破坏掉落的机器带着 nx/ny/spd/cnt/par NBT——叠不了堆、内嵌升级隐形。改为：内嵌升级折成升级物品归还，机器本体剥 NBT 干净返还（removeNodeAt/ejectOne/dropAll 三路统一）。
 - 待编译验证。盯点：`ChunkManager.isChunkLoaded(int,int)`（Yarn 文档确认存在）、`ServerLifecycleEvents.SERVER_STOPPED`、`ItemStack.remove(DataComponentTypes.CUSTOM_DATA)`。
+
+## m48 — 路由缓存优化 + 5 台新机器 + 优化/缺口盘点
+- **路由缓存**：pushOutput 与消耗机取料原每个生产周期跑 4 连 BFS（绑定判定内含 BFS + findTarget + 无线判定 + 卫星判定）；改为目标坐标缓存 40 tick（resolveOutTarget/resolveInputSource），命中时仅 1 次已加载区块的 getBlockEntity。缓存失效条件：过期/区块未加载/目标不再是有效类型。仅缓存同维度目标。
+- **新机器 ×5**（现共 44 台）：恶魂塔（火药/恶魂泪）、旋风人塔（1.21 旋风棒/风弹）、骨粉机、苔藓机、切石机（消耗：石头→石砖）。注册/创造组/模型/lang/大配方齐；贴图洋红占位（绘图名单 +5）。
+- **《优化与缺口.md》**：完整盘点待优化项（同步瘦身/画布裁剪/中文搜索/tooltip/REI/按边路由/老存档迁移提示）与未做生电内容（村民系统/酿造/自动合成机/Warden/经验系统），并给出下一步顺序。
+- 待编译验证。

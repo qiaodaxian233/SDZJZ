@@ -37,6 +37,11 @@ public final class SuperBenchRecipes {
     static {
         add("sdzjz:bamboo_farm", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
         add("sdzjz:blaze_farm", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
+        add("sdzjz:ghast_tower", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");
+        add("sdzjz:breeze_farm", "minecraft:breeze_rod", "minecraft:breeze_rod", "minecraft:wind_charge", "minecraft:wind_charge");
+        add("sdzjz:bonemeal_machine", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:moss_block");
+        add("sdzjz:moss_farm", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_carpet");
+        add("sdzjz:stonecutter_machine", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone");
         add("sdzjz:bone_farm", "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
         add("sdzjz:cactus_farm", "minecraft:cactus", "minecraft:cactus", "minecraft:cactus", "minecraft:green_dye");
         add("sdzjz:carpet_machine", "minecraft:white_carpet", "minecraft:white_carpet", "minecraft:white_wool", "minecraft:white_wool");

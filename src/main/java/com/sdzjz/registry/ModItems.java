@@ -70,6 +70,11 @@ public class ModItems {
     public static final Item CHORUS_FARM = reg("chorus_farm", new MachineItem(new Item.Settings(), Machines.CHORUS_FARM));
     public static final Item DROWNED_TOWER = reg("drowned_tower", new MachineItem(new Item.Settings(), Machines.DROWNED_TOWER));
     public static final Item SUPER_SMELTER = reg("super_smelter", new MachineItem(new Item.Settings(), Machines.SUPER_SMELTER));
+    public static final Item GHAST_TOWER = reg("ghast_tower", new MachineItem(new Item.Settings(), Machines.GHAST_TOWER));
+    public static final Item BREEZE_FARM = reg("breeze_farm", new MachineItem(new Item.Settings(), Machines.BREEZE_FARM));
+    public static final Item BONEMEAL_MACHINE = reg("bonemeal_machine", new MachineItem(new Item.Settings(), Machines.BONEMEAL_MACHINE));
+    public static final Item MOSS_FARM = reg("moss_farm", new MachineItem(new Item.Settings(), Machines.MOSS_FARM));
+    public static final Item STONECUTTER_MACHINE = reg("stonecutter_machine", new MachineItem(new Item.Settings(), Machines.STONECUTTER_MACHINE));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
@@ -132,6 +137,11 @@ public class ModItems {
             entries.add(CHORUS_FARM);
             entries.add(DROWNED_TOWER);
             entries.add(SUPER_SMELTER);
+            entries.add(GHAST_TOWER);
+            entries.add(BREEZE_FARM);
+            entries.add(BONEMEAL_MACHINE);
+            entries.add(MOSS_FARM);
+            entries.add(STONECUTTER_MACHINE);
             entries.add(ModBlocks.STRUCTURE_CORE);
             entries.add(ModBlocks.SUPER_BENCH);
             entries.add(ModBlocks.DATA_PANEL);

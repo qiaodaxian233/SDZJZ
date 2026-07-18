@@ -53,5 +53,10 @@
   "item.sdzjz.nether_tree_farm": "下界树场",
   "item.sdzjz.chorus_farm": "紫颂果农场",
   "item.sdzjz.drowned_tower": "溺尸塔",
-  "item.sdzjz.super_smelter": "超级熔炉组"
+  "item.sdzjz.super_smelter": "超级熔炉组",
+  "item.sdzjz.ghast_tower": "恶魂塔",
+  "item.sdzjz.breeze_farm": "旋风人塔",
+  "item.sdzjz.bonemeal_machine": "骨粉机",
+  "item.sdzjz.moss_farm": "苔藓机",
+  "item.sdzjz.stonecutter_machine": "切石机"
 }

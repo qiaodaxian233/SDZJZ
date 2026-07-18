@@ -53,5 +53,10 @@
   "item.sdzjz.nether_tree_farm": "Nether Tree Farm",
   "item.sdzjz.chorus_farm": "Chorus Farm",
   "item.sdzjz.drowned_tower": "Drowned Tower",
-  "item.sdzjz.super_smelter": "Super Smelter"
+  "item.sdzjz.super_smelter": "Super Smelter",
+  "item.sdzjz.ghast_tower": "Ghast Tower",
+  "item.sdzjz.breeze_farm": "Breeze Farm",
+  "item.sdzjz.bonemeal_machine": "Bonemeal Machine",
+  "item.sdzjz.moss_farm": "Moss Farm",
+  "item.sdzjz.stonecutter_machine": "Stonecutter Machine"
 }

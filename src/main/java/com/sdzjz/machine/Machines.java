@@ -76,6 +76,17 @@ public final class Machines {
     public static final MachineDef DROWNED_TOWER = defMulti("drowned_tower", 30, drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:copper_ingot", 0, 1, 0.5f), drop("minecraft:nautilus_shell", 0, 1, 0.03f), drop("minecraft:trident", 0, 1, 0.015f));
     public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 2, List.of(in("minecraft:raw_iron", 1)), drop("minecraft:iron_ingot", 1, 1));
 
+    // ---- 追加机器(m48：恶魂塔/旋风人塔/骨粉机/苔藓机/切石机) ----
+    public static final MachineDef GHAST_TOWER = defMulti("ghast_tower", 35,
+            drop("minecraft:gunpowder", 0, 2), drop("minecraft:ghast_tear", 0, 1, 0.1f));
+    public static final MachineDef BREEZE_FARM = defMulti("breeze_farm", 30,
+            drop("minecraft:breeze_rod", 1, 2), drop("minecraft:wind_charge", 0, 2, 0.3f));
+    public static final MachineDef BONEMEAL_MACHINE = def("bonemeal_machine", "minecraft:bone_meal", 3, 15);
+    public static final MachineDef MOSS_FARM = defMulti("moss_farm", 20,
+            drop("minecraft:moss_block", 1, 2), drop("minecraft:moss_carpet", 0, 1, 0.3f));
+    public static final MachineDef STONECUTTER_MACHINE = defConsume("stonecutter_machine", 10,
+            List.of(in("minecraft:stone", 1)), drop("minecraft:stone_bricks", 1, 1));
+
     // ---- helpers ----
     private static MachineDef def(String id, String product, int perCycle, int interval) {
         return new MachineDef(id, List.of(new MachineDef.Drop(product, perCycle, perCycle, 1f)), interval, false, List.of());
