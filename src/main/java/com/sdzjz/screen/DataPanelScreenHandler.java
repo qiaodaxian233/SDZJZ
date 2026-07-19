@@ -79,6 +79,19 @@ public class DataPanelScreenHandler extends ScreenHandler {
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (panel == null) return false;
+        if (id >= 1000) { // m82 取指定数量：id = 1000 + 展示格下标*10 + 档位下标(1/8/16/32/64)
+            int slotIdx = (id - 1000) / 10, k = (id - 1000) % 10;
+            int[] amts = {1, 8, 16, 32, 64};
+            if (slotIdx < 0 || slotIdx >= DataPanelBlockEntity.PAGE || k >= amts.length) return false;
+            ItemStack disp = this.slots.get(slotIdx).getStack();
+            if (disp.isEmpty()) return true;
+            int got = panel.withdraw(Registries.ITEM.getId(disp.getItem()).toString(), amts[k]);
+            if (got > 0) {
+                ItemStack give = new ItemStack(disp.getItem(), got);
+                if (!player.getInventory().insertStack(give)) player.dropItem(give, false);
+            }
+            return true;
+        }
         if (id == 1) {
             if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity sp)) return true;
             long pts = totalXp(player);

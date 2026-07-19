@@ -1,6 +1,7 @@
 package com.sdzjz.client;
 
 import com.sdzjz.net.DataPanelViewPayload;
+import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.screen.DataPanelScreenHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
@@ -139,8 +140,36 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         }
     }
 
+    private int qtySlot = -1, qtyX, qtyY; // m82 数量选择浮层
+    private static final int[] QTY = {1, 8, 16, 32, 64};
+
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (qtySlot >= 0) { // 浮层打开中：命中按钮或关闭
+            for (int k = 0; k < QTY.length; k++) {
+                int bx = qtyX + k * 26, by = qtyY;
+                if (mx >= bx && mx <= bx + 24 && my >= by && my <= by + 16) {
+                    clickXp(1000 + qtySlot * 10 + k);
+                    qtySlot = -1;
+                    return true;
+                }
+            }
+            qtySlot = -1;
+            return true;
+        }
+        if (button == 1) { // 右键展示格 → 打开数量选择
+            for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
+                var sl = this.handler.slots.get(i);
+                if (!sl.hasStack()) continue;
+                int sx = this.x + sl.x, sy = this.y + sl.y;
+                if (mx >= sx && mx < sx + 16 && my >= sy && my < sy + 16) {
+                    qtySlot = i;
+                    qtyX = (int) Math.min(mx, this.width - QTY.length * 26 - 6);
+                    qtyY = (int) Math.min(my + 8, this.height - 22);
+                    return true;
+                }
+            }
+        }
         if (button == 0) { // m80c：经验库按钮（1=存入 2=取出）
             double rx = mx - this.x, ry = my - this.y;
             if (rx >= 12 && rx <= 88 && ry >= 196 && ry <= 214) { clickXp(1); return true; }
@@ -210,5 +239,19 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
+        if (qtySlot >= 0) { // m82 数量选择浮层
+            int w = QTY.length * 26 + 6;
+            ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 20, 0xF0081120);
+            ctx.drawText(this.textRenderer, "取出数量:", qtyX, qtyY - 12, 0xFF8FB8CC, false);
+            for (int k = 0; k < QTY.length; k++) {
+                int bx = qtyX + k * 26, by = qtyY;
+                boolean hov = mouseX >= bx && mouseX <= bx + 24 && mouseY >= by && mouseY <= by + 16;
+                ctx.fill(bx - 1, by - 1, bx + 25, by + 17, hov ? 0xFF3FA9D0 : 0xFF1E4258);
+                ctx.fill(bx, by, bx + 24, by + 16, 0xFF0D1B2C);
+                String t = String.valueOf(QTY[k]);
+                ctx.drawText(this.textRenderer, t, bx + (24 - this.textRenderer.getWidth(t)) / 2, by + 4,
+                        hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+            }
+        }
     }
 }

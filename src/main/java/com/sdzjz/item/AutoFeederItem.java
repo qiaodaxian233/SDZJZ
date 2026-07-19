@@ -27,7 +27,8 @@ import net.minecraft.world.World;
  */
 public class AutoFeederItem extends Item {
 
-    private static final String K_POS = "sdzjz_pos", K_DIM = "sdzjz_dim", K_FOOD = "sdzjz_food";
+    private static final String K_POS = "sdzjz_pos", K_DIM = "sdzjz_dim";
+    static final String K_FOOD = "sdzjz_food"; // 终端镶嵌时要读
 
     public AutoFeederItem(Settings settings) {
         super(settings);
@@ -82,23 +83,26 @@ public class AutoFeederItem extends Item {
         NbtComponent c = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (c == null) return;
         NbtCompound nbt = c.copyNbt();
-        String foodId = nbt.getString(K_FOOD);
-        if (foodId.isEmpty()) return;
+        feedTick(world, player, nbt.getString(K_FOOD), nbt);
+    }
+
+    /** 共享进食核心（m82）：喂食器独立使用或镶嵌进终端都走这里；bindNbt 提供面板绑定（sdzjz_pos/dim）。 */
+    static void feedTick(World world, net.minecraft.server.network.ServerPlayerEntity player, String foodId, NbtCompound bindNbt) {
+        if (foodId == null || foodId.isEmpty()) return;
         Item food = Registries.ITEM.get(Identifier.of(foodId));
         FoodComponent fc = new ItemStack(food).get(DataComponentTypes.FOOD);
         if (fc == null) return;
         int lvl = player.getHungerManager().getFoodLevel();
         boolean fit = lvl <= 20 - fc.nutrition(); // 吃一份不浪费
-        if (!fit && lvl > 6) return;              // ≤6 时强制吃（哪怕浪费）防饿死
-        // 来源：背包优先，其次绑定面板网络
+        if (!fit && lvl > 6) return;              // ≤6 强制吃防饿死
         boolean got = false;
         var inv = player.getInventory();
         for (int i = 0; i < inv.size(); i++) {
             ItemStack s = inv.getStack(i);
             if (s.isOf(food) && s.getComponentChanges().isEmpty()) { s.decrement(1); got = true; break; }
         }
-        if (!got && nbt.contains(K_POS)) {
-            DataPanelBlockEntity panel = TerminalItem.resolvePanel(world, nbt);
+        if (!got && bindNbt.contains("sdzjz_pos")) {
+            DataPanelBlockEntity panel = TerminalItem.resolvePanel(world, bindNbt);
             if (panel != null && panel.withdraw(foodId, 1) > 0) got = true;
         }
         if (!got) return;

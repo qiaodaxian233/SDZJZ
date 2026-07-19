@@ -614,3 +614,12 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 ## m81 — 修 m80c 编译错(2处): setExperienceLevel/Points 在 ServerPlayerEntity 上
 - Yarn 1.21 查证：两 setter 属 ServerPlayerEntity（/experience 命令同款），PlayerEntity 无。
 - onButtonClick 服务端执行，instanceof 安全转型后调用。
+
+## m82 — 补货打空即补 + 喂食器镶嵌进终端 + 升级配方加难 + 面板右键选数量
+- 【总线看不见=旧jar】排查确认：端点扫描本就独立于开机状态；用户 m78 起未编译成功过，游戏里是旧版。m81 编绿即见。
+- 补货：终端记忆上次手持物 id；主手打空 → 自动从面板补一组到手（阈值封顶）；开关=潜行右键循环(关档清记忆)。
+- 镶嵌：背包里把喂食器「右键点到」终端上=装入(onClicked, 参照 bundle 交互)，右键空手点终端=取出（食物设定随身携带）；
+  镶嵌后走终端自己的面板绑定取食，feedTick 抽为共享静态。
+- 升级配方加难：加速=金块4+红石块4+模块；数量=紫水晶块4+金块4+模块；并发=钻石6+金块2+模块。
+- 面板右键展示格 → 数量浮层(1/8/16/32/64)，服务端 onButtonClick id=1000+slot*10+档位 精确取出到背包。
+- 盯点：onClicked 六参签名/ClickType.RIGHT、PlayerInventory.selectedSlot 字段名。
