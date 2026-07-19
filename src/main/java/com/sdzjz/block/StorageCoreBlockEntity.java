@@ -84,6 +84,18 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     public int usedTypes() { return store.size(); }
     public void upgrade() { tier++; markDirty(); }
 
+    // ===== m80c 经验库：网络级经验银行（数据面板界面存/取）=====
+    private long xpBank = 0;
+    public long xpBank() { return xpBank; }
+    public void xpAdd(long points) { if (points > 0) { xpBank += points; markDirty(); } }
+    /** 取出至多 max 点，返回实际取出。 */
+    public long xpTake(long max) {
+        long t = Math.min(xpBank, Math.max(0, max));
+        xpBank -= t;
+        if (t > 0) markDirty();
+        return t;
+    }
+
     public long count(String id) {
         Long v = store.get(id);
         return v == null ? 0L : v;
@@ -144,12 +156,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             list.add(c);
         }
         nbt.put("store", list);
+        nbt.putLong("xpBank", xpBank);
     }
 
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         tier = Math.max(1, nbt.getInt("tier"));
+        xpBank = Math.max(0, nbt.getLong("xpBank"));
         store.clear();
         NbtList list = nbt.getList("store", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {

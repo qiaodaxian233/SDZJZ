@@ -72,6 +72,27 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     /** 取出：跨核心累计取，返回实际取出数量。 */
+    // ===== m80c 经验库（聚合网络全部核心）=====
+    public long xpTotal() {
+        long n = 0;
+        for (StorageCoreBlockEntity core : cores()) n += core.xpBank();
+        return n;
+    }
+    /** 存入：进网络第一个核心；无核心返回 false（不吞玩家经验）。 */
+    public boolean xpDeposit(long points) {
+        for (StorageCoreBlockEntity core : cores()) { core.xpAdd(points); return true; }
+        return false;
+    }
+    /** 取出至多 max 点（跨核心），返回实际取出。 */
+    public long xpWithdraw(long max) {
+        long got = 0;
+        for (StorageCoreBlockEntity core : cores()) {
+            got += core.xpTake(max - got);
+            if (got >= max) break;
+        }
+        return got;
+    }
+
     @Override
     public java.util.Map<String, Long> storeView() { // 聚合快照：万能熔炉"接什么烧什么"扫描用
         java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();

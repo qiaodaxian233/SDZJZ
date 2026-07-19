@@ -81,6 +81,25 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 158 + r * 18);
         for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 216);
+        // ===== m80c 左侧：乔大仙立牌 + 经验库 =====
+        ctx.drawTexture(QDX, x + 10, y + 22, 0.0F, 0.0F, 78, 138, 78, 138);
+        ctx.fill(x + 8, y + 166, x + 92, y + 240, 0xC0081120);
+        ctx.drawText(this.textRenderer, "经验库", x + 14, y + 170, SUB, false);
+        String xv = fmt(((com.sdzjz.screen.DataPanelScreenHandler) this.handler).xpBankView());
+        ctx.drawText(this.textRenderer, xv + " 点", x + 14, y + 182, 0xFF7CFC9A, false);
+        xpBtn(ctx, x + 12, y + 196, "存入经验", mouseX, mouseY);
+        xpBtn(ctx, x + 12, y + 218, "取出经验", mouseX, mouseY);
+    }
+
+    private static final net.minecraft.util.Identifier QDX =
+            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/qdx_card.png");
+
+    private void xpBtn(DrawContext ctx, int bx, int by, String label, int mouseX, int mouseY) {
+        boolean hov = mouseX >= bx && mouseX <= bx + 76 && mouseY >= by && mouseY <= by + 18;
+        ctx.fill(bx - 1, by - 1, bx + 77, by + 19, hov ? 0xFF3FA9D0 : 0xFF1E4258);
+        ctx.fill(bx, by, bx + 76, by + 18, 0xFF0D1B2C);
+        ctx.drawText(this.textRenderer, label, bx + (76 - this.textRenderer.getWidth(label)) / 2, by + 5,
+                hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
     }
 
     private void cell(DrawContext ctx, int x, int y) {
@@ -118,6 +137,21 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         } else {
             super.drawSlot(ctx, slot);
         }
+    }
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0) { // m80c：经验库按钮（1=存入 2=取出）
+            double rx = mx - this.x, ry = my - this.y;
+            if (rx >= 12 && rx <= 88 && ry >= 196 && ry <= 214) { clickXp(1); return true; }
+            if (rx >= 12 && rx <= 88 && ry >= 218 && ry <= 236) { clickXp(2); return true; }
+        }
+        return super.mouseClicked(mx, my, button);
+    }
+
+    private void clickXp(int id) {
+        if (this.client != null && this.client.interactionManager != null)
+            this.client.interactionManager.clickButton(this.handler.syncId, id);
     }
 
     @Override

@@ -52,6 +52,62 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 158 + r * 18));
         for (int c = 0; c < 9; c++)
             this.addSlot(new Slot(playerInv, c, 99 + c * 18, 216));
+        this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
+    }
+
+    // ===== m80c 经验库 =====
+    private final net.minecraft.screen.PropertyDelegate xpProps = new net.minecraft.screen.PropertyDelegate() {
+        @Override public int get(int i) {
+            long v = panel != null ? Math.min(panel.xpTotal(), Integer.MAX_VALUE) : 0;
+            return i == 0 ? (int) (v & 0xFFFF) : (int) ((v >> 16) & 0x7FFF);
+        }
+        @Override public void set(int i, int v) {}
+        @Override public int size() { return 2; }
+    };
+
+    /** 客户端读经验库总量。 */
+    public long xpBankView() { return (xpLo & 0xFFFFL) | ((long) xpHi << 16); }
+    private int xpLo, xpHi;
+    @Override
+    public void setProperty(int id, int value) {
+        super.setProperty(id, value);
+        if (id == 0) xpLo = value & 0xFFFF;
+        if (id == 1) xpHi = value & 0x7FFF;
+    }
+
+    /** 按钮：1=存入全部玩家经验 2=取出全部。服务端执行。 */
+    @Override
+    public boolean onButtonClick(PlayerEntity player, int id) {
+        if (panel == null) return false;
+        if (id == 1) {
+            long pts = totalXp(player);
+            if (pts <= 0) { msg(player, "你没有可存入的经验"); return true; }
+            if (!panel.xpDeposit(pts)) { msg(player, "网络里没有存储核心，无法存入经验"); return true; }
+            player.setExperienceLevel(0);
+            player.setExperiencePoints(0);
+            msg(player, "已存入经验 " + pts + " 点");
+            return true;
+        }
+        if (id == 2) {
+            long got = panel.xpWithdraw(Integer.MAX_VALUE);
+            if (got <= 0) { msg(player, "经验库是空的"); return true; }
+            player.addExperience((int) Math.min(got, Integer.MAX_VALUE));
+            msg(player, "已取出经验 " + got + " 点");
+            return true;
+        }
+        return false;
+    }
+
+    private static void msg(PlayerEntity p, String s) { p.sendMessage(net.minecraft.text.Text.literal(s), true); }
+
+    /** 玩家当前总经验点（原版等级公式）。 */
+    private static long totalXp(PlayerEntity p) {
+        int lv = p.experienceLevel;
+        long base;
+        if (lv <= 16) base = (long) lv * lv + 6L * lv;
+        else if (lv <= 31) base = Math.round(2.5 * lv * lv - 40.5 * lv + 360);
+        else base = Math.round(4.5 * lv * lv - 162.5 * lv + 2220);
+        return base + Math.round((double) p.experienceProgress * p.getNextLevelExperience());
     }
 
     private static DataPanelBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
