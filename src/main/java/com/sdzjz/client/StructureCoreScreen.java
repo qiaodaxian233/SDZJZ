@@ -55,7 +55,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int OFFFRM   = 0xFF5A6470;   // 离线边框（灰）
     private static final int NW = 100, NH = 52;
     private static final int SW = 104, SH = 40;       // 存储节点尺寸
-    private static final String[] KIND = {"绑定", "有线", "无线", "卫星", "离线", "终端"};
+    private static final String[] KIND = {"绑定", "有线", "无线", "卫星", "离线", "终端", "接口"};
     private static final Item[] UPG = { ModItems.SPEED_UPGRADE, ModItems.COUNT_UPGRADE, ModItems.PARALLEL_UPGRADE };
 
     private static final java.util.Map<BlockPos, double[]> VIEW = new java.util.HashMap<>();
@@ -164,7 +164,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int mi = (int) e[0];
             if (mi >= nodes.size()) continue;
             int j = endpointIndex(ends, e[1]);
-            int sx = snx(be, e[1], j < 0 ? 0 : j), sy = sny(be, e[1], j < 0 ? 0 : j);
+            if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
+            int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             if (e[2] == 0) { // 机器→存储（产出）
                 drawWire(ctx, wnx(be, nodes, mi) + NW, wny(be, nodes, mi) + NH / 2, sx, sy + SH / 2, CYAN);
             } else {         // 存储→机器（供料）
@@ -200,30 +201,42 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         long pl = ep[0];
         int kind = (int) ep[1];
         int x = snx(be, pl, j), y = sny(be, pl, j);
-        int frm = kind == 5 ? TERMFRM : kind == 4 ? OFFFRM : STORFRM;
+        boolean iface = kind == 6;
+        int frm = iface ? CYAN : kind == 5 ? TERMFRM : kind == 4 ? OFFFRM : STORFRM;
         ctx.fill(x - 1, y - 1, x + SW + 1, y + SH + 1, frm);
         ctx.fill(x, y, x + SW, y + SH, NODEBG);
         ctx.fill(x, y, x + SW, y + 3, frm);
-        if (kind != 5) { // 终端只展示，不可连线
-            ctx.fill(x - 4, y + SH / 2 - 3, x + 2, y + SH / 2 + 3, CYAN);       // 收料口（机器→存储）
-            ctx.fill(x + SW - 2, y + SH / 2 - 3, x + SW + 4, y + SH / 2 + 3, ON); // 供料口（存储→机器）
+        if (kind != 5) {
+            ctx.fill(x - 4, y + SH / 2 - 3, x + 2, y + SH / 2 + 3, CYAN);        // 收料口（机器→此处）
+            if (!iface) ctx.fill(x + SW - 2, y + SH / 2 - 3, x + SW + 4, y + SH / 2 + 3, ON); // 接口无供料口
         }
-        ItemStack icon = new ItemStack(kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
+        ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
+                : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
-        ctx.drawItem(icon, x + 4, y + 12);
-        BlockPos bp = BlockPos.fromLong(pl);
-        String title = kind == 5 ? "数据终端" : "存储核心";
-        ctx.drawText(this.textRenderer, title, x + 24, y + 7, TXT, false);
-        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 5)] + "]", x + 24 + this.textRenderer.getWidth(title) + 4, y + 7,
-                kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
-        String sub = bp.getX() + "," + bp.getY() + "," + bp.getZ();
-        boolean sameDim = this.client != null && this.client.world != null
-                && (dim == null || dim.isEmpty()
-                    || dim.equals(this.client.world.getRegistryKey().getValue().toString()));
-        if (sameDim && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
-            sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes(); // 仅同维度读数，防同坐标异维度误读
+        var msn = ctx.getMatrices();
+        msn.push();
+        msn.translate(x + 3, y + 8, 0);
+        msn.scale(1.5f, 1.5f, 1f);
+        ctx.drawItem(icon, 0, 0);
+        msn.pop();
+        String title = iface ? "输出接口" : kind == 5 ? "数据终端" : "存储核心";
+        ctx.drawText(this.textRenderer, title, x + 32, y + 7, TXT, false);
+        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 32 + this.textRenderer.getWidth(title) + 4, y + 7,
+                iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
+        String sub;
+        if (iface) {
+            sub = "自动寻路: 绑定>有线>无线>卫星";
+        } else {
+            BlockPos bp = BlockPos.fromLong(pl);
+            sub = bp.getX() + "," + bp.getY() + "," + bp.getZ();
+            boolean sameDim = this.client != null && this.client.world != null
+                    && (dim == null || dim.isEmpty()
+                        || dim.equals(this.client.world.getRegistryKey().getValue().toString()));
+            if (sameDim && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
+                sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes(); // 仅同维度读数
+            }
         }
-        ctx.drawText(this.textRenderer, sub, x + 24, y + 22, SUB, false);
+        ctx.drawText(this.textRenderer, sub, x + 32, y + 22, SUB, false);
     }
 
     private void drawNode(DrawContext ctx, int x, int y, ItemStack st) {
@@ -232,14 +245,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(x, y, x + NW, y + 3, CYAN);
         ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
         ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
-        ctx.drawItem(st, x + 8, y + 16);
+        var msi = ctx.getMatrices();
+        msi.push();
+        msi.translate(x + 6, y + 16, 0);
+        msi.scale(2f, 2f, 1f);
+        ctx.drawItem(st, 0, 0);
+        msi.pop();
         String name = st.getName().getString();
         if (this.textRenderer.getWidth(name) > NW - 12) {
             while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 12) name = name.substring(0, name.length() - 1);
             name = name + "…";
         }
         ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
-        ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 30, y + 20, CYAN, false);
+        ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 44, y + 26, CYAN, false);
         if (st.getItem() instanceof AutoCrafterItem) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
@@ -249,11 +267,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ItemStack ts = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
-                while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 12) tn = tn.substring(0, tn.length() - 1);
-                ctx.drawText(this.textRenderer, "→" + tn, x + 6, y + 40, ON, false);
+                while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 50) tn = tn.substring(0, tn.length() - 1);
+                ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                ctx.drawText(this.textRenderer, "点徽章设目标", x + 6, y + 40, SUB, false);
+                ctx.drawText(this.textRenderer, "设目标", x + 44, y + 38, SUB, false);
             }
         }
     }
@@ -300,7 +318,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), 72, 18, ON, false);
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
-        if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else stor++; }
+        if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
         String st = "机器 " + this.handler.machineCount()
                 + "  存储 " + stor + " · 终端 " + term
                 + "  缓存 " + fmtNum(this.handler.buffered())
@@ -501,7 +519,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                     // 存储供料口(绿) → 连线（存储→机器）
                     for (int j = ends.size() - 1; j >= 0; j--) {
-                        if (ends.get(j)[1] == 5) continue;
+                        if (ends.get(j)[1] == 5 || ends.get(j)[1] == 6) continue; // 终端/接口无供料口
                         long pl = ends.get(j)[0];
                         int oxp = snx(be, pl, j) + SW, oyp = sny(be, pl, j) + SH / 2;
                         if (Math.abs(wx - oxp) <= 7 && Math.abs(wy - oyp) <= 7) {

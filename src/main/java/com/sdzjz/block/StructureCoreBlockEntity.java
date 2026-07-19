@@ -74,7 +74,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.List<long[]> storageEdges = new java.util.ArrayList<>();
     private final java.util.List<String> storageEdgeDims = new java.util.ArrayList<>();
     private long lastEndpointScan = Long.MIN_VALUE;
-    private static final int ENDPOINT_CAP = 8;
+    private static final int ENDPOINT_CAP = 9; // 含常驻输出接口
+    /** 常驻「输出接口」哨兵端点：连它=显式走默认自动路由（绑定>有线>无线>卫星>输出缓存）。 */
+    public static final long OUTPUT_IFACE = Long.MIN_VALUE + 7;
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -191,12 +193,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 int total = (int) (crafts * plan.resultCount());
                 StorageCoreBlockEntity depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
-                if (hasOut[i]) be.distribute(outT.get(i), target, total);
+                if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 for (var en : plan.remainders().entrySet()) { // 容器残留（桶等）返还
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, (long) en.getValue() * crafts);
-                    if (hasOut[i]) be.distribute(outT.get(i), en.getKey(), rc);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), en.getKey(), rc);
                     else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
@@ -221,7 +223,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (take <= 0) continue;
                         be.bufWithdrawFor(i, id, take);
                         long give = take * (int) out[1];
-                        if (hasOut[i]) be.distribute(outT.get(i), (String) out[0], give);
+                        if (hasOut[i]) be.distribute(world, i, outT.get(i), (String) out[0], give);
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += take;
@@ -240,7 +242,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         int got = supply.withdraw(en.getKey(), (int) Math.min(take, Integer.MAX_VALUE));
                         if (got <= 0) continue;
                         long give = (long) got * (int) out[1];
-                        if (hasOut[i]) be.distribute(outT.get(i), (String) out[0], give);
+                        if (hasOut[i]) be.distribute(world, i, outT.get(i), (String) out[0], give);
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += got;
@@ -288,7 +290,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                    if (hasOut[i]) be.distribute(outT.get(i), d.item(), total);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
                     else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
@@ -308,7 +310,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
-                    if (hasOut[i]) be.distribute(outT.get(i), d.item(), total);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
                     else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     produced = true;
@@ -561,6 +563,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         java.util.LinkedHashMap<Long, long[]> found = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<Long, String> dims = new java.util.LinkedHashMap<>();
         String selfDim = world.getRegistryKey().getValue().toString();
+        found.put(OUTPUT_IFACE, new long[]{OUTPUT_IFACE, 6}); // 常驻输出接口，永不被封顶挤掉
+        dims.put(OUTPUT_IFACE, selfDim);
         // 绑定目标（优先级最高，可跨维度）
         StorageCoreBlockEntity bound = boundPanel(world, corePos);
         if (bound != null && bound.getWorld() != null) {
@@ -690,6 +694,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private StorageCoreBlockEntity resolveStorageAt(World world, String dim, long posLong) {
+        if (posLong == OUTPUT_IFACE) return null; // 输出接口=默认自动路由，无实体存储
         BlockPos p = BlockPos.fromLong(posLong);
         String self = world.getRegistryKey().getValue().toString();
         if (dim == null || dim.isEmpty() || self.equals(dim)) { // 空维度串按本维度处理（老数据兜底）
@@ -789,19 +794,41 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (rest > 0) bufWithdraw(id, rest);
     }
 
-    /** 产物沿出线分发到各目标节点缓存（顺序注水，各自封顶 BUF_CAP）；都满则溢出到输出缓存。 */
-    private void distribute(java.util.List<Integer> targets, String id, long amt) {
+    /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */
+    private void distribute(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
         if (targets != null) {
             for (int t : targets) {
                 if (amt <= 0) return;
-                if (t < 0 || t >= machineNodes.size()) continue;
+                if (t < 0 || t >= machineNodes.size() || !accepts(world, t, id)) continue;
                 java.util.Map<String, Long> m = nodeBuf(t);
                 long cur = m.getOrDefault(id, 0L);
                 long put = Math.min(Math.max(0, BUF_CAP - cur), amt);
                 if (put > 0) { m.put(id, cur + put); amt -= put; }
             }
         }
-        if (amt > 0) addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS)));
+        if (amt <= 0) return;
+        StorageCoreBlockEntity dep = depositFor(world, fromIndex); // 剩余按定向存储→默认路由
+        ItemStack rest = new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
+        if (dep != null) depositOrBuffer(dep, rest);
+        else addOutput(rest);
+    }
+
+    /** 目标机器是否"吃"该物品：万能熔炉=可熔炼物；消耗机=配方输入；自动合成机=当前目标用料；农场=不吃。 */
+    private boolean accepts(World world, int target, String id) {
+        ItemStack st = machineNodes.get(target);
+        if (st.getItem() instanceof AutoCrafterItem) {
+            String tgt = craftTarget(st);
+            if (tgt.isEmpty()) return false;
+            var plan = CraftPlanner.plan(world, tgt);
+            return plan != null && plan.needs().containsKey(id);
+        }
+        if (st.getItem() instanceof MachineItem mi) {
+            if ("super_smelter".equals(mi.def().id())) return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
+            if (mi.def().consumesInputs()) {
+                for (MachineDef.Input in : mi.def().inputs()) if (in.item().equals(id)) return true;
+            }
+        }
+        return false;
     }
 
     /** 节点缓存回收进遗留池（bufAdd 自带封顶+溢出缓存），删除节点不丢在途物品。 */
