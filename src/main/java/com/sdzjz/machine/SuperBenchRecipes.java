@@ -92,11 +92,31 @@ public final class SuperBenchRecipes {
         addM("sdzjz:sheep_farm", 2, "minecraft:sheep", "minecraft:white_wool", "minecraft:white_wool", "minecraft:mutton", "minecraft:mutton");
         addM("sdzjz:cow_farm", 3, "minecraft:cow", "minecraft:beef", "minecraft:beef", "minecraft:leather", "minecraft:leather");
         add("sdzjz:crop_farm", 4, "minecraft:wheat", "minecraft:carrot", "minecraft:potato", "minecraft:beetroot");
+        // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞 140+ 件的机器配方）
+        addSmall("sdzjz:filter_node", "minecraft:hopper");
+        addSmall("sdzjz:sensor_node", "minecraft:comparator");
+        addSmall("sdzjz:switch_node", "minecraft:lever");
+        addSmall("sdzjz:distributor_node", "minecraft:dropper");
     }
 
     /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */
     private static void add(String result, int tpl, String... sig) {
         build(result, tpl, "", sig);
+    }
+
+    /** 小件（逻辑节点）：3×3 居中摆进 12×12——工作台浏览器里可查可一键填料，原版工作台配方同样保留。 */
+    private static void addSmall(String result, String soul) {
+        String I = "minecraft:iron_ingot", R = "minecraft:redstone", M = "sdzjz:core_module";
+        String[][] pat = {{I, soul, I}, {R, M, R}, {I, I, I}};
+        String[] layout = new String[SLOTS];
+        Map<String, Integer> ing = new java.util.LinkedHashMap<>();
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++) {
+                String id = pat[r][c];
+                layout[(4 + r) * GRID + (4 + c)] = id;
+                ing.merge(id, 1, Integer::sum);
+            }
+        ALL.add(new Recipe(result, layout, ing, ""));
     }
 
     /** 刷怪类机器：材料里含 1 个「装着 mob 的抓物笼子」——先去对应地方抓到它才合得出来。 */
