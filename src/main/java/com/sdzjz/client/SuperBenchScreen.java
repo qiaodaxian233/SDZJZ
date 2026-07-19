@@ -91,7 +91,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         ctx.drawText(this.textRenderer, (scroll + LIST_ROWS < all.size() ? "▼ 滚轮翻页 " : "") + (scroll > 0 ? "▲" : ""),
                 PX, LIST_Y + LIST_ROWS * ENTRY_H + 2, SUB, false);
 
-        // 选中配方的材料
+        // 选中配方的材料（活体对照：绿=已够(网格+背包)，红=还缺，计数显示 现有/需求）
         if (selected >= 0 && selected < all.size()) {
             int dy = LIST_Y + LIST_ROWS * ENTRY_H + 14;
             ctx.drawText(this.textRenderer, "需要材料：", PX, dy, SUB, false);
@@ -100,17 +100,44 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 String mn;
                 try { mn = net.minecraft.registry.Registries.ENTITY_TYPE.get(Identifier.of(mob)).getName().getString(); }
                 catch (Exception ex) { mn = mob; }
-                ctx.drawText(this.textRenderer, "需捕获: " + mn + "（笼子装它）", PX + 58, dy, 0xFFE85050, false);
+                boolean caged = hasCagedMob(mob);
+                ctx.drawText(this.textRenderer,
+                        caged ? "已捕获: " + mn + " ✔" : "需捕获: " + mn + "（笼子装它）",
+                        PX + 58, dy, caged ? 0xFF50E850 : 0xFFE85050, false);
             }
+            Map<String, Integer> have = countAvailable();
             int iy = dy + 12, col = 0;
             for (Map.Entry<String, Integer> e : all.get(selected).ingredients().entrySet()) {
                 ItemStack s = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
                 int sx = PX + (col % 6) * 32, sy = iy + (col / 6) * 20; // 6 列×32px：11 种材料两行放下，不越底
                 ctx.drawItem(s, sx, sy);
-                ctx.drawText(this.textRenderer, "×" + e.getValue(), sx + 15, sy + 5, TXT, false);
+                int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
+                boolean ok = got >= e.getValue();
+                ctx.drawText(this.textRenderer, ok ? "×" + e.getValue() : got + "/" + e.getValue(),
+                        sx + 15, sy + 5, ok ? 0xFF50E850 : 0xFFE85050, false);
                 col++;
             }
         }
+    }
+
+    /** 网格 + 玩家背包里每种物品的可用量（客户端本地算，零网络）。 */
+    private Map<String, Integer> countAvailable() {
+        Map<String, Integer> m = new java.util.HashMap<>();
+        for (int i = 0; i < this.handler.slots.size(); i++) {
+            ItemStack s = this.handler.slots.get(i).getStack();
+            if (!s.isEmpty()) m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+        }
+        return m;
+    }
+
+    /** 网格或背包里是否有「装着指定生物」的抓物笼子。 */
+    private boolean hasCagedMob(String mob) {
+        for (int i = 0; i < this.handler.slots.size(); i++) {
+            ItemStack s = this.handler.slots.get(i).getStack();
+            if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                    && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) return true;
+        }
+        return false;
     }
 
     @Override

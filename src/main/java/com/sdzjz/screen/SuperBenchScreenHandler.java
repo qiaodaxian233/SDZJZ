@@ -154,8 +154,9 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 ItemStack s = pinv.getStack(i);
                 if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
                         && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
-                    cage = s.copy();
-                    pinv.setStack(i, ItemStack.EMPTY);
+                    cage = s.copyWithCount(1); // 只搬 1 只（多重集精确匹配要求 ×1）
+                    s.decrement(1);
+                    if (s.isEmpty()) pinv.setStack(i, ItemStack.EMPTY);
                     break;
                 }
             }
@@ -184,7 +185,42 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         }
         if (!cage.isEmpty()) { if (!player.getInventory().insertStack(cage)) player.dropItem(cage, false); }
         input.markDirty();
+        sendMissingSummary(player, r); // 填完统计缺什么，聊天栏直说，不再"点了没反应"
         return true;
+    }
+
+    /** 填料后核对网格 vs 配方：缺什么、缺几个，发聊天消息；齐了发"就绪"。 */
+    private void sendMissingSummary(PlayerEntity player, SuperBenchRecipes.Recipe r) {
+        Map<String, Integer> grid = gridMultiset();
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        boolean cageMissing = false;
+        for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
+            int lack = e.getValue() - grid.getOrDefault(e.getKey(), 0);
+            if (lack <= 0) continue;
+            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) { cageMissing = true; continue; }
+            Item it = Registries.ITEM.get(Identifier.of(e.getKey()));
+            missing.add(it.getName().getString() + "×" + lack);
+        }
+        if (!cageMissing && !r.mob().isEmpty() && !mobOk(r)) cageMissing = true; // 有笼但装错生物
+        if (missing.isEmpty() && !cageMissing) {
+            player.sendMessage(net.minecraft.text.Text.literal("材料齐全，取走结果即可")
+                    .formatted(net.minecraft.util.Formatting.GREEN), false);
+            return;
+        }
+        net.minecraft.text.MutableText msg = net.minecraft.text.Text.literal("还缺: ")
+                .formatted(net.minecraft.util.Formatting.RED);
+        if (cageMissing) {
+            String mn;
+            try { mn = net.minecraft.registry.Registries.ENTITY_TYPE
+                    .get(Identifier.of(r.mob())).getName().getString(); }
+            catch (Exception ex) { mn = r.mob(); }
+            msg.append(net.minecraft.text.Text.literal("装着[" + mn + "]的抓物笼子（去抓一只）"
+                    + (missing.isEmpty() ? "" : "、")));
+        }
+        int shown = Math.min(missing.size(), 6);
+        msg.append(net.minecraft.text.Text.literal(String.join("、", missing.subList(0, shown))
+                + (missing.size() > shown ? " 等" + missing.size() + "项" : "")));
+        player.sendMessage(msg, false);
     }
 
     private int takeFromInv(PlayerEntity player, Item item, int need) {
