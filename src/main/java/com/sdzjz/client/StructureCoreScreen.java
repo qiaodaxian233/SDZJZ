@@ -6,6 +6,8 @@ import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.net.NodeMovePayload;
+import com.sdzjz.net.NodeFilterPayload;
+import com.sdzjz.net.NodeSensorPayload;
 import com.sdzjz.net.NodeRemovePayload;
 import com.sdzjz.net.NodeTargetPayload;
 import com.sdzjz.net.NodeUpgradePayload;
@@ -77,8 +79,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     // 自动合成机目标选择器
     private int pickerNode = -1;
+    private int pickerMode = 0; // 0=合成目标 1=过滤名单(多选) 2=传感器监测物品
     private TextFieldWidget pickerField;
     private List<Item> craftables;
+    private List<Item> allItems;
     private final List<Item> pickerFiltered = new ArrayList<>();
     private static final int PICK_W = 226, PICK_H = 210, PICK_COLS = 10, PICK_ROWS = 7;
 
@@ -183,8 +187,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-            drawNode(ctx, nx, ny, nodes.get(i));
-            drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i));
+            drawNode(ctx, be, i, nx, ny, nodes.get(i));
+            if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i)))
+                drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
         }
         for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < be.storageEndpointDimsView().size() ? be.storageEndpointDimsView().get(j) : "");
@@ -239,7 +244,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, sub, x + 32, y + 22, SUB, false);
     }
 
-    private void drawNode(DrawContext ctx, int x, int y, ItemStack st) {
+    private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
         ctx.fill(x - 1, y - 1, x + NW + 1, y + NH + 1, NODEFRM);
         ctx.fill(x, y, x + NW, y + NH, NODEBG);
         ctx.fill(x, y, x + NW, y + 3, CYAN);
@@ -252,11 +257,44 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawItem(st, 0, 0);
         msi.pop();
         String name = st.getName().getString();
-        if (this.textRenderer.getWidth(name) > NW - 12) {
-            while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 12) name = name.substring(0, name.length() - 1);
+        if (this.textRenderer.getWidth(name) > NW - 22) {
+            while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 22) name = name.substring(0, name.length() - 1);
             name = name + "…";
         }
         ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
+        drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
+        if (StructureCoreBlockEntity.isFilter(st)) {
+            boolean black = StructureCoreBlockEntity.filterBlacklist(st);
+            ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? 0xFFE8C43C : ON, false);
+            List<String> fl = StructureCoreBlockEntity.filterList(st);
+            if (fl.isEmpty()) {
+                ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
+            } else {
+                int shown = Math.min(3, fl.size());
+                for (int k = 0; k < shown; k++) {
+                    try { ctx.drawItem(new ItemStack(Registries.ITEM.get(Identifier.of(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
+                }
+                if (fl.size() > 3) ctx.drawText(this.textRenderer, "+" + (fl.size() - 3), x + 42 + 54, y + 38, SUB, false);
+            }
+            return;
+        }
+        if (StructureCoreBlockEntity.isSensor(st)) {
+            String si = StructureCoreBlockEntity.sensorItem(st);
+            if (si.isEmpty()) {
+                ctx.drawText(this.textRenderer, "直通(未配置)", x + 44, y + 26, SUB, false);
+                ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
+            } else {
+                try { ctx.drawItem(new ItemStack(Registries.ITEM.get(Identifier.of(si))), x + 40, y + 20); } catch (Exception ignored) {}
+                long th = StructureCoreBlockEntity.sensorThreshold(st);
+                boolean less = StructureCoreBlockEntity.sensorLess(st);
+                ctx.drawText(this.textRenderer, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
+                ctx.fill(x + 57, y + 36, x + 71, y + 49, 0xFF0C1E30); // [−]
+                ctx.fill(x + 74, y + 36, x + 88, y + 49, 0xFF0C1E30); // [+]
+                ctx.drawText(this.textRenderer, "-", x + 62, y + 39, TXT, false);
+                ctx.drawText(this.textRenderer, "+", x + 79, y + 39, TXT, false);
+            }
+            return;
+        }
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 44, y + 26, CYAN, false);
         if (st.getItem() instanceof AutoCrafterItem) {
             int bx = x + NW - 30, by = y + 14;
@@ -274,6 +312,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.drawText(this.textRenderer, "设目标", x + 44, y + 38, SUB, false);
             }
         }
+    }
+
+    /** 状态灯：核心停机=灰；1 绿呼吸=运行 2 黄=阻塞/关闸 3 红=缺料 其余=待机灰。 */
+    private void drawStatusDot(DrawContext ctx, int x, int y, int stat) {
+        int c;
+        if (!this.handler.isRunning()) c = 0xFF3A424E;
+        else c = switch (stat) {
+            case 1 -> ((165 + (int) (88 * Math.sin(System.currentTimeMillis() / 300.0))) << 24) | 0x33D07A;
+            case 2 -> 0xFFE8C43C;
+            case 3 -> 0xFFE85050;
+            default -> 0xFF3A424E;
+        };
+        ctx.fill(x - 1, y - 1, x + 7, y + 7, 0xFF06101C);
+        ctx.fill(x, y, x + 6, y + 6, c);
     }
 
     private static String fmtNum(long n) {
@@ -338,7 +390,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x";
         ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
-        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线（→存储=定向入库 · 存储→机器=定向供料）· 升级格 左加/右取 · 滚轮缩放", 8, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞/关闸 红=缺料 · 过滤/传感器右键配置", 8, this.height - 12, SUB, false);
     }
 
     @Override
@@ -447,8 +499,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
                 if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
                     BlockPos bp = this.handler.blockPos();
-                    if (bp != null) ClientPlayNetworking.send(new NodeTargetPayload(bp, pickerNode,
-                            Registries.ITEM.getId(pickerFiltered.get(k)).toString()));
+                    String iid = Registries.ITEM.getId(pickerFiltered.get(k)).toString();
+                    if (bp != null) {
+                        if (pickerMode == 1) { // 过滤多选：切名单项，不关窗
+                            ClientPlayNetworking.send(new NodeFilterPayload(bp, pickerNode, iid));
+                            return true;
+                        }
+                        if (pickerMode == 2) { // 传感器：换监测物品，保留阈值/方向
+                            StructureCoreBlockEntity be2 = be();
+                            ItemStack ns = be2 != null && pickerNode < be2.nodes().size() ? be2.nodes().get(pickerNode) : ItemStack.EMPTY;
+                            ClientPlayNetworking.send(new NodeSensorPayload(bp, pickerNode, iid,
+                                    StructureCoreBlockEntity.sensorThreshold(ns), StructureCoreBlockEntity.sensorLess(ns)));
+                            closePicker();
+                            return true;
+                        }
+                        ClientPlayNetworking.send(new NodeTargetPayload(bp, pickerNode, iid));
+                    }
                     closePicker();
                     return true;
                 }
@@ -464,6 +530,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 double wx = wmx(mouseX), wy = wmy(mouseY);
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
+                    if (StructureCoreBlockEntity.isFilter(nodes.get(i)) || StructureCoreBlockEntity.isSensor(nodes.get(i))) continue;
                     int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
@@ -486,6 +553,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
                             if (nodes.get(i).getItem() instanceof AutoCrafterItem)
                                 addMenu("选择合成目标", () -> openPicker(idx));
+                            if (StructureCoreBlockEntity.isFilter(nodes.get(i))) {
+                                addMenu("配置过滤物品…", () -> openFilterPicker(idx));
+                                addMenu(StructureCoreBlockEntity.filterBlacklist(nodes.get(i)) ? "切为白名单" : "切为黑名单",
+                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+                            }
+                            if (StructureCoreBlockEntity.isSensor(nodes.get(i))) {
+                                final ItemStack ns = nodes.get(i);
+                                addMenu("监测物品…", () -> openSensorPicker(idx));
+                                addMenu(StructureCoreBlockEntity.sensorLess(ns) ? "改为:高于阈值放行" : "改为:低于阈值放行",
+                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
+                                                StructureCoreBlockEntity.sensorThreshold(ns), !StructureCoreBlockEntity.sensorLess(ns))); });
+                            }
                             addMenu("取消", () -> {});
                             openMenu((int) mouseX, (int) mouseY);
                             return true;
@@ -512,6 +591,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     return true;
                 }
                 if (button == 0) {
+                    // 传感器阈值 [−][+]：步进100，Shift=1000
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        if (!StructureCoreBlockEntity.isSensor(nodes.get(i))) continue;
+                        if (StructureCoreBlockEntity.sensorItem(nodes.get(i)).isEmpty()) continue;
+                        int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                        int hit = 0;
+                        if (wx >= nx + 57 && wx <= nx + 71 && wy >= ny + 36 && wy <= ny + 49) hit = -1;
+                        else if (wx >= nx + 74 && wx <= nx + 88 && wy >= ny + 36 && wy <= ny + 49) hit = 1;
+                        if (hit != 0) {
+                            long step = hasShiftDown() ? 1000 : 100;
+                            long th = Math.max(0, StructureCoreBlockEntity.sensorThreshold(nodes.get(i)) + hit * step);
+                            BlockPos p = this.handler.blockPos();
+                            if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, i, "", th,
+                                    StructureCoreBlockEntity.sensorLess(nodes.get(i))));
+                            return true;
+                        }
+                    }
                     // 自动合成机目标徽章
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         if (!(nodes.get(i).getItem() instanceof AutoCrafterItem)) continue;
@@ -668,12 +764,43 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     // ================= 自动合成机目标选择器 =================
     private void openPicker(int node) {
+        pickerMode = 0;
         pickerNode = node;
         if (craftables == null) buildCraftables();
         pickerField.setText("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
+    }
+
+    /** 过滤名单多选：点选=加/移，不关窗。 */
+    private void openFilterPicker(int node) {
+        pickerMode = 1;
+        pickerNode = node;
+        if (allItems == null) buildAllItems();
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    /** 传感器监测物品单选。 */
+    private void openSensorPicker(int node) {
+        pickerMode = 2;
+        pickerNode = node;
+        if (allItems == null) buildAllItems();
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    /** 全物品表（过滤/传感器可选任意物品，不限可合成）。 */
+    private void buildAllItems() {
+        allItems = new ArrayList<>();
+        for (Item it : Registries.ITEM) {
+            if (it != net.minecraft.item.Items.AIR) allItems.add(it);
+        }
     }
 
     private void closePicker() {
@@ -698,9 +825,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void refilterPicker() {
         pickerFiltered.clear();
-        if (craftables == null) return;
+        List<Item> src = pickerMode == 0 ? craftables : allItems;
+        if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
-        for (Item it : craftables) {
+        for (Item it : src) {
             if (q.isEmpty()
                     || new ItemStack(it).getName().getString().toLowerCase().contains(q)
                     || Registries.ITEM.getId(it).getPath().contains(q)) {
@@ -716,7 +844,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(px - 1, py - 1, px + PICK_W + 1, py + PICK_H + 1, NODEFRM);
         ctx.fill(px, py, px + PICK_W, py + PICK_H, 0xF00A1626);
         ctx.fill(px, py, px + PICK_W, py + 3, CYAN);
-        ctx.drawText(this.textRenderer, "选择目标产物（中文/英文搜索）", px + 8, py + 8, TXT, false);
+        String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
+                : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
+                : "选择目标产物（中文/英文搜索）";
+        ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
+        List<String> selIds = java.util.Collections.emptyList();
+        if (pickerMode == 1) {
+            StructureCoreBlockEntity be3 = be();
+            if (be3 != null && pickerNode >= 0 && pickerNode < be3.nodes().size())
+                selIds = StructureCoreBlockEntity.filterList(be3.nodes().get(pickerNode));
+        }
         pickerField.setX(px + 8);
         pickerField.setY(py + 22);
         pickerField.render(ctx, mouseX, mouseY, delta);
@@ -725,7 +862,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int k = 0; k < pickerFiltered.size(); k++) {
             int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
             boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
-            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? 0xFF14304A : 0xFF0C1E30);
+            boolean sel = pickerMode == 1 && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
+            if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
+            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? 0xFF14304A : sel ? 0xFF10321E : 0xFF0C1E30);
             ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
             if (hov) hovered = pickerFiltered.get(k);
         }
