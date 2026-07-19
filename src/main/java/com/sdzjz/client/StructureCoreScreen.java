@@ -8,6 +8,7 @@ import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.net.NodeMovePayload;
 import com.sdzjz.net.NodeFilterPayload;
 import com.sdzjz.net.NodeSensorPayload;
+import com.sdzjz.net.NodeSwitchPayload;
 import com.sdzjz.net.NodeRemovePayload;
 import com.sdzjz.net.NodeTargetPayload;
 import com.sdzjz.net.NodeUpgradePayload;
@@ -188,7 +189,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
             drawNode(ctx, be, i, nx, ny, nodes.get(i));
-            if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i)))
+            if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i))
+                    && !StructureCoreBlockEntity.isSwitch(nodes.get(i)))
                 drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
         }
         for (int j = 0; j < ends.size(); j++)
@@ -263,6 +265,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
         drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
+        if (StructureCoreBlockEntity.isSwitch(st)) {
+            boolean on = StructureCoreBlockEntity.switchOn(st);
+            int bfr = on ? ON : 0xFF5A6470;
+            ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
+            ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? 0xFF10321E : 0xFF141A24);
+            ctx.drawText(this.textRenderer, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
+            return;
+        }
         if (StructureCoreBlockEntity.isFilter(st)) {
             boolean black = StructureCoreBlockEntity.filterBlacklist(st);
             ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? 0xFFE8C43C : ON, false);
@@ -530,7 +540,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 double wx = wmx(mouseX), wy = wmy(mouseY);
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
-                    if (StructureCoreBlockEntity.isFilter(nodes.get(i)) || StructureCoreBlockEntity.isSensor(nodes.get(i))) continue;
+                    if (StructureCoreBlockEntity.isFilter(nodes.get(i)) || StructureCoreBlockEntity.isSensor(nodes.get(i))
+                            || StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
                     int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
@@ -557,6 +568,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                                 addMenu("配置过滤物品…", () -> openFilterPicker(idx));
                                 addMenu(StructureCoreBlockEntity.filterBlacklist(nodes.get(i)) ? "切为白名单" : "切为黑名单",
                                         () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+                            }
+                            if (StructureCoreBlockEntity.isSwitch(nodes.get(i))) {
+                                addMenu(StructureCoreBlockEntity.switchOn(nodes.get(i)) ? "切为:关闭" : "切为:开启",
+                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
                             }
                             if (StructureCoreBlockEntity.isSensor(nodes.get(i))) {
                                 final ItemStack ns = nodes.get(i);
@@ -591,6 +606,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     return true;
                 }
                 if (button == 0) {
+                    // 开关节点：点按钮切换 开/关
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        if (!StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
+                        int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                        if (wx >= nx + 43 && wx <= nx + 91 && wy >= ny + 23 && wy <= ny + 45) {
+                            BlockPos p = this.handler.blockPos();
+                            if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, i));
+                            return true;
+                        }
+                    }
                     // 传感器阈值 [−][+]：步进100，Shift=1000
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         if (!StructureCoreBlockEntity.isSensor(nodes.get(i))) continue;

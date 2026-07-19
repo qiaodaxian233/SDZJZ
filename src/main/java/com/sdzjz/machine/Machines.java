@@ -11,6 +11,7 @@ public final class Machines {
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());
+    public static final MachineDef SWITCH_NODE = new MachineDef("switch_node", List.of(), 5, false, List.of());
 
     // ---- 单产农场 ----
     public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);

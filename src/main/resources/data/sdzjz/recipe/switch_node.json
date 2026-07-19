@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["ILI", "RMR", "III"], "key": {"I": {"item": "minecraft:iron_ingot"}, "L": {"item": "minecraft:lever"}, "R": {"item": "minecraft:redstone"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:switch_node", "count": 1}}

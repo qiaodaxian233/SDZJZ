@@ -67,5 +67,6 @@
   "item.sdzjz.wither_skeleton_farm": "凋灵骷髅塔",
   "itemGroup.sdzjz.main": "生电终结者",
   "item.sdzjz.filter_node": "过滤器节点",
-  "item.sdzjz.sensor_node": "数量传感器"
+  "item.sdzjz.sensor_node": "数量传感器",
+  "item.sdzjz.switch_node": "开关节点"
 }

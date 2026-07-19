@@ -67,5 +67,6 @@
   "item.sdzjz.wither_skeleton_farm": "Wither Skeleton Farm",
   "itemGroup.sdzjz.main": "Redstone Terminator",
   "item.sdzjz.filter_node": "Filter Node",
-  "item.sdzjz.sensor_node": "Quantity Sensor"
+  "item.sdzjz.sensor_node": "Quantity Sensor",
+  "item.sdzjz.switch_node": "Switch Node"
 }

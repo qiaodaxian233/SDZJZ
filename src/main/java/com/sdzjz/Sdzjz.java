@@ -56,6 +56,16 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSwitchPayload.ID, com.sdzjz.net.NodeSwitchPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSwitchPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.toggleSwitch(payload.index());
+                }
+            });
+        });
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFilterPayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {

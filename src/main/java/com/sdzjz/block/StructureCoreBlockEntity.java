@@ -178,6 +178,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     moved = true;
                 }
                 if (moved) { be.stat(i, 1); produced = true; }
+            } else if (StructureCoreBlockEntity.isSwitch(st)) {
+                // 开关节点：开=直通转发，关=持料不动
+                if (be.ticks % 5 != 0) continue;
+                if (!StructureCoreBlockEntity.switchOn(st)) { be.stat(i, 2); continue; }
+                java.util.Map<String, Long> ownSw = be.nodeBuf(i);
+                boolean movedSw = false;
+                for (String id : new java.util.ArrayList<>(ownSw.keySet())) {
+                    long amt = ownSw.getOrDefault(id, 0L);
+                    ownSw.remove(id);
+                    if (amt <= 0) continue;
+                    be.distribute(world, i, outT.get(i), id, amt);
+                    movedSw = true;
+                }
+                be.stat(i, movedSw ? 1 : 0);
+                if (movedSw) produced = true;
             } else if (StructureCoreBlockEntity.isSensor(st)) {
                 // 传感器节点：开闸=直通转发自己的缓存；关闸=持料不动（缓存封顶后上游自然停）
                 if (be.ticks % 5 != 0) continue;
@@ -433,6 +448,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
     public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
+    public static boolean isSwitch(ItemStack s) { return s.isOf(ModItems.SWITCH_NODE); }
+
+    /** 开关节点状态：默认=开；NBT "so"=false 时为关。 */
+    public static boolean switchOn(ItemStack s) {
+        NbtCompound n = nbtOf(s);
+        return !n.contains("so") || n.getBoolean("so");
+    }
+
+    /** 切换开关节点 开/关。 */
+    public void toggleSwitch(int index) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (!isSwitch(s)) return;
+        NbtCompound n = nbtOf(s);
+        n.putBoolean("so", !switchOn(s));
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+    }
 
     /** 过滤模式：false=白名单（默认，只放行名单内），true=黑名单（拦下名单内）。 */
     public static boolean filterBlacklist(ItemStack s) { return nbtOf(s).getBoolean("fb"); }
@@ -520,8 +554,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (targets == null || targets.isEmpty()) return false;
         for (int t : targets) {
             if (t < 0 || t >= machineNodes.size()) return false;
-            if (!isSensor(machineNodes.get(t))) return false;
-            if (sensorOpen(world, t)) return false;
+            ItemStack ts = machineNodes.get(t);
+            boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts));
+            if (!closedGate) return false;
         }
         return true;
     }
@@ -983,6 +1018,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         ItemStack st = machineNodes.get(target);
         if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
         if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
+        if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;
