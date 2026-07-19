@@ -90,6 +90,15 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         ctx.drawText(this.textRenderer, xv + " 点", x + 14, y + 182, 0xFF7CFC9A, false);
         xpBtn(ctx, x + 12, y + 196, "存入经验", mouseX, mouseY);
         xpBtn(ctx, x + 12, y + 218, "取出经验", mouseX, mouseY);
+        // ===== m84b 合成终端 3×3 + 结果 =====
+        for (int r = 0; r < 3; r++)
+            for (int c2 = 0; c2 < 3; c2++) cell(ctx, x + 272 + c2 * 18, y + 40 + r * 18);
+        cell(ctx, x + 290, y + 102);
+        ctx.fill(x + 294, y + 94, x + 302, y + 100, CYAN); // 网格→结果 指示
+        // 回收格（红框，放入即销毁）
+        int tx = x + 334, ty = y + 216;
+        ctx.fill(tx - 1, ty - 1, tx + 17, ty + 17, 0xFF8E2E2E);
+        ctx.fill(tx, ty, tx + 16, ty + 16, 0xFF1A0D0D);
     }
 
     private static final net.minecraft.util.Identifier QDX =
@@ -122,6 +131,8 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         ctx.drawText(this.textRenderer, "存储终端", 24, 12, TXT, false);
         header(ctx, "存储 · 滚轮翻页", 99, 20);
         header(ctx, "物品栏", 99, 148);
+        header(ctx, "合成", 272, 28);
+        ctx.drawText(this.textRenderer, "回收", 306, 220, 0xFFE07070, false);
     }
 
     @Override

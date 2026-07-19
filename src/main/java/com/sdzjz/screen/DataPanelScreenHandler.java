@@ -18,6 +18,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
 
     private final DataPanelBlockEntity panel;
     private final BlockPos blockPos;
+    private final SimpleInventory craft = new SimpleInventory(9);       // m84b 合成终端
+    private final SimpleInventory craftResult = new SimpleInventory(1);
+    private final SimpleInventory trash = new SimpleInventory(1);       // 回收格：放入即销毁
 
     public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
         this(syncId, playerInv, resolve(playerInv, pos));
@@ -52,7 +55,70 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 158 + r * 18));
         for (int c = 0; c < 9; c++)
             this.addSlot(new Slot(playerInv, c, 99 + c * 18, 216));
+        // m84b 合成终端：3×3(90..98) + 结果(99) + 回收(100)
+        craft.addListener(inv -> updateCraftResult());
+        trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                this.addSlot(new Slot(craft, c + r * 3, 272 + c * 18, 40 + r * 18));
+        this.addSlot(new Slot(craftResult, 0, 290, 102) {
+            @Override public boolean canInsert(ItemStack s) { return false; }
+            @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
+                consumeCraft(player);
+                super.onTakeItem(player, stack);
+            }
+        });
+        this.addSlot(new Slot(trash, 0, 334, 216));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
+    }
+
+    // ===== m84b 合成终端（ME 风格：终端里直接手动合成）=====
+    private net.minecraft.recipe.input.CraftingRecipeInput craftInput() {
+        java.util.List<ItemStack> l = new java.util.ArrayList<>(9);
+        for (int i = 0; i < 9; i++) l.add(craft.getStack(i));
+        return net.minecraft.recipe.input.CraftingRecipeInput.create(3, 3, l);
+    }
+
+    private void updateCraftResult() {
+        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return;
+        var w = panel.getWorld();
+        var input = craftInput();
+        craftResult.setStack(0, w.getRecipeManager()
+                .getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w)
+                .map(e -> e.value().craft(input, w.getRegistryManager())).orElse(ItemStack.EMPTY));
+    }
+
+    /** 取走结果：每格扣 1，容器残留(桶等)留在原格或还给玩家，然后重算结果。 */
+    private void consumeCraft(PlayerEntity player) {
+        if (panel == null || panel.getWorld() == null) return;
+        var w = panel.getWorld();
+        var input = craftInput();
+        var match = w.getRecipeManager().getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w);
+        net.minecraft.util.collection.DefaultedList<ItemStack> rem =
+                match.map(e -> e.value().getRemainder(input)).orElse(null);
+        for (int i = 0; i < 9; i++) {
+            ItemStack st = craft.getStack(i);
+            if (!st.isEmpty()) st.decrement(1);
+            if (rem != null && i < rem.size() && !rem.get(i).isEmpty()) {
+                ItemStack r2 = rem.get(i).copy();
+                if (craft.getStack(i).isEmpty()) craft.setStack(i, r2);
+                else if (!player.getInventory().insertStack(r2)) player.dropItem(r2, false);
+            }
+        }
+        updateCraftResult();
+    }
+
+    @Override
+    public void onClosed(PlayerEntity player) {
+        super.onClosed(player);
+        if (player.getWorld().isClient) return;
+        for (int i = 0; i < 9; i++) { // 关界面归还合成格材料，绝不吞
+            ItemStack st = craft.getStack(i);
+            if (!st.isEmpty()) {
+                craft.setStack(i, ItemStack.EMPTY);
+                if (!player.getInventory().insertStack(st)) player.dropItem(st, false);
+            }
+        }
     }
 
     // ===== m80c 经验库 =====
@@ -154,6 +220,14 @@ public class DataPanelScreenHandler extends ScreenHandler {
             }
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
+        } else if (index >= DataPanelBlockEntity.PAGE + 36 && index < DataPanelBlockEntity.PAGE + 45) {
+            // 合成格 → 背包
+            this.insertItem(stack, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+            if (stack.isEmpty()) slot.setStack(ItemStack.EMPTY);
+            slot.markDirty();
+            return ItemStack.EMPTY;
+        } else if (index >= DataPanelBlockEntity.PAGE + 45) {
+            return ItemStack.EMPTY; // 结果格用鼠标取；回收格不 shift
         } else {
             // 玩家背包 → 存入面板
             if (panel != null) {
