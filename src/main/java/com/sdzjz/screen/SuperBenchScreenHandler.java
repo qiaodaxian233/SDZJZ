@@ -76,15 +76,40 @@ public class SuperBenchScreenHandler extends ScreenHandler {
     public void onContentChanged(Inventory inv) {
         if (inv == input) {
             SuperBenchRecipes.Recipe r = SuperBenchRecipes.match(gridMultiset());
-            result.setStack(0, SuperBenchRecipes.resultStack(r));
+            result.setStack(0, mobOk(r) ? SuperBenchRecipes.resultStack(r) : ItemStack.EMPTY);
         }
+    }
+
+    /** 刷怪类配方：网格里必须有一个「装着指定生物」的抓物笼子（空笼/装错生物都不行）。 */
+    private boolean mobOk(SuperBenchRecipes.Recipe r) {
+        if (r == null) return false;
+        if (r.mob().isEmpty()) return true;
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                    && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) return true;
+        }
+        return false;
     }
 
     private void consumeIngredients() {
         SuperBenchRecipes.Recipe r = SuperBenchRecipes.match(gridMultiset());
-        if (r == null) return;
+        if (r == null || !mobOk(r)) return;
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             int need = e.getValue();
+            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey()) && !r.mob().isEmpty()) {
+                // 笼子不消耗：生物「装进」机器，清 NBT 留一个空笼在网格里
+                for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
+                    ItemStack s = input.getStack(i);
+                    if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                            && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+                        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_NAME);
+                        need--;
+                    }
+                }
+                continue;
+            }
             for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
                 ItemStack s = input.getStack(i);
                 if (!s.isEmpty() && Registries.ITEM.getId(s.getItem()).toString().equals(e.getKey())) {
@@ -121,9 +146,24 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 input.setStack(i, ItemStack.EMPTY);
             }
         }
+        // 刷怪类：先从背包找「装着指定生物」的那个笼子（整个带 NBT 搬过来，不能造新的）
+        ItemStack cage = ItemStack.EMPTY;
+        if (!r.mob().isEmpty()) {
+            PlayerInventory pinv = player.getInventory();
+            for (int i = 0; i < pinv.size(); i++) {
+                ItemStack s = pinv.getStack(i);
+                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                        && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                    cage = s.copy();
+                    pinv.setStack(i, ItemStack.EMPTY);
+                    break;
+                }
+            }
+        }
         // 从背包按需批量取料，建立可用池
         Map<String, Integer> pool = new HashMap<>();
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
+            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子单独处理
             Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
             pool.put(e.getKey(), takeFromInv(player, item, e.getValue()));
         }
@@ -132,12 +172,17 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         for (int i = 0; i < GRID_SLOTS; i++) {
             String want = layout[i];
             if (want == null) continue;
+            if (SuperBenchRecipes.CAGE_ID.equals(want)) {
+                if (!cage.isEmpty()) { input.setStack(i, cage); cage = ItemStack.EMPTY; }
+                continue;
+            }
             int have = pool.getOrDefault(want, 0);
             if (have > 0) {
                 input.setStack(i, new ItemStack(Registries.ITEM.get(Identifier.of(want)), 1));
                 pool.put(want, have - 1);
             }
         }
+        if (!cage.isEmpty()) { if (!player.getInventory().insertStack(cage)) player.dropItem(cage, false); }
         input.markDirty();
         return true;
     }

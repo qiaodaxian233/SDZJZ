@@ -95,6 +95,13 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         if (selected >= 0 && selected < all.size()) {
             int dy = LIST_Y + LIST_ROWS * ENTRY_H + 14;
             ctx.drawText(this.textRenderer, "需要材料：", PX, dy, SUB, false);
+            String mob = all.get(selected).mob();
+            if (!mob.isEmpty()) {
+                String mn;
+                try { mn = net.minecraft.registry.Registries.ENTITY_TYPE.get(Identifier.of(mob)).getName().getString(); }
+                catch (Exception ex) { mn = mob; }
+                ctx.drawText(this.textRenderer, "需捕获: " + mn + "（笼子装它）", PX + 58, dy, 0xFFE85050, false);
+            }
             int iy = dy + 12, col = 0;
             for (Map.Entry<String, Integer> e : all.get(selected).ingredients().entrySet()) {
                 ItemStack s = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));

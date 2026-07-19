@@ -41,6 +41,22 @@ public class CaptureCageItem extends Item {
         return ActionResult.SUCCESS;
     }
 
+    @Override
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Text> tooltip,
+                              net.minecraft.item.tooltip.TooltipType type) {
+        String id = cagedType(stack);
+        if (id != null) {
+            Text name;
+            try { name = Registries.ENTITY_TYPE.get(Identifier.of(id)).getName(); }
+            catch (Exception ex) { name = Text.literal(id); }
+            tooltip.add(Text.literal("已捕获: ").append(name).formatted(net.minecraft.util.Formatting.GREEN));
+            tooltip.add(Text.literal("可插画布刷掉落，或作刷怪机器的合成材料").formatted(net.minecraft.util.Formatting.GRAY));
+        } else {
+            tooltip.add(Text.literal("空笼 · 右键活体生物捕获").formatted(net.minecraft.util.Formatting.GRAY));
+            tooltip.add(Text.literal("刷怪机器需装着对应生物的笼子才能合成").formatted(net.minecraft.util.Formatting.AQUA));
+        }
+    }
+
     public static boolean isCaged(ItemStack stack) {
         NbtComponent c = stack.get(DataComponentTypes.CUSTOM_DATA);
         return c != null && c.copyNbt().contains(KEY);

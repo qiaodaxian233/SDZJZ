@@ -36,61 +36,71 @@ public final class SuperBenchRecipes {
         LEGEND.put('X', "minecraft:iron_block");
     }
 
-    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。 */
-    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients) {}
+    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mob 非空=需装着该生物的抓物笼子（合成后生物装进机器，空笼归还）。 */
+    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob) {}
+    public static final String CAGE_ID = "sdzjz:capture_cage";
     public static final List<Recipe> ALL = new ArrayList<>();
 
     static {
         add("sdzjz:auto_crafter", 0, "minecraft:crafting_table", "minecraft:crafting_table", "minecraft:crafter", "minecraft:crafter");
         add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
-        add("sdzjz:blaze_farm", 2, "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
-        add("sdzjz:ghast_tower", 3, "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");
-        add("sdzjz:breeze_farm", 4, "minecraft:breeze_rod", "minecraft:breeze_rod", "minecraft:wind_charge", "minecraft:wind_charge");
+        addM("sdzjz:blaze_farm", 2, "minecraft:blaze", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
+        addM("sdzjz:ghast_tower", 3, "minecraft:ghast", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");
+        addM("sdzjz:breeze_farm", 4, "minecraft:breeze", "minecraft:breeze_rod", "minecraft:breeze_rod", "minecraft:wind_charge", "minecraft:wind_charge");
         add("sdzjz:bonemeal_machine", 0, "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:moss_block");
         add("sdzjz:moss_farm", 1, "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_carpet");
         add("sdzjz:stonecutter_machine", 2, "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone");
-        add("sdzjz:villager_breeder", 3, "minecraft:bread", "minecraft:bread", "minecraft:bread", "minecraft:emerald");
-        add("sdzjz:bone_farm", 4, "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
+        addM("sdzjz:villager_breeder", 3, "minecraft:villager", "minecraft:bread", "minecraft:bread", "minecraft:bread", "minecraft:emerald");
+        addM("sdzjz:bone_farm", 4, "minecraft:skeleton", "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
         add("sdzjz:cactus_farm", 0, "minecraft:cactus", "minecraft:cactus", "minecraft:cactus", "minecraft:green_dye");
         add("sdzjz:carpet_machine", 1, "minecraft:white_carpet", "minecraft:white_carpet", "minecraft:white_wool", "minecraft:white_wool");
         add("sdzjz:charcoal_kiln", 2, "minecraft:charcoal", "minecraft:charcoal", "minecraft:charcoal", "minecraft:oak_log");
         add("sdzjz:chorus_farm", 3, "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:popped_chorus_fruit");
         add("sdzjz:cobble_maker", 4, "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:stone");
-        add("sdzjz:drowned_tower", 0, "minecraft:copper_ingot", "minecraft:copper_ingot", "minecraft:prismarine_shard", "minecraft:rotten_flesh");
-        add("sdzjz:flesh_farm", 1, "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh");
+        addM("sdzjz:drowned_tower", 0, "minecraft:drowned", "minecraft:copper_ingot", "minecraft:copper_ingot", "minecraft:prismarine_shard", "minecraft:rotten_flesh");
+        addM("sdzjz:flesh_farm", 1, "minecraft:zombie", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh");
         add("sdzjz:glass_kiln", 2, "minecraft:glass", "minecraft:glass", "minecraft:sand", "minecraft:sand");
         add("sdzjz:gold_smelter", 3, "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:gold_ingot");
-        add("sdzjz:guardian_farm", 4, "minecraft:prismarine_shard", "minecraft:prismarine_shard", "minecraft:prismarine_crystals", "minecraft:prismarine_crystals");
-        add("sdzjz:gunpowder_farm", 0, "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:tnt");
-        add("sdzjz:honey_farm", 1, "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honey_bottle");
+        addM("sdzjz:guardian_farm", 4, "minecraft:guardian", "minecraft:prismarine_shard", "minecraft:prismarine_shard", "minecraft:prismarine_crystals", "minecraft:prismarine_crystals");
+        addM("sdzjz:gunpowder_farm", 0, "minecraft:creeper", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:tnt");
+        addM("sdzjz:honey_farm", 1, "minecraft:bee", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honey_bottle");
         add("sdzjz:ice_maker", 2, "minecraft:ice", "minecraft:ice", "minecraft:ice", "minecraft:snowball");
-        add("sdzjz:iron_farm", 3, "minecraft:poppy", "minecraft:poppy", "minecraft:iron_ingot", "minecraft:iron_ingot");
+        addM("sdzjz:iron_farm", 3, "minecraft:villager", "minecraft:poppy", "minecraft:poppy", "minecraft:iron_ingot", "minecraft:iron_ingot");
         add("sdzjz:iron_smelter", 4, "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:iron_ingot");
         add("sdzjz:kelp_farm", 0, "minecraft:kelp", "minecraft:kelp", "minecraft:kelp", "minecraft:dried_kelp");
-        add("sdzjz:magma_farm", 1, "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_block");
-        add("sdzjz:mob_tower", 2, "minecraft:bone", "minecraft:gunpowder", "minecraft:string", "minecraft:arrow");
+        addM("sdzjz:magma_farm", 1, "minecraft:magma_cube", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_block");
+        addM("sdzjz:mob_tower", 2, "minecraft:zombie", "minecraft:bone", "minecraft:gunpowder", "minecraft:string", "minecraft:arrow");
         add("sdzjz:nether_tree_farm", 3, "minecraft:crimson_stem", "minecraft:crimson_stem", "minecraft:warped_stem", "minecraft:crimson_fungus");
         add("sdzjz:nether_wart_farm", 4, "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:soul_sand");
         add("sdzjz:obsidian_maker", 0, "minecraft:obsidian", "minecraft:obsidian", "minecraft:obsidian", "minecraft:crying_obsidian");
-        add("sdzjz:pearl_farm", 1, "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:obsidian");
-        add("sdzjz:piglin_barter", 2, "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:obsidian");
-        add("sdzjz:pigman_tower", 3, "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_ingot");
-        add("sdzjz:raid_tower", 4, "minecraft:emerald", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald");
+        addM("sdzjz:pearl_farm", 1, "minecraft:enderman", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:obsidian");
+        addM("sdzjz:piglin_barter", 2, "minecraft:piglin", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:obsidian");
+        addM("sdzjz:pigman_tower", 3, "minecraft:zombified_piglin", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_ingot");
+        addM("sdzjz:raid_tower", 4, "minecraft:pillager", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald");
         add("sdzjz:rail_machine", 0, "minecraft:rail", "minecraft:rail", "minecraft:iron_ingot", "minecraft:stick");
         add("sdzjz:sand_maker", 1, "minecraft:sand", "minecraft:sand", "minecraft:sand", "minecraft:gravel");
-        add("sdzjz:shulker_farm", 2, "minecraft:shulker_shell", "minecraft:shulker_shell", "minecraft:purpur_block", "minecraft:purpur_block");
-        add("sdzjz:slime_farm", 3, "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball");
+        addM("sdzjz:shulker_farm", 2, "minecraft:shulker", "minecraft:shulker_shell", "minecraft:shulker_shell", "minecraft:purpur_block", "minecraft:purpur_block");
+        addM("sdzjz:slime_farm", 3, "minecraft:slime", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball");
         add("sdzjz:sugarcane_farm", 4, "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:paper");
         add("sdzjz:super_smelter", 0, "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_gold", "minecraft:raw_gold");
-        add("sdzjz:swamp_spawner", 1, "minecraft:rotten_flesh", "minecraft:bone", "minecraft:string", "minecraft:slime_ball");
+        addM("sdzjz:swamp_spawner", 1, "minecraft:bogged", "minecraft:rotten_flesh", "minecraft:bone", "minecraft:string", "minecraft:slime_ball");
         add("sdzjz:tree_farm", 2, "minecraft:oak_log", "minecraft:oak_log", "minecraft:oak_sapling", "minecraft:apple");
-        add("sdzjz:wire_brusher", 3, "minecraft:string", "minecraft:string", "minecraft:string", "minecraft:cobweb");
-        add("sdzjz:witch_tower", 4, "minecraft:glowstone_dust", "minecraft:glowstone_dust", "minecraft:spider_eye", "minecraft:sugar");
-        add("sdzjz:wither_skeleton_farm", 0, "minecraft:bone", "minecraft:coal", "minecraft:coal", "minecraft:soul_sand");
+        addM("sdzjz:wire_brusher", 3, "minecraft:spider", "minecraft:string", "minecraft:string", "minecraft:string", "minecraft:cobweb");
+        addM("sdzjz:witch_tower", 4, "minecraft:witch", "minecraft:glowstone_dust", "minecraft:glowstone_dust", "minecraft:spider_eye", "minecraft:sugar");
+        addM("sdzjz:wither_skeleton_farm", 0, "minecraft:wither_skeleton", "minecraft:bone", "minecraft:coal", "minecraft:coal", "minecraft:soul_sand");
     }
 
     /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */
     private static void add(String result, int tpl, String... sig) {
+        build(result, tpl, "", sig);
+    }
+
+    /** 刷怪类机器：材料里含 1 个「装着 mob 的抓物笼子」——先去对应地方抓到它才合得出来。 */
+    private static void addM(String result, int tpl, String mob, String... sig) {
+        build(result, tpl, mob, sig);
+    }
+
+    private static void build(String result, int tpl, String mob, String[] sig) {
         String template = TEMPLATES[tpl];
         String[] layout = new String[SLOTS];
         Map<String, Integer> ing = new java.util.LinkedHashMap<>(); // 保留蓝图遇到顺序：材料清单显示稳定
@@ -103,7 +113,18 @@ public final class SuperBenchRecipes {
             layout[i] = id;
             if (id != null) ing.merge(id, 1, Integer::sum);
         }
-        ALL.add(new Recipe(result, layout, ing));
+        if (!mob.isEmpty()) { // 用 1 格铁锭的位置放笼子（多重集：铁-1、笼+1，全表唯一性不受影响）
+            for (int i = 0; i < SLOTS; i++) {
+                if ("minecraft:iron_ingot".equals(layout[i])) {
+                    layout[i] = CAGE_ID;
+                    ing.merge("minecraft:iron_ingot", -1, Integer::sum);
+                    if (ing.getOrDefault("minecraft:iron_ingot", 0) <= 0) ing.remove("minecraft:iron_ingot");
+                    ing.put(CAGE_ID, 1);
+                    break;
+                }
+            }
+        }
+        ALL.add(new Recipe(result, layout, ing, mob));
     }
 
     /** 网格多重集精确匹配到配方。 */
