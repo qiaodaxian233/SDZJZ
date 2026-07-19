@@ -134,8 +134,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double wmy(double my) { return (my - panY) / zoom; }
     private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
     private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
-    private int snx(StructureCoreBlockEntity be, long pl, int j) { return be.storageNodeX(pl, 760); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return be.storageNodeY(pl, 20 + j * 72); }
+    // m78：端点节点钉在屏幕右侧「端点停靠栏」（屏幕坐标，不随画布平移缩放跑）。
+    // 之前画在画布坐标里，视角一拖就丢到屏幕外——看起来像"没有输出接口/面板节点"。列满自动向左换列。
+    private int dockRows() { return Math.max(1, (this.height - 62) / (SH + 14)); }
+    private int snx(StructureCoreBlockEntity be, long pl, int j) { return this.width - SW - 12 - (j / dockRows()) * (SW + 12); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 50 + (j % dockRows()) * (SH + 14); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -164,27 +167,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 drawWire(ctx, ax, ay, bx, by, CYAN);
             }
         }
-        // 机器↔存储 定向连线
-        for (long[] e : be.storageEdgesView()) {
-            int mi = (int) e[0];
-            if (mi >= nodes.size()) continue;
-            int j = endpointIndex(ends, e[1]);
-            if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
-            int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
-            if (e[2] == 0) { // 机器→存储（产出）
-                drawWire(ctx, wnx(be, nodes, mi) + NW, wny(be, nodes, mi) + NH / 2, sx, sy + SH / 2, CYAN);
-            } else {         // 存储→机器（供料）
-                drawWire(ctx, sx + SW, sy + SH / 2, wnx(be, nodes, mi), wny(be, nodes, mi) + NH / 2, ON);
-            }
-        }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int ax = wnx(be, nodes, linkFrom) + NW, ay = wny(be, nodes, linkFrom) + NH / 2;
             drawWire(ctx, ax, ay, (int) wmx(mouseX), (int) wmy(mouseY), 0xFF88E0FF);
-        }
-        if (linking && linkStor != Long.MIN_VALUE) {
-            int j = endpointIndex(ends, linkStor);
-            int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
-            drawWire(ctx, sx + SW, sy + SH / 2, (int) wmx(mouseX), (int) wmy(mouseY), 0xFF9BF0C0);
         }
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
@@ -193,9 +178,38 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     && !StructureCoreBlockEntity.isSwitch(nodes.get(i)) && !StructureCoreBlockEntity.isDistributor(nodes.get(i)))
                 drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
         }
+        m.pop();
+
+        // ===== 端点停靠栏：屏幕坐标绘制，永远可见 =====
+        if (!ends.isEmpty()) {
+            int cols = (ends.size() + dockRows() - 1) / dockRows();
+            int left = this.width - cols * (SW + 12);
+            ctx.fill(left - 6, 38, this.width, 50 + Math.min(ends.size(), dockRows()) * (SH + 14) + 4, 0x66060B14);
+            ctx.drawText(this.textRenderer, "端点接口", left, 40, SUB, false);
+        }
+        // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标
+        for (long[] e : be.storageEdgesView()) {
+            int mi = (int) e[0];
+            if (mi >= nodes.size()) continue;
+            int j = endpointIndex(ends, e[1]);
+            if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
+            int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
+            int mys = (int) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
+            if (e[2] == 0) { // 机器→存储（产出）
+                int mxs = (int) (panX + (wnx(be, nodes, mi) + NW) * zoom);
+                drawWire(ctx, mxs, mys, sx, sy + SH / 2, CYAN);
+            } else {         // 存储→机器（供料）
+                int mxi = (int) (panX + wnx(be, nodes, mi) * zoom);
+                drawWire(ctx, sx + SW, sy + SH / 2, mxi, mys, ON);
+            }
+        }
+        if (linking && linkStor != Long.MIN_VALUE) {
+            int j = endpointIndex(ends, linkStor);
+            int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
+            drawWire(ctx, sx + SW, sy + SH / 2, mouseX, mouseY, 0xFF9BF0C0);
+        }
         for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < be.storageEndpointDimsView().size() ? be.storageEndpointDimsView().get(j) : "");
-        m.pop();
     }
 
     private static int endpointIndex(List<long[]> ends, long pl) {
@@ -213,10 +227,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(x - 1, y - 1, x + SW + 1, y + SH + 1, frm);
         ctx.fill(x, y, x + SW, y + SH, NODEBG);
         ctx.fill(x, y, x + SW, y + 3, frm);
-        if (kind != 5) {
-            ctx.fill(x - 4, y + SH / 2 - 3, x + 2, y + SH / 2 + 3, CYAN);        // 收料口（机器→此处）
-            if (!iface) ctx.fill(x + SW - 2, y + SH / 2 - 3, x + SW + 4, y + SH / 2 + 3, ON); // 接口无供料口
-        }
+        ctx.fill(x - 4, y + SH / 2 - 3, x + 2, y + SH / 2 + 3, CYAN);            // 收料口（连到面板=存进它聚合的整个网络）
+        if (!iface) ctx.fill(x + SW - 2, y + SH / 2 - 3, x + SW + 4, y + SH / 2 + 3, ON); // 供料口（输出接口无）
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
@@ -226,7 +238,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         msn.scale(1.5f, 1.5f, 1f);
         ctx.drawItem(icon, 0, 0);
         msn.pop();
-        String title = iface ? "输出接口" : kind == 5 ? "数据终端" : "存储核心";
+        String title = iface ? "输出接口" : kind == 5 ? "数据面板" : "存储核心";
         ctx.drawText(this.textRenderer, title, x + 32, y + 7, TXT, false);
         ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 32 + this.textRenderer.getWidth(title) + 4, y + 7,
                 iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
@@ -562,6 +574,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
                 if (button == 1) {
+                    // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标）
+                    for (int j = ends.size() - 1; j >= 0; j--) {
+                        long pl = ends.get(j)[0];
+                        int sx = snx(be, pl, j), sy = sny(be, pl, j);
+                        if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {
+                            clearMenu();
+                            addMenu("断开全部连线", () -> clearLinksOfStorage(pl));
+                            addMenu("取消", () -> {});
+                            openMenu((int) mouseX, (int) mouseY);
+                            return true;
+                        }
+                    }
                     // 右键机器节点 → 菜单
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
@@ -596,18 +620,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 右键存储节点 → 菜单
-                    for (int j = ends.size() - 1; j >= 0; j--) {
-                        long pl = ends.get(j)[0];
-                        int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (wx >= sx && wx <= sx + SW && wy >= sy && wy <= sy + SH) {
-                            clearMenu();
-                            addMenu("断开全部连线", () -> clearLinksOfStorage(pl));
-                            addMenu("取消", () -> {});
-                            openMenu((int) mouseX, (int) mouseY);
-                            return true;
-                        }
-                    }
                     // 右键空白 → 画布菜单
                     clearMenu();
                     addMenu("整理布局", this::autoLayout);
@@ -617,6 +629,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     return true;
                 }
                 if (button == 0) {
+                    // 停靠栏优先（屏幕坐标）：供料口(绿) → 存储/面板→机器 供料连线；面板供料=取自它聚合的网络
+                    for (int j = ends.size() - 1; j >= 0; j--) {
+                        if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
+                        long pl = ends.get(j)[0];
+                        int oxp = snx(be, pl, j) + SW, oyp = sny(be, pl, j) + SH / 2;
+                        if (Math.abs(mouseX - oxp) <= 7 && Math.abs(mouseY - oyp) <= 7) {
+                            linking = true; linkStor = pl; linkFrom = -1; return true;
+                        }
+                    }
+                    // 停靠栏节点体：吞掉点击，防误触其下的机器/画布拖动
+                    for (int j = ends.size() - 1; j >= 0; j--) {
+                        long pl = ends.get(j)[0];
+                        int sx = snx(be, pl, j), sy = sny(be, pl, j);
+                        if (mouseX >= sx - 4 && mouseX <= sx + SW + 6 && mouseY >= sy && mouseY <= sy + SH) return true;
+                    }
                     // 开关节点：点按钮切换 开/关
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         if (!StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
@@ -662,28 +689,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
                         }
                     }
-                    // 存储供料口(绿) → 连线（存储→机器）
-                    for (int j = ends.size() - 1; j >= 0; j--) {
-                        if (ends.get(j)[1] == 5 || ends.get(j)[1] == 6) continue; // 终端/接口无供料口
-                        long pl = ends.get(j)[0];
-                        int oxp = snx(be, pl, j) + SW, oyp = sny(be, pl, j) + SH / 2;
-                        if (Math.abs(wx - oxp) <= 7 && Math.abs(wy - oyp) <= 7) {
-                            linking = true; linkStor = pl; linkFrom = -1; return true;
-                        }
-                    }
                     // 机器节点体 → 拖动
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
                             dragIndex = i; dragStor = Long.MIN_VALUE; dragOffX = wx - nx; dragOffY = wy - ny; return true;
-                        }
-                    }
-                    // 存储节点体 → 拖动
-                    for (int j = ends.size() - 1; j >= 0; j--) {
-                        long pl = ends.get(j)[0];
-                        int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (wx >= sx && wx <= sx + SW && wy >= sy && wy <= sy + SH) {
-                            dragStor = pl; dragIndex = -1; dragOffX = wx - sx; dragOffY = wy - sy; return true;
                         }
                     }
                 }
@@ -702,15 +712,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 int nx = (int) (wmx(mouseX) - dragOffX);
                 int ny = (int) (wmy(mouseY) - dragOffY);
                 be.setNodePos(dragIndex, nx, ny);
-            }
-            return true;
-        }
-        if (button == 0 && dragStor != Long.MIN_VALUE) {
-            StructureCoreBlockEntity be = be();
-            if (be != null) {
-                int nx = (int) (wmx(mouseX) - dragOffX);
-                int ny = (int) (wmy(mouseY) - dragOffY);
-                be.setStorageNodePos(dragStor, nx, ny); // 客户端本地视觉；松手发包保存
             }
             return true;
         }
@@ -736,10 +737,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     // 优先看是否落在存储节点上 → 机器→存储 定向产出
                     boolean done = false;
                     for (int j = ends.size() - 1; j >= 0; j--) {
-                        if (ends.get(j)[1] == 5) continue;
-                        long pl = ends.get(j)[0];
+                        long pl = ends.get(j)[0]; // 数据面板也可连（存进它聚合的整个网络）
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (wx >= sx && wx <= sx + SW && wy >= sy && wy <= sy + SH) {
+                        if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {
                             ClientPlayNetworking.send(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));
                             done = true;
                             break;
@@ -778,16 +778,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ClientPlayNetworking.send(new NodeMovePayload(p, dragIndex, be.nodeX(st, 0), be.nodeY(st, 0)));
             }
             dragIndex = -1;
-            return true;
-        }
-        if (button == 0 && dragStor != Long.MIN_VALUE) {
-            StructureCoreBlockEntity be = be();
-            BlockPos p = this.handler.blockPos();
-            if (be != null && p != null) {
-                ClientPlayNetworking.send(new StorageNodeMovePayload(p, dragStor,
-                        be.storageNodeX(dragStor, 0), be.storageNodeY(dragStor, 0)));
-            }
-            dragStor = Long.MIN_VALUE;
             return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);

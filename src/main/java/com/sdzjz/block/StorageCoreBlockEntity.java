@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** 存储核心：逻辑仓储(id→long)，类型数受等级上限；可升级。数据面板/机器经网络(数据线/相邻)访问。 */
-public class StorageCoreBlockEntity extends BlockEntity {
+public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess {
 
     private static final int TYPES_PER_TIER = 27;
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();

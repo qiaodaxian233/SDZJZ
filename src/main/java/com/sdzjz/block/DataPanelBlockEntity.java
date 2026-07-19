@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 /** 数据面板：存储终端（不自带存储）。经网络访问相连的存储核心，聚合显示/存取。 */
-public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos> {
+public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, com.sdzjz.machine.StorageAccess {
 
     public static final int PAGE = 54;
     private String searchFilter = "";

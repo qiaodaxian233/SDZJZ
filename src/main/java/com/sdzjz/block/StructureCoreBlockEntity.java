@@ -241,7 +241,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     for (var en : plan.needs().entrySet())
                         be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
                 } else {
-                    StorageCoreBlockEntity supply = be.supplyFor(world, i);   // 存储→机器 定向供料连线优先
+                    com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);   // 存储→机器 定向供料连线优先
                     if (supply == null) {
                         if (!srcResolved) {
                             src = be.resolveInputSource(world, pos);
@@ -258,7 +258,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, 1);
                 int total = (int) (crafts * plan.resultCount());
-                StorageCoreBlockEntity depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
+                com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
@@ -278,7 +278,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
                 be.stat(i, 1);
-                StorageCoreBlockEntity depositCf = hasOut[i] ? null : be.depositFor(world, i);
+                com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : cropDrops) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
@@ -294,7 +294,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int interval = Math.max(cfg.accelMinPeriodTicks, miu.def().baseIntervalTicks() - speedLv * 4);
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
-                StorageCoreBlockEntity depositSm = hasOut[i] ? null : be.depositFor(world, i);
+                com.sdzjz.machine.StorageAccess depositSm = hasOut[i] ? null : be.depositFor(world, i);
                 long capacity = (long) running * 64L * (1 + countLv); // 每周期一组×并行×(1+数量)
                 if (!hasOut[i] && depositSm == null) capacity = Math.min(capacity, 64L * OUTPUT_SLOTS); // 无存储时按缓存封顶防白扣
                 long done = 0;
@@ -317,7 +317,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 } else {
                     // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
                     // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
-                    StorageCoreBlockEntity supply = be.supplyFor(world, i);
+                    com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
                     if (supply == null) { be.stat(i, 3); continue; }
                     for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
                         if (done >= capacity) break;
@@ -356,7 +356,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (!ok) { be.stat(i, 3); continue; }
                         for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running);
                     } else {
-                        StorageCoreBlockEntity supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
+                        com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
                         if (supply == null) {
                             if (!srcResolved) {
                                 src = be.resolveInputSource(world, pos);
@@ -374,7 +374,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, 1);
 
-                StorageCoreBlockEntity depositMi = hasOut[i] ? null : be.depositFor(world, i);
+                com.sdzjz.machine.StorageAccess depositMi = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : def.outputs()) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
@@ -395,7 +395,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
                 be.stat(i, 1);
-                StorageCoreBlockEntity depositCg = hasOut[i] ? null : be.depositFor(world, i);
+                com.sdzjz.machine.StorageAccess depositCg = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : drops) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
@@ -425,7 +425,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 右键把机器/笼子作为一个节点加入画布（无上限）；首次自动布局位置。 */
     public boolean insertMachine(ItemStack held) {
         if (held.isEmpty()) return false;
-        ItemStack node = held.copy();
+        ItemStack node = held.copyWithCount(1); // m78：一次只放 1 台（原来整叠塞进一个节点，"一右键就是一组"）
         NbtCompound n = node.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (!n.contains("nx")) {
             int i = machineNodes.size(), cols = 6;
@@ -435,7 +435,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         machineNodes.add(node);
         nodeBuf(machineNodes.size() - 1); // 懒补齐：新节点空输入缓存
-        held.setCount(0);
+        held.decrement(1);
         markDirty();
         syncToClient();
         return true;
@@ -577,7 +577,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         ItemStack st = machineNodes.get(i);
         String id = sensorItem(st);
         if (id.isEmpty()) return true;
-        StorageCoreBlockEntity sc = supplyFor(world, i);
+        com.sdzjz.machine.StorageAccess sc = supplyFor(world, i);
         if (sc == null) sc = resolveInputSource(world, pos);
         long have = sc == null ? 0 : sc.count(id);
         long th = sensorThreshold(st);
@@ -910,32 +910,32 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 该机器的定向产出目标（机器→存储 连线；不可用则 null 走默认路由）。 */
-    private StorageCoreBlockEntity depositFor(World world, int machineIndex) {
+    private com.sdzjz.machine.StorageAccess depositFor(World world, int machineIndex) {
         return edgeStorage(world, machineIndex, 0);
     }
 
     /** 该机器的定向供料源（存储→机器 连线）。 */
-    private StorageCoreBlockEntity supplyFor(World world, int machineIndex) {
+    private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
         return edgeStorage(world, machineIndex, 1);
     }
 
-    private StorageCoreBlockEntity edgeStorage(World world, int machineIndex, int dir) {
+    private com.sdzjz.machine.StorageAccess edgeStorage(World world, int machineIndex, int dir) {
         for (int i = 0; i < storageEdges.size(); i++) {
             long[] e = storageEdges.get(i);
             if (e[0] != machineIndex || e[2] != dir) continue;
-            StorageCoreBlockEntity sc = resolveStorageAt(world, storageEdgeDims.get(i), e[1]);
+            com.sdzjz.machine.StorageAccess sc = resolveStorageAt(world, storageEdgeDims.get(i), e[1]);
             if (sc != null) return sc;
         }
         return null;
     }
 
-    private StorageCoreBlockEntity resolveStorageAt(World world, String dim, long posLong) {
+    private com.sdzjz.machine.StorageAccess resolveStorageAt(World world, String dim, long posLong) {
         if (posLong == OUTPUT_IFACE) return null; // 输出接口=默认自动路由，无实体存储
         BlockPos p = BlockPos.fromLong(posLong);
         String self = world.getRegistryKey().getValue().toString();
         if (dim == null || dim.isEmpty() || self.equals(dim)) { // 空维度串按本维度处理（老数据兜底）
             if (!world.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
-            return world.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
+            return asAccess(world.getBlockEntity(p));
         }
         if (world instanceof net.minecraft.server.world.ServerWorld sw) {
             RegistryKey<World> key;
@@ -946,8 +946,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
             net.minecraft.server.world.ServerWorld ow = sw.getServer().getWorld(key);
             if (ow == null || !ow.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
-            return ow.getBlockEntity(p) instanceof StorageCoreBlockEntity sc ? sc : null;
+            return asAccess(ow.getBlockEntity(p));
         }
+        return null;
+    }
+
+    /** 端点方块 → 存储访问：存储核心=单库；数据面板=聚合它网络里的全部存储核心（连到面板即连到整个网络）。 */
+    private static com.sdzjz.machine.StorageAccess asAccess(net.minecraft.block.entity.BlockEntity be) {
+        if (be instanceof StorageCoreBlockEntity sc) return sc;
+        if (be instanceof DataPanelBlockEntity dp) return dp;
         return null;
     }
 
@@ -958,7 +965,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         String epDim = null;
         for (int k = 0; k < storageEndpoints.size(); k++) {
             long[] ep = storageEndpoints.get(k);
-            if (ep[0] == storagePos && ep[1] != 5) { known = true; epDim = storageEndpointDims.get(k); break; }
+            if (ep[0] == storagePos) { known = true; epDim = storageEndpointDims.get(k); break; }
         }
         if (!known) return;
         for (int i = 0; i < storageEdges.size(); i++) {
@@ -1184,7 +1191,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 定向入库兜底：存储核心类型满被拒时回落输出缓存，绝不静默丢物品。 */
-    private void depositOrBuffer(StorageCoreBlockEntity sc, ItemStack stack) {
+    private void depositOrBuffer(com.sdzjz.machine.StorageAccess sc, ItemStack stack) {
         if (stack.isEmpty()) return;
         sc.deposit(stack); // 收下会清空栈；类型满则原样留着
         if (!stack.isEmpty()) {
