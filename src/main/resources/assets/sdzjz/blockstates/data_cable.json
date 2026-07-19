@@ -2,12 +2,20 @@
  "multipart": [
   {
    "apply": {
-    "model": "sdzjz:block/data_cable_hub"
+    "model": "sdzjz:block/data_cable_core"
    }
   },
   {
    "when": {
-    "north": "true"
+    "north": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain"
+   }
+  },
+  {
+   "when": {
+    "north": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm"
@@ -15,7 +23,16 @@
   },
   {
    "when": {
-    "east": "true"
+    "east": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 90
+   }
+  },
+  {
+   "when": {
+    "east": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm",
@@ -24,7 +41,16 @@
   },
   {
    "when": {
-    "south": "true"
+    "south": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 180
+   }
+  },
+  {
+   "when": {
+    "south": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm",
@@ -33,7 +59,16 @@
   },
   {
    "when": {
-    "west": "true"
+    "west": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 270
+   }
+  },
+  {
+   "when": {
+    "west": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm",
@@ -42,7 +77,16 @@
   },
   {
    "when": {
-    "up": "true"
+    "up": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "x": 270
+   }
+  },
+  {
+   "when": {
+    "up": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm",
@@ -51,7 +95,16 @@
   },
   {
    "when": {
-    "down": "true"
+    "down": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "x": 90
+   }
+  },
+  {
+   "when": {
+    "down": "plug"
    },
    "apply": {
     "model": "sdzjz:block/data_cable_arm",

@@ -8,7 +8,6 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
@@ -40,8 +39,7 @@ public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEnti
 
         for (int i = 0; i < DIRS.length; i++) {
             Direction d = DIRS[i];
-            BooleanProperty prop = net.minecraft.block.ConnectingBlock.FACING_PROPERTIES.get(d);
-            if (!state.get(prop)) continue;
+            if (state.get(com.sdzjz.block.DataCableBlock.END_PROPS.get(d)) == com.sdzjz.block.CableEnd.NONE) continue;
             float progress = ((time + i * 5f) % 30f) / 30f;          // 各方向错相 0.25s
             float zLocal = 0.06f + progress * 0.44f;                  // 外端 → 中心
             float fade = (float) Math.sin(Math.PI * progress);        // 端点淡入淡出
