@@ -134,11 +134,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double wmy(double my) { return (my - panY) / zoom; }
     private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
     private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
-    // m78：端点节点钉在屏幕右侧「端点停靠栏」（屏幕坐标，不随画布平移缩放跑）。
-    // 之前画在画布坐标里，视角一拖就丢到屏幕外——看起来像"没有输出接口/面板节点"。列满自动向左换列。
-    private int dockRows() { return Math.max(1, (this.height - 62) / (SH + 14)); }
-    private int snx(StructureCoreBlockEntity be, long pl, int j) { return this.width - SW - 12 - (j / dockRows()) * (SW + 12); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 50 + (j % dockRows()) * (SH + 14); }
+    // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
+    private int busCols() { return Math.max(1, (this.width - 24) / (SW + 14)); }
+    private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (SW + 14); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 58 + (j / busCols()) * (SH + 16); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -180,12 +179,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         m.pop();
 
-        // ===== 端点停靠栏：屏幕坐标绘制，永远可见 =====
+        // ===== 存储总线：顶部横排，屏幕坐标绘制，永远可见 =====
         if (!ends.isEmpty()) {
-            int cols = (ends.size() + dockRows() - 1) / dockRows();
-            int left = this.width - cols * (SW + 12);
-            ctx.fill(left - 6, 38, this.width, 50 + Math.min(ends.size(), dockRows()) * (SH + 14) + 4, 0x66060B14);
-            ctx.drawText(this.textRenderer, "端点接口", left, 40, SUB, false);
+            int rows = (ends.size() + busCols() - 1) / busCols();
+            int bot = 58 + rows * (SH + 16) + 2;
+            ctx.fill(8, 38, this.width - 8, bot, 0x66060B14);
+            ctx.fill(8, bot - 2, this.width - 8, bot, 0xFF2E6E8E); // 总线底轨
+            ctx.drawText(this.textRenderer, "存储总线 · 机器绿口拖到节点=定向入库/供料", 14, 43, SUB, false);
         }
         // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标
         for (long[] e : be.storageEdgesView()) {
@@ -195,18 +195,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             int mys = (int) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
-            if (e[2] == 0) { // 机器→存储（产出）
+            if (e[2] == 0) { // 机器→存储（产出）：接到节点下缘左收料口
                 int mxs = (int) (panX + (wnx(be, nodes, mi) + NW) * zoom);
-                drawWire(ctx, mxs, mys, sx, sy + SH / 2, CYAN);
-            } else {         // 存储→机器（供料）
+                drawWire(ctx, mxs, mys, sx + 14, sy + SH + 2, CYAN);
+            } else {         // 存储→机器（供料）：从节点下缘右供料口出
                 int mxi = (int) (panX + wnx(be, nodes, mi) * zoom);
-                drawWire(ctx, sx + SW, sy + SH / 2, mxi, mys, ON);
+                drawWire(ctx, sx + SW - 14, sy + SH + 2, mxi, mys, ON);
             }
         }
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
-            drawWire(ctx, sx + SW, sy + SH / 2, mouseX, mouseY, 0xFF9BF0C0);
+            drawWire(ctx, sx + SW - 14, sy + SH + 2, mouseX, mouseY, 0xFF9BF0C0);
         }
         for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < be.storageEndpointDimsView().size() ? be.storageEndpointDimsView().get(j) : "");
@@ -227,8 +227,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(x - 1, y - 1, x + SW + 1, y + SH + 1, frm);
         ctx.fill(x, y, x + SW, y + SH, NODEBG);
         ctx.fill(x, y, x + SW, y + 3, frm);
-        ctx.fill(x - 4, y + SH / 2 - 3, x + 2, y + SH / 2 + 3, CYAN);            // 收料口（连到面板=存进它聚合的整个网络）
-        if (!iface) ctx.fill(x + SW - 2, y + SH / 2 - 3, x + SW + 4, y + SH / 2 + 3, ON); // 供料口（输出接口无）
+        ctx.fill(x + 10, y + SH - 2, x + 18, y + SH + 4, CYAN);                  // 收料口·下缘左（连到面板=存进它聚合的整个网络）
+        if (!iface) ctx.fill(x + SW - 18, y + SH - 2, x + SW - 10, y + SH + 4, ON); // 供料口·下缘右（输出接口无）
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
@@ -238,7 +238,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         msn.scale(1.5f, 1.5f, 1f);
         ctx.drawItem(icon, 0, 0);
         msn.pop();
-        String title = iface ? "输出接口" : kind == 5 ? "数据面板" : "存储核心";
+        String title;
+        if (iface) title = "输出接口";
+        else { // 分组编号：存储1/2…、数据面板1/2…（服务端已按 接口→存储→面板 排序）
+            int no = 0;
+            java.util.List<long[]> allEp = be.storageEndpointsView();
+            for (int k = 0; k <= j && k < allEp.size(); k++)
+                if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
+            title = (kind == 5 ? "数据面板" : "存储") + no;
+        }
         ctx.drawText(this.textRenderer, title, x + 32, y + 7, TXT, false);
         ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 32 + this.textRenderer.getWidth(title) + 4, y + 7,
                 iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
@@ -633,8 +641,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     for (int j = ends.size() - 1; j >= 0; j--) {
                         if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
                         long pl = ends.get(j)[0];
-                        int oxp = snx(be, pl, j) + SW, oyp = sny(be, pl, j) + SH / 2;
-                        if (Math.abs(mouseX - oxp) <= 7 && Math.abs(mouseY - oyp) <= 7) {
+                        int oxp = snx(be, pl, j) + SW - 14, oyp = sny(be, pl, j) + SH;
+                        if (Math.abs(mouseX - oxp) <= 8 && Math.abs(mouseY - oyp) <= 8) {
                             linking = true; linkStor = pl; linkFrom = -1; return true;
                         }
                     }

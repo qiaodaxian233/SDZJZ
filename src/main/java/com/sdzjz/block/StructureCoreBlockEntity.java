@@ -899,7 +899,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (changed) {
             storageEndpoints.clear();
             storageEndpointDims.clear();
-            for (long[] v : found.values()) {
+            java.util.List<long[]> ordered = new java.util.ArrayList<>(found.values());
+            // m80：分组排序（输出接口→存储核心→数据面板），客户端按组编号"存储1/2…、数据面板1/2…"
+            ordered.sort(java.util.Comparator.comparingInt(v -> v[1] == 6 ? 0 : v[1] == 5 ? 2 : 1));
+            for (long[] v : ordered) {
                 storageEndpoints.add(v);
                 storageEndpointDims.add(dims.get(v[0]));
             }
