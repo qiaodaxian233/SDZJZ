@@ -33,6 +33,8 @@ public class ModItems {
 
     // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
     public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Settings(), Machines.AUTO_CRAFTER));
+    public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
+    public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
 
     // 机器（MachineItem 携带 MachineDef）
     public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
@@ -98,6 +100,8 @@ public class ModItems {
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
             entries.add(CORE_MODULE);
             entries.add(AUTO_CRAFTER);
+            entries.add(FILTER_NODE);
+            entries.add(SENSOR_NODE);
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);

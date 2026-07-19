@@ -65,5 +65,7 @@
   "item.sdzjz.wire_brusher": "Wire Brusher",
   "item.sdzjz.witch_tower": "Witch Tower",
   "item.sdzjz.wither_skeleton_farm": "Wither Skeleton Farm",
-  "itemGroup.sdzjz.main": "Redstone Terminator"
+  "itemGroup.sdzjz.main": "Redstone Terminator",
+  "item.sdzjz.filter_node": "Filter Node",
+  "item.sdzjz.sensor_node": "Quantity Sensor"
 }

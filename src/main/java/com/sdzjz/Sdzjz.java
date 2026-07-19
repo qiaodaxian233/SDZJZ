@@ -54,6 +54,26 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFilterPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (payload.entry().length() > 128 || !viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.toggleFilterEntry(payload.index(), payload.entry());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSensorPayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (payload.item().length() > 128 || !viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.setSensorConfig(payload.index(), payload.item(), payload.threshold(), payload.less());
+                }
+            });
+        });
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.StorageLinkPayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {

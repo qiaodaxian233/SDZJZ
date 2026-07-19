@@ -157,7 +157,43 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
 
-            if (st.getItem() instanceof AutoCrafterItem) {
+            // 传感器闸门：该节点全部出线目标都关闸 → 整台暂停（不白产、不绕道塞存储）
+            if (hasOut[i] && be.allGatesClosed(world, outT.get(i))) {
+                be.stat(i, 2);
+                continue;
+            }
+
+            if (StructureCoreBlockEntity.isFilter(st)) {
+                // 过滤器节点：清运自己的输入缓存——放行的沿出线下游，拦下的走定向存储/默认路由
+                if (be.ticks % 5 != 0) continue;
+                java.util.Map<String, Long> own = be.nodeBuf(i);
+                if (own.isEmpty()) continue;
+                boolean moved = false;
+                for (String id : new java.util.ArrayList<>(own.keySet())) {
+                    long amt = own.getOrDefault(id, 0L);
+                    own.remove(id);
+                    if (amt <= 0) continue;
+                    if (StructureCoreBlockEntity.filterPasses(st, id)) be.distribute(world, i, outT.get(i), id, amt);
+                    else be.distribute(world, i, null, id, amt);
+                    moved = true;
+                }
+                if (moved) { be.stat(i, 1); produced = true; }
+            } else if (StructureCoreBlockEntity.isSensor(st)) {
+                // 传感器节点：开闸=直通转发自己的缓存；关闸=持料不动（缓存封顶后上游自然停）
+                if (be.ticks % 5 != 0) continue;
+                if (!be.sensorOpen(world, i)) { be.stat(i, 2); continue; }
+                java.util.Map<String, Long> own = be.nodeBuf(i);
+                boolean moved = false;
+                for (String id : new java.util.ArrayList<>(own.keySet())) {
+                    long amt = own.getOrDefault(id, 0L);
+                    own.remove(id);
+                    if (amt <= 0) continue;
+                    be.distribute(world, i, outT.get(i), id, amt);
+                    moved = true;
+                }
+                be.stat(i, moved ? 1 : 0);
+                if (moved) produced = true;
+            } else if (st.getItem() instanceof AutoCrafterItem) {
                 // 自动合成机：按原版配方吃料出货。目标在画布上设置（节点徽章）。
                 String target = craftTarget(st);
                 if (target.isEmpty()) continue;
@@ -172,7 +208,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
-                    if (crafts <= 0) continue;
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
                     for (var en : plan.needs().entrySet())
                         be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
                 } else {
@@ -184,13 +220,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         }
                         supply = src;
                     }
-                    if (supply == null) continue;
+                    if (supply == null) { be.stat(i, 3); continue; }
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
-                    if (crafts <= 0) continue;
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
                     for (var en : plan.needs().entrySet())
                         supply.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
                 }
+                be.stat(i, 1);
                 int total = (int) (crafts * plan.resultCount());
                 StorageCoreBlockEntity depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
@@ -232,7 +269,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
                     // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
                     StorageCoreBlockEntity supply = be.supplyFor(world, i);
-                    if (supply == null) continue;
+                    if (supply == null) { be.stat(i, 3); continue; }
                     for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
                         if (done >= capacity) break;
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, en.getKey());
@@ -251,6 +288,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (done > 0) {
                     be.xpPool += 0.1 * done; // 熔炼经验：0.1/件（近似原版均值，DEVLOG 有记）
                     produced = true;
+                    be.stat(i, 1);
+                } else {
+                    be.stat(i, 3); // 本周期没料可烧
                 }
             } else if (st.getItem() instanceof MachineItem mi) {
                 MachineDef def = mi.def();
@@ -264,7 +304,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         boolean ok = true;
                         for (MachineDef.Input in : def.inputs())
                             if (be.bufCountFor(i, in.item()) < (long) in.count() * running) { ok = false; break; }
-                        if (!ok) continue;
+                        if (!ok) { be.stat(i, 3); continue; }
                         for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running);
                     } else {
                         StorageCoreBlockEntity supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
@@ -275,14 +315,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             }
                             supply = src;
                         }
-                        if (supply == null) continue;
+                        if (supply == null) { be.stat(i, 3); continue; }
                         boolean ok = true;
                         for (MachineDef.Input in : def.inputs())
                             if (supply.count(in.item()) < (long) in.count() * running) { ok = false; break; }
-                        if (!ok) continue;
+                        if (!ok) { be.stat(i, 3); continue; }
                         for (MachineDef.Input in : def.inputs()) supply.withdraw(in.item(), in.count() * running);
                     }
                 }
+                be.stat(i, 1);
 
                 StorageCoreBlockEntity depositMi = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : def.outputs()) {
@@ -304,6 +345,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                be.stat(i, 1);
                 StorageCoreBlockEntity depositCg = hasOut[i] ? null : be.depositFor(world, i);
                 for (MachineDef.Drop d : drops) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
@@ -322,6 +364,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (produced) {
             be.pushOutput(world, pos);
             be.markDirty();
+        }
+        if (be.statusDirty && be.ticks % 20 == 0) { // 状态灯：有变化才同步，最多 1 次/秒
+            be.statusDirty = false;
+            be.markDirty();
+            be.syncToClient();
         }
     }
 
@@ -377,6 +424,122 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static String craftTarget(ItemStack s) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         return n.contains("ct") ? n.getString("ct") : "";
+    }
+
+    // ===== 画布逻辑节点：过滤器 / 数量传感器 =====
+    private static NbtCompound nbtOf(ItemStack s) {
+        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    }
+
+    public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
+    public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
+
+    /** 过滤模式：false=白名单（默认，只放行名单内），true=黑名单（拦下名单内）。 */
+    public static boolean filterBlacklist(ItemStack s) { return nbtOf(s).getBoolean("fb"); }
+
+    public static java.util.List<String> filterList(ItemStack s) {
+        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        java.util.List<String> out = new java.util.ArrayList<>(l.size());
+        for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
+        return out;
+    }
+
+    public static boolean filterPasses(ItemStack s, String id) {
+        boolean in = false;
+        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) { in = true; break; }
+        return filterBlacklist(s) ? !in : in;
+    }
+
+    public static String sensorItem(ItemStack s) { return nbtOf(s).getString("si"); }
+
+    public static long sensorThreshold(ItemStack s) {
+        NbtCompound n = nbtOf(s);
+        return n.contains("sv") ? Math.max(0, n.getLong("sv")) : 10000L;
+    }
+
+    /** 传感器方向：true=「低于阈值放行」(默认，补货型)；false=「高于阈值放行」(溢出型)。 */
+    public static boolean sensorLess(ItemStack s) {
+        NbtCompound n = nbtOf(s);
+        return !n.contains("sl") || n.getBoolean("sl");
+    }
+
+    /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单。 */
+    public void toggleFilterEntry(int index, String id) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (!isFilter(s)) return;
+        NbtCompound n = nbtOf(s);
+        if (id == null || id.isEmpty()) {
+            n.putBoolean("fb", !n.getBoolean("fb"));
+        } else {
+            NbtList l = n.getList("fl", NbtElement.STRING_TYPE);
+            boolean removed = false;
+            for (int k = 0; k < l.size(); k++)
+                if (l.getString(k).equals(id)) { l.remove(k); removed = true; break; }
+            if (!removed) {
+                if (l.size() >= 64) return; // 名单封顶，防 NBT 膨胀
+                l.add(net.minecraft.nbt.NbtString.of(id));
+            }
+            n.put("fl", l);
+        }
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+    }
+
+    /** 设置传感器：监测物品 + 阈值 + 方向（低于/高于放行）。 */
+    public void setSensorConfig(int index, String id, long threshold, boolean less) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (!isSensor(s)) return;
+        NbtCompound n = nbtOf(s);
+        if (id != null && !id.isEmpty()) n.putString("si", id);
+        n.putLong("sv", Math.max(0, Math.min(1_000_000_000_000L, threshold)));
+        n.putBoolean("sl", less);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+    }
+
+    /** 传感器闸门是否放行：未配置=直通；否则按监测库存量与阈值比较。
+     *  监测目标：连了 存储→传感器 供料线=监测那个库；否则=默认主存储（绑定>有线>无线>卫星）。 */
+    boolean sensorOpen(World world, int i) {
+        ItemStack st = machineNodes.get(i);
+        String id = sensorItem(st);
+        if (id.isEmpty()) return true;
+        StorageCoreBlockEntity sc = supplyFor(world, i);
+        if (sc == null) sc = resolveInputSource(world, pos);
+        long have = sc == null ? 0 : sc.count(id);
+        long th = sensorThreshold(st);
+        return sensorLess(st) ? have < th : have > th;
+    }
+
+    /** 该节点的全部出线目标是否都是「关闸的传感器」——是则上游整台暂停（不白产不塞存储）。 */
+    private boolean allGatesClosed(World world, java.util.List<Integer> targets) {
+        if (targets == null || targets.isEmpty()) return false;
+        for (int t : targets) {
+            if (t < 0 || t >= machineNodes.size()) return false;
+            if (!isSensor(machineNodes.get(t))) return false;
+            if (sensorOpen(world, t)) return false;
+        }
+        return true;
+    }
+
+    // ===== 节点状态灯：0=待机 1=正常(绿) 2=阻塞/关闸(黄) 3=缺料(红)。每 20t 有变化才同步 =====
+    private final java.util.List<Integer> nodeStatus = new java.util.ArrayList<>();
+    private boolean statusDirty = false;
+
+    void stat(int i, int v) {
+        while (nodeStatus.size() < machineNodes.size()) nodeStatus.add(0);
+        if (i < 0 || i >= nodeStatus.size() || nodeStatus.get(i) == v) return;
+        nodeStatus.set(i, v);
+        statusDirty = true;
+    }
+
+    /** 画布读取节点状态（客户端）。 */
+    public int nodeStatus(int i) {
+        return i >= 0 && i < nodeStatus.size() ? nodeStatus.get(i) : 0;
     }
 
     /** 设置自动合成机节点的目标产物（画布徽章点选，走 NodeTargetPayload）。 */
@@ -501,6 +664,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         nodeBuf(machineNodes.size() - 1); // 先补齐对齐
         ItemStack s = machineNodes.remove(index);
         if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
+        if (index < nodeStatus.size()) nodeStatus.remove(index);
         returnNodeClean(player, s);
         java.util.List<int[]> kept = new java.util.ArrayList<>();
         for (int[] c : connections) {
@@ -542,6 +706,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             nodeBuf(removed); // 补齐对齐
             ItemStack s = machineNodes.remove(removed);
             if (removed < nodeBufs.size()) mergeLegacy(nodeBufs.remove(removed));
+            if (removed < nodeStatus.size()) nodeStatus.remove(removed);
             connections.removeIf(c -> c[0] == removed || c[1] == removed);
             for (int i = storageEdges.size() - 1; i >= 0; i--) {
                 if (storageEdges.get(i)[0] == removed) { storageEdges.remove(i); storageEdgeDims.remove(i); }
@@ -816,6 +981,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 目标机器是否"吃"该物品：万能熔炉=可熔炼物；消耗机=配方输入；自动合成机=当前目标用料；农场=不吃。 */
     private boolean accepts(World world, int target, String id) {
         ItemStack st = machineNodes.get(target);
+        if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
+        if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;
@@ -890,6 +1057,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), s);
         }
         machineNodes.clear();
+        nodeStatus.clear();
     }
 
     private void syncToClient() {
@@ -1219,6 +1387,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nbt.putBoolean("running", running);
         nbt.putDouble("xpPool", xpPool);
+        int[] nst = new int[machineNodes.size()];
+        for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
+        nbt.putIntArray("nodeStat", nst);
         NbtList eps = new NbtList(); // 存储端点（同步给画布：连了几个显示几个）
         for (int i = 0; i < storageEndpoints.size(); i++) {
             NbtCompound c = new NbtCompound();
@@ -1274,6 +1445,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         running = nbt.getBoolean("running");
         xpPool = nbt.getDouble("xpPool");
+        nodeStatus.clear();
+        for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
         storageEndpoints.clear();
         storageEndpointDims.clear();
         NbtList eps = nbt.getList("storEnds", NbtElement.COMPOUND_TYPE);

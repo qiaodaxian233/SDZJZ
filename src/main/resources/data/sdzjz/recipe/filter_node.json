@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["IHI", "RMR", "III"], "key": {"I": {"item": "minecraft:iron_ingot"}, "H": {"item": "minecraft:hopper"}, "R": {"item": "minecraft:redstone"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:filter_node", "count": 1}}
