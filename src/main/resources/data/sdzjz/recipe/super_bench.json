@@ -1,3 +1,1 @@
-{ "type":"minecraft:crafting_shaped","pattern":["SMS","MDM","SMS"],
-  "key":{"S":"sdzjz:structure_core","M":"sdzjz:core_module","D":"minecraft:diamond_block"},
-  "result":{"id":"sdzjz:super_bench","count":1} }
+{"type": "minecraft:crafting_shaped", "pattern": ["SMS", "MDM", "SMS"], "key": {"S": {"item": "sdzjz:structure_core"}, "M": {"item": "sdzjz:core_module"}, "D": {"item": "minecraft:diamond_block"}}, "result": {"id": "sdzjz:super_bench", "count": 1}}

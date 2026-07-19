@@ -1,3 +1,1 @@
-{ "type":"minecraft:crafting_shaped","pattern":["ICI","CMC","ICI"],
-  "key":{"I":"minecraft:iron_ingot","C":"minecraft:chest","M":"sdzjz:core_module"},
-  "result":{"id":"sdzjz:storage_core","count":1} }
+{"type": "minecraft:crafting_shaped", "pattern": ["ICI", "CMC", "ICI"], "key": {"I": {"item": "minecraft:iron_ingot"}, "C": {"item": "minecraft:chest"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:storage_core", "count": 1}}

@@ -1,3 +1,1 @@
-{ "type":"minecraft:crafting_shaped","pattern":["RCR","CMC","RCR"],
-  "key":{"R":"minecraft:redstone","C":"minecraft:chest","M":"sdzjz:core_module"},
-  "result":{"id":"sdzjz:storage_upgrade","count":1} }
+{"type": "minecraft:crafting_shaped", "pattern": ["RCR", "CMC", "RCR"], "key": {"R": {"item": "minecraft:redstone"}, "C": {"item": "minecraft:chest"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:storage_upgrade", "count": 1}}

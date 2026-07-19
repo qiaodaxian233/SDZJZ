@@ -1,3 +1,1 @@
-{ "type":"minecraft:crafting_shaped","pattern":["GRG","RMR","GRG"],
-  "key":{"G":"minecraft:gold_ingot","R":"minecraft:redstone","M":"sdzjz:core_module"},
-  "result":{"id":"sdzjz:speed_upgrade","count":1} }
+{"type": "minecraft:crafting_shaped", "pattern": ["GRG", "RMR", "GRG"], "key": {"G": {"item": "minecraft:gold_ingot"}, "R": {"item": "minecraft:redstone"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:speed_upgrade", "count": 1}}
