@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["IBI", "RMR", "III"], "key": {"I": {"item": "minecraft:iron_ingot"}, "B": {"item": "minecraft:bread"}, "R": {"item": "minecraft:redstone"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:auto_feeder", "count": 1}}

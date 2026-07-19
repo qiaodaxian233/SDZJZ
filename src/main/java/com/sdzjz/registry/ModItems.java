@@ -30,6 +30,7 @@ public class ModItems {
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
+    public static final Item AUTO_FEEDER = reg("auto_feeder", new com.sdzjz.item.AutoFeederItem(new Item.Settings().maxCount(1)));
 
     // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
     public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Settings(), Machines.AUTO_CRAFTER));
@@ -121,6 +122,7 @@ public class ModItems {
             entries.add(CAPTURE_CAGE);
             entries.add(LINKER);
             entries.add(TERMINAL);
+            entries.add(AUTO_FEEDER);
             entries.add(WIRE_BRUSHER);
             entries.add(COBBLE_MAKER);
             entries.add(BONE_FARM);

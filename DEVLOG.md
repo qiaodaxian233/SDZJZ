@@ -599,3 +599,14 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - storeView() 加入接口契约(只读清单视图)；数据面板实现=聚合网络全部核心的快照(万能熔炉扫描用，取料仍走 withdraw)。
 - 两处 `StorageCoreBlockEntity dep = depositFor(...)` 漏改 → StorageAccess。
 - 全扫确认：StorageAccess 变量仅调用 count/deposit/withdraw/storeView，无其它核心专属方法残留。
+
+## m80 — 存储总线/编号 + 合同配方 + 图标水印 + 经验库 + 自动补货/喂食（四检查点）
+- a: 端点改顶部「存储总线」横排(用户点名图2位置)；服务端分组排序(接口→存储→面板)，客户端编号 存储1/2…数据面板1/2…；
+     端口移到节点下缘，垂直走线；供料口命中/预览随迁。
+- b: 村民合同原版配方(纸6+面包2+绿宝石1)；fabric.mod.json icon(图4)；ItemTooltipCallback 全 sdzjz 物品加"抖音：乔大仙"；
+     图5 乔大仙立牌 → textures/gui/qdx_card.png。
+- c: 经验库——存储核心 xpBank(NBT) + 面板聚合 xpTotal/存/取 + handler 双属性同步 + onButtonClick(1存/2取，
+     原版总经验公式) + 面板左侧立牌+读数+两按钮。
+- d: 终端自动补货(潜行右键循环 关/16/32/64；inventoryTick 每秒从绑定面板把主手可堆叠物补到阈值；带组件物不补)；
+     自动喂食器(副手选食物/潜行清除/绑面板；背包优先网络兜底；eat(FoodComponent) 不含使用型效果——已注明)。
+- 盯点：ItemTooltipCallback 签名、setExperiencePoints、HungerManager.eat(已查证1.21存在)、Property 同步下标。

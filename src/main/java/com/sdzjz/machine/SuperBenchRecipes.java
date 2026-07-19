@@ -97,6 +97,7 @@ public final class SuperBenchRecipes {
         addSmall("sdzjz:sensor_node", "minecraft:comparator");
         addSmall("sdzjz:switch_node", "minecraft:lever");
         addSmall("sdzjz:distributor_node", "minecraft:dropper");
+        addSmall("sdzjz:auto_feeder", "minecraft:bread"); // m80d 自动喂食器
     }
 
     /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */
