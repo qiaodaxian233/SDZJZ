@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["IDI", "RMR", "III"], "key": {"I": {"item": "minecraft:iron_ingot"}, "D": {"item": "minecraft:dropper"}, "R": {"item": "minecraft:redstone"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:distributor_node", "count": 1}}

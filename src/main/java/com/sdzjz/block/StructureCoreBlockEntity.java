@@ -163,7 +163,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 continue;
             }
 
-            if (StructureCoreBlockEntity.isFilter(st)) {
+            if (StructureCoreBlockEntity.isDistributor(st)) {
+                // 分配器节点：来料在出线目标间均分（余数轮转），没人要的走默认路由
+                if (be.ticks % 5 != 0) continue;
+                java.util.Map<String, Long> ownD = be.nodeBuf(i);
+                if (ownD.isEmpty()) continue;
+                boolean movedD = false;
+                for (String id : new java.util.ArrayList<>(ownD.keySet())) {
+                    long amt = ownD.getOrDefault(id, 0L);
+                    ownD.remove(id);
+                    if (amt <= 0) continue;
+                    be.distributeEven(world, i, outT.get(i), id, amt);
+                    movedD = true;
+                }
+                if (movedD) { be.stat(i, 1); produced = true; }
+            } else if (StructureCoreBlockEntity.isFilter(st)) {
                 // 过滤器节点：清运自己的输入缓存——放行的沿出线下游，拦下的走定向存储/默认路由
                 if (be.ticks % 5 != 0) continue;
                 java.util.Map<String, Long> own = be.nodeBuf(i);
@@ -469,6 +483,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
     public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
     public static boolean isSwitch(ItemStack s) { return s.isOf(ModItems.SWITCH_NODE); }
+    public static boolean isDistributor(ItemStack s) { return s.isOf(ModItems.DISTRIBUTOR_NODE); }
 
     /** 开关节点状态：默认=开；NBT "so"=false 时为关。 */
     public static boolean switchOn(ItemStack s) {
@@ -1015,6 +1030,33 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (rest > 0) bufWithdraw(id, rest);
     }
 
+    /** 均分分发（分配器）：在所有"吃得下"的目标间平分，余数轮转；装不下/没人要的走 定向存储/默认路由。 */
+    private void distributeEven(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+        if (targets != null && !targets.isEmpty()) {
+            java.util.List<Integer> ok = new java.util.ArrayList<>();
+            for (int t : targets)
+                if (t >= 0 && t < machineNodes.size() && accepts(world, t, id)) ok.add(t);
+            if (!ok.isEmpty()) {
+                long share = amt / ok.size(), extra = amt % ok.size(), undelivered = 0;
+                for (int k = 0; k < ok.size(); k++) {
+                    long want = share + (k < extra ? 1 : 0);
+                    if (want <= 0) continue;
+                    java.util.Map<String, Long> m = nodeBuf(ok.get(k));
+                    long cur = m.getOrDefault(id, 0L);
+                    long put = Math.min(Math.max(0, BUF_CAP - cur), want);
+                    if (put > 0) m.put(id, cur + put);
+                    undelivered += want - put;
+                }
+                amt = undelivered;
+            }
+        }
+        if (amt <= 0) return;
+        StorageCoreBlockEntity dep = depositFor(world, fromIndex);
+        ItemStack rest = new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
+        if (dep != null) depositOrBuffer(dep, rest);
+        else addOutput(rest);
+    }
+
     /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */
     private void distribute(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
         if (targets != null) {
@@ -1040,6 +1082,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
         if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
         if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
+        if (isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;

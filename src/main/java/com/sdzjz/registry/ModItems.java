@@ -36,6 +36,7 @@ public class ModItems {
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
+    public static final Item DISTRIBUTOR_NODE = reg("distributor_node", new com.sdzjz.item.DistributorNodeItem(new Item.Settings(), Machines.DISTRIBUTOR_NODE));
     public static final Item CHICKEN_FARM = reg("chicken_farm", new MachineItem(new Item.Settings(), Machines.CHICKEN_FARM));
     public static final Item SHEEP_FARM   = reg("sheep_farm",   new MachineItem(new Item.Settings(), Machines.SHEEP_FARM));
     public static final Item COW_FARM     = reg("cow_farm",     new MachineItem(new Item.Settings(), Machines.COW_FARM));
@@ -108,6 +109,7 @@ public class ModItems {
             entries.add(FILTER_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);
+            entries.add(DISTRIBUTOR_NODE);
             entries.add(CHICKEN_FARM);
             entries.add(SHEEP_FARM);
             entries.add(COW_FARM);

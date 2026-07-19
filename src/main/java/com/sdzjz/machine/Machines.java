@@ -12,6 +12,7 @@ public final class Machines {
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());
     public static final MachineDef SWITCH_NODE = new MachineDef("switch_node", List.of(), 5, false, List.of());
+    public static final MachineDef DISTRIBUTOR_NODE = new MachineDef("distributor_node", List.of(), 5, false, List.of());
     public static final MachineDef CHICKEN_FARM = defMulti("chicken_farm", 30,
             drop("minecraft:chicken", 1, 2), drop("minecraft:feather", 0, 2, 0.6f), drop("minecraft:egg", 0, 1, 0.5f));
     public static final MachineDef SHEEP_FARM = defMulti("sheep_farm", 30,

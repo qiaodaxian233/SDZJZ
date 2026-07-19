@@ -72,5 +72,6 @@
   "item.sdzjz.chicken_farm": "Chicken Farm",
   "item.sdzjz.sheep_farm": "Sheep Farm",
   "item.sdzjz.cow_farm": "Cow Farm",
-  "item.sdzjz.crop_farm": "Auto Crop Farm"
+  "item.sdzjz.crop_farm": "Auto Crop Farm",
+  "item.sdzjz.distributor_node": "Distributor Node"
 }

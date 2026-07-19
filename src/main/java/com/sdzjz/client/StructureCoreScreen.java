@@ -190,7 +190,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
             drawNode(ctx, be, i, nx, ny, nodes.get(i));
             if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i))
-                    && !StructureCoreBlockEntity.isSwitch(nodes.get(i)))
+                    && !StructureCoreBlockEntity.isSwitch(nodes.get(i)) && !StructureCoreBlockEntity.isDistributor(nodes.get(i)))
                 drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
         }
         for (int j = 0; j < ends.size(); j++)
@@ -265,6 +265,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
         drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
+        if (StructureCoreBlockEntity.isDistributor(st)) {
+            int outs = 0;
+            for (int[] c : be.connections()) if (c[0] == i) outs++;
+            ctx.drawText(this.textRenderer, "均分 → " + outs + " 路", x + 44, y + 26, CYAN, false);
+            ctx.drawText(this.textRenderer, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
+            return;
+        }
         if (StructureCoreBlockEntity.isSwitch(st)) {
             boolean on = StructureCoreBlockEntity.switchOn(st);
             int bfr = on ? ON : 0xFF5A6470;
@@ -542,7 +549,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
                     if (StructureCoreBlockEntity.isFilter(nodes.get(i)) || StructureCoreBlockEntity.isSensor(nodes.get(i))
-                            || StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
+                            || StructureCoreBlockEntity.isSwitch(nodes.get(i))
+                            || StructureCoreBlockEntity.isDistributor(nodes.get(i))) continue;
                     int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;

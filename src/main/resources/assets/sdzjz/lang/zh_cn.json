@@ -72,5 +72,6 @@
   "item.sdzjz.chicken_farm": "养鸡场",
   "item.sdzjz.sheep_farm": "养羊场",
   "item.sdzjz.cow_farm": "养牛场",
-  "item.sdzjz.crop_farm": "全自动农场"
+  "item.sdzjz.crop_farm": "全自动农场",
+  "item.sdzjz.distributor_node": "分配器节点"
 }
