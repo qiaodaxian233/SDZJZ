@@ -110,10 +110,10 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             net.minecraft.item.ItemStack st = slot.getStack();
             ctx.drawItem(st, slot.x, slot.y);
             String s = fmt(amtOf(st));
-            int tx = slot.x + 17 - this.textRenderer.getWidth(s);
             ctx.getMatrices().push();
-            ctx.getMatrices().translate(0, 0, 200);
-            ctx.drawText(this.textRenderer, s, tx, slot.y + 9, 0xFFFFFFFF, true);
+            ctx.getMatrices().translate(slot.x + 17, slot.y + 12.5f, 200); // 右下角锚定
+            ctx.getMatrices().scale(0.5f, 0.5f, 1f);                       // 半尺寸：最长 "606.4K" 也压不出格
+            ctx.drawText(this.textRenderer, s, -this.textRenderer.getWidth(s), 0, 0xFFFFFFFF, true);
             ctx.getMatrices().pop();
         } else {
             super.drawSlot(ctx, slot);

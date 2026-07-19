@@ -498,3 +498,9 @@ configVersion 仍 2。静态自检：16 Java 括号全平、24 JSON 合法。
 - **无线节点**：用户 bbmodel 接入（55件，0.95 缩放居中，天线越界合法处理）。静态件31件入方块模型+贴图提取；动画 animation.wireless_signal(1.8s) 三圈波纹 wave_inner/mid/outer 按关键帧缩放呼吸——烘焙 144 个四边形进 WirelessNodeRenderer（旋转元素直接烘进顶点，无 java 模型角度限制）。新增渲染用 BE + 注册。物品栏保留 2D 图标。
 - **核心模块**：用户 bbmodel 转 3D 物品模型（219件，1/2.8 缩放，102 个 ±45° 旋转全部合法转换零降级），GUI/手持/展示框显示 3D 芯片。**如实说明**：bbmodel 里的 core_module_pulse 动画（双能量核旋转+电路呼吸）物品端暂为静态——物品动画需 BuiltinItemRendererRegistry 自定义渲染器，列入后续；方块场景(若未来做核心模块方块)可直接复用 BER 套路。
 - 盯点：EnumProperty.of + StringIdentifiable（原版栅栏/紫颂同款）；ConcurrentHashMap 形状缓存；渲染器为生成代码勿手改。
+
+## m68 — 核心模块贴图取错修复 + 面板数字防撞 + 无线节点待重传（待编译验证）
+- **核心模块黑红一坨（m67 我的错，两错叠加）**：① 取了 textures[0]=core_module_mer（光影图）当彩图，真图集是 textures[1] core_module_atlas；② 该模型 UV 是每贴图 0..16 制（uv_width=16），我又按工程分辨率64除了一遍，UV 缩没。重生成：按名字排除 mer 选图集、UV 按贴图自带制式换算（此处系数=1）。转换器教训写入 SKILL：bbmodel 多贴图必看 name/uv_width，不许无脑 textures[0]。
+- **面板数字撞车**：计数原以全尺寸字体右对齐画在 18px 槽里，"606.4K" 宽出两格。改半尺寸 + 右下角锚定，最长串也不出格。
+- **无线节点没颜色**：同款取错贴图+UV除错（仓库里那张是 160×16 的 MER 条）。但本轮上传目录里 bbmodel 已不在，需用户重传 无线节点.bbmodel 后重生成静态模型与波纹渲染器 UV。
+- **"堆叠为什么还是64"**：如实说明——玩家背包/箱子的堆叠上限是原版硬规则（组件上限也才99），模组不动它；存储核心内部是 long 无限记账，取出必然按 ≤64/组落地。这不是 bug。
