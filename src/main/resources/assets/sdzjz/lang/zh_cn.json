@@ -74,5 +74,12 @@
   "item.sdzjz.cow_farm": "养牛场",
   "item.sdzjz.crop_farm": "全自动农场",
   "item.sdzjz.distributor_node": "分配器节点",
-  "item.sdzjz.auto_feeder": "自动喂食器"
+  "item.sdzjz.auto_feeder": "自动喂食器",
+  "item.sdzjz.amethyst_farm": "紫水晶机",
+  "item.sdzjz.clay_machine": "黏土机",
+  "item.sdzjz.dripstone_farm": "滴水石机",
+  "item.sdzjz.snow_machine": "造雪机",
+  "item.sdzjz.basalt_machine": "玄武岩机",
+  "item.sdzjz.fishing_machine": "钓鱼机",
+  "item.sdzjz.disc_machine": "唱片机"
 }

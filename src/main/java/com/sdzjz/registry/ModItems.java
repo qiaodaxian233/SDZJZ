@@ -87,6 +87,13 @@ public class ModItems {
     public static final Item BREEZE_FARM = reg("breeze_farm", new MachineItem(new Item.Settings(), Machines.BREEZE_FARM));
     public static final Item BONEMEAL_MACHINE = reg("bonemeal_machine", new MachineItem(new Item.Settings(), Machines.BONEMEAL_MACHINE));
     public static final Item MOSS_FARM = reg("moss_farm", new MachineItem(new Item.Settings(), Machines.MOSS_FARM));
+    public static final Item AMETHYST_FARM = reg("amethyst_farm", new MachineItem(new Item.Settings(), Machines.AMETHYST_FARM));
+    public static final Item CLAY_MACHINE = reg("clay_machine", new MachineItem(new Item.Settings(), Machines.CLAY_MACHINE));
+    public static final Item DRIPSTONE_FARM = reg("dripstone_farm", new MachineItem(new Item.Settings(), Machines.DRIPSTONE_FARM));
+    public static final Item SNOW_MACHINE = reg("snow_machine", new MachineItem(new Item.Settings(), Machines.SNOW_MACHINE));
+    public static final Item BASALT_MACHINE = reg("basalt_machine", new MachineItem(new Item.Settings(), Machines.BASALT_MACHINE));
+    public static final Item FISHING_MACHINE = reg("fishing_machine", new MachineItem(new Item.Settings(), Machines.FISHING_MACHINE));
+    public static final Item DISC_MACHINE = reg("disc_machine", new MachineItem(new Item.Settings(), Machines.DISC_MACHINE));
     public static final Item STONECUTTER_MACHINE = reg("stonecutter_machine", new MachineItem(new Item.Settings(), Machines.STONECUTTER_MACHINE));
     public static final Item VILLAGER_CONTRACT = reg("villager_contract", new Item(new Item.Settings()));
     public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Settings(), Machines.VILLAGER_BREEDER));
@@ -166,6 +173,13 @@ public class ModItems {
             entries.add(BREEZE_FARM);
             entries.add(BONEMEAL_MACHINE);
             entries.add(MOSS_FARM);
+            entries.add(AMETHYST_FARM);
+            entries.add(CLAY_MACHINE);
+            entries.add(DRIPSTONE_FARM);
+            entries.add(SNOW_MACHINE);
+            entries.add(BASALT_MACHINE);
+            entries.add(FISHING_MACHINE);
+            entries.add(DISC_MACHINE);
             entries.add(STONECUTTER_MACHINE);
             entries.add(VILLAGER_CONTRACT);
             entries.add(VILLAGER_BREEDER);

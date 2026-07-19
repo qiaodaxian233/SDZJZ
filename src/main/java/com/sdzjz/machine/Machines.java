@@ -101,6 +101,26 @@ public final class Machines {
     public static final MachineDef BONEMEAL_MACHINE = def("bonemeal_machine", "minecraft:bone_meal", 3, 15);
     public static final MachineDef MOSS_FARM = defMulti("moss_farm", 20,
             drop("minecraft:moss_block", 1, 2), drop("minecraft:moss_carpet", 0, 1, 0.3f));
+
+    // ===== m84a 缺口七机（量产覆盖审计 #1~#8）=====
+    public static final MachineDef AMETHYST_FARM = defMulti("amethyst_farm", 40,
+            drop("minecraft:amethyst_shard", 1, 3));
+    public static final MachineDef CLAY_MACHINE = defMulti("clay_machine", 30,
+            drop("minecraft:clay_ball", 2, 4), drop("minecraft:mud", 0, 1, 0.3f));
+    public static final MachineDef DRIPSTONE_FARM = defMulti("dripstone_farm", 40,
+            drop("minecraft:pointed_dripstone", 1, 2), drop("minecraft:dripstone_block", 0, 1, 0.4f));
+    public static final MachineDef SNOW_MACHINE = defMulti("snow_machine", 15,
+            drop("minecraft:snowball", 2, 4), drop("minecraft:snow_block", 0, 1, 0.3f));
+    public static final MachineDef BASALT_MACHINE = defMulti("basalt_machine", 20,
+            drop("minecraft:basalt", 2, 4));
+    public static final MachineDef FISHING_MACHINE = defMulti("fishing_machine", 60,
+            drop("minecraft:cod", 1, 1), drop("minecraft:salmon", 0, 1, 0.4f),
+            drop("minecraft:pufferfish", 0, 1, 0.15f), drop("minecraft:nautilus_shell", 0, 1, 0.03f),
+            drop("minecraft:name_tag", 0, 1, 0.01f), drop("minecraft:saddle", 0, 1, 0.01f));
+    public static final MachineDef DISC_MACHINE = defMulti("disc_machine", 200,
+            drop("minecraft:music_disc_13", 0, 1, 0.15f), drop("minecraft:music_disc_cat", 0, 1, 0.15f),
+            drop("minecraft:music_disc_blocks", 0, 1, 0.1f), drop("minecraft:music_disc_stal", 0, 1, 0.1f),
+            drop("minecraft:gunpowder", 0, 2));
     public static final MachineDef STONECUTTER_MACHINE = defConsume("stonecutter_machine", 10,
             List.of(in("minecraft:stone", 1)), drop("minecraft:stone_bricks", 1, 1));
 

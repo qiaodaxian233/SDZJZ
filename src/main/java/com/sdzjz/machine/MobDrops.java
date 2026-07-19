@@ -38,6 +38,7 @@ public final class MobDrops {
         put("minecraft:enderman", d("minecraft:ender_pearl", 0, 1));
         put("minecraft:blaze", d("minecraft:blaze_rod", 0, 1));
         put("minecraft:slime", d("minecraft:slime_ball", 0, 2));
+        put("minecraft:snow_golem", d("minecraft:snowball", 1, 3));
         put("minecraft:magma_cube", d("minecraft:magma_cream", 0, 1));
         put("minecraft:witch", d("minecraft:redstone", 0, 2), d("minecraft:glowstone_dust", 0, 2),
                 d("minecraft:sugar", 0, 1), d("minecraft:gunpowder", 0, 1), d("minecraft:glass_bottle", 0, 1, 0.3f));

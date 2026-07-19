@@ -74,5 +74,12 @@
   "item.sdzjz.cow_farm": "Cow Farm",
   "item.sdzjz.crop_farm": "Auto Crop Farm",
   "item.sdzjz.distributor_node": "Distributor Node",
-  "item.sdzjz.auto_feeder": "Auto Feeder"
+  "item.sdzjz.auto_feeder": "Auto Feeder",
+  "item.sdzjz.amethyst_farm": "Amethyst Farm",
+  "item.sdzjz.clay_machine": "Clay Machine",
+  "item.sdzjz.dripstone_farm": "Dripstone Farm",
+  "item.sdzjz.snow_machine": "Snow Machine",
+  "item.sdzjz.basalt_machine": "Basalt Machine",
+  "item.sdzjz.fishing_machine": "Fishing Machine",
+  "item.sdzjz.disc_machine": "Disc Machine"
 }

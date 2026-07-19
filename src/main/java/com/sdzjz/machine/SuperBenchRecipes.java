@@ -97,6 +97,14 @@ public final class SuperBenchRecipes {
         addSmall("sdzjz:sensor_node", "minecraft:comparator");
         addSmall("sdzjz:switch_node", "minecraft:lever");
         addSmall("sdzjz:distributor_node", "minecraft:dropper");
+        // m84a 缺口七机
+        add("sdzjz:amethyst_farm", 0, "minecraft:amethyst_shard", "minecraft:amethyst_shard", "minecraft:amethyst_block", "minecraft:amethyst_block");
+        add("sdzjz:clay_machine", 1, "minecraft:clay_ball", "minecraft:clay_ball", "minecraft:mud", "minecraft:mud");
+        add("sdzjz:dripstone_farm", 2, "minecraft:pointed_dripstone", "minecraft:pointed_dripstone", "minecraft:dripstone_block", "minecraft:dripstone_block");
+        addM("sdzjz:snow_machine", 3, "minecraft:snow_golem", "minecraft:snowball", "minecraft:snowball", "minecraft:snow_block", "minecraft:snow_block");
+        add("sdzjz:basalt_machine", 4, "minecraft:basalt", "minecraft:basalt", "minecraft:blue_ice", "minecraft:soul_soil");
+        add("sdzjz:fishing_machine", 0, "minecraft:fishing_rod", "minecraft:cod", "minecraft:salmon", "minecraft:string");
+        addM("sdzjz:disc_machine", 1, "minecraft:creeper", "minecraft:jukebox", "minecraft:note_block", "minecraft:gunpowder", "minecraft:bone");
         addSmall("sdzjz:auto_feeder", "minecraft:bread"); // m80d 自动喂食器
     }
 
