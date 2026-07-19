@@ -298,12 +298,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int dx = Math.max(40, Math.abs(x2 - x1) / 2);
         float c1x = x1 + dx, c2x = x2 - dx;
         int steps = 56;
+        // 流动效果：暗色底线常亮 + 亮色能量段沿线行进（方向 = 出口→入口 = 物流方向）
+        float phase = (System.currentTimeMillis() % 1000L) / 1000f * 10f; // 1s 走完一个虚线周期
+        int dim = (color & 0x00FFFFFF) | 0x66000000;
+        int glow = 0x66FFFFFF & color | 0x33FFFFFF;
         for (int s = 0; s <= steps; s++) {
             float t = s / (float) steps, u = 1 - t;
             float bx = u * u * u * x1 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x2;
             float by = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
             int px = (int) bx, py = (int) by;
-            ctx.fill(px - 1, py - 1, px + 1, py + 1, color);
+            float m = (s - phase) % 10f;
+            if (m < 0) m += 10f;
+            if (m < 3.5f) { // 行进亮段（带 1px 光晕）
+                ctx.fill(px - 2, py - 2, px + 2, py + 2, glow);
+                ctx.fill(px - 1, py - 1, px + 1, py + 1, color);
+            } else {        // 常亮暗底
+                ctx.fill(px - 1, py - 1, px + 1, py + 1, dim);
+            }
         }
     }
 
