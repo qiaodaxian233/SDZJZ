@@ -72,6 +72,15 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     /** 取出：跨核心累计取，返回实际取出数量。 */
+    @Override
+    public java.util.Map<String, Long> storeView() { // 聚合快照：万能熔炉"接什么烧什么"扫描用
+        java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();
+        for (StorageCoreBlockEntity core : cores())
+            for (var e : core.storeView().entrySet())
+                merged.merge(e.getKey(), e.getValue(), Long::sum);
+        return merged;
+    }
+
     public int withdraw(String id, int amount) {
         int got = 0;
         for (StorageCoreBlockEntity core : cores()) {

@@ -16,4 +16,7 @@ public interface StorageAccess {
 
     /** 库存量。 */
     long count(String id);
+
+    /** 库存清单只读视图（id→数量）。存储核心=内部表；数据面板=聚合它网络全部核心的快照。只许读，取料走 withdraw。 */
+    java.util.Map<String, Long> storeView();
 }

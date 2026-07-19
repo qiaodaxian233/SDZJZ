@@ -1058,7 +1058,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
         if (amt <= 0) return;
-        StorageCoreBlockEntity dep = depositFor(world, fromIndex);
+        com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex);
         ItemStack rest = new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
         if (dep != null) depositOrBuffer(dep, rest);
         else addOutput(rest);
@@ -1077,7 +1077,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
         if (amt <= 0) return;
-        StorageCoreBlockEntity dep = depositFor(world, fromIndex); // 剩余按定向存储→默认路由
+        com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex); // 剩余按定向存储→默认路由
         ItemStack rest = new ItemStack(Registries.ITEM.get(Identifier.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
         if (dep != null) depositOrBuffer(dep, rest);
         else addOutput(rest);

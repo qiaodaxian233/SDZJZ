@@ -594,3 +594,8 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - 金剑熔炼核验：SmeltPlanner 遍历全部 ingredient 匹配栈，原版金装备→金粒已覆盖，零改动。
 - 开关/分配器真美术归位，逻辑节点四件套美术齐；名单划 2 项。
 - 待编译验证：接口多实现、停靠栏坐标换算、insertMachine。
+
+## m79 — 修 m78 编译错(3处): StorageAccess 补 storeView + 两处 dep 改型
+- storeView() 加入接口契约(只读清单视图)；数据面板实现=聚合网络全部核心的快照(万能熔炉扫描用，取料仍走 withdraw)。
+- 两处 `StorageCoreBlockEntity dep = depositFor(...)` 漏改 → StorageAccess。
+- 全扫确认：StorageAccess 变量仅调用 count/deposit/withdraw/storeView，无其它核心专属方法残留。
