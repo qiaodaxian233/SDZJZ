@@ -12,6 +12,14 @@ public final class Machines {
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());
     public static final MachineDef SWITCH_NODE = new MachineDef("switch_node", List.of(), 5, false, List.of());
+    public static final MachineDef CHICKEN_FARM = defMulti("chicken_farm", 30,
+            drop("minecraft:chicken", 1, 2), drop("minecraft:feather", 0, 2, 0.6f), drop("minecraft:egg", 0, 1, 0.5f));
+    public static final MachineDef SHEEP_FARM = defMulti("sheep_farm", 30,
+            drop("minecraft:white_wool", 1, 2), drop("minecraft:mutton", 1, 2));
+    public static final MachineDef COW_FARM = defMulti("cow_farm", 30,
+            drop("minecraft:beef", 1, 3), drop("minecraft:leather", 0, 2, 0.6f));
+    /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
+    public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 
     // ---- 单产农场 ----
     public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);

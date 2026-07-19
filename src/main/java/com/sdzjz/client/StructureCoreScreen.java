@@ -306,7 +306,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return;
         }
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 44, y + 26, CYAN, false);
-        if (st.getItem() instanceof AutoCrafterItem) {
+        boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
+        if (st.getItem() instanceof AutoCrafterItem || isCrop) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, 0xFF0C1E30);
@@ -319,7 +320,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                ctx.drawText(this.textRenderer, "设目标", x + 44, y + 38, SUB, false);
+                ctx.drawText(this.textRenderer, isCrop ? "选作物" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
     }
@@ -564,6 +565,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
                             if (nodes.get(i).getItem() instanceof AutoCrafterItem)
                                 addMenu("选择合成目标", () -> openPicker(idx));
+                            if (nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem)
+                                addMenu("选择种植作物", () -> openCropPicker(idx));
                             if (StructureCoreBlockEntity.isFilter(nodes.get(i))) {
                                 addMenu("配置过滤物品…", () -> openFilterPicker(idx));
                                 addMenu(StructureCoreBlockEntity.filterBlacklist(nodes.get(i)) ? "切为白名单" : "切为黑名单",
@@ -633,12 +636,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 自动合成机目标徽章
+                    // 目标徽章：自动合成机=全物品选择器；全自动农场=作物选择器
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        if (!(nodes.get(i).getItem() instanceof AutoCrafterItem)) continue;
+                        boolean auto = nodes.get(i).getItem() instanceof AutoCrafterItem;
+                        boolean crop = nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem;
+                        if (!auto && !crop) continue;
                         int bx = wnx(be, nodes, i) + NW - 30, by = wny(be, nodes, i) + 14;
                         if (wx >= bx && wx <= bx + 20 && wy >= by && wy <= by + 20) {
-                            openPicker(i);
+                            if (crop) openCropPicker(i); else openPicker(i);
                             return true;
                         }
                     }
@@ -820,6 +825,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerField.setFocused(true);
     }
 
+    /** 作物选择（全自动农场，固定 9 种）。 */
+    private List<Item> cropItems;
+
+    private void openCropPicker(int node) {
+        pickerMode = 3;
+        pickerNode = node;
+        if (cropItems == null) {
+            cropItems = new ArrayList<>();
+            for (String id : com.sdzjz.machine.CropFarms.KEYS)
+                cropItems.add(Registries.ITEM.get(Identifier.of(id)));
+        }
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
     /** 全物品表（过滤/传感器可选任意物品，不限可合成）。 */
     private void buildAllItems() {
         allItems = new ArrayList<>();
@@ -850,7 +872,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void refilterPicker() {
         pickerFiltered.clear();
-        List<Item> src = pickerMode == 0 ? craftables : allItems;
+        List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
         for (Item it : src) {
@@ -871,6 +893,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(px, py, px + PICK_W, py + 3, CYAN);
         String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
+                : pickerMode == 3 ? "选择种植作物"
                 : "选择目标产物（中文/英文搜索）";
         ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
         List<String> selIds = java.util.Collections.emptyList();

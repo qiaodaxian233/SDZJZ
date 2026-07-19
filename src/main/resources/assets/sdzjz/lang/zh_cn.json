@@ -68,5 +68,9 @@
   "itemGroup.sdzjz.main": "生电终结者",
   "item.sdzjz.filter_node": "过滤器节点",
   "item.sdzjz.sensor_node": "数量传感器",
-  "item.sdzjz.switch_node": "开关节点"
+  "item.sdzjz.switch_node": "开关节点",
+  "item.sdzjz.chicken_farm": "养鸡场",
+  "item.sdzjz.sheep_farm": "养羊场",
+  "item.sdzjz.cow_farm": "养牛场",
+  "item.sdzjz.crop_farm": "全自动农场"
 }

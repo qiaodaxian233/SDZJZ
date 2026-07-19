@@ -88,6 +88,10 @@ public final class SuperBenchRecipes {
         addM("sdzjz:wire_brusher", 3, "minecraft:spider", "minecraft:string", "minecraft:string", "minecraft:string", "minecraft:cobweb");
         addM("sdzjz:witch_tower", 4, "minecraft:witch", "minecraft:glowstone_dust", "minecraft:glowstone_dust", "minecraft:spider_eye", "minecraft:sugar");
         addM("sdzjz:wither_skeleton_farm", 0, "minecraft:wither_skeleton", "minecraft:bone", "minecraft:coal", "minecraft:coal", "minecraft:soul_sand");
+        addM("sdzjz:chicken_farm", 1, "minecraft:chicken", "minecraft:feather", "minecraft:feather", "minecraft:egg", "minecraft:egg");
+        addM("sdzjz:sheep_farm", 2, "minecraft:sheep", "minecraft:white_wool", "minecraft:white_wool", "minecraft:mutton", "minecraft:mutton");
+        addM("sdzjz:cow_farm", 3, "minecraft:cow", "minecraft:beef", "minecraft:beef", "minecraft:leather", "minecraft:leather");
+        add("sdzjz:crop_farm", 4, "minecraft:wheat", "minecraft:carrot", "minecraft:potato", "minecraft:beetroot");
     }
 
     /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */

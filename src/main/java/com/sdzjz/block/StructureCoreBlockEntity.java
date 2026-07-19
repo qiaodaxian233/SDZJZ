@@ -255,6 +255,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) {
+                // 全自动农场：按所选作物产出（免费，对齐原版农场）
+                String crop = craftTarget(st);
+                java.util.List<MachineDef.Drop> cropDrops = com.sdzjz.machine.CropFarms.get(crop);
+                if (cropDrops == null) { be.stat(i, 0); continue; } // 未选作物=待机
+                int interval = Math.max(cfg.accelMinPeriodTicks, 40 - speedLv * 4);
+                if (be.ticks % interval != 0) continue;
+                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                be.stat(i, 1);
+                StorageCoreBlockEntity depositCf = hasOut[i] ? null : be.depositFor(world, i);
+                for (MachineDef.Drop d : cropDrops) {
+                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
+                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
+                    if (amt <= 0) continue;
+                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
+                    else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    produced = true;
+                }
             } else if (st.getItem() instanceof MachineItem miu && "super_smelter".equals(miu.def().id())) {
                 // 万能熔炉：接什么烧什么（原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料/存储网络。
                 int interval = Math.max(cfg.accelMinPeriodTicks, miu.def().baseIntervalTicks() - speedLv * 4);
@@ -581,7 +601,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void setNodeTarget(int index, String id) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if (!(s.getItem() instanceof AutoCrafterItem)) return;
+        boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         n.putString("ct", id);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
