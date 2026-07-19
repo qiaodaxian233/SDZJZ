@@ -87,6 +87,8 @@ public class DataPanelScreenHandler extends ScreenHandler {
         } else {
             // 玩家背包 → 存入面板
             if (panel != null) {
+                // 带组件的物品（附魔/损耗/药水/成书等）拒存：仓储按 id 记账，存入会抹掉组件——宁可不动，绝不销毁数据
+                if (!stack.getComponentChanges().isEmpty()) return ItemStack.EMPTY;
                 ItemStack copy = stack.copy();
                 panel.deposit(copy);
                 // 只按实际存入量扣：无存储核心/类型满时余量留在原槽，绝不凭空消失
