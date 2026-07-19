@@ -80,11 +80,12 @@ public class DataPanelScreenHandler extends ScreenHandler {
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (panel == null) return false;
         if (id == 1) {
+            if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity sp)) return true;
             long pts = totalXp(player);
             if (pts <= 0) { msg(player, "你没有可存入的经验"); return true; }
             if (!panel.xpDeposit(pts)) { msg(player, "网络里没有存储核心，无法存入经验"); return true; }
-            player.setExperienceLevel(0);
-            player.setExperiencePoints(0);
+            sp.setExperienceLevel(0);  // 这两个 setter 在 ServerPlayerEntity 上（Yarn 1.21 查证），
+            sp.setExperiencePoints(0); // PlayerEntity 没有——onButtonClick 本就服务端执行，安全转型
             msg(player, "已存入经验 " + pts + " 点");
             return true;
         }

@@ -610,3 +610,7 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - d: 终端自动补货(潜行右键循环 关/16/32/64；inventoryTick 每秒从绑定面板把主手可堆叠物补到阈值；带组件物不补)；
      自动喂食器(副手选食物/潜行清除/绑面板；背包优先网络兜底；eat(FoodComponent) 不含使用型效果——已注明)。
 - 盯点：ItemTooltipCallback 签名、setExperiencePoints、HungerManager.eat(已查证1.21存在)、Property 同步下标。
+
+## m81 — 修 m80c 编译错(2处): setExperienceLevel/Points 在 ServerPlayerEntity 上
+- Yarn 1.21 查证：两 setter 属 ServerPlayerEntity（/experience 命令同款），PlayerEntity 无。
+- onButtonClick 服务端执行，instanceof 安全转型后调用。
