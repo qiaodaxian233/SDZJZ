@@ -137,7 +137,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
     private int busCols() { return Math.max(1, (this.width - 24) / (SW + 14)); }
     private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (SW + 14); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 58 + (j / busCols()) * (SH + 16); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (SH + 16); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -182,10 +182,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // ===== 存储总线：顶部横排，屏幕坐标绘制，永远可见 =====
         if (!ends.isEmpty()) {
             int rows = (ends.size() + busCols() - 1) / busCols();
-            int bot = 58 + rows * (SH + 16) + 2;
-            ctx.fill(8, 38, this.width - 8, bot, 0x66060B14);
+            int bot = 44 + rows * (SH + 16) + 2;
+            ctx.fill(8, 24, this.width - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, this.width - 8, bot, 0xFF2E6E8E); // 总线底轨
-            ctx.drawText(this.textRenderer, "存储总线 · 机器绿口拖到节点=定向入库/供料", 14, 43, SUB, false);
+            ctx.drawText(this.textRenderer, "存储总线 · 机器绿口拖到节点=定向入库/供料", 14, 29, SUB, false);
         }
         // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标
         for (long[] e : be.storageEdgesView()) {
@@ -410,24 +410,29 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
-        ctx.fill(0, 0, this.width, 34, 0xEE0A121F);
-        ctx.fill(0, 33, this.width, 34, CYAN);
+        // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
+        ctx.fill(0, 0, this.width, 20, 0xEE0A121F);
+        ctx.fill(0, 19, this.width, 20, CYAN);
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
+
+        // 底部背板：按钮 + 状态 + 提示 一体
+        ctx.fill(0, this.height - 64, this.width, this.height, 0xEE0A121F);
+        ctx.fill(0, this.height - 64, this.width, this.height - 63, CYAN);
         boolean run = this.handler.isRunning();
-        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 10, 18, run ? ON : SUB, false);
-        ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), 72, 18, ON, false);
+        int sx = 304;
+        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", sx, this.height - 54, run ? ON : SUB, false);
+        ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), sx + 62, this.height - 54, ON, false);
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
         if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
-        String st = "机器 " + this.handler.machineCount()
-                + "  存储 " + stor + " · 终端 " + term
-                + "  缓存 " + fmtNum(this.handler.buffered())
-                + "  升级∑ 加速" + this.handler.speedLv()
+        ctx.drawText(this.textRenderer, "机器 " + this.handler.machineCount()
+                + "  存储 " + stor + " · 面板 " + term
+                + "  缓存 " + fmtNum(this.handler.buffered()), sx + 140, this.height - 54, SUB, false);
+        ctx.drawText(this.textRenderer, "升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
-                + "  缩放" + String.format("%.1f", zoom) + "x";
-        ctx.drawText(this.textRenderer, st, 130, 12, SUB, false);
+                + "  缩放" + String.format("%.1f", zoom) + "x", sx, this.height - 42, SUB, false);
         ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞/关闸 红=缺料 · 过滤/传感器右键配置", 8, this.height - 12, SUB, false);
     }
 

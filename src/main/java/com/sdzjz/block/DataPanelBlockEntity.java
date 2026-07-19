@@ -128,6 +128,10 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();
         for (Map.Entry<String, Long> e : agg.entrySet())
             if (q.isEmpty() || e.getKey().toLowerCase().contains(q) || matchedIds.contains(e.getKey())) filtered.add(e);
+        filtered.sort((a, b) -> { // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
+            int c = Long.compare(b.getValue(), a.getValue());
+            return c != 0 ? c : a.getKey().compareTo(b.getKey());
+        });
         filteredCount = filtered.size();
         int rows = (filteredCount + 8) / 9;
         int maxRow = Math.max(0, rows - 6);
