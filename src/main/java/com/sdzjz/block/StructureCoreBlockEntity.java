@@ -73,7 +73,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 机器↔存储 定向连线：{machineIndex, posLong, dir}，dir 0=机器→存储(产出) 1=存储→机器(供料)。 */
     private final java.util.List<long[]> storageEdges = new java.util.ArrayList<>();
     private final java.util.List<String> storageEdgeDims = new java.util.ArrayList<>();
-    private long lastEndpointScan = Long.MIN_VALUE;
+    // m90【根因修复】原为 Long.MIN_VALUE：getTime()-MIN_VALUE 长整型溢出为负 → ">=40" 永假 →
+    // 端点扫描自诞生起一次都没执行过——这就是"总线/停靠栏在所有截图里都不出现"的唯一真凶。
+    private long lastEndpointScan = -1000;
     private static final int ENDPOINT_CAP = 9; // 含常驻输出接口
     /** 常驻「输出接口」哨兵端点：连它=显式走默认自动路由（绑定>有线>无线>卫星>输出缓存）。 */
     public static final long OUTPUT_IFACE = Long.MIN_VALUE + 7;
