@@ -313,16 +313,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) {
-                // 全自动农场：按所选作物产出（免费，对齐原版农场）
-                String crop = craftTarget(st);
-                java.util.List<MachineDef.Drop> cropDrops = com.sdzjz.machine.CropFarms.get(crop);
-                if (cropDrops == null) { be.stat(i, 0); continue; } // 未选作物=待机
+                // 全自动农场：按所选作物产出（免费，对齐原版农场）。m93：多选≤8种，逐种产出
+                java.util.List<String> cropsSel = cropList(st);
+                if (cropsSel.isEmpty()) { be.stat(i, 0); continue; } // 未选作物=待机
                 int interval = Math.max(cfg.accelMinPeriodTicks, 40 - speedLv * 4);
                 if (be.ticks % interval != 0) continue;
                 int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
-                for (MachineDef.Drop d : cropDrops) {
+                java.util.List<MachineDef.Drop> allDrops = new java.util.ArrayList<>();
+                for (String crop : cropsSel) {
+                    java.util.List<MachineDef.Drop> cd = com.sdzjz.machine.CropFarms.get(crop);
+                    if (cd != null) allDrops.addAll(cd);
+                }
+                for (MachineDef.Drop d : allDrops) {
                     if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
@@ -517,6 +521,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 读取自动合成机节点的目标产物 id（无则空串）。 */
+    /** m93：全自动农场多选作物（最多8种）。无 crops 列表时回退旧单选 ct（自动迁移）。 */
+    public static java.util.List<String> cropList(ItemStack s) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (n.contains("crops")) {
+            net.minecraft.nbt.NbtList l = n.getList("crops", 8);
+            for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
+        } else {
+            String ct = n.getString("ct");
+            if (!ct.isEmpty() && com.sdzjz.machine.CropFarms.has(ct)) out.add(ct);
+        }
+        return out;
+    }
+
     public static String craftTarget(ItemStack s) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         return n.contains("ct") ? n.getString("ct") : "";
@@ -666,7 +684,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
         if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-        n.putString("ct", id);
+        if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
+            java.util.List<String> cur = cropList(s);
+            if (cur.contains(id)) cur.remove(id);
+            else if (cur.size() < 8) cur.add(id);
+            net.minecraft.nbt.NbtList l = new net.minecraft.nbt.NbtList();
+            for (String c : cur) l.add(net.minecraft.nbt.NbtString.of(c));
+            n.put("crops", l);
+            n.remove("ct");
+        } else {
+            n.putString("ct", id);
+        }
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         markDirty();
         syncToClient();

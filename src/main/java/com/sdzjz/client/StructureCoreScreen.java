@@ -68,6 +68,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int libScroll = 0;
     private boolean busCollapsed = false; // m91：总线收起（拉线时自动展开）
     private boolean busVisible() { return !busCollapsed || linking; }
+    private static float busScale = 1f;   // m93：总线大小滑块（0.8~1.25，跨开屏保留）
+    private boolean busScaleDrag = false;
+    private int bw() { return Math.round(SW * busScale); }
+    private int bh() { return Math.round(SH * busScale); }
+    private int busTrackX() { return workRight() - 152; }
+    private static final int BUS_TRACK_W = 104;
+    private void busScaleFromMouse(double mx) {
+        busScale = (float) Math.max(0.8, Math.min(1.25, 0.8 + (mx - busTrackX()) / BUS_TRACK_W * 0.45));
+    }
 
     // ===== m89：端点直发包缓存（BE 同步链实机不生效的最终修复）=====
     private static long endsCachePos = Long.MIN_VALUE;
@@ -255,9 +264,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
-    private int busCols() { return Math.max(1, (workRight() - 24) / (SW + 14)); }
-    private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (SW + 14); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (SH + 12); }
+    private int busCols() { return Math.max(1, (workRight() - 24) / (bw() + 14)); }
+    private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (bw() + 14); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (bh() + 12); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -302,7 +311,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
         {
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
-            int bot = busVisible() ? 44 + rows * (SH + 12) + 2 : 44;
+            int bot = busVisible() ? 44 + rows * (bh() + 12) + 2 : 44;
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
@@ -312,6 +321,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(tx - 1, 25, tx + 23, 41, th ? 0xFF3FA9D0 : 0xFF1E4258);
             ctx.fill(tx, 26, tx + 22, 40, 0xFF0D1B2C);
             ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+            // m93：总线大小滑块（0.8x~1.25x）
+            int trx = busTrackX();
+            ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SUB, false);
+            ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, 0xFF1E4258);
+            int knx = trx + Math.round((busScale - 0.8f) / 0.45f * (BUS_TRACK_W - 6));
+            ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? 0xFF9BE8FF : 0xFF3FA9D0);
             if (busVisible() && ends.isEmpty())
                 ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
@@ -323,7 +338,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (ist.isEmpty()) continue;
                 String cnt = fmtNum(bc.get(k2));
                 int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
-                if (cx + cw > workRight() - 44) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
+                if (cx + cw > workRight() - 186) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
                 ctx.drawItem(ist, cx, 22);
                 ctx.drawText(this.textRenderer, cnt, cx + 18, 29, TXT, false);
                 cx += cw;
@@ -339,16 +354,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int mys = (int) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
             if (e[2] == 0) { // 机器→存储（产出）：接到节点下缘左收料口
                 int mxs = (int) (panX + (wnx(be, nodes, mi) + NW) * zoom);
-                drawWire(ctx, mxs, mys, sx + 14, sy + SH + 2, CYAN);
+                drawWire(ctx, mxs, mys, sx + 14, sy + bh() + 2, CYAN);
             } else {         // 存储→机器（供料）：从节点下缘右供料口出
                 int mxi = (int) (panX + wnx(be, nodes, mi) * zoom);
-                drawWire(ctx, sx + SW - 14, sy + SH + 2, mxi, mys, ON);
+                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, mxi, mys, ON);
             }
         }
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
-            drawWire(ctx, sx + SW - 14, sy + SH + 2, mouseX, mouseY, 0xFF9BF0C0);
+            drawWire(ctx, sx + bw() - 14, sy + bh() + 2, mouseX, mouseY, 0xFF9BF0C0);
         }
         if (busVisible()) for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
@@ -366,11 +381,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int x = snx(be, pl, j), y = sny(be, pl, j);
         boolean iface = kind == 6;
         int frm = iface ? CYAN : kind == 5 ? TERMFRM : kind == 4 ? OFFFRM : STORFRM;
-        ctx.fill(x - 1, y - 1, x + SW + 1, y + SH + 1, frm);
-        ctx.fill(x, y, x + SW, y + SH, NODEBG);
-        ctx.fill(x, y, x + SW, y + 3, frm);
-        ctx.fill(x + 10, y + SH - 2, x + 18, y + SH + 4, CYAN);                  // 收料口·下缘左（连到面板=存进它聚合的整个网络）
-        if (!iface) ctx.fill(x + SW - 18, y + SH - 2, x + SW - 10, y + SH + 4, ON); // 供料口·下缘右（输出接口无）
+        ctx.fill(x - 1, y - 1, x + bw() + 1, y + bh() + 1, frm);
+        ctx.fill(x, y, x + bw(), y + bh(), NODEBG);
+        ctx.fill(x, y, x + bw(), y + 3, frm);
+        ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, CYAN);                  // 收料口·下缘左（连到面板=存进它聚合的整个网络）
+        if (!iface) ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, ON); // 供料口·下缘右（输出接口无）
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
@@ -475,8 +490,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, 0xFF0C1E30);
+            java.util.List<String> cropsSel = isCrop ? StructureCoreBlockEntity.cropList(st) : java.util.List.of();
             String t = StructureCoreBlockEntity.craftTarget(st);
-            if (!t.isEmpty()) {
+            if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
+                ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(0)))), bx + 2, by + 2);
+                int nm = Math.min(3, cropsSel.size());
+                for (int k = 0; k < nm; k++)
+                    ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
+                ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
+            } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
@@ -733,6 +755,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // m93 总线大小滑块抓取
+        int trxC = busTrackX();
+        if (button == 0 && mouseX >= trxC - 3 && mouseX <= trxC + BUS_TRACK_W + 3 && mouseY >= 26 && mouseY <= 40) {
+            busScaleDrag = true;
+            busScaleFromMouse(mouseX);
+            return true;
+        }
         // m91 总线收起/展开开关
         int tbx = workRight() - 34;
         if (button == 0 && mouseX >= tbx && mouseX <= tbx + 22 && mouseY >= 26 && mouseY <= 40) {
@@ -789,6 +818,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                         ClientPlayNetworking.send(new NodeTargetPayload(bp, pickerNode, iid));
+                        if (pickerMode == 3) return true; // m93 多选作物：toggle 后不关面板，继续点选
                     }
                     closePicker();
                     return true;
@@ -823,7 +853,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {
+                        if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
                             clearMenu();
                             addMenu("断开全部连线", () -> clearLinksOfStorage(pl));
                             addMenu("取消", () -> {});
@@ -878,7 +908,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
                         long pl = ends.get(j)[0];
-                        int oxp = snx(be, pl, j) + SW - 14, oyp = sny(be, pl, j) + SH;
+                        int oxp = snx(be, pl, j) + bw() - 14, oyp = sny(be, pl, j) + bh();
                         if (Math.abs(mouseX - oxp) <= 8 && Math.abs(mouseY - oyp) <= 8) {
                             linking = true; linkStor = pl; linkFrom = -1; return true;
                         }
@@ -887,7 +917,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (mouseX >= sx - 4 && mouseX <= sx + SW + 6 && mouseY >= sy && mouseY <= sy + SH) return true;
+                        if (mouseX >= sx - 4 && mouseX <= sx + bw() + 6 && mouseY >= sy && mouseY <= sy + bh()) return true;
                     }
                     // 开关节点：点按钮切换 开/关
                     for (int i = nodes.size() - 1; i >= 0; i--) {
@@ -949,6 +979,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (pickerNode >= 0 || menuOpen) return true;
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
@@ -970,6 +1001,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        busScaleDrag = false; // m93
         if (button == 0 && linking) {
             StructureCoreBlockEntity be = be();
             BlockPos p = this.handler.blockPos();
@@ -984,7 +1016,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0]; // 数据面板也可连（存进它聚合的整个网络）
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {
+                        if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
                             ClientPlayNetworking.send(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));
                             done = true;
                             break;
@@ -1136,14 +1168,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(px, py, px + PICK_W, py + 3, CYAN);
         String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
-                : pickerMode == 3 ? "选择种植作物"
+                : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"
                 : "选择目标产物（中文/英文搜索）";
         ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
         List<String> selIds = java.util.Collections.emptyList();
-        if (pickerMode == 1) {
+        if (pickerMode == 1 || pickerMode == 3) { // m93：作物多选沿用白名单的已选高亮
             StructureCoreBlockEntity be3 = be();
             if (be3 != null && pickerNode >= 0 && pickerNode < be3.nodes().size())
-                selIds = StructureCoreBlockEntity.filterList(be3.nodes().get(pickerNode));
+                selIds = pickerMode == 1
+                        ? StructureCoreBlockEntity.filterList(be3.nodes().get(pickerNode))
+                        : StructureCoreBlockEntity.cropList(be3.nodes().get(pickerNode));
         }
         pickerField.setX(px + 8);
         pickerField.setY(py + 22);
@@ -1153,7 +1187,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int k = 0; k < pickerFiltered.size(); k++) {
             int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
             boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
-            boolean sel = pickerMode == 1 && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
+            boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
             if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
             ctx.fill(cx, cy, cx + 20, cy + 20, hov ? 0xFF14304A : sel ? 0xFF10321E : 0xFF0C1E30);
             ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
