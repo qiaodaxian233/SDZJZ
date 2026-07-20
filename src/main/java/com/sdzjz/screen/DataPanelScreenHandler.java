@@ -70,6 +70,8 @@ public class DataPanelScreenHandler extends ScreenHandler {
         });
         this.addSlot(new Slot(trash, 0, 334, 216));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
+        // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
+        if (be != null && be.getWorld() != null && !be.getWorld().isClient) be.addViewer();
     }
 
     // ===== m84b 合成终端（ME 风格：终端里直接手动合成）=====
@@ -130,6 +132,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
         if (player.getWorld().isClient) return;
+        if (panel != null) panel.removeViewer(); // m107a：注销查看者（断线也走 onClosed，不泄漏）
         for (int i = 0; i < 9; i++) { // 关界面归还合成格材料，绝不吞
             ItemStack st = craft.getStack(i);
             if (!st.isEmpty()) {

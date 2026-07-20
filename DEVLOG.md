@@ -809,3 +809,15 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
     insertItem 全塞不进则不扣料直接停、塞进一半余量落脚下(AE2 同款)后停。客户端 return EMPTY 不预测。
 - 协议自查：客户端零预测 → container_click 改动槽位极少，m95 的 128 槽上限风险不存在。
 - 效果：网格摆一次模板，只要网络有料，shift 一下出一组；配合 m106a 类型显示修复，终端体验对齐 ME。
+
+## m107 存储终端全量体检+优化（用户点名"优化界面·检查可优化项"）
+体检出 8 项，分三批：a 性能 / b 滚动 / c 合成区。
+
+### m107a 性能三项（隐藏但真实的空转）
+- ①经验属性每 tick 双 BFS：xpProps.get(0/1) 每 tick 各调 xpTotal()，其内 cores()=BFS 4096——
+  界面开着=每秒 40 次 BFS。改 xpCache：aggregate 复用同一次 BFS 顺手统计，存/取经验即时增减缓存。
+- ②闲置面板空转：tick 每 10t 无条件 BFS+聚合+排序，无人看也在跑，每块面板一路常驻开销。
+  改 viewers 计数门控：handler 服务端构造 +1（并立即刷一次——顺手修"打开瞬间空白 0.5s"），
+  onClosed -1（断线也走 onClosed 不泄漏）。机器/终端的 deposit/withdraw/count 走 live 路径不受影响。
+- ③搜索卡键：每敲一字全注册表逐项 new ItemStack+本地化(1400+项)。改静态索引一次构建；
+  语言切换用"石头本地化名探针"检测重建——不引入 LanguageManager 新接口，复用已有 getName 路径。

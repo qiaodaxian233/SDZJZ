@@ -50,14 +50,27 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     }
 
     /** 用客户端本地化显示名匹配物品 id（支持中文搜索），上限 200 条防包过大。 */
+    // m107a：此前每敲一个字全注册表逐项 new ItemStack+本地化(1400+项)——改静态索引一次构建。
+    // 语言切换探针：石头的本地化名变了=换了语言，重建索引（不引入 LanguageManager 新接口，复用已有 getName 路径）。
+    private static java.util.LinkedHashMap<String, String> nameIndex;
+    private static String nameProbe;
+
     private static java.util.List<String> matchByLocalName(String q) {
         if (q == null || q.isBlank()) return java.util.List.of();
+        String probe = new net.minecraft.item.ItemStack(net.minecraft.item.Items.STONE).getName().getString();
+        if (nameIndex == null || !probe.equals(nameProbe)) {
+            java.util.LinkedHashMap<String, String> idx = new java.util.LinkedHashMap<>();
+            for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM)
+                idx.put(net.minecraft.registry.Registries.ITEM.getId(item).toString(),
+                        new net.minecraft.item.ItemStack(item).getName().getString().toLowerCase());
+            nameIndex = idx;
+            nameProbe = probe;
+        }
         String lower = q.toLowerCase();
         java.util.List<String> out = new java.util.ArrayList<>();
-        for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM) {
-            String name = new net.minecraft.item.ItemStack(item).getName().getString().toLowerCase();
-            if (name.contains(lower)) {
-                out.add(net.minecraft.registry.Registries.ITEM.getId(item).toString());
+        for (java.util.Map.Entry<String, String> e : nameIndex.entrySet()) {
+            if (e.getValue().contains(lower)) {
+                out.add(e.getKey());
                 if (out.size() >= 200) break;
             }
         }

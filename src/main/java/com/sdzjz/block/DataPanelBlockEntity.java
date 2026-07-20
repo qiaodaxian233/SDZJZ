@@ -39,10 +39,16 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
         if (world.isClient) return;
+        if (be.viewers <= 0) return; // m107a：无人查看不聚合——闲置面板零 BFS 空转（存取走 live 路径不受影响）
         // 节流：refreshDisplay 内部要 BFS 聚合存储核心，每 tick 跑是卡顿机器；改每 10 tick。
         if (++be.refreshTicker % 10 != 0) return;
         be.refreshDisplay();
     }
+
+    // m107a：打开界面的玩家计数。handler 服务端构造 +1（并立即刷一次，打开不空白），onClosed -1。
+    private int viewers = 0;
+    public void addViewer() { viewers++; refreshDisplay(); }
+    public void removeViewer() { if (viewers > 0) viewers--; }
 
     private List<StorageCoreBlockEntity> cores() {
         return StorageCoreBlockEntity.connectedCores(this.world, this.pos);
@@ -51,9 +57,11 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private LinkedHashMap<String, Long> aggregate() {
         LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
         int used = 0, coreCount = 0; long cap = 0; boolean unlimited = false; // m97/m98
+        long xp = 0; // m107a：经验总量顺手统计（复用同一次 BFS）
         for (StorageCoreBlockEntity core : cores()) {
             coreCount++;
             used += core.storeView().size();
+            xp += core.xpBank();
             int mt = core.maxTypes();
             if (mt == Integer.MAX_VALUE) unlimited = true; else cap += mt; // 防 MAX_VALUE 求和溢出
             for (Map.Entry<String, Long> e : core.storeView().entrySet())
@@ -61,6 +69,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         }
         typesUsedCache = Math.min(used, 65534);
         typesCapCache = coreCount == 0 ? 0 : (unlimited ? 0xFFFF : (int) Math.min(cap, 65534L));
+        xpCache = xp;
         return agg;
     }
 
@@ -86,14 +95,11 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     /** 取出：跨核心累计取，返回实际取出数量。 */
     // ===== m80c 经验库（聚合网络全部核心）=====
-    public long xpTotal() {
-        long n = 0;
-        for (StorageCoreBlockEntity core : cores()) n += core.xpBank();
-        return n;
-    }
+    private long xpCache = 0; // m107a：此前 xpTotal 每次 BFS，且属性通道每 tick 读 2 次=每秒 40 次 BFS——改读缓存
+    public long xpTotal() { return xpCache; }
     /** 存入：进网络第一个核心；无核心返回 false（不吞玩家经验）。 */
     public boolean xpDeposit(long points) {
-        for (StorageCoreBlockEntity core : cores()) { core.xpAdd(points); return true; }
+        for (StorageCoreBlockEntity core : cores()) { core.xpAdd(points); xpCache += points; return true; }
         return false;
     }
     /** 取出至多 max 点（跨核心），返回实际取出。 */
@@ -103,6 +109,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             got += core.xpTake(max - got);
             if (got >= max) break;
         }
+        xpCache = Math.max(0, xpCache - got);
         return got;
     }
 
