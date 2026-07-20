@@ -657,3 +657,11 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - 机器库侧栏：顶条「机器库」按钮开关；左侧面板列背包里全部可入画布物品(机器/农场/已捕获笼子/逻辑四件,
   去重合并计数)；点击行=NodeAddPayload→服务端从背包扣1台 insertMachine；滚轮翻页；面板区吞点击。
 - NodeAddPayload(pos,itemId) C2S + viewingCore 校验 + 物品类型白名单（防塞任意物品）。
+
+## m89 — 总线数据改走专用 S2C 包（端点消失案·最终修复）
+- 实机证据(用户图)：核心运行中+10秒强制同步开启，客户端端点仍空——BE 的 NBT 同步链对这份数据不生效，
+  而 handler 属性(机器数/运行状态)一直可靠。不再赌 BE 同步。
+- CanvasEndsPayload(S2C, 并行列表编码)：端点(pos/kind/dim)+总线库存(ids/counts)；服务端 tick 每 40t
+  发给 currentScreenHandler 正在看该核心的玩家；客户端收包进静态缓存。
+- 画布全部读取点(9处端点/6处维度/2+2处库存)切换为 缓存优先、BE 后备；诊断文案更新"2秒内应出现输出接口"。
+- 盯点：PacketCodecs.collection/VAR_LONG 签名、PacketCodec.tuple 六元。

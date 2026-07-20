@@ -53,6 +53,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);

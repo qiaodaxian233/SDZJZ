@@ -21,6 +21,11 @@ public class SdzjzClient implements ClientModInitializer {
         BlockEntityRendererRegistry.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
         BlockEntityRendererRegistry.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
         BlockEntityRendererRegistry.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
+        // m89：画布端点直发包 → 静态缓存（画布优先读缓存，BE 数据后备）
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+                com.sdzjz.net.CanvasEndsPayload.ID,
+                (payload, context) -> context.client().execute(() ->
+                        com.sdzjz.client.StructureCoreScreen.applyEndsPayload(payload)));
         // m80：全模组物品 tooltip 水印
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))

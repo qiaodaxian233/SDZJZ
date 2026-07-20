@@ -128,6 +128,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.scanStorageEndpoints(world, pos);
         }
         if (world.getTime() % 200 == 0) be.syncToClient(); // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）
+        // m89：端点+总线库存 直发正在看画布的玩家（BE同步链实机不生效的最终修复——走已被证明可靠的包通道）
+        if (world.getTime() % 40 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw) {
+            com.sdzjz.net.CanvasEndsPayload pk = null;
+            for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+                if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
+                        || !pos.equals(h.blockPos())) continue;
+                if (pk == null) pk = be.buildEndsPayload(pos);
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+            }
+        }
         if (!be.running) return;
 
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
@@ -1036,6 +1046,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     public java.util.List<long[]> storageEndpointsView() { return storageEndpoints; }
+
+    /** m89：打包端点+总线库存（并行列表）。 */
+    public com.sdzjz.net.CanvasEndsPayload buildEndsPayload(BlockPos pos) {
+        java.util.List<Long> ep = new java.util.ArrayList<>();
+        java.util.List<Integer> ek = new java.util.ArrayList<>();
+        java.util.List<String> ed = new java.util.ArrayList<>();
+        for (int i = 0; i < storageEndpoints.size(); i++) {
+            ep.add(storageEndpoints.get(i)[0]);
+            ek.add((int) storageEndpoints.get(i)[1]);
+            ed.add(i < storageEndpointDims.size() ? storageEndpointDims.get(i) : "");
+        }
+        return new com.sdzjz.net.CanvasEndsPayload(pos, ep, ek, ed,
+                new java.util.ArrayList<>(busTopIds), new java.util.ArrayList<>(busTopCounts));
+    }
 
     // m85：总线库存（网络前10物品，画布顶栏「存储总线（网络库存）」展示）
     private final java.util.List<String> busTopIds = new java.util.ArrayList<>();

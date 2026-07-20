@@ -66,6 +66,45 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double panX = 0, panY = 0, zoom = 1.0;
     private boolean libOpen = false; // m88 机器库侧栏
     private int libScroll = 0;
+
+    // ===== m89：端点直发包缓存（BE 同步链实机不生效的最终修复）=====
+    private static long endsCachePos = Long.MIN_VALUE;
+    private static java.util.List<long[]> endsCache = java.util.List.of();
+    private static java.util.List<String> endsDimsCache = java.util.List.of();
+    private static java.util.List<String> busIdsCache = java.util.List.of();
+    private static java.util.List<Long> busCountsCache = java.util.List.of();
+
+    public static void applyEndsPayload(com.sdzjz.net.CanvasEndsPayload p) {
+        java.util.List<long[]> e = new java.util.ArrayList<>();
+        for (int i = 0; i < p.endPos().size() && i < p.endKind().size(); i++)
+            e.add(new long[]{p.endPos().get(i), p.endKind().get(i)});
+        endsCache = e;
+        endsDimsCache = new java.util.ArrayList<>(p.endDim());
+        busIdsCache = new java.util.ArrayList<>(p.busIds());
+        busCountsCache = new java.util.ArrayList<>(p.busCounts());
+        endsCachePos = p.pos().asLong();
+    }
+
+    private boolean cacheHit() {
+        BlockPos p = this.handler.blockPos();
+        return p != null && p.asLong() == endsCachePos;
+    }
+
+    private List<long[]> endsOf(StructureCoreBlockEntity be) {
+        return cacheHit() ? endsCache : be.storageEndpointsView();
+    }
+
+    private java.util.List<String> endDimsOf(StructureCoreBlockEntity be) {
+        return cacheHit() ? endsDimsCache : be.storageEndpointDimsView();
+    }
+
+    private java.util.List<String> busIdsOf(StructureCoreBlockEntity be) {
+        return cacheHit() ? busIdsCache : be.busTopIdsView();
+    }
+
+    private java.util.List<Long> busCountsOf(StructureCoreBlockEntity be) {
+        return cacheHit() ? busCountsCache : be.busTopCountsView();
+    }
     private int dragIndex = -1;
     private long dragStor = Long.MIN_VALUE;
     private double dragOffX, dragOffY;
@@ -230,7 +269,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         StructureCoreBlockEntity be = be();
         if (be == null) return;
         List<ItemStack> nodes = be.nodes();
-        List<long[]> ends = be.storageEndpointsView();
+        List<long[]> ends = endsOf(be);
 
         MatrixStack m = ctx.getMatrices();
         m.push();
@@ -265,11 +304,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
-            if (ends.isEmpty()) ctx.drawText(this.textRenderer, "端点未同步（等几秒；输出接口应常驻在此）", 14, 48, SUB, false);
+            if (ends.isEmpty()) ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
-            java.util.List<String> bi = be.busTopIdsView();
-            java.util.List<Long> bc = be.busTopCountsView();
+            java.util.List<String> bi = busIdsOf(be);
+            java.util.List<Long> bc = busCountsOf(be);
             for (int k2 = 0; k2 < bi.size(); k2++) {
                 ItemStack ist = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(bi.get(k2))));
                 if (ist.isEmpty()) continue;
@@ -303,7 +342,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             drawWire(ctx, sx + SW - 14, sy + SH + 2, mouseX, mouseY, 0xFF9BF0C0);
         }
         for (int j = 0; j < ends.size(); j++)
-            drawStorageNode(ctx, be, ends.get(j), j, j < be.storageEndpointDimsView().size() ? be.storageEndpointDimsView().get(j) : "");
+            drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
     }
 
     private static int endpointIndex(List<long[]> ends, long pl) {
@@ -336,7 +375,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (iface) title = "输出接口";
         else { // 分组编号：存储1/2…、数据面板1/2…（服务端已按 接口→存储→面板 排序）
             int no = 0;
-            java.util.List<long[]> allEp = be.storageEndpointsView();
+            java.util.List<long[]> allEp = endsOf(be);
             for (int k = 0; k <= j && k < allEp.size(); k++)
                 if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
             title = (kind == 5 ? "数据面板" : "存储") + no;
@@ -522,7 +561,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         boolean run = this.handler.isRunning();
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
-        if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
+        if (be != null) for (long[] e : endsOf(be)) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
         int nRun = 0, nBlk = 0, nLack = 0;
         if (be != null) for (int i = 0; i < be.nodes().size(); i++) {
             int st2 = be.nodeStatus(i);
@@ -654,8 +693,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (be == null || p == null) return;
         for (int[] c : new ArrayList<>(be.connections()))
             if (c[0] == idx || c[1] == idx) ClientPlayNetworking.send(new NodeLinkPayload(p, c[0], c[1]));
-        List<String> dims = be.storageEndpointDimsView();
-        List<long[]> ends = be.storageEndpointsView();
+        List<String> dims = endDimsOf(be);
+        List<long[]> ends = endsOf(be);
         for (long[] e : new ArrayList<>(be.storageEdgesView()))
             if (e[0] == idx) {
                 int j = endpointIndex(ends, e[1]);
@@ -668,8 +707,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         StructureCoreBlockEntity be = be();
         BlockPos p = this.handler.blockPos();
         if (be == null || p == null) return;
-        List<String> dims = be.storageEndpointDimsView();
-        List<long[]> ends = be.storageEndpointsView();
+        List<String> dims = endDimsOf(be);
+        List<long[]> ends = endsOf(be);
         int j = endpointIndex(ends, pl);
         String dim = j >= 0 && j < dims.size() ? dims.get(j) : "";
         for (long[] e : new ArrayList<>(be.storageEdgesView()))
@@ -683,7 +722,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (be == null || p == null) return;
         for (int i = 0; i < be.nodes().size(); i++)
             ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i % 6) * 112, 20 + (i / 6) * 88));
-        List<long[]> ends = be.storageEndpointsView();
+        List<long[]> ends = endsOf(be);
         for (int j = 0; j < ends.size(); j++)
             ClientPlayNetworking.send(new StorageNodeMovePayload(p, ends.get(j)[0], 760, 20 + j * 72));
     }
@@ -752,7 +791,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             StructureCoreBlockEntity be = be();
             if (be != null) {
                 List<ItemStack> nodes = be.nodes();
-                List<long[]> ends = be.storageEndpointsView();
+                List<long[]> ends = endsOf(be);
                 double wx = wmx(mouseX), wy = wmy(mouseY);
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
@@ -926,8 +965,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             BlockPos p = this.handler.blockPos();
             if (be != null && p != null) {
                 List<ItemStack> nodes = be.nodes();
-                List<long[]> ends = be.storageEndpointsView();
-                List<String> dims = be.storageEndpointDimsView();
+                List<long[]> ends = endsOf(be);
+                List<String> dims = endDimsOf(be);
                 double wx = wmx(mouseX), wy = wmy(mouseY);
                 if (linkFrom >= 0) {
                     // 优先看是否落在存储节点上 → 机器→存储 定向产出
