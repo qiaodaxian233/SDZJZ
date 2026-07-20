@@ -764,3 +764,14 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
   附魔名走原版翻译键(enchantment.minecraft.*)+罗马数字等级。
 - 附魔书构建走 1.21 注册表 API：RegistryManager→ENCHANTMENT wrapper→getOrThrow→ItemStack.addEnchantment
   (RegistryEntry,lv)。待编译验证盯点：getWrapperOrThrow/getOrThrow 两个方法名若报错，查 Yarn 对应改名。
+
+## m102 深层采掘平台（量产钻石+下界合金碎片链路打通）
+- 量产覆盖.md 提案1落地：加权多掉落——深板岩1-3常掉、凝灰岩/方解石/红沙、原铜铁金三件套、
+  **钻石(0.15慢)**、**远古残骸(0.05更慢)**，周期40t。残骸接万能熔炉直接烧成下界合金碎片
+  （熔炼表本就覆盖），A组硬通货①钻石②残骸/碎片两条死路一台机器全通。
+- 引子模式配方：**钻石×2+远古残骸×2**（超大工作台模板0）——第一份仍得亲手下矿，保留原版仪式感；
+  多重集全库唯一（ancient_debris 此前不在任何签名里，grep 验证过）。
+- 注册六件套逐项计数断言（m92b 教训）：MachineDef/ModItems reg+创造栏/配方/中英 lang/模型/贴图 全数确认，
+  lang 和模型 JSON 均过 json.load 校验。贴图为程序占位（深蓝机身+钻头+钻石，128×128 RGBA），
+  已挂绘图名单待真美术。
+- 升级适配说明：走通用 MachineItem 分支，m99 新数学直接生效——速度/数量/并发全部可叠。

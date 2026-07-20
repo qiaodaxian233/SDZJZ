@@ -21,6 +21,18 @@ public final class Machines {
             drop("minecraft:beef", 1, 3), drop("minecraft:leather", 0, 2, 0.6f));
     public static final MachineDef PIG_FARM = defMulti("pig_farm", 30,
             drop("minecraft:porkchop", 1, 2)); // m92 用户点名补缺
+    /** m102 深层采掘平台（量产覆盖审计A/B组补缺）：加权多掉落——钻石慢、远古残骸更慢；
+     * 残骸接万能熔炉即烧成下界合金碎片，合金锭链路就此打通。引子配方：钻石×2+远古残骸×2。 */
+    public static final MachineDef DEEP_MINING_PLATFORM = defMulti("deep_mining_platform", 40,
+            drop("minecraft:deepslate", 1, 3),
+            drop("minecraft:tuff", 0, 2, 0.6f),
+            drop("minecraft:calcite", 0, 2, 0.5f),
+            drop("minecraft:red_sand", 0, 2, 0.4f),
+            drop("minecraft:raw_copper", 1, 3, 0.6f),
+            drop("minecraft:raw_iron", 0, 2, 0.5f),
+            drop("minecraft:raw_gold", 0, 1, 0.35f),
+            drop("minecraft:diamond", 1, 1, 0.15f),
+            drop("minecraft:ancient_debris", 1, 1, 0.05f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 

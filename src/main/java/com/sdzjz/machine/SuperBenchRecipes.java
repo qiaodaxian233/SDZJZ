@@ -93,6 +93,7 @@ public final class SuperBenchRecipes {
         addM("sdzjz:cow_farm", 3, "minecraft:cow", "minecraft:beef", "minecraft:beef", "minecraft:leather", "minecraft:leather");
         addM("sdzjz:pig_farm", 1, "minecraft:pig", "minecraft:porkchop", "minecraft:porkchop", "minecraft:carrot", "minecraft:carrot"); // m92
         add("sdzjz:crop_farm", 4, "minecraft:wheat", "minecraft:carrot", "minecraft:potato", "minecraft:beetroot");
+        add("sdzjz:deep_mining_platform", 0, "minecraft:diamond", "minecraft:diamond", "minecraft:ancient_debris", "minecraft:ancient_debris"); // m102 引子模式:先亲手挖到样本
         // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞 140+ 件的机器配方）
         addSmall("sdzjz:filter_node", "minecraft:hopper");
         addSmall("sdzjz:sensor_node", "minecraft:comparator");
