@@ -41,6 +41,7 @@ public class ModItems {
     public static final Item CHICKEN_FARM = reg("chicken_farm", new MachineItem(new Item.Settings(), Machines.CHICKEN_FARM));
     public static final Item SHEEP_FARM   = reg("sheep_farm",   new MachineItem(new Item.Settings(), Machines.SHEEP_FARM));
     public static final Item COW_FARM     = reg("cow_farm",     new MachineItem(new Item.Settings(), Machines.COW_FARM));
+    public static final Item PIG_FARM      = reg("pig_farm",      new MachineItem(new Item.Settings(), Machines.PIG_FARM)); // m92
     public static final Item CROP_FARM    = reg("crop_farm",    new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.CROP_FARM));
 
     // 机器（MachineItem 携带 MachineDef）
@@ -121,6 +122,7 @@ public class ModItems {
             entries.add(CHICKEN_FARM);
             entries.add(SHEEP_FARM);
             entries.add(COW_FARM);
+            entries.add(PIG_FARM);
             entries.add(CROP_FARM);
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);

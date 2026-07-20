@@ -91,6 +91,7 @@ public final class SuperBenchRecipes {
         addM("sdzjz:chicken_farm", 1, "minecraft:chicken", "minecraft:feather", "minecraft:feather", "minecraft:egg", "minecraft:egg");
         addM("sdzjz:sheep_farm", 2, "minecraft:sheep", "minecraft:white_wool", "minecraft:white_wool", "minecraft:mutton", "minecraft:mutton");
         addM("sdzjz:cow_farm", 3, "minecraft:cow", "minecraft:beef", "minecraft:beef", "minecraft:leather", "minecraft:leather");
+        addM("sdzjz:pig_farm", 1, "minecraft:pig", "minecraft:porkchop", "minecraft:porkchop", "minecraft:carrot", "minecraft:carrot"); // m92
         add("sdzjz:crop_farm", 4, "minecraft:wheat", "minecraft:carrot", "minecraft:potato", "minecraft:beetroot");
         // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞 140+ 件的机器配方）
         addSmall("sdzjz:filter_node", "minecraft:hopper");
