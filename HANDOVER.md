@@ -1,7 +1,8 @@
 # 生电终结者 · 项目交接文档（HANDOVER）
 
-> 给接手的人（或新对话里的 AI）。读完这份 + `DESIGN.md` + `SKILL.md` 就能无缝接上，不用翻聊天记录。
-> 仓库：https://github.com/qiaodaxian233/SDZJZ · Fabric 1.21.1 · 纯 Java · 前置仅 Fabric API。
+> 给接手的人（或新对话里的 AI）。**新对话开局标准动作**：作者贴仓库地址+一次性 PAT → clone →
+> 读本文件 + DEVLOG.md 末尾几节 → 直接接活。不用翻聊天记录。
+> 仓库：https://github.com/qiaodaxian233/SDZJZ · Fabric 1.21.1 · Yarn · 纯 Java · 前置仅 Fabric API。
 
 ## ⭐ 开发守则（置顶必守）
 
@@ -20,37 +21,55 @@
 - 多文件交付走 **git push**，不甩一堆 attachment。
 - 别装看过资料；抓不全就说抓不全。
 
-> 沙箱**编不了 Fabric/Mojang 依赖**，新 API 一律标「待编译验证」，作者本地 IDEA + JDK21 编译。沙箱会重置 → 每里程碑及时 push。push 靠作者一次性 PAT，**绝不写进任何提交文件**。
+## ⭐⭐ 工作流铁律（血泪换的，m99 之前丢过整轮工作）
 
-## 0. 一分钟速览
+1. **做一步推一步**：每完成一个独立改动就 commit + push，绝不在沙箱里攒。沙箱随时重置。
+2. PAT 由作者在对话里现贴，**绝不写进任何提交文件**；git 身份沿用仓库既有提交者。
+3. 沙箱编不了 Fabric/Mojang 依赖 → 新 API 一律标「待编译验证」，作者本地 IDEA+JDK21 编译，报错贴回逐个修。
+   沙箱可 `apt-get update && apt-get install openjdk-21-jdk-headless` 装 javac 做**纯语法冒烟检查**
+   （grep "expected|illegal|reached end|not a statement|unclosed"，其余报错都是缺 MC 依赖，正常）。
+4. **注册六件套逐项计数断言**（m92b 教训）：新物品 = MachineDef + ModItems(reg+创造栏两处) +
+   SuperBenchRecipes/data 配方 + 中英 lang + 模型 json + 贴图 png，改完逐项 grep 验数，JSON 过 json.load。
+5. 每里程碑写 DEVLOG（现象→根因→修法→教训），提交信息带 mNN 编号。
+6. 升级/封顶类公式改动必问："到顶之后玩家再投入会怎样"——静默无效比数值弱更伤（m99 教训）。
 
-用可连线功能面板替代生电红石工程。控制器方块开节点画布，面板=画布里的虚拟节点（合成出的面板物品当添加成本），面板靠电力运转，加速模块超线性耗电。MVP 先用槽位机架式 GUI 跑通逻辑，节点画布自绘留到后期；数据模型从头按「节点+边」存，后期只换渲染层。
+## 当前状态（m104b · 远端 b7598e0 · 2026-07）
 
-## 1. 当前状态（m1 · Phase 0 骨架）
+**作者已本地编译全绿至 m102；m103/m104 为小修+美术，低风险待验。** 近期里程碑：
 
-已落地（**全部待编译验证**，沙箱编不了）：
+- **m99 升级数学重写**：工作量累积模型。速率=(1+speedGain)^速度级×productionRateMultiplier，
+  每 tick 累积、溢出折同 tick 多周期永不触底；并发=直接乘台数(台数×(1+级)×tier)；数量封顶只剩
+  "产出只能进内部缓存"时。五条生产分支（自动合成/农场/万能熔炉/通用机/抓物笼）统一。
+  config 新增 upgradeSpeedGainPerLevel(0.5)/upgradeMaxCyclesPerTick(20)，configVersion=4。
+- **m100 批量取出**：数据面板右键浮层第二行 2组/4组/8组/填满背包；服务端分块取+余量回仓绝不落地。
+- **m101 交易所**：图书管理员 10 本好附魔书（绿宝石+书，治愈折扣生效）；列表 4 行滚动窗口；
+  附魔书直发背包（仓储按 id 记账会抹组件，绝不入仓）；修双输入交易不扣第二种料的旧 bug。
+- **m102 深层采掘平台**：钻石(0.15)/远古残骸(0.05)/深层地质/原矿三件套加权掉落；引子配方
+  钻石×2+残骸×2；残骸→万能熔炉→下界合金碎片，量产链打通。
+- **m103** 滚轮只在悬停交易列表时翻页；**m104** 深层采掘平台真美术归位，**全库 79 张物品图零占位**。
 
-- Loom 工程：`build.gradle` / `settings.gradle` / `gradle.properties`（四个版本号在 `gradle.properties` 顶部，build 失败照 fabricmc.net/develop 调）
-- `fabric.mod.json`（main=`com.sdzjz.Sdzjz`，client=`com.sdzjz.SdzjzClient`）+ `sdzjz.mixins.json`（空占位）
-- 主类 `Sdzjz`（`onInitialize`：加载 config + 注册物品组；`id()` 用 `Identifier.of`）
-- 客户端类 `SdzjzClient`（占位）
-- 配置 `SdzjzConfig`（GSON + configVersion=1，缺键取默认回写；含电力/防卡顿/基调字段）
-- 注册 `ModItems`：创造物品组「生电终结者」（后续所有物品的锚点）
-- 中英 lang
-- 文档：README / DESIGN / SKILL / HANDOVER / DEVLOG
+## 架构速查（改哪类问题去哪个文件）
 
-**gradle wrapper 未内置**：本地首次跑 `gradle wrapper --gradle-version 8.10` 生成 `gradlew`，或用 IDEA 导入自动补。
+- **生产/升级/tick**：`block/StructureCoreBlockEntity.java`（~1900 行核心；五分支 tick、
+  cyclesThisTick/runningCount/rollDrops、供料 supplyFor/入库 depositFor/分发 distribute、链式需求 chainWants）
+- **机器定义/注册**：`machine/Machines.java`(掉落表) + `registry/ModItems.java` + `machine/SuperBenchRecipes.java`(引子签名配方)
+- **存储网络**：`block/StorageCoreBlockEntity.java`（connectedCores=贴邻/数据线 BFS4096；类型默认无限 m98）
+- **存储终端**：`screen/DataPanelScreenHandler.java`(按钮 id=1000+格×10+档位0..8) + `client/DataPanelScreen.java`
+- **交易所**：`machine/VillagerTrades.java`(纯Java,Trade record 含 enchant 字段) +
+  `block/TradeCenterBlockEntity.java`(employ/trade/heal) + `client/TradeCenterScreen.java`
+- **画布 UI**：`client/StructureCoreScreen.java`（节点/总线/机器库侧栏/视图控制）
+- **网络包**：`net/*Payload.java`，注册与接收器在 `Sdzjz.java`
+- **美术管线**：物品图 128×128 RGBA 透明底进 `textures/item/`；归位=裁边→留4%边距补方→LANCZOS 128→
+  断言尺寸/模式/覆盖率→勾 `绘图名单.md`
 
-## 2. 下一步（Phase 1）
+## 待办池（按优先级）
 
-跑通最小闭环：控制器方块 + 方块实体（存节点图 + 电网缓冲）+ 第一个生产面板 + 内部缓冲 + 机架式 ScreenHandler/Screen + 一条面板合成配方。目标：合成面板 → 装进控制器 → 定时出货进缓冲 → 取出。
+1. 验证 m103/m104 编译与实机（滚轮区域、采掘平台产出、附魔书购买全流程）。
+2. 量产覆盖.md 提案 2 考古工作站 / 提案 3 末地远征平台 / 提案 4 试炼农场（引子模式照 m102 抄）。
+3. 概念图剩余大件：小地图、节点卡片齿轮设置/单节点启停（见 DEVLOG m89 对照表）。
+4. 可选重绘 5 张程序生成图（绘图名单.md 底部，非必做）。
 
-## 3. 未决项（待作者拍板，见 DESIGN 第九节）
+## 用户使用速查（作者常问）
 
-电单位命名 / 采集面板是否锚定真实区块条件 / 具体数值基调 / 是否跨维度或强制加载区块。
-
----
-
-## 最新状态（m8 · Phase 1 竖切已落，待编译验证）
-
-结构核心 + 刷线机 + 三升级 + 抓物笼子 + 阶梯配方 + 超大工作台 全部代码落地并 push，**未在沙箱编译过**。作者本地 `./gradlew build`，报错贴回逐个修（见 DEVLOG m8 的 6 个大概率盯点）。核心愿景/机器清单/消耗原则见 DESIGN.md、机器清单.md、机器系统.md。
+村民合同：工作台 纸6+面包2+绿宝石1；交易所=绿宝石4+铁锭4+核心模块，**必须贴存储核心或数据线连通**，
+就业耗网络里 1 个职业工作方块（图书管理员=讲台），治愈耗金苹果每级-10%最高5级，附魔书进背包不进仓。
