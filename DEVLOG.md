@@ -751,3 +751,16 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - 服务端统一成分块循环：按堆叠上限逐块 withdraw→insertStack→塞不下的**余量原路 deposit 回仓**，
   绝不落地绝不销毁（drop 只留双保险分支，理论到不了）。批量档位完成后 actionbar 报"已装入 N 个/背包没有空位"。
 - 浮层高度 +20，底边 clamp 跟着调，屏幕边缘弹出不再溢出。
+
+## m101 交易所：图书管理员好附魔书 + 列表滚动（"打折机"补完）
+- 澄清：折扣机制一直有（治愈按钮，金苹果+1级，每级输入-10%，最高5级）——缺的是**值得打折的货**。
+- 图书管理员追加 10 本好书：经验修补/精准采集/时运III/效率V/锋利V/抢夺III/保护IV/无限/耐久III/引雷，
+  绿宝石(15~30,取材原版大师级)+书×1 购买，折扣对绿宝石生效。Trade record 扩 enchant/enchantLv 字段，
+  t() 助手跟上，新增 book() 助手；BTN 编码区间 10..39 装 14 条交易绰绰有余，协议零改动。
+- **顺手修现成 bug**：trade() 此前完全没查/没扣 in2Item——双输入交易第二种料白拿。现在查够再一起扣。
+- 附魔书产出**只进玩家背包**（insertStack，满则脚下掉落）：仓储按 id 记账、面板拒收带组件物品，
+  进仓=附魔被抹，宁占背包绝不丢数据，交易后 actionbar 说明原因。
+- 界面：交易列表改 4 行滚动窗口+右侧滚动条，点击命中按滚动偏移换算；行内新画第二输入(+书×1)、
+  附魔名走原版翻译键(enchantment.minecraft.*)+罗马数字等级。
+- 附魔书构建走 1.21 注册表 API：RegistryManager→ENCHANTMENT wrapper→getOrThrow→ItemStack.addEnchantment
+  (RegistryEntry,lv)。待编译验证盯点：getWrapperOrThrow/getOrThrow 两个方法名若报错，查 Yarn 对应改名。

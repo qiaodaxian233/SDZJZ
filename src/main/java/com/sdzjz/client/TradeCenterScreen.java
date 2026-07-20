@@ -26,6 +26,13 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
     private static final int CELL     = 0xFF0A1626;
     private static final int CELLFRM  = 0xFF163049;
     private static final int ROW_H    = 22;
+    private static final int VISIBLE_ROWS = 4; // m101 交易列表滚动窗口
+    private int tradeScroll;
+
+    private static String roman(int lv) {
+        String[] r = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        return lv >= 0 && lv < r.length ? r[lv] : String.valueOf(lv);
+    }
 
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/trade_center_gui.png");
 
@@ -75,11 +82,14 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
             ctx.drawBorder(hx, hy, 62, 18, hovH ? CYAN : CELLFRM);
             ctx.drawText(this.textRenderer, disc >= 5 ? "折扣已满" : "治愈+折扣", hx + 5, hy + 5, disc >= 5 ? SUB : TXT, false);
 
-            // 交易列表
+            // 交易列表（m101 滚动窗口：一次 4 条，滚轮翻页——图书管理员 14 条不再压穿界面）
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
-            for (int i = 0; i < trades.size(); i++) {
+            int maxScroll = Math.max(0, trades.size() - VISIBLE_ROWS);
+            if (tradeScroll > maxScroll) tradeScroll = maxScroll;
+            for (int v = 0; v < VISIBLE_ROWS && tradeScroll + v < trades.size(); v++) {
+                int i = tradeScroll + v;
                 VillagerTrades.Trade t = trades.get(i);
-                int rx = x + 80, ry = y + 48 + i * (ROW_H + 4);
+                int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 boolean hov = mouseX >= rx && mouseX < rx + 270 && mouseY >= ry && mouseY < ry + ROW_H;
                 ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? 0xFF102A40 : CELL);
                 ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
@@ -88,12 +98,31 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 ItemStack out = new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())));
                 ctx.drawItem(in, rx + 4, ry + 3);
                 ctx.drawText(this.textRenderer, "×" + need, rx + 24, ry + 8, TXT, false);
+                if (t.in2Item() != null) { // m101 第二输入（附魔书要的那本书）
+                    ctx.drawText(this.textRenderer, "+", rx + 52, ry + 8, SUB, false);
+                    ItemStack in2 = new ItemStack(Registries.ITEM.get(Identifier.of(t.in2Item())));
+                    ctx.drawItem(in2, rx + 62, ry + 3);
+                    ctx.drawText(this.textRenderer, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
+                }
                 ctx.drawText(this.textRenderer, "→", rx + 130, ry + 8, CYAN, false);
                 ctx.drawItem(out, rx + 150, ry + 3);
-                ctx.drawText(this.textRenderer, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
+                if (t.enchant() != null) { // m101 附魔书：显示附魔名+等级（走原版翻译键）
+                    String en = Text.translatable("enchantment." + t.enchant().replace(':', '.')).getString()
+                            + (t.enchantLv() > 1 ? " " + roman(t.enchantLv()) : "");
+                    ctx.drawText(this.textRenderer, en, rx + 170, ry + 8, 0xFF9BE8FF, false);
+                } else {
+                    ctx.drawText(this.textRenderer, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
+                }
                 if (hov) ctx.drawText(this.textRenderer, "点击交易", rx + 214, ry + 8, CYAN, false);
             }
-            ctx.drawText(this.textRenderer, "输入从相连存储核心扣、产出存回；治愈消耗 1 金苹果", x + 80, y + 156, SUB, false);
+            if (maxScroll > 0) { // m101 滚动条
+                int trackX = x + 352, trackY = y + 48, trackH = VISIBLE_ROWS * (ROW_H + 4) - 4;
+                ctx.fill(trackX, trackY, trackX + 4, trackY + trackH, CELL);
+                int thumbH = Math.max(10, trackH * VISIBLE_ROWS / trades.size());
+                int thumbY = trackY + (trackH - thumbH) * tradeScroll / maxScroll;
+                ctx.fill(trackX, thumbY, trackX + 4, thumbY + thumbH, CYAN);
+            }
+            ctx.drawText(this.textRenderer, "输入从存储扣·产出存回·附魔书进背包·滚轮翻页", x + 80, y + 156, SUB, false);
         }
 
         // 背包标题 + 槽底
@@ -148,15 +177,30 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 return true;
             }
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
-            for (int i = 0; i < trades.size(); i++) {
-                int rx = x + 80, ry = y + 48 + i * (ROW_H + 4);
+            for (int v = 0; v < VISIBLE_ROWS && tradeScroll + v < trades.size(); v++) { // m101 按滚动偏移换算
+                int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 if (mx >= rx && mx < rx + 270 && my >= ry && my < ry + ROW_H) {
-                    this.client.interactionManager.clickButton(this.handler.syncId, TradeCenterScreenHandler.BTN_TRADE_BASE + i);
+                    this.client.interactionManager.clickButton(this.handler.syncId,
+                            TradeCenterScreenHandler.BTN_TRADE_BASE + tradeScroll + v);
                     return true;
                 }
             }
         }
         return super.mouseClicked(mx, my, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double h, double v) { // m101 滚轮翻交易列表
+        String prof = TradeCenterBlockEntity.contractProf(this.handler.contract());
+        if (prof != null) {
+            int maxScroll = Math.max(0, VillagerTrades.ALL.get(prof).trades().size() - VISIBLE_ROWS);
+            if (maxScroll > 0) {
+                if (v < 0 && tradeScroll < maxScroll) tradeScroll++;
+                else if (v > 0 && tradeScroll > 0) tradeScroll--;
+                return true;
+            }
+        }
+        return super.mouseScrolled(mx, my, h, v);
     }
 
     @Override

@@ -10,8 +10,9 @@ import java.util.Map;
  */
 public final class VillagerTrades {
 
-    /** in2Item 可为 null（单输入交易）。 */
-    public record Trade(String inItem, int inCount, String in2Item, int in2Count, String outItem, int outCount) {}
+    /** in2Item 可为 null（单输入交易）；enchant 非 null 时产物为该附魔的附魔书（m101）。 */
+    public record Trade(String inItem, int inCount, String in2Item, int in2Count,
+                        String outItem, int outCount, String enchant, int enchantLv) {}
 
     /** 职业 id → (工作方块, 交易列表)。工作方块用于"就业"消耗。 */
     public record Profession(String workstation, String nameKey, List<Trade> trades) {}
@@ -28,7 +29,18 @@ public final class VillagerTrades {
                 t("minecraft:paper", 24, "minecraft:emerald", 1),
                 t("minecraft:book", 4, "minecraft:emerald", 1),
                 t("minecraft:emerald", 9, "minecraft:bookshelf", 1),
-                t("minecraft:emerald", 5, "minecraft:lantern", 1))));
+                t("minecraft:emerald", 5, "minecraft:lantern", 1),
+                // m101 好附魔书（绿宝石+书购买，价格取材原版大师级区间；折扣对绿宝石生效）
+                book("minecraft:mending", 1, 30),
+                book("minecraft:silk_touch", 1, 20),
+                book("minecraft:fortune", 3, 25),
+                book("minecraft:efficiency", 5, 25),
+                book("minecraft:sharpness", 5, 25),
+                book("minecraft:looting", 3, 20),
+                book("minecraft:protection", 4, 15),
+                book("minecraft:infinity", 1, 25),
+                book("minecraft:unbreaking", 3, 15),
+                book("minecraft:channeling", 1, 25))));
         ALL.put("cartographer", new Profession("minecraft:cartography_table", "sdzjz.prof.cartographer", List.of(
                 t("minecraft:paper", 24, "minecraft:emerald", 1),
                 t("minecraft:glass_pane", 11, "minecraft:emerald", 1),
@@ -57,7 +69,13 @@ public final class VillagerTrades {
     }
 
     private static Trade t(String in, int inN, String out, int outN) {
-        return new Trade(in, inN, null, 0, out, outN);
+        return new Trade(in, inN, null, 0, out, outN, null, 0);
+    }
+
+    /** m101 附魔书交易：绿宝石×cost + 书×1 → 指定附魔书。 */
+    private static Trade book(String enchantId, int lv, int emeraldCost) {
+        return new Trade("minecraft:emerald", emeraldCost, "minecraft:book", 1,
+                "minecraft:enchanted_book", 1, enchantId, lv);
     }
 
     public static List<String> professionIds() { return List.copyOf(ALL.keySet()); }

@@ -101,7 +101,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         contractSlot.markDirty();
     }
 
-    /** 执行第 index 条交易：输入按折扣从网络取，输出存回网络。 */
+    /** 执行第 index 条交易：输入按折扣从网络取，输出存回网络；附魔书直发玩家背包（m101）。 */
     public void trade(PlayerEntity player, int index) {
         ItemStack c = contractSlot.getStack(0);
         String prof = contractProf(c);
@@ -115,11 +115,31 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             player.sendMessage(Text.literal("材料不足：需要 " + need + "× " + t.inItem()), true);
             return;
         }
+        // m101 修现成 bug：双输入交易此前完全没查/没扣第二种料（附魔书要的那本书）
+        if (t.in2Item() != null && netCount(t.in2Item()) < t.in2Count()) {
+            player.sendMessage(Text.literal("材料不足：需要 " + t.in2Count() + "× " + t.in2Item()), true);
+            return;
+        }
         netWithdraw(t.inItem(), need);
-        ItemStack out = new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())), t.outCount());
-        if (!netDeposit(out)) {
-            // 存储满类型收不下：还给玩家，别凭空消失
-            if (!player.getInventory().insertStack(out)) player.dropItem(out, false);
+        if (t.in2Item() != null) netWithdraw(t.in2Item(), t.in2Count());
+
+        if (t.enchant() != null && this.world != null) {
+            // m101 附魔书：按注册表构建带附魔的书。产物**只进玩家背包**——
+            // 仓储按物品 id 记账、面板拒收带组件物品，进仓等于附魔被抹，宁可占背包绝不丢数据。
+            ItemStack book = new ItemStack(net.minecraft.item.Items.ENCHANTED_BOOK);
+            var reg = this.world.getRegistryManager()
+                    .getWrapperOrThrow(net.minecraft.registry.RegistryKeys.ENCHANTMENT);
+            var entry = reg.getOrThrow(net.minecraft.registry.RegistryKey.of(
+                    net.minecraft.registry.RegistryKeys.ENCHANTMENT, Identifier.of(t.enchant())));
+            book.addEnchantment(entry, t.enchantLv());
+            if (!player.getInventory().insertStack(book)) player.dropItem(book, false);
+            player.sendMessage(Text.literal("附魔书已放入背包（带附魔物品不进仓储，防丢附魔）"), true);
+        } else {
+            ItemStack out = new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())), t.outCount());
+            if (!netDeposit(out)) {
+                // 存储满类型收不下：还给玩家，别凭空消失
+                if (!player.getInventory().insertStack(out)) player.dropItem(out, false);
+            }
         }
         player.addExperience(3 + player.getRandom().nextInt(4)); // 原版交易经验 3-6
     }
