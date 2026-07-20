@@ -1,5 +1,0 @@
--nowarn
--d
-/tmp/out
-src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
-src/main/java/com/sdzjz/config/SdzjzConfig.java
