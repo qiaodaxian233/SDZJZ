@@ -207,6 +207,16 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (k >= 5) msg(player, given > 0 ? "已装入 " + given + " 个" : "背包没有空位");
             return true;
         }
+        if (id == 3) { // m107c 清空合成网格：无组件回网络，带组件/无核心的余量回背包，绝不落地销毁
+            for (int i = 0; i < 9; i++) {
+                ItemStack st = craft.getStack(i);
+                if (st.isEmpty()) continue;
+                craft.setStack(i, ItemStack.EMPTY);
+                if (st.getComponentChanges().isEmpty()) panel.deposit(st); // deposit 按实际存入量扣减 st
+                if (!st.isEmpty() && !player.getInventory().insertStack(st)) player.dropItem(st, false);
+            }
+            return true;
+        }
         if (id == 1) {
             if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity sp)) return true;
             long pts = totalXp(player);
@@ -301,7 +311,11 @@ public class DataPanelScreenHandler extends ScreenHandler {
             // 玩家背包 → 存入面板
             if (panel != null) {
                 // 带组件的物品（附魔/损耗/药水/成书等）拒存：仓储按 id 记账，存入会抹掉组件——宁可不动，绝不销毁数据
-                if (!stack.getComponentChanges().isEmpty()) return ItemStack.EMPTY;
+                if (!stack.getComponentChanges().isEmpty()) {
+                    // m107c：此前静默拒收，玩家不知道为什么存不进——服务端 actionbar 说明原因（返回 EMPTY 循环即止，一次点击一条）
+                    if (!player.getWorld().isClient) msg(player, "带附魔/耐久等组件的物品不入仓（防抹数据）");
+                    return ItemStack.EMPTY;
+                }
                 ItemStack copy = stack.copy();
                 panel.deposit(copy);
                 // 只按实际存入量扣：无存储核心/类型满时余量留在原槽，绝不凭空消失

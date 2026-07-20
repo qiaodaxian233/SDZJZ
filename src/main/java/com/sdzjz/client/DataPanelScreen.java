@@ -112,6 +112,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             for (int c2 = 0; c2 < 3; c2++) cell(ctx, x + 272 + c2 * 18, y + 40 + r * 18);
         cell(ctx, x + 290, y + 102);
         ctx.fill(x + 294, y + 94, x + 302, y + 100, CYAN); // 网格→结果 指示
+        // m107c 清空网格→回仓按钮（m106b 补料后网格常驻满编，换配方需一键清）
+        boolean hovClr = mouseX >= x + 272 && mouseX <= x + 326 && mouseY >= y + 124 && mouseY <= y + 138;
+        ctx.fill(x + 271, y + 123, x + 327, y + 139, hovClr ? 0xFF3FA9D0 : 0xFF1E4258);
+        ctx.fill(x + 272, y + 124, x + 326, y + 138, 0xFF0D1B2C);
+        String clr = "清空回仓";
+        ctx.drawText(this.textRenderer, clr, x + 272 + (54 - this.textRenderer.getWidth(clr)) / 2, y + 127,
+                hovClr ? 0xFF9BE8FF : 0xFFB9D8E8, false);
         // 回收格（红框，放入即销毁）
         int tx = x + 334, ty = y + 216;
         ctx.fill(tx - 1, ty - 1, tx + 17, ty + 17, 0xFF8E2E2E);
@@ -223,10 +230,11 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 }
             }
         }
-        if (button == 0) { // m80c：经验库按钮（1=存入 2=取出）
+        if (button == 0) { // m80c：经验库按钮（1=存入 2=取出）；m107c：清空网格（3）
             double rx = mx - this.x, ry = my - this.y;
             if (rx >= 12 && rx <= 88 && ry >= 196 && ry <= 214) { clickXp(1); return true; }
             if (rx >= 12 && rx <= 88 && ry >= 218 && ry <= 236) { clickXp(2); return true; }
+            if (rx >= 272 && rx <= 326 && ry >= 124 && ry <= 138) { clickXp(3); return true; }
         }
         return super.mouseClicked(mx, my, button);
     }
