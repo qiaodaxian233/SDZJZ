@@ -133,9 +133,12 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         // m97：全网类型用量。满了变红——存储核心类型上限(27×等级)到顶时新种类被拒收，
         // 表现就是"格子只填了几排再也进不去新东西"，这里把原因亮出来。
         int tu = this.handler.typesUsedView(), tc = this.handler.typesCapView();
-        String usage = tc <= 0 ? "无存储核心" : ("类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""));
+        String usage; int ucol; // m98 哨兵：0=无存储核心, 0xFFFF=无限
+        if (tc <= 0)            { usage = "无存储核心"; ucol = 0xFFE07070; }
+        else if (tc == 0xFFFF)  { usage = "类型 " + tu; ucol = SUB; }
+        else                    { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? 0xFFE07070 : SUB; }
         int uw = this.textRenderer.getWidth(usage);
-        ctx.drawText(this.textRenderer, usage, 99 + 162 - uw, 20, (tc <= 0 || tu >= tc) ? 0xFFE07070 : SUB, false);
+        ctx.drawText(this.textRenderer, usage, 99 + 162 - uw, 20, ucol, false);
         header(ctx, "物品栏", 99, 148);
         header(ctx, "合成", 272, 28);
         ctx.drawText(this.textRenderer, "回收", 306, 220, 0xFFE07070, false);

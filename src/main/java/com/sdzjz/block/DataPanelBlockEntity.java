@@ -50,18 +50,21 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     private LinkedHashMap<String, Long> aggregate() {
         LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
-        int used = 0, cap = 0; // m97：顺手统计全网类型用量（复用本次 BFS，不加新开销）
+        int used = 0, coreCount = 0; long cap = 0; boolean unlimited = false; // m97/m98
         for (StorageCoreBlockEntity core : cores()) {
+            coreCount++;
             used += core.storeView().size();
-            cap += core.maxTypes();
+            int mt = core.maxTypes();
+            if (mt == Integer.MAX_VALUE) unlimited = true; else cap += mt; // 防 MAX_VALUE 求和溢出
             for (Map.Entry<String, Long> e : core.storeView().entrySet())
                 agg.merge(e.getKey(), e.getValue(), Long::sum);
         }
-        typesUsedCache = used; typesCapCache = cap;
+        typesUsedCache = Math.min(used, 65534);
+        typesCapCache = coreCount == 0 ? 0 : (unlimited ? 0xFFFF : (int) Math.min(cap, 65534L));
         return agg;
     }
 
-    /** m97：全网类型用量缓存（随 refreshDisplay 节流刷新），供界面显示"类型 X/Y"。 */
+    /** m97/m98：全网类型用量缓存（属性走 16 位通道，故哨兵：cap 0=无存储核心，0xFFFF=无限，其余=上限和）。 */
     private int typesUsedCache, typesCapCache;
     public int typesUsed() { return typesUsedCache; }
     public int typesCap()  { return typesCapCache; }

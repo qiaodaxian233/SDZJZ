@@ -58,14 +58,19 @@ public class StorageCoreBlock extends BlockWithEntity {
         if (!(world.getBlockEntity(pos) instanceof StorageCoreBlockEntity core)) return ActionResult.SUCCESS;
         ItemStack held = player.getStackInHand(Hand.MAIN_HAND);
         if (held.isOf(ModItems.STORAGE_UPGRADE)) {
+            if (core.maxTypes() == Integer.MAX_VALUE) { // m98：无限类型下不白扣升级
+                player.sendMessage(Text.literal("存储核心为无限类型，无需升级（config storageTypesPerTier 可启用上限机制）"), true);
+                return ActionResult.SUCCESS;
+            }
             core.upgrade();
             held.decrement(1);
             player.sendMessage(Text.literal("存储核心已升级：类型上限 " + core.maxTypes()), true);
             return ActionResult.SUCCESS;
         }
         if (held.isEmpty()) {
-            player.sendMessage(Text.literal("存储核心：类型 " + core.usedTypes() + "/" + core.maxTypes()
-                    + "（用数据面板/终端访问内容）"), true);
+            String cap = core.maxTypes() == Integer.MAX_VALUE ? "已存 " + core.usedTypes() + " 种 · 类型无限"
+                    : "类型 " + core.usedTypes() + "/" + core.maxTypes();
+            player.sendMessage(Text.literal("存储核心：" + cap + "（用数据面板/终端访问内容）"), true);
             return ActionResult.SUCCESS;
         }
         return ActionResult.PASS;

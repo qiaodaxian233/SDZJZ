@@ -27,7 +27,8 @@ import java.util.Set;
 /** 存储核心：逻辑仓储(id→long)，类型数受等级上限；可升级。数据面板/机器经网络(数据线/相邻)访问。 */
 public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess {
 
-    private static final int TYPES_PER_TIER = 27;
+    /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。 */
+    private static int typesPerTier() { return com.sdzjz.config.SdzjzConfig.get().storageTypesPerTier; }
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();
     private int tier = 1;
 
@@ -80,7 +81,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     public int tier() { return tier; }
-    public int maxTypes() { return TYPES_PER_TIER * tier; }
+    public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
     public int usedTypes() { return store.size(); }
     public void upgrade() { tier++; markDirty(); }
 
@@ -101,7 +102,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         return v == null ? 0L : v;
     }
 
-    /** 存入（类型未满或已有该类型才收）。 */
+    /** 存入。默认无限类型（m98）；config 启用上限时，类型未满或已有该类型才收（拒收时栈原样保留）。 */
     public void deposit(ItemStack stack) {
         if (stack.isEmpty()) return;
         String id = Registries.ITEM.getId(stack.getItem()).toString();

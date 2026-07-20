@@ -29,6 +29,7 @@ public class SdzjzConfig {
     // ===== 防卡顿 / 输出 =====
     public int maxSprayEntitiesPerTick = 32;  // 每tick最大喷射实体数（§8.3 防实体爆炸）
     public int coreBufferSlots = 27;          // 生产核心输出缓存槽数（满则按面板设置停机/喷射）
+    public int storageTypesPerTier = 0;       // 存储核心每级类型数：0=无限类型(默认,m98)；>0=旧成长机制(原27,存储升级+1级)
     public boolean sleepWhenIdle = true;      // 无红石/缺料/堵塞/无人加载时休眠停tick（§15.3）
     public int structureBlocksPerTick = 1024;         // 一键建造每tick摆放方块数(分批防卡顿)
     public boolean structureConsumeMaterials = false; // 一键建造是否消耗背包材料(默认关)

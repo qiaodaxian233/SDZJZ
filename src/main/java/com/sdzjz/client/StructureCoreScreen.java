@@ -412,7 +412,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     && (dim == null || dim.isEmpty()
                         || dim.equals(this.client.world.getRegistryKey().getValue().toString()));
             if (sameDim && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
-                sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes(); // 仅同维度读数
+                sub += sc.maxTypes() == Integer.MAX_VALUE ? ("  类型 " + sc.usedTypes()) : ("  类型 " + sc.usedTypes() + "/" + sc.maxTypes()); // 仅同维度读数; m98 无限不显上限
             }
         }
         ctx.drawText(this.textRenderer, sub, x + 24, y + 17, SUB, false);
