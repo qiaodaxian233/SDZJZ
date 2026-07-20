@@ -127,6 +127,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.lastEndpointScan = world.getTime();
             be.scanStorageEndpoints(world, pos);
         }
+        if (world.getTime() % 200 == 0) be.syncToClient(); // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）
         if (!be.running) return;
 
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;

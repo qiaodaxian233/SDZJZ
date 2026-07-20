@@ -9,6 +9,7 @@ import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.net.NodeLinkPayload;
 import com.sdzjz.net.NodeMovePayload;
+import com.sdzjz.net.NodeAddPayload;
 import com.sdzjz.net.NodeRemovePayload;
 import com.sdzjz.machine.CraftPlanner;
 import com.sdzjz.net.NodeTargetPayload;
@@ -51,6 +52,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeUpgradePayload.ID, NodeUpgradePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
@@ -136,6 +138,28 @@ public class Sdzjz implements ModInitializer {
                 if (payload.target().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     core.setNodeTarget(payload.index(), payload.target());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(NodeAddPayload.ID, (payload, context) -> { // m88 机器库侧栏
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!viewingCore(p, payload.pos())) return;
+                if (!(p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core)) return;
+                var inv = p.getInventory();
+                for (int i = 0; i < inv.size(); i++) {
+                    net.minecraft.item.ItemStack st = inv.getStack(i);
+                    if (st.isEmpty()) continue;
+                    if (!net.minecraft.registry.Registries.ITEM.getId(st.getItem()).toString().equals(payload.itemId())) continue;
+                    boolean ok = st.getItem() instanceof com.sdzjz.item.MachineItem
+                            || st.getItem() instanceof com.sdzjz.item.CropFarmItem
+                            || (st.getItem() instanceof com.sdzjz.item.CaptureCageItem && com.sdzjz.item.CaptureCageItem.isCaged(st))
+                            || StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
+                            || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st);
+                    if (!ok) continue;
+                    core.insertMachine(st); // 内部 decrement 1 + 同步
+                    inv.markDirty();
+                    return;
                 }
             });
         });

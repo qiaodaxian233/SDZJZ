@@ -64,6 +64,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final java.util.Map<BlockPos, double[]> VIEW = new java.util.HashMap<>();
 
     private double panX = 0, panY = 0, zoom = 1.0;
+    private boolean libOpen = false; // m88 机器库侧栏
+    private int libScroll = 0;
     private int dragIndex = -1;
     private long dragStor = Long.MIN_VALUE;
     private double dragOffX, dragOffY;
@@ -106,6 +108,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.addDrawableChild(new SciButton(200, this.height - 74, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
         this.addDrawableChild(new SciButton(300, this.height - 74, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
         this.addDrawableChild(new SciButton(396, this.height - 74, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
+        this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
         int wr2 = this.width - Math.min(Math.max(120, this.width / 5), 220); // m86 顶条视图控制（概念图）
         this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
@@ -150,6 +153,29 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) return 0xFF63D06A;
         if (st.getItem() instanceof com.sdzjz.item.MachineItem mi && mi.def().consumesInputs()) return 0xFFE8963C;
         return CYAN;
+    }
+
+    /** m88 机器库：背包里可入画布的物品去重合并计数。 */
+    private List<ItemStack> libItems() {
+        List<ItemStack> out = new java.util.ArrayList<>();
+        if (this.client == null || this.client.player == null) return out;
+        java.util.LinkedHashMap<net.minecraft.item.Item, Integer> m2 = new java.util.LinkedHashMap<>();
+        var inv = this.client.player.getInventory();
+        for (int i = 0; i < inv.size(); i++) {
+            ItemStack st = inv.getStack(i);
+            if (st.isEmpty() || !nodeInsertable(st)) continue;
+            m2.merge(st.getItem(), st.getCount(), Integer::sum);
+        }
+        for (var e : m2.entrySet()) out.add(new ItemStack(e.getKey(), e.getValue()));
+        return out;
+    }
+
+    private boolean nodeInsertable(ItemStack st) {
+        return st.getItem() instanceof com.sdzjz.item.MachineItem
+                || st.getItem() instanceof com.sdzjz.item.CropFarmItem
+                || (st.getItem() instanceof com.sdzjz.item.CaptureCageItem && com.sdzjz.item.CaptureCageItem.isCaged(st))
+                || StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
+                || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st);
     }
 
     /** m87：文本按宽度截断，尾加省略号——底栏任何文字不越 JEI 界。 */
@@ -232,13 +258,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         m.pop();
 
-        // ===== 存储总线：顶部横排，屏幕坐标绘制，永远可见 =====
-        if (!ends.isEmpty()) {
-            int rows = (ends.size() + busCols() - 1) / busCols();
+        // ===== 存储总线：顶部横排，屏幕坐标绘制，永远可见（m88 改无条件渲染：空也画底板，好诊断）=====
+        {
+            int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
             int bot = 44 + rows * (SH + 16) + 2;
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
+            if (ends.isEmpty()) ctx.drawText(this.textRenderer, "端点未同步（等几秒；输出接口应常驻在此）", 14, 48, SUB, false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
             java.util.List<String> bi = be.busTopIdsView();
@@ -516,6 +543,29 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, this.height - 12, SUB, false);
 
 
+        // ===== m88：机器库侧栏（概念图左栏——列背包里的机器，点击放入画布）=====
+        if (libOpen) {
+            int lx = 8, ly = 24, lw = 160, lb = this.height - 84;
+            ctx.fill(lx, ly, lx + lw, lb, 0xE0081120);
+            ctx.fill(lx, ly, lx + lw, ly + 14, 0xFF10253A);
+            ctx.drawText(this.textRenderer, "机器库（背包）", lx + 6, ly + 3, TXT, false);
+            List<ItemStack> lib = libItems();
+            int rowH = 20, visible = Math.max(1, (lb - ly - 30) / rowH);
+            libScroll = Math.max(0, Math.min(libScroll, Math.max(0, lib.size() - visible)));
+            for (int r = 0; r < visible && r + libScroll < lib.size(); r++) {
+                ItemStack it = lib.get(r + libScroll);
+                int ry = ly + 16 + r * rowH;
+                boolean hov = mouseX >= lx && mouseX <= lx + lw && mouseY >= ry && mouseY < ry + rowH;
+                if (hov) ctx.fill(lx, ry, lx + lw, ry + rowH, 0x552E6E8E);
+                ctx.drawItem(it, lx + 4, ry + 1);
+                ctx.drawText(this.textRenderer, fitText(it.getName().getString(), lw - 56), lx + 24, ry + 5, TXT, false);
+                String c = "×" + it.getCount();
+                ctx.drawText(this.textRenderer, c, lx + lw - 6 - this.textRenderer.getWidth(c), ry + 5, SUB, false);
+            }
+            if (lib.isEmpty()) ctx.drawText(this.textRenderer, "背包里没有机器", lx + 8, ly + 22, SUB, false);
+            ctx.drawText(this.textRenderer, "点击=放 1 台进画布 · 滚轮翻", lx + 6, lb - 12, SUB, false);
+        }
+
         // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
         if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 80 && mouseX < workRight()) {
             List<ItemStack> nodes = be.nodes();
@@ -552,6 +602,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= this.height - 84) { // m88 机器库滚动
+            libScroll -= (int) Math.signum(verticalAmount);
+            return true;
+        }
         if (pickerNode >= 0 || menuOpen) return true;
         if (mouseY > 34) {
             double old = zoom;
@@ -636,6 +690,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // m88 机器库侧栏：点击行=放 1 台进画布；面板区吞掉其余点击
+        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= this.height - 84) {
+            if (button == 0) {
+                List<ItemStack> lib = libItems();
+                int ly = 24, lb = this.height - 84, rowH = 20;
+                int visible = Math.max(1, (lb - ly - 30) / rowH);
+                int r = (int) ((mouseY - (ly + 16)) / rowH);
+                if (mouseY >= ly + 16 && r >= 0 && r < visible && r + libScroll < lib.size()) {
+                    BlockPos p = this.handler.blockPos();
+                    if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeAddPayload(p,
+                            Registries.ITEM.getId(lib.get(r + libScroll).getItem()).toString()));
+                }
+            }
+            return true;
+        }
         if (menuOpen) {
             int h = menuLabels.size() * MENU_H;
             if (button == 0 && mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= menuY && mouseY < menuY + h) {
