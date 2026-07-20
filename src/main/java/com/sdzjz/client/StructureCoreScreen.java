@@ -106,6 +106,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.addDrawableChild(new SciButton(200, this.height - 56, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
         this.addDrawableChild(new SciButton(300, this.height - 56, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
         this.addDrawableChild(new SciButton(396, this.height - 56, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
+        int wr2 = this.width - Math.min(Math.max(120, this.width / 5), 220); // m86 顶条视图控制（概念图）
+        this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
+        this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
+        this.addDrawableChild(new SciButton(wr2 - 86, 2, 78, 16, Text.literal("适应视图"), b -> fitView()));
         String keep = pickerField != null ? pickerField.getText() : "";
         this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
         this.pickerField.setChangedListener(t -> refilterPicker());
@@ -138,6 +142,43 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
     /** m85：画布 UI 的右边界——右侧留空给 JEI/REI 物品栏（用户点名），所有屏幕锚定元素不越界。 */
     private int workRight() { return this.width - Math.min(Math.max(120, this.width / 5), 220); }
+
+    /** m86 节点分类配色（概念图）：紫=逻辑 橙=加工(消耗输入) 绿=农场 青=生产(免费)。 */
+    private int nodeAccent(ItemStack st) {
+        if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
+                || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st)) return 0xFFB06AE8;
+        if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) return 0xFF63D06A;
+        if (st.getItem() instanceof com.sdzjz.item.MachineItem mi && mi.def().consumesInputs()) return 0xFFE8963C;
+        return CYAN;
+    }
+
+    /** m86 视图控制：围绕工作区中心缩放。 */
+    private void zoomBy(double f) {
+        double nz = Math.max(0.4, Math.min(2.5, zoom * f));
+        double cx = workRight() / 2.0, cy = this.height / 2.0;
+        panX = cx - (cx - panX) * (nz / zoom);
+        panY = cy - (cy - panY) * (nz / zoom);
+        zoom = nz;
+    }
+
+    /** m86 适应视图：所有节点装进 总线下缘~底栏 之间的可视区。 */
+    private void fitView() {
+        StructureCoreBlockEntity be = be();
+        if (be == null || be.nodes().isEmpty()) { panX = 0; panY = 0; zoom = 1.0; return; }
+        List<ItemStack> nodes = be.nodes();
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+        for (int i = 0; i < nodes.size(); i++) {
+            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+            minX = Math.min(minX, nx); minY = Math.min(minY, ny);
+            maxX = Math.max(maxX, nx + NW); maxY = Math.max(maxY, ny + NH + 28); // 含升级格
+        }
+        int top = 118, bottom = this.height - 72, left = 12, right = workRight() - 12;
+        double zw = (right - left) / (double) Math.max(1, maxX - minX);
+        double zh = (bottom - top) / (double) Math.max(1, maxY - minY);
+        zoom = Math.max(0.4, Math.min(2.5, Math.min(zw, zh)));
+        panX = left + ((right - left) - (maxX - minX) * zoom) / 2 - minX * zoom;
+        panY = top + ((bottom - top) - (maxY - minY) * zoom) / 2 - minY * zoom;
+    }
 
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
     private int busCols() { return Math.max(1, (workRight() - 24) / (SW + 14)); }
@@ -288,7 +329,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
         ctx.fill(x - 1, y - 1, x + NW + 1, y + NH + 1, NODEFRM);
         ctx.fill(x, y, x + NW, y + NH, NODEBG);
-        ctx.fill(x, y, x + NW, y + 3, CYAN);
+        ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
         ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
         ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
         var msi = ctx.getMatrices();
@@ -437,6 +478,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(0, 19, workRight(), 20, CYAN);
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
+        String zp = Math.round(zoom * 100) + "%"; // m86 顶条缩放读数（−/＋按钮之间）
+        ctx.drawText(this.textRenderer, zp, workRight() - 128 - this.textRenderer.getWidth(zp) / 2, 6, TXT, false);
 
         // 底部背板：按钮 + 状态 + 提示 一体
         ctx.fill(0, this.height - 64, workRight(), this.height, 0xEE0A121F);
@@ -456,12 +499,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int st2 = be.nodeStatus(i);
             if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
         }
-        ctx.drawText(this.textRenderer, "运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
+        ctx.drawText(this.textRenderer, "产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)"
+                + "  运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x", sx, this.height - 42, SUB, false);
-        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞/关闸 红=缺料 · 过滤/传感器右键配置", 8, this.height - 12, SUB, false);
+        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", 8, this.height - 12, SUB, false);
 
         // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
         if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 64 && mouseX < workRight()) {

@@ -132,6 +132,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
         SdzjzConfig cfg = SdzjzConfig.get();
         be.ticks++;
+        if (be.ticks - be.prodWinStart >= 1200) { // m86 实测产量：每分钟滚动
+            be.prodPerMin = be.prodWin;
+            be.prodWin = 0;
+            be.prodWinStart = be.ticks;
+            be.markDirty();
+            be.syncToClient();
+        }
         int nSize = be.machineNodes.size();
         if (nSize == 0) return;
 
@@ -258,6 +265,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, 1);
                 int total = (int) (crafts * plan.resultCount());
+                be.prodTally(total); // m86 实测产量
                 com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
@@ -284,6 +292,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
                     else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
@@ -332,6 +341,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += got;
+                        be.prodTally(give); // m86 实测产量
                     }
                 }
                 if (done > 0) {
@@ -380,6 +390,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
                     else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
@@ -401,6 +412,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
                     if (amt <= 0) continue;
                     int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
                     else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
@@ -1030,6 +1042,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public java.util.List<String> busTopIdsView() { return busTopIds; }
     public java.util.List<Long> busTopCountsView() { return busTopCounts; }
 
+    // m86：实测产量（分钟滚动窗口；生成点计数，不在 deposit 链上数防重复）
+    private long prodWin = 0, prodPerMin = 0, prodWinStart = 0;
+    void prodTally(long n) { if (n > 0) prodWin += n; }
+    public long prodPerMinView() { return prodPerMin; }
+
     private World resolveDimWorld(World base, String dim) {
         if (dim == null || dim.isEmpty() || base.getRegistryKey().getValue().toString().equals(dim)) return base;
         if (base instanceof net.minecraft.server.world.ServerWorld sw)
@@ -1567,6 +1584,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             bt.add(c);
         }
         nbt.put("busTop", bt);
+        nbt.putLong("prodPM", prodPerMin); // m86 实测产量
     }
 
     @Override
@@ -1626,6 +1644,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             busTopIds.add(btr.getCompound(i).getString("i"));
             busTopCounts.add(btr.getCompound(i).getLong("n"));
         }
+        prodPerMin = nbt.getLong("prodPM"); // m86
         NbtCompound spn = nbt.getCompound("storNodePos");
         for (String k : spn.getKeys()) {
             int[] v = spn.getIntArray(k);
