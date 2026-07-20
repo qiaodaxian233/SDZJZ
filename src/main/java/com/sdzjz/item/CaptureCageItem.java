@@ -33,7 +33,21 @@ public class CaptureCageItem extends Item {
 
     @Override
     public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
-        if (isCaged(stack)) return ActionResult.PASS;          // 已装了生物
+        // 兜底路径：无右键交互的生物（僵尸/骷髅等）仍会走到这里；
+        // 有交互的生物（村民/马/宠物）由 Sdzjz 里注册的 UseEntityCallback 抢先处理（m94）。
+        return tryCapture(user, hand, entity);
+    }
+
+    /**
+     * 捕获核心（m94 抽出为静态，供 UseEntityCallback 与 useOnEntity 共用）。
+     * 背景：原版 PlayerEntity.interact 先调 entity.interact()——村民会先弹交易界面并"吃掉"这次交互，
+     * useOnEntity 永远轮不到执行；马/驯服猫狗同理。事件挂在交易之前，返回 SUCCESS 即取消原版处理。
+     */
+    public static ActionResult tryCapture(PlayerEntity user, Hand hand, LivingEntity entity) {
+        ItemStack held = user.getStackInHand(hand);
+        if (!(held.getItem() instanceof CaptureCageItem cageItem)) return ActionResult.PASS;
+        if (isCaged(held)) return ActionResult.PASS;           // 已装了生物
+        if (user.isSpectator()) return ActionResult.PASS;      // 事件挂在旁观检查之前，须自查（Fabric 文档明示）
         if (entity instanceof PlayerEntity) return ActionResult.PASS;      // 绝不允许"抓走"玩家
         if (entity instanceof EnderDragonEntity) return ActionResult.PASS; // 龙战实体，抓走会坏档
         if (!entity.isAlive()) return ActionResult.PASS;
@@ -41,7 +55,7 @@ public class CaptureCageItem extends Item {
 
         Identifier id = Registries.ENTITY_TYPE.getId(entity.getType());
         // 造一个"1 只"的已捕获笼（不动传入的 stack——创造模式下那是复制品）
-        ItemStack caged = new ItemStack(this, 1);
+        ItemStack caged = new ItemStack(cageItem, 1);
         NbtCompound nbt = new NbtCompound();
         nbt.putString(KEY, id.toString());
         caged.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));

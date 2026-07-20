@@ -39,6 +39,16 @@ public class Sdzjz implements ModInitializer {
         ModScreenHandlers.init();
         ModItems.init();
 
+        // m94：抓物笼捕获改走实体交互事件——抢在 entity.interact() 之前触发，
+        // 否则村民（交易界面）/马（骑乘）/驯服猫狗（坐下）等自带右键交互的生物会把捕获整个截胡，
+        // useOnEntity 永远轮不到执行（僵尸/骷髅这类无交互生物不受影响，两条路都通）。
+        // 返回 SUCCESS 即取消原版后续处理（交易界面不弹）；PASS 时一切照旧。
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!(entity instanceof net.minecraft.entity.LivingEntity living)) return net.minecraft.util.ActionResult.PASS;
+            if (!(player.getStackInHand(hand).getItem() instanceof com.sdzjz.item.CaptureCageItem)) return net.minecraft.util.ActionResult.PASS;
+            return com.sdzjz.item.CaptureCageItem.tryCapture(player, hand, living);
+        });
+
         // 服务器停止时清空存储核心登记表（防跨存档幽灵坐标）
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             StorageCoreBlockEntity.clearAll();

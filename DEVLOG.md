@@ -698,3 +698,11 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
 - m93c 总线滑块：busScale 0.8~1.25(静态跨开屏保留)，SW/SH几何全部换 bw()/bh()(残留仅声明+换算器,已验)，
   顶条"尺寸"滑轨(收起开关左侧)三段拖拽；库存条右界让位。
 - 流程教训固化：python补丁断言失败后续命令仍会跑——改为逐对计数断言+写盘置尾+残留grep终检。
+
+## m94 修复：抓物笼无法捕获村民（交互顺序截胡）
+- 根因：捕获逻辑在 useOnEntity，而原版 PlayerEntity.interact 先调 entity.interact()——
+  村民弹交易界面并返回"已处理"，useOnEntity 永远不执行。马（骑乘）/驯服猫狗（坐下）同理受害。
+- 修法：注册 Fabric UseEntityCallback（挂在实体自身交互之前；Fabric 文档查证：SUCCESS 取消后续处理、
+  事件在旁观检查之前触发故补 isSpectator 自查）。捕获核心抽为 CaptureCageItem.tryCapture 静态方法，
+  事件与 useOnEntity（无交互生物的兜底路径）共用一套，行为完全一致（m76 的创造复制品/单只捕获语义保留）。
+- 影响面：空笼右键村民=捕获（不再弹交易）；已捕获笼右键村民=PASS，交易照常弹（不误伤正常交易）。
