@@ -162,14 +162,23 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     private int qtySlot = -1, qtyX, qtyY; // m82 数量选择浮层
     private static final int[] QTY = {1, 8, 16, 32, 64};
+    private static final String[] QTY2 = {"2组", "4组", "8组", "填满"}; // m100 批量行：k=5..8(组=堆叠上限,填满=装满背包余量回仓)
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (qtySlot >= 0) { // 浮层打开中：命中按钮或关闭
-            for (int k = 0; k < QTY.length; k++) {
+            for (int k = 0; k < QTY.length; k++) { // 第一行：定量
                 int bx = qtyX + k * 26, by = qtyY;
                 if (mx >= bx && mx <= bx + 24 && my >= by && my <= by + 16) {
                     clickXp(1000 + qtySlot * 10 + k);
+                    qtySlot = -1;
+                    return true;
+                }
+            }
+            for (int j = 0; j < QTY2.length; j++) { // m100 第二行：批量
+                int bx = qtyX + j * 32, by = qtyY + 20;
+                if (mx >= bx && mx <= bx + 30 && my >= by && my <= by + 16) {
+                    clickXp(1000 + qtySlot * 10 + (5 + j));
                     qtySlot = -1;
                     return true;
                 }
@@ -185,7 +194,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 if (mx >= sx && mx < sx + 16 && my >= sy && my < sy + 16) {
                     qtySlot = i;
                     qtyX = (int) Math.min(mx, this.width - QTY.length * 26 - 6);
-                    qtyY = (int) Math.min(my + 8, this.height - 22);
+                    qtyY = (int) Math.min(my + 8, this.height - 42); // m100 两行高度
                     return true;
                 }
             }
@@ -259,17 +268,26 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
-        if (qtySlot >= 0) { // m82 数量选择浮层
+        if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行
             int w = QTY.length * 26 + 6;
-            ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 20, 0xF0081120);
+            ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 40, 0xF0081120);
             ctx.drawText(this.textRenderer, "取出数量:", qtyX, qtyY - 12, 0xFF8FB8CC, false);
-            for (int k = 0; k < QTY.length; k++) {
+            for (int k = 0; k < QTY.length; k++) { // 第一行：定量
                 int bx = qtyX + k * 26, by = qtyY;
                 boolean hov = mouseX >= bx && mouseX <= bx + 24 && mouseY >= by && mouseY <= by + 16;
                 ctx.fill(bx - 1, by - 1, bx + 25, by + 17, hov ? 0xFF3FA9D0 : 0xFF1E4258);
                 ctx.fill(bx, by, bx + 24, by + 16, 0xFF0D1B2C);
                 String t = String.valueOf(QTY[k]);
                 ctx.drawText(this.textRenderer, t, bx + (24 - this.textRenderer.getWidth(t)) / 2, by + 4,
+                        hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+            }
+            for (int j = 0; j < QTY2.length; j++) { // m100 第二行：批量(2组/4组/8组/填满背包)
+                int bx = qtyX + j * 32, by = qtyY + 20;
+                boolean hov = mouseX >= bx && mouseX <= bx + 30 && mouseY >= by && mouseY <= by + 16;
+                ctx.fill(bx - 1, by - 1, bx + 31, by + 17, hov ? 0xFF3FA9D0 : 0xFF1E4258);
+                ctx.fill(bx, by, bx + 30, by + 16, 0xFF0D1B2C);
+                String t = QTY2[j];
+                ctx.drawText(this.textRenderer, t, bx + (30 - this.textRenderer.getWidth(t)) / 2, by + 4,
                         hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
             }
         }

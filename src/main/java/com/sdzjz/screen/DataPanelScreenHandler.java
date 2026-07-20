@@ -152,17 +152,32 @@ public class DataPanelScreenHandler extends ScreenHandler {
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (panel == null) return false;
-        if (id >= 1000) { // m82 取指定数量：id = 1000 + 展示格下标*10 + 档位下标(1/8/16/32/64)
+        if (id >= 1000) { // m82 取指定数量 / m100 批量取出：id = 1000 + 展示格下标*10 + 档位(0..8)
             int slotIdx = (id - 1000) / 10, k = (id - 1000) % 10;
-            int[] amts = {1, 8, 16, 32, 64};
-            if (slotIdx < 0 || slotIdx >= DataPanelBlockEntity.PAGE || k >= amts.length) return false;
+            // 档位 0-4：定量 1/8/16/32/64；5-7：2组/4组/8组(组=该物品堆叠上限)；8：填满背包
+            if (slotIdx < 0 || slotIdx >= DataPanelBlockEntity.PAGE || k > 8) return false;
             ItemStack disp = this.slots.get(slotIdx).getStack();
             if (disp.isEmpty()) return true;
-            int got = panel.withdraw(Registries.ITEM.getId(disp.getItem()).toString(), amts[k]);
-            if (got > 0) {
+            String idStr = Registries.ITEM.getId(disp.getItem()).toString();
+            int maxStack = Math.max(1, disp.getItem().getMaxCount());
+            int[] fixed = {1, 8, 16, 32, 64};
+            long want = k < 5 ? fixed[k] : (k < 8 ? (long) maxStack * (2L << (k - 5)) : Long.MAX_VALUE); // 5→2组 6→4组 7→8组 8→填满
+            long given = 0;
+            while (want > 0) {
+                int chunk = (int) Math.min(want, maxStack);
+                int got = panel.withdraw(idStr, chunk);
+                if (got <= 0) break; // 仓储见底
                 ItemStack give = new ItemStack(disp.getItem(), got);
-                if (!player.getInventory().insertStack(give)) player.dropItem(give, false);
+                player.getInventory().insertStack(give);
+                given += got - give.getCount();
+                if (!give.isEmpty()) { // 背包满：余量原路回仓，绝不落地/销毁
+                    panel.deposit(give);
+                    if (!give.isEmpty()) player.dropItem(give, false); // 双保险(刚取出的同类物品，理论回得去)
+                    break;
+                }
+                want -= chunk;
             }
+            if (k >= 5) msg(player, given > 0 ? "已装入 " + given + " 个" : "背包没有空位");
             return true;
         }
         if (id == 1) {
