@@ -88,21 +88,39 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 .map(e -> e.value().craft(input, w.getRegistryManager())).orElse(ItemStack.EMPTY));
     }
 
-    /** 取走结果：每格扣 1，容器残留(桶等)留在原格或还给玩家，然后重算结果。 */
+    /** 取走结果：每格扣 1，容器残留(桶等)留在原格或还给玩家，然后 AE 式从网络补料并重算结果。 */
     private void consumeCraft(PlayerEntity player) {
-        if (panel == null || panel.getWorld() == null) return;
+        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return; // m95 同款：只在服务端扣料，客户端等同步纠正
         var w = panel.getWorld();
         var input = craftInput();
         var match = w.getRecipeManager().getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w);
         net.minecraft.util.collection.DefaultedList<ItemStack> rem =
                 match.map(e -> e.value().getRemainder(input)).orElse(null);
+        // m106b AE 式补料：cores 快照一次，9 格共用（不逐格 BFS）
+        var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(w, blockPos);
         for (int i = 0; i < 9; i++) {
             ItemStack st = craft.getStack(i);
+            boolean plain = !st.isEmpty() && st.getComponentChanges().isEmpty(); // 带组件的(附魔/损耗)不按 id 补
+            String idStr = st.isEmpty() ? null : Registries.ITEM.getId(st.getItem()).toString();
             if (!st.isEmpty()) st.decrement(1);
+            boolean remPlaced = false;
             if (rem != null && i < rem.size() && !rem.get(i).isEmpty()) {
                 ItemStack r2 = rem.get(i).copy();
-                if (craft.getStack(i).isEmpty()) craft.setStack(i, r2);
+                if (craft.getStack(i).isEmpty()) { craft.setStack(i, r2); remPlaced = true; }
                 else if (!player.getInventory().insertStack(r2)) player.dropItem(r2, false);
+            }
+            // 网格当模板：消耗掉的 1 个从网络抽同款回填，网格保持满编（学 AE2 合成终端，代码自写）
+            if (plain && !remPlaced) {
+                ItemStack cur = craft.getStack(i);
+                int got = 0;
+                if (cur.isEmpty() || cur.getCount() < cur.getMaxCount()) {
+                    for (var core : cores) { got = core.withdraw(idStr, 1); if (got > 0) break; }
+                }
+                if (got > 0) {
+                    if (cur.isEmpty()) craft.setStack(i, new ItemStack(
+                            Registries.ITEM.get(net.minecraft.util.Identifier.of(idStr)), 1));
+                    else cur.increment(1);
+                }
             }
         }
         updateCraftResult();
@@ -250,8 +268,28 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (stack.isEmpty()) slot.setStack(ItemStack.EMPTY);
             slot.markDirty();
             return ItemStack.EMPTY;
+        } else if (index == DataPanelBlockEntity.PAGE + 45) {
+            // m106b：shift 点结果格 = 连续合成一整组（学 AE2 CRAFT_SHIFT）。只在服务端跑，
+            // 客户端不预测（m95 教训）；结果变化/背包塞不下即停；配合网络补料可一口气合到底。
+            if (player.getWorld().isClient || panel == null || panel.getWorld() == null) return ItemStack.EMPTY;
+            ItemStack first = craftResult.getStack(0);
+            if (first.isEmpty()) return ItemStack.EMPTY;
+            ItemStack want = first.copy();
+            int per = Math.max(1, want.getCount());
+            int times = Math.max(1, want.getMaxCount() / per); // 最多合一整组（AE2 同款上限）
+            for (int n = 0; n < times; n++) {
+                updateCraftResult(); // 补料后配方可能断，每轮重算
+                ItemStack cur = craftResult.getStack(0);
+                if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
+                ItemStack out = cur.copy();
+                boolean any = this.insertItem(out, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+                if (!any) break;          // 一格都塞不进：不扣料直接停，结果留在格里
+                consumeCraft(player);     // 塞进去了才扣料+网络补料+重算
+                if (!out.isEmpty()) { player.dropItem(out, false); break; } // 只塞进一半：余量落脚下(AE2 同款)后停
+            }
+            return ItemStack.EMPTY;
         } else if (index >= DataPanelBlockEntity.PAGE + 45) {
-            return ItemStack.EMPTY; // 结果格用鼠标取；回收格不 shift
+            return ItemStack.EMPTY; // 回收格不 shift
         } else {
             // 玩家背包 → 存入面板
             if (panel != null) {
