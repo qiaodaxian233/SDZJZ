@@ -36,8 +36,13 @@ public final class SuperBenchRecipes {
         LEGEND.put('X', "minecraft:iron_block");
     }
 
-    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mob 非空=需装着该生物的抓物笼子（合成后生物装进机器，空笼归还）。 */
-    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob) {}
+    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mob 非空=需装着该生物的抓物笼子（合成后生物装进机器，空笼归还）。
+     *  count = 单次产出数（m108b，数据线一次 8 根）；旧 4 参构造默认 1。 */
+    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count) {
+        public Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob) {
+            this(result, layout, ingredients, mob, 1);
+        }
+    }
     public static final String CAGE_ID = "sdzjz:capture_cage";
     public static final List<Recipe> ALL = new ArrayList<>();
 
@@ -108,6 +113,44 @@ public final class SuperBenchRecipes {
         add("sdzjz:fishing_machine", 0, "minecraft:fishing_rod", "minecraft:cod", "minecraft:salmon", "minecraft:string");
         addM("sdzjz:disc_machine", 1, "minecraft:creeper", "minecraft:jukebox", "minecraft:note_block", "minecraft:gunpowder", "minecraft:bone");
         addSmall("sdzjz:auto_feeder", "minecraft:bread"); // m80d 自动喂食器
+        // m108b 基础件全量进浏览器（m77 只修了逻辑节点；基础件只有原版数据包配方、无进度解锁→配方书不显示，
+        // 游戏内无处可查——用户"交易所做了吗我没看见"实锤）。图样/用量与原版配方文件逐字一致，不开新获取捷径；
+        // 多重集离线校验两两唯一（9 件小配方也不可能撞 130+ 件的机器配方）。
+        String E="minecraft:emerald", I="minecraft:iron_ingot", P="minecraft:paper", B="minecraft:bread",
+               G="minecraft:glass", GP="minecraft:glass_pane", EP="minecraft:ender_pearl", MM="sdzjz:core_module",
+               R="minecraft:redstone", C="minecraft:copper_ingot", CH="minecraft:chest", IB="minecraft:iron_bars",
+               L="minecraft:lapis_lazuli", EE="minecraft:ender_eye", W="sdzjz:wireless_node", NS="minecraft:nether_star",
+               Q="minecraft:quartz", GB="minecraft:gold_block", RB="minecraft:redstone_block",
+               AB="minecraft:amethyst_block", D="minecraft:diamond";
+        addSmall9("sdzjz:trade_center",      1, E,I,E,   I,MM,I,   E,I,E);   // 原版为无序配方，多重集一致
+        addSmall9("sdzjz:villager_contract", 1, P,P,P,   B,E,B,    P,P,P);
+        addSmall9("sdzjz:terminal",          1, GP,GP,GP, EP,MM,EP, I,I,I);
+        addSmall9("sdzjz:linker",            1, R,EP,R,  EP,MM,EP, R,EP,R);
+        addSmall9("sdzjz:capture_cage",      1, IB,I,IB, I,MM,I,   IB,I,IB);
+        addSmall9("sdzjz:data_panel",        1, G,L,G,   EP,CH,EP, G,MM,G);
+        addSmall9("sdzjz:storage_core",      1, I,CH,I,  CH,MM,CH, I,CH,I);
+        addSmall9("sdzjz:data_cable",        8, G,G,G,   R,MM,R,   G,G,G);
+        addSmall9("sdzjz:wireless_node",     1, C,EP,C,  EP,MM,EP, C,EP,C);
+        addSmall9("sdzjz:satellite_node",    1, EE,W,EE, W,NS,W,   EE,MM,EE);
+        addSmall9("sdzjz:core_module",       1, C,R,C,   R,Q,R,    C,R,C);
+        addSmall9("sdzjz:storage_upgrade",   1, R,CH,R,  CH,MM,CH, R,CH,R);
+        addSmall9("sdzjz:speed_upgrade",     1, GB,RB,GB, RB,MM,RB, GB,RB,GB);
+        addSmall9("sdzjz:count_upgrade",     1, AB,GB,AB, GB,MM,GB, AB,GB,AB);
+        addSmall9("sdzjz:parallel_upgrade",  1, D,GB,D,  D,MM,D,   D,GB,D);
+    }
+
+    /** m108b 通用小配方：显式 3×3 图样（行优先 9 格）居中进 12×12，count=单次产出。与原版配方同料同量。 */
+    private static void addSmall9(String result, int count, String... nine) {
+        String[] layout = new String[SLOTS];
+        Map<String, Integer> ing = new java.util.LinkedHashMap<>();
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++) {
+                String id = nine[r * 3 + c];
+                if (id == null || id.isEmpty()) continue;
+                layout[(4 + r) * GRID + (4 + c)] = id;
+                ing.merge(id, 1, Integer::sum);
+            }
+        ALL.add(new Recipe(result, layout, ing, "", count));
     }
 
     /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */
@@ -170,6 +213,7 @@ public final class SuperBenchRecipes {
     }
 
     public static ItemStack resultStack(Recipe r) {
-        return r == null ? ItemStack.EMPTY : new ItemStack(Registries.ITEM.get(Identifier.of(r.result)));
+        return r == null ? ItemStack.EMPTY
+                : new ItemStack(Registries.ITEM.get(Identifier.of(r.result)), Math.max(1, r.count()));
     }
 }
