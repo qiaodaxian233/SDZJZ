@@ -190,9 +190,11 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
     }
 
     @Override
-    public boolean mouseScrolled(double mx, double my, double h, double v) { // m101 滚轮翻交易列表
+    public boolean mouseScrolled(double mx, double my, double h, double v) { // m101 滚轮翻交易列表; m103 只在悬停列表区时生效,不劫持背包滚轮
         String prof = TradeCenterBlockEntity.contractProf(this.handler.contract());
-        if (prof != null) {
+        if (prof != null
+                && mx >= this.x + 80 && mx < this.x + 356
+                && my >= this.y + 44 && my < this.y + 152) {
             int maxScroll = Math.max(0, VillagerTrades.ALL.get(prof).trades().size() - VISIBLE_ROWS);
             if (maxScroll > 0) {
                 if (v < 0 && tradeScroll < maxScroll) tradeScroll++;
