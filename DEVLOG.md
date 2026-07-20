@@ -839,3 +839,10 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
   一次点击只发一条不刷屏。
 - m107 体检 8 项全数落地：a①经验BFS缓存 a②viewer门控 a③搜索索引 b④滚轮区域化 b⑤真滚动条
   b⑥开界面即刷 c⑦清空回仓 c⑧拒收提示。
+
+## m108a 绘图名单更正（认错）：五张"可选重绘"实为用户素材
+- 用户质问"我不是已经给你图了吗怎么还让我画"——查证属实：data_cable(用户sci_fi_data_cable.bbmodel)/
+  storage_core(用户bbmodel金属图集,m55)/wireless_node_model(用户bbmodel,m67/69)/core_module_model
+  (用户bbmodel,m68)/super_bench_gui(用户竖版底图裁切)。m103 把"程序化提取/裁切"错写成"程序生成"，
+  m104b 又挂成待画项。名单已更正为"全部出自用户素材、无任何待画项"。
+- 教训：素材溯源要查 DEVLOG 原始条目，不能凭文件是脚本写出来的就当"程序生成"——脚本只是搬运工。
