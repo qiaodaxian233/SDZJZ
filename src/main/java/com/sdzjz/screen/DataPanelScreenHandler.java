@@ -144,8 +144,10 @@ public class DataPanelScreenHandler extends ScreenHandler {
         super.setProperty(id, value);
         if (id == 0) xpLo = value & 0xFFFF;
         if (id == 1) xpHi = value & 0x7FFF;
-        if (id == 2) typesUsed = value;
-        if (id == 3) typesCap = value;
+        // 原版容器属性包走 16 位 short 通道，0xFFFF(无限哨兵)符号扩展成 -1 → 误判"无存储核心"。
+        // 与 xpLo 同款掩码还原无符号（m106a 修：m98 无限成默认后此红字常驻）。
+        if (id == 2) typesUsed = value & 0xFFFF;
+        if (id == 3) typesCap = value & 0xFFFF;
     }
 
     /** 按钮：1=存入全部玩家经验 2=取出全部。服务端执行。 */
