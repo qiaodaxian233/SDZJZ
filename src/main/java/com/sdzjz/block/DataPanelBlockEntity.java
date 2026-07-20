@@ -47,11 +47,25 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     // m107a：打开界面的玩家计数。handler 服务端构造 +1（并立即刷一次，打开不空白），onClosed -1。
     private int viewers = 0;
-    public void addViewer() { viewers++; refreshDisplay(); }
+    public void addViewer() { viewers++; coresCacheTime = -1000; refreshDisplay(); } // m108c：开界面强刷网络缓存
     public void removeViewer() { if (viewers > 0) viewers--; }
 
+    // m108c：cores() 此前每次调用全新 BFS——机器供料/落库/熔炉扫描/经验/计数全走它，
+    // 高产线（用户实测 104.8M/分）下一 tick 能打出几十趟 BFS。改 40t 缓存（与画布端点扫描同节奏）；
+    // 缓存里出现已拆除核心立即重建；开界面时强制刷新（addViewer 置 -1000，m90 教训：哨兵不用 MIN_VALUE 防溢出）。
+    private List<StorageCoreBlockEntity> coresCache;
+    private long coresCacheTime = -1000;
+
     private List<StorageCoreBlockEntity> cores() {
-        return StorageCoreBlockEntity.connectedCores(this.world, this.pos);
+        long now = (this.world != null) ? this.world.getTime() : 0;
+        if (coresCache != null && now - coresCacheTime < 40) {
+            boolean ok = true;
+            for (StorageCoreBlockEntity c : coresCache) if (c.isRemoved()) { ok = false; break; }
+            if (ok) return coresCache;
+        }
+        coresCache = StorageCoreBlockEntity.connectedCores(this.world, this.pos);
+        coresCacheTime = now;
+        return coresCache;
     }
 
     private LinkedHashMap<String, Long> aggregate() {
