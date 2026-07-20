@@ -147,19 +147,22 @@ public class DataPanelScreenHandler extends ScreenHandler {
         @Override public int get(int i) {
             if (i == 2) return panel != null ? panel.typesUsed() : 0; // m97 全网类型用量
             if (i == 3) return panel != null ? panel.typesCap()  : 0;
+            if (i == 4) return panel != null ? Math.min(panel.filteredRows(), 65534) : 0; // m107b 总行数→真实滚动条
             long v = panel != null ? Math.min(panel.xpTotal(), Integer.MAX_VALUE) : 0;
             return i == 0 ? (int) (v & 0xFFFF) : (int) ((v >> 16) & 0x7FFF);
         }
         @Override public void set(int i, int v) {}
-        @Override public int size() { return 4; }
+        @Override public int size() { return 5; }
     };
 
     /** 客户端读经验库总量。 */
     public long xpBankView() { return (xpLo & 0xFFFFL) | ((long) xpHi << 16); }
-    private int xpLo, xpHi, typesUsed, typesCap;
+    private int xpLo, xpHi, typesUsed, typesCap, rowsSynced;
     /** m97：客户端读全网类型用量（"类型 X/Y"，Y=0 表示网络里没有存储核心）。 */
     public int typesUsedView() { return typesUsed; }
     public int typesCapView()  { return typesCap; }
+    /** m107b：客户端读筛选后总行数（真实滚动条/滚动 clamp）。 */
+    public int rowsView()      { return rowsSynced; }
     @Override
     public void setProperty(int id, int value) {
         super.setProperty(id, value);
@@ -169,6 +172,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         // 与 xpLo 同款掩码还原无符号（m106a 修：m98 无限成默认后此红字常驻）。
         if (id == 2) typesUsed = value & 0xFFFF;
         if (id == 3) typesCap = value & 0xFFFF;
+        if (id == 4) rowsSynced = value & 0xFFFF; // m107b：同通道同款掩码
     }
 
     /** 按钮：1=存入全部玩家经验 2=取出全部。服务端执行。 */

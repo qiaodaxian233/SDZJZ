@@ -821,3 +821,12 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
   onClosed -1（断线也走 onClosed 不泄漏）。机器/终端的 deposit/withdraw/count 走 live 路径不受影响。
 - ③搜索卡键：每敲一字全注册表逐项 new ItemStack+本地化(1400+项)。改静态索引一次构建；
   语言切换用"石头本地化名探针"检测重建——不引入 LanguageManager 新接口，复用已有 getName 路径。
+
+### m107b 滚动三项（截图可见的体验坑）
+- 滚轮劫持全界面：指着背包/合成区滚也在翻仓库页——m103 交易列表同款毛病。改只在悬停
+  存储格+滚动条区域(99..270, 30..138)生效，别处交还 super。
+- 滚动条是假的：thumb=min(5,scroll)*6 封顶、不反映总行数、不能拖，客户端根本不知道总行数。
+  属性通道加 id4=filteredRows（16 位同款掩码收包）→ 真实比例 thumb（高=108*6/行数,下限12）、
+  位置按 scroll/maxRow 插值、行数≤6 画暗色满轨；支持点轨道跳页+按住拖拽（mouseDragged/Released 接管）；
+  滚轮 clamp 用真实 maxRow，撤掉"看最后一行满不满"的 bottomFull 启发式。
+- 拖拽发包节流：只在换算出的行号变化时 sendView，一行一包不刷屏。

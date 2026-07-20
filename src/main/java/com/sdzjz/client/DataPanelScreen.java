@@ -87,10 +87,14 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         // 存储 6×9
         for (int r = 0; r < 6; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 30 + r * 18);
-        // 滚动条轨
+        // m107b 真实比例滚动条（总行数走属性 id4 同步；行数≤6 画暗色满轨=不可滚）
         int sbx = x + 99 + 9 * 18 + 3;
-        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 6 * 18, 0xFF0A1626);
-        ctx.fill(sbx, y + 30 + Math.min(5, scroll) * 6, sbx + 6, y + 30 + Math.min(5, scroll) * 6 + 24, CYAN);
+        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 108, 0xFF0A1626);
+        int rowsAll = Math.max(6, this.handler.rowsView());
+        int th = Math.max(12, 108 * 6 / rowsAll);
+        int mr = Math.max(0, this.handler.rowsView() - 6);
+        int ty2 = y + 30 + (mr == 0 ? 0 : (108 - th) * Math.min(scroll, mr) / mr);
+        ctx.fill(sbx, ty2, sbx + 6, ty2 + (mr == 0 ? 108 : th), mr == 0 ? 0xFF13293E : CYAN);
         // 背包 3×9 + 快捷栏
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 158 + r * 18);
@@ -199,6 +203,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             qtySlot = -1;
             return true;
         }
+        // m107b：滚动条命中——点轨道跳页并开始拖拽（浮层打开时不抢，见上）
+        int sbx = this.x + 99 + 9 * 18 + 3;
+        if (button == 0 && mx >= sbx - 1 && mx <= sbx + 7 && my >= this.y + 30 && my <= this.y + 30 + 108) {
+            sbDrag = true;
+            sbUpdate(my);
+            return true;
+        }
         if (button == 1) { // 右键展示格 → 打开数量选择
             for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
                 var sl = this.handler.slots.get(i);
@@ -227,15 +238,39 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
-        if (v < 0) {
-            boolean bottomFull = false;
-            for (int i = 45; i < 54 && i < this.handler.slots.size(); i++)
-                if (this.handler.slots.get(i).hasStack()) { bottomFull = true; break; }
-            if (bottomFull) { scroll++; sendView(); }
-        } else if (v > 0 && scroll > 0) {
-            scroll--; sendView();
-        }
+        // m107b：只在悬停存储格/滚动条区域时翻页（m103 交易列表同款教训），指着背包/合成区滚不再劫持
+        boolean overGrid = mx >= this.x + 99 && mx <= this.x + 99 + 162 + 9
+                && my >= this.y + 30 && my <= this.y + 30 + 108;
+        if (!overGrid) return super.mouseScrolled(mx, my, h, v);
+        int mr = Math.max(0, this.handler.rowsView() - 6); // 真实 clamp，撤 bottomFull 启发式
+        int ns = Math.max(0, Math.min(mr, scroll + (v < 0 ? 1 : -1)));
+        if (ns != scroll) { scroll = ns; sendView(); }
         return true;
+    }
+
+    // ===== m107b 滚动条拖拽 =====
+    private boolean sbDrag = false;
+
+    private void sbUpdate(double my) {
+        int mr = Math.max(0, this.handler.rowsView() - 6);
+        if (mr <= 0) return;
+        int rowsAll = Math.max(6, this.handler.rowsView());
+        int th = Math.max(12, 108 * 6 / rowsAll);
+        double rel = (my - (this.y + 30) - th / 2.0) / (double) (108 - th);
+        int ns = (int) Math.round(Math.max(0, Math.min(1, rel)) * mr);
+        if (ns != scroll) { scroll = ns; sendView(); }
+    }
+
+    @Override
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        if (sbDrag) { sbUpdate(my); return true; }
+        return super.mouseDragged(mx, my, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mx, double my, int button) {
+        if (sbDrag) { sbDrag = false; return true; }
+        return super.mouseReleased(mx, my, button);
     }
 
     @Override
