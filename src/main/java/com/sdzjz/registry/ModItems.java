@@ -30,6 +30,7 @@ public class ModItems {
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
+    public static final Item LOGO = reg("logo", new Item(new Item.Settings())); // m93 创造栏标签图标(不入栏)
     public static final Item AUTO_FEEDER = reg("auto_feeder", new com.sdzjz.item.AutoFeederItem(new Item.Settings().maxCount(1)));
 
     // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
@@ -102,7 +103,7 @@ public class ModItems {
     public static final RegistryKey<ItemGroup> GROUP_KEY =
             RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
     public static final ItemGroup GROUP = FabricItemGroup.builder()
-            .icon(() -> new ItemStack(Items.CRAFTING_TABLE))
+            .icon(() -> new ItemStack(LOGO)) // m93 用户点名：标签图标换 MOD 红色核心
             .displayName(Text.translatable("itemGroup.sdzjz.main"))
             .build();
 
