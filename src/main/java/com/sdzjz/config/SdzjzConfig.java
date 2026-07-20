@@ -16,13 +16,15 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 3;
+    public int configVersion = 4;
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
     public long maxRecipesPerChunkTick = 262_144L;      // 每区块每tick上限
     public long maxRecipesPerNetworkTick = 1_048_576L;  // 每玩家网络每tick上限
-    public int accelMinPeriodTicks = 1;                 // 加速叠加后的最小周期下限
+    public int accelMinPeriodTicks = 1;                 // 【遗留,m99后不再参与计算】旧线性加速的最小周期下限
+    public double upgradeSpeedGainPerLevel = 0.5;       // m99 速度升级每级增益(乘算,0.5=+50%,速率=1.5^级)，速率溢出折成同tick多周期，永不触底
+    public int upgradeMaxCyclesPerTick = 20;            // m99 单节点每tick最多结算周期数(防极高速度级单tick天量运算卡服)
     public int wirelessRange = 48;                      // 无线(WiFi)连接范围(格,同维度)
     public boolean enableThermalThrottle = false;       // 高速产热/需散热框架（默认关，可选平衡）
 

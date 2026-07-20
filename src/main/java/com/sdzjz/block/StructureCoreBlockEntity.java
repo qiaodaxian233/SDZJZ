@@ -268,14 +268,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 自动合成机：按原版配方吃料出货。目标在画布上设置（节点徽章）。
                 String target = craftTarget(st);
                 if (target.isEmpty()) continue;
-                int interval = Math.max(cfg.accelMinPeriodTicks, 40 - speedLv * 4);
-                if (be.ticks % interval != 0) continue;
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积，速度永不触底
+                if (cycles <= 0) continue;
                 CraftPlanner.Plan plan = CraftPlanner.plan(world, target);
                 if (plan == null) continue; // 无合成配方
-                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
-                long crafts = (long) running * (1 + countLv);
+                int running = runningCount(st, parallelLv, tier);   // m99 并发直接乘台数
+                long crafts = (long) running * (1 + countLv) * cycles;
+                com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 提前解析：封顶只对"进内部缓存"生效
                 int maxStack = Registries.ITEM.get(Identifier.of(target)).getMaxCount();
-                crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // 按产物真实堆叠封顶再扣料（剑/图腾等max=1时防白扣）
+                if (!hasOut[i] && depositAc == null)
+                    crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 只在无存储时封顶（剑/图腾等max=1时防白扣）
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
@@ -299,9 +301,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         supply.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
                 }
                 be.stat(i, 1);
-                int total = (int) (crafts * plan.resultCount());
+                int total = (int) Math.min(Integer.MAX_VALUE, crafts * plan.resultCount());
                 be.prodTally(total); // m86 实测产量
-                com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 机器→存储 定向产出连线
                 if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
@@ -316,34 +317,35 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 全自动农场：按所选作物产出（免费，对齐原版农场）。m93：多选≤8种，逐种产出
                 java.util.List<String> cropsSel = cropList(st);
                 if (cropsSel.isEmpty()) { be.stat(i, 0); continue; } // 未选作物=待机
-                int interval = Math.max(cfg.accelMinPeriodTicks, 40 - speedLv * 4);
-                if (be.ticks % interval != 0) continue;
-                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
+                boolean cappedCf = !hasOut[i] && depositCf == null;  // m99 封顶只对"进内部缓存"生效
                 java.util.List<MachineDef.Drop> allDrops = new java.util.ArrayList<>();
                 for (String crop : cropsSel) {
                     java.util.List<MachineDef.Drop> cd = com.sdzjz.machine.CropFarms.get(crop);
                     if (cd != null) allDrops.addAll(cd);
                 }
                 for (MachineDef.Drop d : allDrops) {
-                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
-                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
-                    if (amt <= 0) continue;
-                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
+                    if (sum <= 0) continue;
+                    long total = (long) running * sum;
+                    if (cappedCf) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
-                    else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
-                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
                 }
             } else if (st.getItem() instanceof MachineItem miu && "super_smelter".equals(miu.def().id())) {
                 // 万能熔炉：接什么烧什么（原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料/存储网络。
-                int interval = Math.max(cfg.accelMinPeriodTicks, miu.def().baseIntervalTicks() - speedLv * 4);
-                if (be.ticks % interval != 0) continue;
-                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                int cycles = be.cyclesThisTick(i, miu.def().baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier); // m99 并发直接乘台数
                 com.sdzjz.machine.StorageAccess depositSm = hasOut[i] ? null : be.depositFor(world, i);
-                long capacity = (long) running * 64L * (1 + countLv); // 每周期一组×并行×(1+数量)
+                long capacity = (long) running * 64L * (1 + countLv) * cycles; // 每周期一组×并行×(1+数量)×本tick周期数
                 if (!hasOut[i] && depositSm == null) capacity = Math.min(capacity, 64L * OUTPUT_SLOTS); // 无存储时按缓存封顶防白扣
                 long done = 0;
                 if (hasIn[i]) {
@@ -392,18 +394,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
             } else if (st.getItem() instanceof MachineItem mi) {
                 MachineDef def = mi.def();
-                int interval = Math.max(cfg.accelMinPeriodTicks, def.baseIntervalTicks() - speedLv * 4);
-                if (be.ticks % interval != 0) continue;
-                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier); // m99 并发直接乘台数
+                int doCycles = cycles;
 
                 if (def.consumesInputs()) {
                     if (hasIn[i]) {
-                        // 从内部缓存取料（连线喂料）
-                        boolean ok = true;
+                        // 从内部缓存取料（连线喂料）。m99：料不够整批时按料量折算周期数，能跑几轮跑几轮
                         for (MachineDef.Input in : def.inputs())
-                            if (be.bufCountFor(i, in.item()) < (long) in.count() * running) { ok = false; break; }
-                        if (!ok) { be.stat(i, 3); continue; }
-                        for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running);
+                            doCycles = (int) Math.min(doCycles, be.bufCountFor(i, in.item()) / ((long) in.count() * running));
+                        if (doCycles <= 0) { be.stat(i, 3); continue; }
+                        for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running * doCycles);
                     } else {
                         com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
                         if (supply == null) {
@@ -414,51 +416,52 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             supply = src;
                         }
                         if (supply == null) { be.stat(i, 3); continue; }
-                        boolean ok = true;
                         for (MachineDef.Input in : def.inputs())
-                            if (supply.count(in.item()) < (long) in.count() * running) { ok = false; break; }
-                        if (!ok) { be.stat(i, 3); continue; }
-                        for (MachineDef.Input in : def.inputs()) supply.withdraw(in.item(), in.count() * running);
+                            doCycles = (int) Math.min(doCycles, supply.count(in.item()) / ((long) in.count() * running));
+                        if (doCycles <= 0) { be.stat(i, 3); continue; }
+                        for (MachineDef.Input in : def.inputs()) supply.withdraw(in.item(), in.count() * running * doCycles);
                     }
                 }
                 be.stat(i, 1);
 
                 com.sdzjz.machine.StorageAccess depositMi = hasOut[i] ? null : be.depositFor(world, i);
+                boolean cappedMi = !hasOut[i] && depositMi == null; // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : def.outputs()) {
-                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
-                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
-                    if (amt <= 0) continue;
-                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    long sum = be.rollDrops(world.getRandom(), d, doCycles, countLv);
+                    if (sum <= 0) continue;
+                    long total = (long) running * sum;
+                    if (cappedMi) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
-                    else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
-                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
                 }
                 double mxp = MachineXp.of(def.id());
-                if (mxp > 0) { be.xpPool += mxp * running; produced = true; }
+                if (mxp > 0) { be.xpPool += mxp * running * doCycles; produced = true; }
             } else if (st.getItem() instanceof CaptureCageItem && CaptureCageItem.isCaged(st)) {
                 String mob = CaptureCageItem.cagedType(st);
                 java.util.List<MachineDef.Drop> drops = (mob == null) ? null : MobDrops.get(mob);
                 if (drops == null) continue;
-                int interval = Math.max(cfg.accelMinPeriodTicks, 30 - speedLv * 4);
-                if (be.ticks % interval != 0) continue;
-                int running = Math.min(st.getCount(), (4 + parallelLv * 4) * tier);
+                int cycles = be.cyclesThisTick(i, 30, speedLv, cfg); // m99 工作量累积
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCg = hasOut[i] ? null : be.depositFor(world, i);
+                boolean cappedCg = !hasOut[i] && depositCg == null;  // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : drops) {
-                    if (d.chance() < 1f && world.getRandom().nextFloat() >= d.chance()) continue;
-                    int amt = d.min() + (d.max() > d.min() ? world.getRandom().nextInt(d.max() - d.min() + 1) : 0);
-                    if (amt <= 0) continue;
-                    int total = Math.min(running * (amt + countLv * 8) * tier, 64 * OUTPUT_SLOTS);
+                    long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
+                    if (sum <= 0) continue;
+                    long total = (long) running * sum;
+                    if (cappedCg) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
-                    else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
-                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), total));
+                    else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
                 }
                 double cxp = MachineXp.mob(mob);
-                if (cxp > 0) { be.xpPool += cxp * running; produced = true; }
+                if (cxp > 0) { be.xpPool += cxp * running * cycles; produced = true; }
             }
         }
         if (produced) {
@@ -496,6 +499,46 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public int nodeSpeed(ItemStack s) { return nodeInt(s, "spd"); }
     public int nodeCount(ItemStack s) { return nodeInt(s, "cnt"); }
     public int nodePar(ItemStack s)   { return nodeInt(s, "par"); }
+
+    // ===== m99 升级数学重写：工作量累积模型 =====
+    // 旧模型三处死区：①速度线性减周期(base-4×级)→触底1tick后再插全部无效；②并发只抬"同时运行台数上限"
+    // →节点里只有1台机器时(m78后的常态)从头到尾没生效过；③数量产出被64×输出格硬顶→堆到顶再插白插。
+    // 新模型：速率=(1+gain)^速度级×productionRateMultiplier，每tick累积、攒够基础周期结算1次，
+    // 速率溢出折成同tick多周期——永不触底；并发直接乘台数(1台也翻倍)；数量顶只在"产出只能进内部缓存"时保留。
+    private final java.util.Map<Integer, Double> workAcc = new java.util.HashMap<>(); // 节点索引→累积工作量(不落盘,重载至多丢半个周期)
+
+    /** 该节点本tick应结算的生产周期数（0=继续攒）。 */
+    private int cyclesThisTick(int nodeIndex, int baseInterval, int speedLv, SdzjzConfig cfg) {
+        double gain = Math.max(0.0, cfg.upgradeSpeedGainPerLevel);
+        double rate = Math.pow(1.0 + gain, Math.max(0, speedLv)) * Math.max(0.01, cfg.productionRateMultiplier);
+        int base = Math.max(1, baseInterval);
+        int cap = Math.max(1, cfg.upgradeMaxCyclesPerTick);
+        double acc = workAcc.getOrDefault(nodeIndex, 0.0) + rate;
+        int cycles = (int) (acc / base);
+        if (cycles > cap) cycles = cap;
+        acc -= (double) cycles * base;
+        if (acc > (double) base * cap) acc = (double) base * cap; // 被cap截断时不无限囤积
+        workAcc.put(nodeIndex, acc);
+        return cycles;
+    }
+
+    /** m99 并发升级直接乘台数：运行台数 = 节点内机器数 ×(1+并发级)×核心层级。 */
+    private static int runningCount(ItemStack st, int parallelLv, int tier) {
+        long r = (long) Math.max(1, st.getCount()) * (1L + Math.max(0, parallelLv)) * Math.max(1, tier);
+        return (int) Math.min(r, 1_000_000L);
+    }
+
+    /** m99 随机掉落表按周期数结算：每周期独立掷概率/数量，命中加数量升级奖励(+8/级)。 */
+    private long rollDrops(net.minecraft.util.math.random.Random rand, MachineDef.Drop d, int cycles, int countLv) {
+        long sum = 0;
+        for (int c = 0; c < cycles; c++) {
+            if (d.chance() < 1f && rand.nextFloat() >= d.chance()) continue;
+            int amt = d.min() + (d.max() > d.min() ? rand.nextInt(d.max() - d.min() + 1) : 0);
+            if (amt <= 0) continue;
+            sum += amt + (long) countLv * 8;
+        }
+        return sum;
+    }
 
     private int nodeInt(ItemStack s, String key) {
         return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt(key);
