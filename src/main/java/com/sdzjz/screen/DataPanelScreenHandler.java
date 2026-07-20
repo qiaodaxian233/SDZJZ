@@ -124,21 +124,28 @@ public class DataPanelScreenHandler extends ScreenHandler {
     // ===== m80c 经验库 =====
     private final net.minecraft.screen.PropertyDelegate xpProps = new net.minecraft.screen.PropertyDelegate() {
         @Override public int get(int i) {
+            if (i == 2) return panel != null ? panel.typesUsed() : 0; // m97 全网类型用量
+            if (i == 3) return panel != null ? panel.typesCap()  : 0;
             long v = panel != null ? Math.min(panel.xpTotal(), Integer.MAX_VALUE) : 0;
             return i == 0 ? (int) (v & 0xFFFF) : (int) ((v >> 16) & 0x7FFF);
         }
         @Override public void set(int i, int v) {}
-        @Override public int size() { return 2; }
+        @Override public int size() { return 4; }
     };
 
     /** 客户端读经验库总量。 */
     public long xpBankView() { return (xpLo & 0xFFFFL) | ((long) xpHi << 16); }
-    private int xpLo, xpHi;
+    private int xpLo, xpHi, typesUsed, typesCap;
+    /** m97：客户端读全网类型用量（"类型 X/Y"，Y=0 表示网络里没有存储核心）。 */
+    public int typesUsedView() { return typesUsed; }
+    public int typesCapView()  { return typesCap; }
     @Override
     public void setProperty(int id, int value) {
         super.setProperty(id, value);
         if (id == 0) xpLo = value & 0xFFFF;
         if (id == 1) xpHi = value & 0x7FFF;
+        if (id == 2) typesUsed = value;
+        if (id == 3) typesCap = value;
     }
 
     /** 按钮：1=存入全部玩家经验 2=取出全部。服务端执行。 */

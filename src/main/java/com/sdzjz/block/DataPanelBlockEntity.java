@@ -50,11 +50,21 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     private LinkedHashMap<String, Long> aggregate() {
         LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cores())
+        int used = 0, cap = 0; // m97：顺手统计全网类型用量（复用本次 BFS，不加新开销）
+        for (StorageCoreBlockEntity core : cores()) {
+            used += core.storeView().size();
+            cap += core.maxTypes();
             for (Map.Entry<String, Long> e : core.storeView().entrySet())
                 agg.merge(e.getKey(), e.getValue(), Long::sum);
+        }
+        typesUsedCache = used; typesCapCache = cap;
         return agg;
     }
+
+    /** m97：全网类型用量缓存（随 refreshDisplay 节流刷新），供界面显示"类型 X/Y"。 */
+    private int typesUsedCache, typesCapCache;
+    public int typesUsed() { return typesUsedCache; }
+    public int typesCap()  { return typesCapCache; }
 
     public long count(String id) {
         long n = 0;

@@ -130,6 +130,12 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
         ctx.drawText(this.textRenderer, "存储终端", 24, 12, TXT, false);
         header(ctx, "存储 · 滚轮翻页", 99, 20);
+        // m97：全网类型用量。满了变红——存储核心类型上限(27×等级)到顶时新种类被拒收，
+        // 表现就是"格子只填了几排再也进不去新东西"，这里把原因亮出来。
+        int tu = this.handler.typesUsedView(), tc = this.handler.typesCapView();
+        String usage = tc <= 0 ? "无存储核心" : ("类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""));
+        int uw = this.textRenderer.getWidth(usage);
+        ctx.drawText(this.textRenderer, usage, 99 + 162 - uw, 20, (tc <= 0 || tu >= tc) ? 0xFFE07070 : SUB, false);
         header(ctx, "物品栏", 99, 148);
         header(ctx, "合成", 272, 28);
         ctx.drawText(this.textRenderer, "回收", 306, 220, 0xFFE07070, false);
