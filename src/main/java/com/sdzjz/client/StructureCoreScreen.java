@@ -66,6 +66,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double panX = 0, panY = 0, zoom = 1.0;
     private boolean libOpen = false; // m88 机器库侧栏
     private int libScroll = 0;
+    private boolean busCollapsed = false; // m91：总线收起（拉线时自动展开）
+    private boolean busVisible() { return !busCollapsed || linking; }
 
     // ===== m89：端点直发包缓存（BE 同步链实机不生效的最终修复）=====
     private static long endsCachePos = Long.MIN_VALUE;
@@ -297,14 +299,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         m.pop();
 
-        // ===== 存储总线：顶部横排，屏幕坐标绘制，永远可见（m88 改无条件渲染：空也画底板，好诊断）=====
+        // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
         {
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
-            int bot = 44 + rows * (SH + 16) + 2;
+            int bot = busVisible() ? 44 + rows * (SH + 16) + 2 : 44;
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
-            if (ends.isEmpty()) ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
+            // 收起/展开开关（右上角小块）
+            int tx = workRight() - 34;
+            boolean th = mouseX >= tx && mouseX <= tx + 22 && mouseY >= 26 && mouseY <= 40;
+            ctx.fill(tx - 1, 25, tx + 23, 41, th ? 0xFF3FA9D0 : 0xFF1E4258);
+            ctx.fill(tx, 26, tx + 22, 40, 0xFF0D1B2C);
+            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+            if (busVisible() && ends.isEmpty())
+                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
             java.util.List<String> bi = busIdsOf(be);
@@ -314,14 +323,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (ist.isEmpty()) continue;
                 String cnt = fmtNum(bc.get(k2));
                 int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
-                if (cx + cw > workRight() - 24) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
+                if (cx + cw > workRight() - 44) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
                 ctx.drawItem(ist, cx, 22);
                 ctx.drawText(this.textRenderer, cnt, cx + 18, 29, TXT, false);
                 cx += cw;
             }
         }
-        // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标
-        for (long[] e : be.storageEdgesView()) {
+        // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标（m91：总线收起时不画）
+        if (busVisible()) for (long[] e : be.storageEdgesView()) {
             int mi = (int) e[0];
             if (mi >= nodes.size()) continue;
             int j = endpointIndex(ends, e[1]);
@@ -341,7 +350,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
             drawWire(ctx, sx + SW - 14, sy + SH + 2, mouseX, mouseY, 0xFF9BF0C0);
         }
-        for (int j = 0; j < ends.size(); j++)
+        if (busVisible()) for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
     }
 
@@ -729,6 +738,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // m91 总线收起/展开开关
+        int tbx = workRight() - 34;
+        if (button == 0 && mouseX >= tbx && mouseX <= tbx + 22 && mouseY >= 26 && mouseY <= 40) {
+            busCollapsed = !busCollapsed;
+            return true;
+        }
         // m88 机器库侧栏：点击行=放 1 台进画布；面板区吞掉其余点击
         if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= this.height - 84) {
             if (button == 0) {
@@ -809,8 +824,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
                 if (button == 1) {
-                    // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标）
-                    for (int j = ends.size() - 1; j >= 0; j--) {
+                    // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标；m91 总线收起时跳过）
+                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {
@@ -865,7 +880,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
                 if (button == 0) {
                     // 停靠栏优先（屏幕坐标）：供料口(绿) → 存储/面板→机器 供料连线；面板供料=取自它聚合的网络
-                    for (int j = ends.size() - 1; j >= 0; j--) {
+                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
                         long pl = ends.get(j)[0];
                         int oxp = snx(be, pl, j) + SW - 14, oyp = sny(be, pl, j) + SH;
@@ -873,8 +888,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             linking = true; linkStor = pl; linkFrom = -1; return true;
                         }
                     }
-                    // 停靠栏节点体：吞掉点击，防误触其下的机器/画布拖动
-                    for (int j = ends.size() - 1; j >= 0; j--) {
+                    // 停靠栏节点体：吞掉点击，防误触其下的机器/画布拖动（m91 收起时跳过）
+                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx - 4 && mouseX <= sx + SW + 6 && mouseY >= sy && mouseY <= sy + SH) return true;
@@ -971,7 +986,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (linkFrom >= 0) {
                     // 优先看是否落在存储节点上 → 机器→存储 定向产出
                     boolean done = false;
-                    for (int j = ends.size() - 1; j >= 0; j--) {
+                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0]; // 数据面板也可连（存进它聚合的整个网络）
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx && mouseX <= sx + SW && mouseY >= sy && mouseY <= sy + SH) {

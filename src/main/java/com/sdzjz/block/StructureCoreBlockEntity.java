@@ -201,6 +201,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 过滤器节点：清运自己的输入缓存——放行的沿出线下游，拦下的走定向存储/默认路由
                 if (be.ticks % 5 != 0) continue;
                 java.util.Map<String, Long> own = be.nodeBuf(i);
+                // m91：存储→过滤器 供料边=按白名单主动拉料（此前逻辑节点从不消费供料边，
+                // "面板→过滤器→机器"的链路是死的——用户图3实锤）。黑名单无清单，不拉。
+                if (be.ticks % 20 == 0 && !StructureCoreBlockEntity.filterBlacklist(st)) {
+                    com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
+                    if (sup != null) {
+                        for (String fid : StructureCoreBlockEntity.filterList(st)) {
+                            long have = own.getOrDefault(fid, 0L);
+                            if (have >= 64) continue; // 缓存封顶，防抽空仓库
+                            int got = sup.withdraw(fid, (int) (64 - have));
+                            if (got > 0) own.merge(fid, (long) got, Long::sum);
+                        }
+                    }
+                }
                 if (own.isEmpty()) continue;
                 boolean moved = false;
                 for (String id : new java.util.ArrayList<>(own.keySet())) {
