@@ -101,11 +101,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             double[] v = VIEW.get(p);
             panX = v[0]; panY = v[1]; zoom = v[2];
         }
-        this.addDrawableChild(new SciButton(8, this.height - 56, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
-        this.addDrawableChild(new SciButton(104, this.height - 56, 90, 20, Text.literal("■ 停止"), b -> click(1)));
-        this.addDrawableChild(new SciButton(200, this.height - 56, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
-        this.addDrawableChild(new SciButton(300, this.height - 56, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
-        this.addDrawableChild(new SciButton(396, this.height - 56, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
+        this.addDrawableChild(new SciButton(8, this.height - 74, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
+        this.addDrawableChild(new SciButton(104, this.height - 74, 90, 20, Text.literal("■ 停止"), b -> click(1)));
+        this.addDrawableChild(new SciButton(200, this.height - 74, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
+        this.addDrawableChild(new SciButton(300, this.height - 74, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
+        this.addDrawableChild(new SciButton(396, this.height - 74, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
         int wr2 = this.width - Math.min(Math.max(120, this.width / 5), 220); // m86 顶条视图控制（概念图）
         this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
@@ -152,6 +152,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return CYAN;
     }
 
+    /** m87：文本按宽度截断，尾加省略号——底栏任何文字不越 JEI 界。 */
+    private String fitText(String t, int maxW) {
+        if (this.textRenderer.getWidth(t) <= maxW) return t;
+        while (!t.isEmpty() && this.textRenderer.getWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        return t + "…";
+    }
+
     /** m86 视图控制：围绕工作区中心缩放。 */
     private void zoomBy(double f) {
         double nz = Math.max(0.4, Math.min(2.5, zoom * f));
@@ -172,7 +179,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             minX = Math.min(minX, nx); minY = Math.min(minY, ny);
             maxX = Math.max(maxX, nx + NW); maxY = Math.max(maxY, ny + NH + 28); // 含升级格
         }
-        int top = 118, bottom = this.height - 72, left = 12, right = workRight() - 12;
+        int top = 118, bottom = this.height - 86, left = 12, right = workRight() - 12;
         double zw = (right - left) / (double) Math.max(1, maxX - minX);
         double zh = (bottom - top) / (double) Math.max(1, maxY - minY);
         zoom = Math.max(0.4, Math.min(2.5, Math.min(zw, zh)));
@@ -482,33 +489,35 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, zp, workRight() - 128 - this.textRenderer.getWidth(zp) / 2, 6, TXT, false);
 
         // 底部背板：按钮 + 状态 + 提示 一体
-        ctx.fill(0, this.height - 64, workRight(), this.height, 0xEE0A121F);
-        ctx.fill(0, this.height - 64, workRight(), this.height - 63, CYAN);
+        // m87：底栏加高到 78，状态改画在按钮下方整行——之前固定 x=498 起画，GUI 缩放大时直接怼进 JEI（用户截图实锤）
+        ctx.fill(0, this.height - 78, workRight(), this.height, 0xEE0A121F);
+        ctx.fill(0, this.height - 78, workRight(), this.height - 77, CYAN);
         boolean run = this.handler.isRunning();
-        int sx = 498; // m85：给整理布局/重置视角按钮让位
-        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", sx, this.height - 54, run ? ON : SUB, false);
-        ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), sx + 62, this.height - 54, ON, false);
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
         if (be != null) for (long[] e : be.storageEndpointsView()) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
-        ctx.drawText(this.textRenderer, "机器 " + this.handler.machineCount()
-                + "  存储 " + stor + " · 面板 " + term
-                + "  缓存 " + fmtNum(this.handler.buffered()), sx + 140, this.height - 54, SUB, false);
         int nRun = 0, nBlk = 0, nLack = 0;
         if (be != null) for (int i = 0; i < be.nodes().size(); i++) {
             int st2 = be.nodeStatus(i);
             if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
         }
-        ctx.drawText(this.textRenderer, "产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)"
-                + "  运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
+        int maxW = workRight() - 16;
+        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, this.height - 48, run ? ON : SUB, false);
+        ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
+                + "  机器 " + this.handler.machineCount()
+                + "  存储 " + stor + " · 面板 " + term
+                + "  缓存 " + fmtNum(this.handler.buffered())
+                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, this.height - 48, SUB, false);
+        ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
-                + "  缩放" + String.format("%.1f", zoom) + "x", sx, this.height - 42, SUB, false);
-        ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", 8, this.height - 12, SUB, false);
+                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, this.height - 36, SUB, false);
+        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, this.height - 12, SUB, false);
+
 
         // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
-        if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 64 && mouseX < workRight()) {
+        if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 80 && mouseX < workRight()) {
             List<ItemStack> nodes = be.nodes();
             for (int i = 0; i < nodes.size(); i++) {
                 int nx = (int) (panX + wnx(be, nodes, i) * zoom), ny = (int) (panY + wny(be, nodes, i) * zoom);
