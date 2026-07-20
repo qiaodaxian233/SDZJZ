@@ -49,7 +49,11 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         this.addSlot(new Slot(result, 0, gx + GRID * 18 + 24, gy + (GRID * 18) / 2 - 8) {
             @Override public boolean canInsert(ItemStack s) { return false; }
             @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
-                consumeIngredients();
+                // m95：扣料只在服务端执行。原版 container_click 包上报"本次点击改动的槽位"，
+                // 协议硬上限 128 个；客户端本地预测若同时扣 144 格材料，144网格+1结果=145 个改动槽
+                // 直接超限 → EncoderException 断线（m61 配方铺满 140~144 格后取成品必炸）。
+                // 客户端这次点击只动结果槽（1~2 槽）；服务端扣料后经槽位同步把网格纠正回来。
+                if (!player.getWorld().isClient) consumeIngredients();
                 super.onTakeItem(player, stack);
             }
         });
