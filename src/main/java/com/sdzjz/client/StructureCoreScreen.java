@@ -57,7 +57,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int TERMFRM  = 0xFF7A5AC8;   // 数据终端边框（紫）
     private static final int OFFFRM   = 0xFF5A6470;   // 离线边框（灰）
     private static final int NW = 100, NH = 52;
-    private static final int SW = 104, SH = 40;       // 存储节点尺寸
+    private static final int SW = 88, SH = 30;        // 存储节点尺寸（m92 紧凑化，用户点名"还是太大"）
     private static final String[] KIND = {"绑定", "有线", "无线", "卫星", "离线", "终端", "接口"};
     private static final Item[] UPG = { ModItems.SPEED_UPGRADE, ModItems.COUNT_UPGRADE, ModItems.PARALLEL_UPGRADE };
 
@@ -257,7 +257,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
     private int busCols() { return Math.max(1, (workRight() - 24) / (SW + 14)); }
     private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (SW + 14); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (SH + 16); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (SH + 12); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -302,7 +302,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
         {
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
-            int bot = busVisible() ? 44 + rows * (SH + 16) + 2 : 44;
+            int bot = busVisible() ? 44 + rows * (SH + 12) + 2 : 44;
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
             ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
@@ -374,12 +374,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
-        var msn = ctx.getMatrices();
-        msn.push();
-        msn.translate(x + 3, y + 8, 0);
-        msn.scale(1.5f, 1.5f, 1f);
-        ctx.drawItem(icon, 0, 0);
-        msn.pop();
+        ctx.drawItem(icon, x + 4, y + 7); // m92 紧凑化：1x 图标
         String title;
         if (iface) title = "输出接口";
         else { // 分组编号：存储1/2…、数据面板1/2…（服务端已按 接口→存储→面板 排序）
@@ -389,8 +384,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
             title = (kind == 5 ? "数据面板" : "存储") + no;
         }
-        ctx.drawText(this.textRenderer, title, x + 32, y + 7, TXT, false);
-        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 32 + this.textRenderer.getWidth(title) + 4, y + 7,
+        ctx.drawText(this.textRenderer, title, x + 24, y + 5, TXT, false);
+        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 24 + this.textRenderer.getWidth(title) + 3, y + 5,
                 iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
         String sub;
         if (iface) {
@@ -405,7 +400,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 sub += "  类型 " + sc.usedTypes() + "/" + sc.maxTypes(); // 仅同维度读数
             }
         }
-        ctx.drawText(this.textRenderer, sub, x + 32, y + 22, SUB, false);
+        ctx.drawText(this.textRenderer, sub, x + 24, y + 17, SUB, false);
     }
 
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {

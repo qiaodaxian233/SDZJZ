@@ -167,6 +167,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
 
+        // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
+        // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
+        // 熔炉需求=可熔炼表、合成机需求=目标配方材料、消耗机需求=定义 inputs；支持逻辑节点串联（深度8+防环）。
+        if (be.ticks % 20 == 0) {
+            java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
+            for (int i = 0; i < nSize; i++) {
+                ItemStack stL = be.machineNodes.get(i);
+                if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL))) continue;
+                com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
+                if (sup == null) continue;
+                java.util.Map<String, Long> ownL = be.nodeBuf(i);
+                for (var en : new java.util.ArrayList<>(sup.storeView().entrySet())) {
+                    String id = en.getKey();
+                    long have = ownL.getOrDefault(id, 0L);
+                    if (have >= 64) continue; // 每种缓存封顶，防抽空仓库
+                    if (!be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
+                    int got = sup.withdraw(id, (int) (64 - have));
+                    if (got > 0) ownL.merge(id, (long) got, Long::sum);
+                }
+            }
+        }
+
         boolean produced = false;
         StorageCoreBlockEntity src = null;
         boolean srcResolved = false;
@@ -201,19 +223,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 过滤器节点：清运自己的输入缓存——放行的沿出线下游，拦下的走定向存储/默认路由
                 if (be.ticks % 5 != 0) continue;
                 java.util.Map<String, Long> own = be.nodeBuf(i);
-                // m91：存储→过滤器 供料边=按白名单主动拉料（此前逻辑节点从不消费供料边，
-                // "面板→过滤器→机器"的链路是死的——用户图3实锤）。黑名单无清单，不拉。
-                if (be.ticks % 20 == 0 && !StructureCoreBlockEntity.filterBlacklist(st)) {
-                    com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
-                    if (sup != null) {
-                        for (String fid : StructureCoreBlockEntity.filterList(st)) {
-                            long have = own.getOrDefault(fid, 0L);
-                            if (have >= 64) continue; // 缓存封顶，防抽空仓库
-                            int got = sup.withdraw(fid, (int) (64 - have));
-                            if (got > 0) own.merge(fid, (long) got, Long::sum);
-                        }
-                    }
-                }
                 if (own.isEmpty()) continue;
                 boolean moved = false;
                 for (String id : new java.util.ArrayList<>(own.keySet())) {
@@ -980,6 +989,43 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 该机器的定向供料源（存储→机器 连线）。 */
+    /** m92：链式需求判定——物品 id 能否被节点 i（含其下游）真实消费。放行规则沿途生效，深度/环双保护。 */
+    private boolean chainWants(World world, int i, String id, int depth,
+                               java.util.Set<Integer> visited,
+                               java.util.Map<Integer, java.util.List<Integer>> outT,
+                               java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
+        if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = machineNodes.get(i);
+        if (isFilter(st)) {
+            if (!filterPasses(st, id)) return false;
+        } else if (isSwitch(st)) {
+            if (!switchOn(st)) return false;
+        } else if (isSensor(st) || isDistributor(st)) {
+            // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行
+        } else if (st.getItem() instanceof AutoCrafterItem) {
+            java.util.Set<String> needs = crafterNeeds.computeIfAbsent(i, k -> {
+                String tgt = craftTarget(st);
+                CraftPlanner.Plan plan = tgt.isEmpty() ? null : CraftPlanner.plan(world, tgt);
+                return plan == null ? java.util.Set.of() : plan.needs().keySet();
+            });
+            return needs.contains(id);
+        } else if (st.getItem() instanceof MachineItem mi) {
+            var def = mi.def();
+            if ("super_smelter".equals(def.id()))
+                return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
+            if (def.consumesInputs()) {
+                for (var in : def.inputs()) if (in.item().equals(id)) return true;
+                return false;
+            }
+            return false; // 免费产出机不吃供料
+        } else {
+            return false; // 农场/笼子等
+        }
+        for (Integer t : outT.getOrDefault(i, java.util.List.of()))
+            if (chainWants(world, t, id, depth + 1, visited, outT, crafterNeeds)) return true;
+        return false;
+    }
+
     private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
         return edgeStorage(world, machineIndex, 1);
     }

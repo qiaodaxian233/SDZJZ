@@ -19,6 +19,8 @@ public final class Machines {
             drop("minecraft:white_wool", 1, 2), drop("minecraft:mutton", 1, 2));
     public static final MachineDef COW_FARM = defMulti("cow_farm", 30,
             drop("minecraft:beef", 1, 3), drop("minecraft:leather", 0, 2, 0.6f));
+    public static final MachineDef PIG_FARM = defMulti("pig_farm", 30,
+            drop("minecraft:porkchop", 1, 2)); // m92 用户点名补缺
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 
