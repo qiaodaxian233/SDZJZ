@@ -104,6 +104,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.addDrawableChild(new SciButton(8, this.height - 56, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
         this.addDrawableChild(new SciButton(104, this.height - 56, 90, 20, Text.literal("■ 停止"), b -> click(1)));
         this.addDrawableChild(new SciButton(200, this.height - 56, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
+        this.addDrawableChild(new SciButton(300, this.height - 56, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
+        this.addDrawableChild(new SciButton(396, this.height - 56, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
         String keep = pickerField != null ? pickerField.getText() : "";
         this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
         this.pickerField.setChangedListener(t -> refilterPicker());
@@ -134,8 +136,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double wmy(double my) { return (my - panY) / zoom; }
     private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
     private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
+    /** m85：画布 UI 的右边界——右侧留空给 JEI/REI 物品栏（用户点名），所有屏幕锚定元素不越界。 */
+    private int workRight() { return this.width - Math.min(Math.max(120, this.width / 5), 220); }
+
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
-    private int busCols() { return Math.max(1, (this.width - 24) / (SW + 14)); }
+    private int busCols() { return Math.max(1, (workRight() - 24) / (SW + 14)); }
     private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (SW + 14); }
     private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (SH + 16); }
 
@@ -183,9 +188,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (!ends.isEmpty()) {
             int rows = (ends.size() + busCols() - 1) / busCols();
             int bot = 44 + rows * (SH + 16) + 2;
-            ctx.fill(8, 24, this.width - 8, bot, 0x66060B14);
-            ctx.fill(8, bot - 2, this.width - 8, bot, 0xFF2E6E8E); // 总线底轨
-            ctx.drawText(this.textRenderer, "存储总线 · 机器绿口拖到节点=定向入库/供料", 14, 29, SUB, false);
+            ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
+            ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
+            ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
+            // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
+            int cx = 132;
+            java.util.List<String> bi = be.busTopIdsView();
+            java.util.List<Long> bc = be.busTopCountsView();
+            for (int k2 = 0; k2 < bi.size(); k2++) {
+                ItemStack ist = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(bi.get(k2))));
+                if (ist.isEmpty()) continue;
+                String cnt = fmtNum(bc.get(k2));
+                int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
+                if (cx + cw > workRight() - 24) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
+                ctx.drawItem(ist, cx, 22);
+                ctx.drawText(this.textRenderer, cnt, cx + 18, 29, TXT, false);
+                cx += cw;
+            }
         }
         // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标
         for (long[] e : be.storageEdgesView()) {
@@ -410,17 +429,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+        // m85：HandledScreen 会把前景层平移 (x,y)——之前标题/状态因此漂到屏幕中间。translate 回去，用真屏幕坐标。
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(-this.x, -this.y, 0);
         // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
-        ctx.fill(0, 0, this.width, 20, 0xEE0A121F);
-        ctx.fill(0, 19, this.width, 20, CYAN);
+        ctx.fill(0, 0, workRight(), 20, 0xEE0A121F);
+        ctx.fill(0, 19, workRight(), 20, CYAN);
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
 
         // 底部背板：按钮 + 状态 + 提示 一体
-        ctx.fill(0, this.height - 64, this.width, this.height, 0xEE0A121F);
-        ctx.fill(0, this.height - 64, this.width, this.height - 63, CYAN);
+        ctx.fill(0, this.height - 64, workRight(), this.height, 0xEE0A121F);
+        ctx.fill(0, this.height - 64, workRight(), this.height - 63, CYAN);
         boolean run = this.handler.isRunning();
-        int sx = 304;
+        int sx = 498; // m85：给整理布局/重置视角按钮让位
         ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", sx, this.height - 54, run ? ON : SUB, false);
         ctx.drawText(this.textRenderer, "经验 " + fmtNum(this.handler.xp()), sx + 62, this.height - 54, ON, false);
         int stor = 0, term = 0;
@@ -429,11 +451,50 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "机器 " + this.handler.machineCount()
                 + "  存储 " + stor + " · 面板 " + term
                 + "  缓存 " + fmtNum(this.handler.buffered()), sx + 140, this.height - 54, SUB, false);
-        ctx.drawText(this.textRenderer, "升级∑ 加速" + this.handler.speedLv()
+        int nRun = 0, nBlk = 0, nLack = 0;
+        if (be != null) for (int i = 0; i < be.nodes().size(); i++) {
+            int st2 = be.nodeStatus(i);
+            if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
+        }
+        ctx.drawText(this.textRenderer, "运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
+                + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
                 + "  缩放" + String.format("%.1f", zoom) + "x", sx, this.height - 42, SUB, false);
         ctx.drawText(this.textRenderer, "右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞/关闸 红=缺料 · 过滤/传感器右键配置", 8, this.height - 12, SUB, false);
+
+        // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
+        if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 64 && mouseX < workRight()) {
+            List<ItemStack> nodes = be.nodes();
+            for (int i = 0; i < nodes.size(); i++) {
+                int nx = (int) (panX + wnx(be, nodes, i) * zoom), ny = (int) (panY + wny(be, nodes, i) * zoom);
+                if (mouseX < nx || mouseX > nx + (int) (NW * zoom) || mouseY < ny || mouseY > ny + (int) (NH * zoom)) continue;
+                ItemStack st = nodes.get(i);
+                java.util.List<net.minecraft.text.Text> tip = new java.util.ArrayList<>();
+                tip.add(Text.literal(st.getName().getString() + " ×" + st.getCount()));
+                int stt = be.nodeStatus(i);
+                tip.add(Text.literal("状态: " + (!this.handler.isRunning() ? "核心停机"
+                        : switch (stt) { case 1 -> "运行中"; case 2 -> "阻塞/关闸"; case 3 -> "缺料"; default -> "待机"; })));
+                if (st.getItem() instanceof com.sdzjz.item.MachineItem mi2) {
+                    var def = mi2.def();
+                    double avg = 0;
+                    for (var d : def.outputs()) avg += d.chance() * (d.min() + d.max()) / 2.0;
+                    double perMin = avg * (1200.0 / Math.max(1, def.baseIntervalTicks())) * st.getCount();
+                    tip.add(Text.literal(String.format("周期 %.1f 秒 · 基础产出 ~%.0f/分", def.baseIntervalTicks() / 20.0, perMin)));
+                    StringBuilder sb = new StringBuilder("产出: ");
+                    for (int k2 = 0; k2 < def.outputs().size() && k2 < 3; k2++) {
+                        if (k2 > 0) sb.append("、");
+                        sb.append(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(def.outputs().get(k2).item()))).getName().getString());
+                    }
+                    if (def.outputs().size() > 3) sb.append("…");
+                    tip.add(Text.literal(sb.toString()));
+                    if (def.consumesInputs()) tip.add(Text.literal("消耗输入（对齐原版）"));
+                }
+                ctx.drawTooltip(this.textRenderer, tip, mouseX, mouseY);
+                break;
+            }
+        }
+        ctx.getMatrices().pop();
     }
 
     @Override
@@ -453,7 +514,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // ================= 右键菜单 =================
     private void openMenu(int x, int y) {
         menuOpen = true;
-        menuX = Math.min(x, this.width - MENU_W - 4);
+        menuX = Math.min(x, workRight() - MENU_W - 4);
         menuY = Math.min(y, this.height - menuLabels.size() * MENU_H - 4);
     }
 

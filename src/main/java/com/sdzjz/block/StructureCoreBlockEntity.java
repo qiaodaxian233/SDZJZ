@@ -907,6 +907,30 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 storageEndpointDims.add(dims.get(v[0]));
             }
             storageNodePos.keySet().retainAll(found.keySet()); // 修剪已消失端点的画布坐标
+        }
+        // ===== m85：总线库存聚合（只数存储核心；面板聚合的是同一批核心，数它会重复计）=====
+        java.util.LinkedHashMap<String, Long> agg = new java.util.LinkedHashMap<>();
+        for (long[] v : found.values()) {
+            if (v[1] == 4 || v[1] == 5 || v[1] == 6) continue;
+            World tw = resolveDimWorld(world, dims.get(v[0]));
+            if (tw == null) continue;
+            BlockPos bp = BlockPos.fromLong(v[0]);
+            if (!tw.getChunkManager().isChunkLoaded(bp.getX() >> 4, bp.getZ() >> 4)) continue;
+            if (tw.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc)
+                for (var en : sc.storeView().entrySet()) agg.merge(en.getKey(), en.getValue(), Long::sum);
+        }
+        java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
+        top.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+        if (top.size() > 10) top = new java.util.ArrayList<>(top.subList(0, 10));
+        java.util.List<String> nIds = new java.util.ArrayList<>();
+        java.util.List<Long> nCts = new java.util.ArrayList<>();
+        for (var en : top) { nIds.add(en.getKey()); nCts.add(en.getValue()); }
+        boolean busChanged = !nIds.equals(busTopIds) || !nCts.equals(busTopCounts);
+        if (busChanged) {
+            busTopIds.clear(); busTopIds.addAll(nIds);
+            busTopCounts.clear(); busTopCounts.addAll(nCts);
+        }
+        if (changed || busChanged) {
             markDirty();
             syncToClient();
         }
@@ -999,6 +1023,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     public java.util.List<long[]> storageEndpointsView() { return storageEndpoints; }
+
+    // m85：总线库存（网络前10物品，画布顶栏「存储总线（网络库存）」展示）
+    private final java.util.List<String> busTopIds = new java.util.ArrayList<>();
+    private final java.util.List<Long> busTopCounts = new java.util.ArrayList<>();
+    public java.util.List<String> busTopIdsView() { return busTopIds; }
+    public java.util.List<Long> busTopCountsView() { return busTopCounts; }
+
+    private World resolveDimWorld(World base, String dim) {
+        if (dim == null || dim.isEmpty() || base.getRegistryKey().getValue().toString().equals(dim)) return base;
+        if (base instanceof net.minecraft.server.world.ServerWorld sw)
+            return sw.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, Identifier.of(dim)));
+        return null;
+    }
     public java.util.List<String> storageEndpointDimsView() { return storageEndpointDims; }
     public java.util.List<long[]> storageEdgesView() { return storageEdges; }
 
@@ -1522,6 +1559,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         NbtCompound spn = new NbtCompound(); // 存储节点画布坐标
         for (var en : storageNodePos.entrySet()) spn.putIntArray(Long.toString(en.getKey()), en.getValue());
         nbt.put("storNodePos", spn);
+        NbtList bt = new NbtList(); // m85 总线库存
+        for (int i = 0; i < busTopIds.size(); i++) {
+            NbtCompound c = new NbtCompound();
+            c.putString("i", busTopIds.get(i));
+            c.putLong("n", busTopCounts.get(i));
+            bt.add(c);
+        }
+        nbt.put("busTop", bt);
     }
 
     @Override
@@ -1574,6 +1619,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             storageEdgeDims.add(c.getString("d"));
         }
         storageNodePos.clear();
+        busTopIds.clear();
+        busTopCounts.clear();
+        NbtList btr = nbt.getList("busTop", NbtElement.COMPOUND_TYPE); // m85
+        for (int i = 0; i < btr.size(); i++) {
+            busTopIds.add(btr.getCompound(i).getString("i"));
+            busTopCounts.add(btr.getCompound(i).getLong("n"));
+        }
         NbtCompound spn = nbt.getCompound("storNodePos");
         for (String k : spn.getKeys()) {
             int[] v = spn.getIntArray(k);
