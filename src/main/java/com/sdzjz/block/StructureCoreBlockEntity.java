@@ -179,7 +179,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
         // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
         // 熔炉需求=可熔炼表、合成机需求=目标配方材料、消耗机需求=定义 inputs；支持逻辑节点串联（深度8+防环）。
-        if (be.ticks % 20 == 0) {
+        if (be.ticks % 5 == 0) { // m116：20t→5t 与逻辑节点转发同拍（此前 64/20t=64/秒天花板，用户熔炉组升到 50/50/54 也只吃到 100/秒）
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
@@ -190,9 +190,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (var en : new java.util.ArrayList<>(sup.storeView().entrySet())) {
                     String id = en.getKey();
                     long have = ownL.getOrDefault(id, 0L);
-                    if (have >= 64) continue; // 每种缓存封顶，防抽空仓库
+                    if (have >= 4096) continue; // m116 每种封顶 64→4096：链式需求门控仍在（只拉下游真吃的），在途量经 8/9 号属性可见
                     if (!be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
-                    int got = sup.withdraw(id, (int) (64 - have));
+                    int got = sup.withdraw(id, (int) (4096 - have));
                     if (got > 0) ownL.merge(id, (long) got, Long::sum);
                 }
             }

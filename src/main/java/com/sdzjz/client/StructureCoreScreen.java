@@ -1264,7 +1264,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
+        // m116：已选项置顶——窗口只显示一页 70 格，1400+ 物品里已选的经常根本翻不到（用户点名）。
+        // 按 id 直接解析已选（数量个位数级），不进大扫描，每键成本不回退 m107a。
+        if (pickerMode == 1 || pickerMode == 3) {
+            StructureCoreBlockEntity beS = be();
+            if (beS != null && pickerNode >= 0 && pickerNode < beS.nodes().size()) {
+                List<String> sel = pickerMode == 1
+                        ? StructureCoreBlockEntity.filterList(beS.nodes().get(pickerNode))
+                        : StructureCoreBlockEntity.cropList(beS.nodes().get(pickerNode));
+                for (String sid : sel) {
+                    Item it = Registries.ITEM.get(net.minecraft.util.Identifier.of(sid));
+                    if (q.isEmpty()
+                            || new ItemStack(it).getName().getString().toLowerCase().contains(q)
+                            || Registries.ITEM.getId(it).getPath().contains(q)) {
+                        if (!pickerFiltered.contains(it)) pickerFiltered.add(it);
+                    }
+                }
+            }
+        }
         for (Item it : src) {
+            if (pickerFiltered.contains(it)) continue; // 已置顶的不重复
             if (q.isEmpty()
                     || new ItemStack(it).getName().getString().toLowerCase().contains(q)
                     || Registries.ITEM.getId(it).getPath().contains(q)) {
