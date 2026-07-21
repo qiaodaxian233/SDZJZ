@@ -377,6 +377,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += take;
+                        be.prodTally(give); // m124 补漏：入线喂料路径此前不计产量——用户熔炉狂产14.2M碎片而实测只显农场的1311/分
                     }
                 } else {
                     // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
