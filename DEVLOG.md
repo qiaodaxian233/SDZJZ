@@ -945,3 +945,18 @@ accepts=全收（分不出去自动进存储，与过滤器余料语义一致）
   quickMove 存入路径顺手同款；onTakeItem 补"实收多少给多少"钳数——超发路径焊死。
 - 盯点：getCursorStack/setCursorStack/copyWithCount/decrement 四个方法名（Yarn 1.21 标准名，报错即改）；
   光标改动依赖原版 sendContentUpdates 的 cursor 跟踪同步，实机拿放几轮看有无幽灵光标。
+
+## m112 修 m111 回归：整页存储格瞬间清空（用户视频实锤）
+- 现象（逐帧）：滑动+取出后光标满载正常，125ms 后展示区 54 格**同帧全空**并持续，标题"类型 30"照常。
+- 根因：quickMove 是**双端执行**（客户端跑一遍做预测），m111 把 panel.refreshDisplay() 放进了
+  quickMove 存入分支——客户端预测流进分支后用**客户端 BE 的空账本**跑 aggregate，把 54 格全写
+  EMPTY。服务端一切正常、tracked 槽位无变化 → **不发任何纠正包** → 客户端永远黑屏。
+  同文件 14 行外就写着 m95 的"只在服务端跑"守卫注释，m111 自己没照做——低级错误，认。
+- 修法（m95 铁律全面补课）：①onTakeItem 的 withdraw+钳数加 !isClient（客户端只剥 NBT，等原版同步）；
+  ②quickMove 展示→背包的 withdraw 加守卫；③背包→存入分支整段零预测（isClient 直接 return，
+  与 consumeCraft/m106b 同款）；④**BE 层保险丝**：refreshDisplay/deposit/withdraw 三个方法开头
+  isClient 直接短路——未来谁再把调用塞进双端路径也炸不了。
+- 顺手补 AE 手感：服务端取走后立即 refreshDisplay，格子显示余量而非空 0.5s（取整组/半组后余额即时可见）。
+- 教训（加粗记牢）：**ScreenHandler 的 quickMove/onSlotClick/Slot 钩子全部双端执行；任何触碰
+  网络账本或展示页的调用必须先问一句"客户端跑到这里会怎样"。守卫写在被调用方（BE 保险丝）比
+  只写在调用方更保命。**

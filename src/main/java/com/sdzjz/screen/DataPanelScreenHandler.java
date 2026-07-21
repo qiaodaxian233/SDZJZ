@@ -39,10 +39,13 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 this.addSlot(new Slot(display, idx, 99 + c * 18, 30 + r * 18) {
                     @Override public boolean canInsert(ItemStack s) { return false; }
                     @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
-                        if (panel != null && !stack.isEmpty()) {
+                        // m112：账本只在服务端动（m95 铁律）。此钩子客户端预测也会跑——客户端 BE 账本是空的，
+                        // 在这里 withdraw/钳数会按空账把光标预测成 0，还会污染客户端核心读数。
+                        if (!player.getWorld().isClient && panel != null && !stack.isEmpty()) {
                             int got = panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount());
                             // m111：网络实收多少给多少——展示栈在 10t 刷新窗口内可能过期，绝不超发凭空造物
                             if (got < stack.getCount()) stack.setCount(Math.max(0, got));
+                            panel.refreshDisplay(); // 取走后余量立刻回显，格子不再空 0.5s（AE 手感）
                         }
                         // 剥掉展示用的数量 NBT，否则取出的物品与普通同类物品无法堆叠
                         stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
@@ -294,8 +297,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
             int before = clean.getCount();
             this.insertItem(clean, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
             int inserted = before - clean.getCount();
-            if (inserted > 0 && panel != null) {
+            if (inserted > 0 && panel != null && !player.getWorld().isClient) { // m112 账本只在服务端扣
                 panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), inserted);
+                panel.refreshDisplay(); // 余量立刻回显
             }
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
@@ -329,6 +333,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
             return ItemStack.EMPTY; // 回收格不 shift
         } else {
             // 玩家背包 → 存入面板
+            if (player.getWorld().isClient) return ItemStack.EMPTY; // m112 存入零预测：客户端跑到这会用空账本刷屏（视频实锤的整页清空）
             if (panel != null) {
                 // 带组件的物品（附魔/损耗/药水/成书等）拒存：仓储按 id 记账，存入会抹掉组件——宁可不动，绝不销毁数据
                 if (!stack.getComponentChanges().isEmpty()) {

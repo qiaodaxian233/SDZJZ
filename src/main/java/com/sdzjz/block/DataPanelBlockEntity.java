@@ -100,6 +100,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     /** 存入：塞进第一个收得下的存储核心。 */
     public void deposit(ItemStack stack) {
+        if (this.world != null && this.world.isClient) return; // m112 保险丝：账本只在服务端
         if (stack.isEmpty()) return;
         for (StorageCoreBlockEntity core : cores()) {
             core.deposit(stack);
@@ -137,6 +138,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     public int withdraw(String id, int amount) {
+        if (this.world != null && this.world.isClient) return 0; // m112 保险丝：账本只在服务端
         int got = 0;
         for (StorageCoreBlockEntity core : cores()) {
             if (got >= amount) break;
@@ -157,6 +159,9 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public int filteredRows() { return (filteredCount + 8) / 9; }
 
     public void refreshDisplay() { // m111 升 public：光标存取后 handler 即时刷新，不等 10t 节拍
+        // m112 保险丝：客户端 BE 账本恒空，跑聚合=把展示页 54 格全写 EMPTY 且服务端不知情无从纠正（视频 bug）。
+        // 客户端展示页只允许原版槽位同步来写。
+        if (this.world == null || this.world.isClient) return;
         LinkedHashMap<String, Long> agg = aggregate();
         java.util.List<Map.Entry<String, Long>> filtered = new java.util.ArrayList<>();
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();
