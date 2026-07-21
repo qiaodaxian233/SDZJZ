@@ -154,6 +154,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     protected void init() {
         super.init();
+        // m121 画布全屏：把 GUI 占位声明成整屏（x/y=0）——JEI/REI 只往界面右侧空余区放列表，
+        // 判定没空间就自动隐藏；本 handler 零槽位，挪 x/y 不影响任何槽渲染。背包等物品界面 JEI 照常。
+        this.x = 0; this.y = 0;
+        this.backgroundWidth = this.width;
+        this.backgroundHeight = this.height;
         BlockPos p = this.handler.blockPos();
         if (p != null && VIEW.containsKey(p)) {
             double[] v = VIEW.get(p);
@@ -166,7 +171,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.addDrawableChild(new SciButton(396, this.height - 74, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
         this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
         this.addDrawableChild(new SciButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
-        int wr2 = this.width - Math.min(Math.max(120, this.width / 5), 220); // m86 顶条视图控制（概念图）
+        int wr2 = this.width - 8; // m121 视图控制随全屏右移
         this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
         this.addDrawableChild(new SciButton(wr2 - 86, 2, 78, 16, Text.literal("适应视图"), b -> fitView()));
@@ -201,7 +206,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
     private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
     /** m85：画布 UI 的右边界——右侧留空给 JEI/REI 物品栏（用户点名），所有屏幕锚定元素不越界。 */
-    private int workRight() { return this.width - Math.min(Math.max(120, this.width / 5), 220); }
+    private int workRight() { return this.width - 8; } // m121 撤 m85 的 JEI 预留：画布全屏，JEI 已随全屏声明自动隐藏
 
     /** m86 节点分类配色（概念图）：紫=逻辑 橙=加工(消耗输入) 绿=农场 青=生产(免费)。 */
     private int nodeAccent(ItemStack st) {
