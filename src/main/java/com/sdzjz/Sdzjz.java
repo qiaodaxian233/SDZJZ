@@ -148,8 +148,12 @@ public class Sdzjz implements ModInitializer {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
-                    if (payload.add()) core.addNodeUpgrade(p, payload.index(), payload.type());
-                    else core.removeNodeUpgrade(p, payload.index(), payload.type());
+                    int n = Math.max(1, Math.min(64, payload.count())); // m115a 批量：服务端钳幅，逐个到失败即停
+                    for (int k = 0; k < n; k++) {
+                        boolean ok = payload.add() ? core.addNodeUpgrade(p, payload.index(), payload.type())
+                                                   : core.removeNodeUpgrade(p, payload.index(), payload.type());
+                        if (!ok) break;
+                    }
                 }
             });
         });

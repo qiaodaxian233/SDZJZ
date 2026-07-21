@@ -970,7 +970,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
                         if (wx >= sx && wx <= sx + 24 && wy >= sy && wy <= sy + 18) {
                             BlockPos p = this.handler.blockPos();
-                            if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0));
+                            // m115a：Shift+点击=批量（一次至多64个，服务端按背包/格内实况截断）
+                            if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0, hasShiftDown() ? 64 : 1));
                             return true;
                         }
                     }

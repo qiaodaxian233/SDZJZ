@@ -130,6 +130,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.scanStorageEndpoints(world, pos);
         }
         if (world.getTime() % 200 == 0) be.syncToClient(); // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）
+        // m115 过载保护：平均 tick >45ms 全线自动暂停（<40ms 恢复，滞回防抖）；>60ms 清理本核心喷出的掉落物
+        if (be.ticks % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw115) {
+            float ms = sw115.getServer().getAverageTickTime();
+            boolean was = be.lagPause;
+            if (ms > 45f) be.lagPause = true; else if (ms < 40f) be.lagPause = false;
+            if (be.lagPause && !was) be.warnNearby(world, "『生电终结者』服务器过载(平均 " + String.format("%.0f", ms)
+                    + "ms/tick)，本核心机器已自动暂停，恢复流畅后自动续跑");
+            if (ms > 60f) be.cleanupEjected(sw115);
+        }
         // m89：端点+总线库存 直发正在看画布的玩家（BE同步链实机不生效的最终修复——走已被证明可靠的包通道）
         if (world.getTime() % 40 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw) {
             com.sdzjz.net.CanvasEndsPayload pk = null;
@@ -199,6 +208,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
 
+            // m115 过载保护：全线暂停（黄灯），流畅后自动恢复
+            if (be.lagPause) { be.stat(i, 2); continue; }
             // m110b 单节点暂停：最先判——不产不耗不攒进度（m99 教训：early-continue 必须在累积之前）
             if (StructureCoreBlockEntity.nodePaused(st)) { be.stat(i, 2); continue; }
 
@@ -471,7 +482,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.pushOutput(world, pos);
             be.markDirty();
         }
-        if (be.ticks % 10 == 0) be.ejectOverflow(world, pos); // m114 断网喷射：独立于 produced（停产后也要排水）
+        if (!be.lagPause && be.ticks % 2 == 0) be.ejectOverflow(world, pos); // m114/m115 断网喷射：2t一组≈10组/秒；过载时停喷
         if (be.statusDirty && be.ticks % 20 == 0) { // 状态灯：有变化才同步，最多 1 次/秒
             be.statusDirty = false;
             be.markDirty();
@@ -1523,11 +1534,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  喷出一组。有存储时不喷（pushOutput 正常落库）；节流 1 组/10t 防实体洪水（同类掉落物原版
      *  自动合堆+5 分钟消失双兜底）。m99 封顶仍在：缓存满停产、喷射腾格后自动续产——
      *  离网吞吐≈喷射速率（约 2 组/秒），天然自限。 */
+    private boolean ejectWarned = false; // m115：断网喷射只警告一次，接回存储后复位
+    private boolean lagPause = false;    // m115：过载全线暂停标志（滞回控制）
+
     private void ejectOverflow(World world, BlockPos corePos) {
-        if (resolveOutTarget(world, corePos) != null) return; // 有去处不喷
+        if (resolveOutTarget(world, corePos) != null) { ejectWarned = false; return; } // 有去处不喷，警告复位
         for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
             ItemStack slot = items.get(i);
             if (slot.isEmpty()) continue;
+            if (!ejectWarned) { // m115 用户点名：运行前提醒——首次喷射时告知附近玩家
+                ejectWarned = true;
+                warnNearby(world, "『生电终结者』核心未连接存储：产出将喷射为掉落物，可能造成卡顿（贴上存储核心/箱子即恢复落库）");
+            }
             ItemStack out = slot.copy();
             items.set(i, ItemStack.EMPTY);
             var r = world.getRandom();
@@ -1535,10 +1553,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     corePos.getX() + 0.5, corePos.getY() + 1.1, corePos.getZ() + 0.5, out,
                     (r.nextDouble() - 0.5) * 0.16, 0.30 + r.nextDouble() * 0.08, (r.nextDouble() - 0.5) * 0.16);
             e.setToDefaultPickupDelay();
+            e.addCommandTag("sdzjz_ejected"); // m115：打标——极端卡顿只清自家喷出的，绝不动玩家掉落
             world.spawnEntity(e);
             markDirty();
             return; // 每次最多一组
         }
+    }
+
+    /** m115：给核心 24 格内的玩家发一条聊天提示。 */
+    private void warnNearby(World world, String text) {
+        for (net.minecraft.entity.player.PlayerEntity pl : world.getPlayers())
+            if (pl.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) < 24 * 24)
+                pl.sendMessage(net.minecraft.text.Text.literal(text), false);
+    }
+
+    /** m115 极端卡顿(>60ms/tick)：清理本核心周边 64 格内带 sdzjz_ejected 标签的掉落物。 */
+    private void cleanupEjected(net.minecraft.server.world.ServerWorld sw) {
+        var box = net.minecraft.util.math.Box.of(pos.toCenterPos(), 64, 32, 64);
+        for (net.minecraft.entity.ItemEntity e : sw.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, box,
+                en -> en.getCommandTags().contains("sdzjz_ejected"))) e.discard();
     }
 
     /** 从核心出发，直连相邻存储；遇数据线则继续路由，返回最近的数据面板/箱子。 */
