@@ -279,6 +279,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
+        ctx.fill(0, 0, workRight(), 22, 0xEE0A121F);  // m120 顶条底带（与底栏同语言）
+        ctx.fill(0, 22, workRight(), 23, CYAN);
         int step = 32;
         int ox = ((int) panX) % step, oy = ((int) panY) % step;
         for (int x = ox; x < this.width; x += step) ctx.fill(x, 34, x + 1, this.height, GRID);
@@ -408,8 +410,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         StructureCoreBlockEntity be = be();
         if (be == null) return;
         int mx = mapX(), my = mapY();
+        ctx.fill(mx + 2, my + 3, mx + MAP_W + 3, my + MAP_H + 3, 0x59000000); // m120 投影
         ctx.fill(mx - 1, my - 1, mx + MAP_W + 1, my + MAP_H + 1, NODEFRM);
         ctx.fill(mx, my, mx + MAP_W, my + MAP_H, 0xE0101820);
+        ctx.fill(mx, my, mx + MAP_W, my + 2, CYAN);
         List<ItemStack> nodes = be.nodes();
         if (nodes.isEmpty()) {
             ctx.drawText(this.textRenderer, "画布为空", mx + (MAP_W - this.textRenderer.getWidth("画布为空")) / 2,
@@ -455,8 +459,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int x = snx(be, pl, j), y = sny(be, pl, j);
         boolean iface = kind == 6;
         int frm = iface ? CYAN : kind == 5 ? TERMFRM : kind == 4 ? OFFFRM : STORFRM;
-        ctx.fill(x - 1, y - 1, x + bw() + 1, y + bh() + 1, frm);
-        ctx.fill(x, y, x + bw(), y + bh(), NODEBG);
+        SciSkin.drawCard(ctx, x, y, bw(), bh(), frm); // m120 与机器卡同一卡面语言
         ctx.fill(x, y, x + bw(), y + 3, frm);
         ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, CYAN);                  // 收料口·下缘左（连到面板=存进它聚合的整个网络）
         if (!iface) ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, ON); // 供料口·下缘右（输出接口无）
@@ -493,9 +496,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
-        ctx.fill(x - 1, y - 1, x + NW + 1, y + NH + 1, NODEFRM);
-        ctx.fill(x, y, x + NW, y + NH, NODEBG);
+        SciSkin.drawCard(ctx, x, y, NW, NH, NODEFRM); // m120 投影+渐变面+角刻
         ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
+        ctx.fill(x, y + 3, x + NW, y + 15, 0x40060E1A); // m120 标题读数底带
         ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
         ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
         var msi = ctx.getMatrices();
@@ -612,6 +615,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int sx = x + 4 + k * 32, sy = y + NH + 4;
             ctx.fill(sx - 1, sy - 1, sx + 25, sy + 19, NODEFRM);
             ctx.fill(sx, sy, sx + 24, sy + 18, SciSkin.BTN_FACE);
+            SciSkin.drawSlot(ctx, sx + 1, sy + 1); // m120 物品坐进角括号插槽，与终端同语言
             ctx.drawItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
             ctx.drawText(this.textRenderer, "" + lv[k], sx + 18, sy + 6, lv[k] > 0 ? ON : SUB, false);
         }
@@ -822,12 +826,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY) {
         int h = menuLabels.size() * MENU_H;
+        ctx.fill(menuX + 2, menuY + 3, menuX + MENU_W + 3, menuY + h + 3, 0x59000000); // m120 投影
         ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, NODEFRM);
         for (int i = 0; i < menuLabels.size(); i++) {
             int y0 = menuY + i * MENU_H;
             boolean hov = mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= y0 && mouseY < y0 + MENU_H;
             ctx.fill(menuX, y0, menuX + MENU_W, y0 + MENU_H, hov ? SciSkin.HOVER : 0xF00A1626);
-            ctx.drawText(this.textRenderer, menuLabels.get(i), menuX + 6, y0 + 4, hov ? SciSkin.TXT_MAX : TXT, false);
+            if (hov) ctx.fill(menuX, y0, menuX + 2, y0 + MENU_H, CYAN); // m120 悬停行强调条
+            ctx.drawText(this.textRenderer, menuLabels.get(i), menuX + (hov ? 8 : 6), y0 + 4, hov ? SciSkin.TXT_MAX : TXT, false);
         }
     }
 

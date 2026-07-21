@@ -48,6 +48,28 @@ public final class SciSkin {
         ctx.drawTexture(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
     }
 
+    /** m120 画布卡片：投影+纵向渐变半透面（与旧 NODEBG 同 0xE0 透明度，网格微透）+边框+四角括号刻。
+     *  顶部有强调色条的卡片，上方两刻会被条覆盖——刻意如此，下沿两刻保持呼应即可。 */
+    public static void drawCard(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, int frame) {
+        ctx.fill(x + 2, y + 3, x + w + 3, y + h + 3, 0x59000000);
+        ctx.fill(x - 1, y - 1, x + w + 1, y + h + 1, frame);
+        int band = Math.max(3, h / 5);
+        ctx.fill(x, y, x + w, y + band, 0xE00E1E32);
+        ctx.fill(x, y + band, x + w, y + h - band, 0xE00A1626);
+        ctx.fill(x, y + h - band, x + w, y + h, 0xE0081220);
+        int t = lighten(frame);
+        ctx.fill(x, y, x + 4, y + 1, t);             ctx.fill(x, y, x + 1, y + 4, t);
+        ctx.fill(x + w - 4, y, x + w, y + 1, t);     ctx.fill(x + w - 1, y, x + w, y + 4, t);
+        ctx.fill(x, y + h - 1, x + 4, y + h, t);     ctx.fill(x, y + h - 4, x + 1, y + h, t);
+        ctx.fill(x + w - 4, y + h - 1, x + w, y + h, t); ctx.fill(x + w - 1, y + h - 4, x + w, y + h, t);
+    }
+
+    /** 颜色提亮（角刻/悬停微光用）。 */
+    public static int lighten(int c) {
+        int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+        return 0xFF000000 | (Math.min(255, r + 70) << 16) | (Math.min(255, g + 70) << 8) | Math.min(255, b + 70);
+    }
+
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */
     public static void drawButton(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, boolean hover) {
         int v = hover ? 16 : 0, cap = 8;
