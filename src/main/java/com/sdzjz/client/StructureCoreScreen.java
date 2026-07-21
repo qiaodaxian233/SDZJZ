@@ -130,6 +130,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private final List<Runnable> menuActions = new ArrayList<>();
     private static final int MENU_W = 108, MENU_H = 16;
 
+    // m110a 小地图（纯客户端零协议）
+    private boolean mapOpen = false;
+    private boolean mapDragging = false;
+    private double[] mapGeomDrag;                     // 拖拽期间用抓取时的几何快照，防视口移动导致反馈抖动
+    private static final int MAP_W = 148, MAP_H = 100;
+
     // 自动合成机目标选择器
     private int pickerNode = -1;
     private int pickerMode = 0; // 0=合成目标 1=过滤名单(多选) 2=传感器监测物品
@@ -159,6 +165,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.addDrawableChild(new SciButton(300, this.height - 74, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
         this.addDrawableChild(new SciButton(396, this.height - 74, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
         this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
+        this.addDrawableChild(new SciButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
         int wr2 = this.width - Math.min(Math.max(120, this.width / 5), 220); // m86 顶条视图控制（概念图）
         this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
@@ -367,6 +374,68 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         if (busVisible()) for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
+        if (mapOpen) renderMinimap(ctx); // m110a
+    }
+
+    // ================= m110a 小地图 =================
+    private int mapX() { return workRight() - MAP_W - 8; }
+    private int mapY() { return this.height - 84 - MAP_H; }
+    private boolean inMap(double mx, double my) {
+        return mapOpen && mx >= mapX() && mx <= mapX() + MAP_W && my >= mapY() && my <= mapY() + MAP_H;
+    }
+
+    /** 几何：{世界minX, 世界minY, 缩放}。范围 = 全部机器节点 ∪ 当前视口（视口白框永不丢出图外）。 */
+    private double[] mapGeom(StructureCoreBlockEntity be) {
+        List<ItemStack> nodes = be.nodes();
+        double minX = (0 - panX) / zoom, minY = (34 - panY) / zoom;
+        double maxX = (workRight() - panX) / zoom, maxY = ((this.height - 78) - panY) / zoom;
+        for (int i = 0; i < nodes.size(); i++) {
+            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+            minX = Math.min(minX, nx); minY = Math.min(minY, ny);
+            maxX = Math.max(maxX, nx + NW); maxY = Math.max(maxY, ny + NH + 28);
+        }
+        double sc = Math.min((MAP_W - 10) / Math.max(1, maxX - minX), (MAP_H - 10) / Math.max(1, maxY - minY));
+        return new double[]{minX, minY, sc};
+    }
+
+    /** 概览：节点按分类配色画小矩形 + 当前视口白框；点击/拖拽跳转（见 mapJump）。 */
+    private void renderMinimap(DrawContext ctx) {
+        StructureCoreBlockEntity be = be();
+        if (be == null) return;
+        int mx = mapX(), my = mapY();
+        ctx.fill(mx - 1, my - 1, mx + MAP_W + 1, my + MAP_H + 1, NODEFRM);
+        ctx.fill(mx, my, mx + MAP_W, my + MAP_H, 0xE0101820);
+        List<ItemStack> nodes = be.nodes();
+        if (nodes.isEmpty()) {
+            ctx.drawText(this.textRenderer, "画布为空", mx + (MAP_W - this.textRenderer.getWidth("画布为空")) / 2,
+                    my + MAP_H / 2 - 4, SUB, false);
+            return;
+        }
+        double[] g = mapGeom(be);
+        for (int i = 0; i < nodes.size(); i++) {
+            int x1 = mx + 5 + (int) ((wnx(be, nodes, i) - g[0]) * g[2]);
+            int y1 = my + 5 + (int) ((wny(be, nodes, i) - g[1]) * g[2]);
+            int w = Math.max(3, (int) (NW * g[2])), h = Math.max(3, (int) (NH * g[2]));
+            ctx.fill(x1, y1, x1 + w, y1 + h, nodeAccent(nodes.get(i)));
+        }
+        int vx1 = mx + 5 + (int) (((0 - panX) / zoom - g[0]) * g[2]);
+        int vy1 = my + 5 + (int) (((34 - panY) / zoom - g[1]) * g[2]);
+        int vx2 = mx + 5 + (int) (((workRight() - panX) / zoom - g[0]) * g[2]);
+        int vy2 = my + 5 + (int) ((((this.height - 78) - panY) / zoom - g[1]) * g[2]);
+        vx1 = Math.max(mx + 1, vx1); vy1 = Math.max(my + 1, vy1);
+        vx2 = Math.min(mx + MAP_W - 1, vx2); vy2 = Math.min(my + MAP_H - 1, vy2);
+        int vc = 0xCCFFFFFF;
+        ctx.fill(vx1, vy1, vx2, vy1 + 1, vc); ctx.fill(vx1, vy2 - 1, vx2, vy2, vc);
+        ctx.fill(vx1, vy1, vx1 + 1, vy2, vc); ctx.fill(vx2 - 1, vy1, vx2, vy2, vc);
+    }
+
+    /** 点中的世界点移到工作区中心；拖拽期间用快照几何。 */
+    private void mapJump(double mouseX, double mouseY) {
+        if (mapGeomDrag == null) return;
+        double wx = mapGeomDrag[0] + (mouseX - mapX() - 5) / mapGeomDrag[2];
+        double wy = mapGeomDrag[1] + (mouseY - mapY() - 5) / mapGeomDrag[2];
+        panX = workRight() / 2.0 - wx * zoom;
+        panY = (34 + this.height - 78) / 2.0 - wy * zoom;
     }
 
     private static int endpointIndex(List<long[]> ends, long pl) {
@@ -672,6 +741,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return true;
         }
         if (pickerNode >= 0 || menuOpen) return true;
+        if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             double old = zoom;
             zoom = Math.max(0.4, Math.min(2.5, zoom * (verticalAmount > 0 ? 1.1 : 0.9)));
@@ -827,6 +897,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (mouseX < px || mouseX > px + PICK_W || mouseY < py || mouseY > py + PICK_H) closePicker();
             return true;
         }
+        // m110a 小地图：左键=跳转视角并开始拖拽；面板区吞掉其余点击
+        if (inMap(mouseX, mouseY)) {
+            if (button == 0) {
+                StructureCoreBlockEntity beM = be();
+                if (beM != null) { mapGeomDrag = mapGeom(beM); mapJump(mouseX, mouseY); mapDragging = true; }
+            }
+            return true;
+        }
         if (mouseY > 34 && (button == 0 || button == 1)) {
             StructureCoreBlockEntity be = be();
             if (be != null) {
@@ -980,6 +1058,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
+        if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
         if (pickerNode >= 0 || menuOpen) return true;
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
@@ -1002,6 +1081,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         busScaleDrag = false; // m93
+        if (mapDragging) { mapDragging = false; mapGeomDrag = null; } // m110a
         if (button == 0 && linking) {
             StructureCoreBlockEntity be = be();
             BlockPos p = this.handler.blockPos();
