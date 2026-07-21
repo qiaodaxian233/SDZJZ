@@ -156,7 +156,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public int filteredRows() { return (filteredCount + 8) / 9; }
 
-    private void refreshDisplay() {
+    public void refreshDisplay() { // m111 升 public：光标存取后 handler 即时刷新，不等 10t 节拍
         LinkedHashMap<String, Long> agg = aggregate();
         java.util.List<Map.Entry<String, Long>> filtered = new java.util.ArrayList<>();
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();

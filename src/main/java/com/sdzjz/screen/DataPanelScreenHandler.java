@@ -40,7 +40,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
                     @Override public boolean canInsert(ItemStack s) { return false; }
                     @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
                         if (panel != null && !stack.isEmpty()) {
-                            panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount());
+                            int got = panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount());
+                            // m111：网络实收多少给多少——展示栈在 10t 刷新窗口内可能过期，绝不超发凭空造物
+                            if (got < stack.getCount()) stack.setCount(Math.max(0, got));
                         }
                         // 剥掉展示用的数量 NBT，否则取出的物品与普通同类物品无法堆叠
                         stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
@@ -207,6 +209,24 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (k >= 5) msg(player, given > 0 ? "已装入 " + given + " 个" : "背包没有空位");
             return true;
         }
+        if (id == 4 || id == 5) { // m111 AE 手感：光标存入网络（4=全放 5=放1）——服务端权威，客户端零预测
+            ItemStack cur = this.getCursorStack();
+            if (cur.isEmpty()) return true;
+            if (!cur.getComponentChanges().isEmpty()) { // 与 quickMove 存入同一条红线：防抹组件
+                msg(player, "带附魔/耐久等组件的物品不入仓（防抹数据）");
+                return true;
+            }
+            if (id == 5) {
+                ItemStack one = cur.copyWithCount(1);
+                panel.deposit(one);                    // deposit 按实际存入量扣减
+                if (one.isEmpty()) cur.decrement(1);   // 存进去了才扣，无核心/类型满时原样留在光标
+            } else {
+                panel.deposit(cur);
+            }
+            this.setCursorStack(cur.isEmpty() ? ItemStack.EMPTY : cur);
+            panel.refreshDisplay();                    // 存完立刻可见
+            return true;
+        }
         if (id == 3) { // m107c 清空合成网格：无组件回网络，带组件/无核心的余量回背包，绝不落地销毁
             for (int i = 0; i < 9; i++) {
                 ItemStack st = craft.getStack(i);
@@ -322,6 +342,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 if (copy.getCount() != stack.getCount()) {
                     slot.setStack(copy.isEmpty() ? ItemStack.EMPTY : copy);
                     slot.markDirty();
+                    panel.refreshDisplay(); // m111 存完立刻可见
                 }
                 return ItemStack.EMPTY;
             }

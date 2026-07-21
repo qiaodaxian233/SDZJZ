@@ -217,7 +217,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             sbUpdate(my);
             return true;
         }
-        if (button == 1) { // 右键展示格 → 打开数量选择
+        // m111 AE 手感：光标拿着东西点存储区 = 存入（左键全放/右键放1）——原版此处是"无操作"，必须拦截
+        boolean overGridClick = mx >= this.x + 99 && mx < this.x + 99 + 162 && my >= this.y + 30 && my < this.y + 30 + 108;
+        if (overGridClick && !this.handler.getCursorStack().isEmpty() && (button == 0 || button == 1)) {
+            clickXp(button == 0 ? 4 : 5);
+            return true;
+        }
+        if (button == 1 && hasShiftDown()) { // m111 批量浮层挪到 Shift+右键；普通右键交还原版=抓半组（AE/箱子肌肉记忆）
             for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
                 var sl = this.handler.slots.get(i);
                 if (!sl.hasStack()) continue;
