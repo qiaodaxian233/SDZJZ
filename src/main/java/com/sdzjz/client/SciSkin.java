@@ -36,4 +36,23 @@ public final class SciSkin {
     public static final int BTN_FRM_HOV  = 0xFF2EC4FF; // 悬停边
     public static final int BTN_FACE     = 0xFF0C1E30; // 常态面
     public static final int BTN_FACE_HOV = 0xFF123249; // 悬停面
+
+    // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
+    public static final net.minecraft.util.Identifier SLOT_TEX =
+            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/slot.png");
+    public static final net.minecraft.util.Identifier BUTTON_TEX =
+            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/button.png");
+
+    /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
+    public static void drawSlot(net.minecraft.client.gui.DrawContext ctx, int x, int y) {
+        ctx.drawTexture(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
+    }
+
+    /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */
+    public static void drawButton(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, boolean hover) {
+        int v = hover ? 16 : 0, cap = 8;
+        ctx.drawTexture(BUTTON_TEX, x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
+        ctx.drawTexture(BUTTON_TEX, x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);
+        ctx.drawTexture(BUTTON_TEX, x + cap, y, w - 2 * cap, h, cap, v, 200 - 2 * cap, 16, 200, 32);
+    }
 }

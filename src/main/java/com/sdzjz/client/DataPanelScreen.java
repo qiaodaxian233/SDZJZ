@@ -137,12 +137,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     }
 
     private void cell(DrawContext ctx, int x, int y) {
-        ctx.fill(x - 1, y - 1, x + 17, y + 17, CELLFRM);
-        ctx.fill(x, y, x + 16, y + 16, CELL);
-        ctx.fill(x, y, x + 4, y + 1, CYAN);           ctx.fill(x, y, x + 1, y + 4, CYAN);
-        ctx.fill(x + 12, y, x + 16, y + 1, CYAN);     ctx.fill(x + 15, y, x + 16, y + 4, CYAN);
-        ctx.fill(x, y + 15, x + 4, y + 16, CYAN);     ctx.fill(x, y + 12, x + 1, y + 16, CYAN);
-        ctx.fill(x + 12, y + 15, x + 16, y + 16, CYAN); ctx.fill(x + 15, y + 12, x + 16, y + 16, CYAN);
+        SciSkin.drawSlot(ctx, x, y); // m118 贴图槽位（slot.png 简易稿逐像素复刻旧程序槽，换皮=覆盖 png）
     }
 
     private void header(DrawContext ctx, String s, int x, int y) {

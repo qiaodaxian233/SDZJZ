@@ -14,11 +14,8 @@ public class SciButton extends ButtonWidget {
     @Override
     protected void renderWidget(DrawContext ctx, int mouseX, int mouseY, float delta) {
         boolean hover = this.isHovered();
-        int border = hover ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM;
-        int fill = hover ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE;
         int tc = hover ? SciSkin.TXT_MAX : SciSkin.TXT;
-        ctx.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, border);
-        ctx.fill(getX(), getY(), getX() + width, getY() + height, fill);
+        SciSkin.drawButton(ctx, getX(), getY(), width, height, hover); // m118 贴图按钮（简易稿复刻旧观感，换皮=覆盖 png）
         ctx.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(),
                 getX() + width / 2, getY() + (height - 8) / 2, tc);
     }
