@@ -15,12 +15,12 @@ import net.minecraft.util.math.BlockPos;
 /** 存储终端：搜索 + 滚动 + 大数量显示（仿 Tom's Simple Storage）。 */
 public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
-    private static final int BACKDROP = 0xFF080B12;
-    private static final int TXT      = 0xFFBFD2EC;
-    private static final int SUB      = 0xFF7C90B0;
-    private static final int CYAN     = 0xFF2EC4FF;
-    private static final int CELL     = 0xFF0A1626;
-    private static final int CELLFRM  = 0xFF163049;
+    private static final int BACKDROP = SciSkin.BACKDROP;
+    private static final int TXT      = SciSkin.TXT;
+    private static final int SUB      = SciSkin.SUB;
+    private static final int CYAN     = SciSkin.ACCENT;
+    private static final int CELL     = SciSkin.CELL;
+    private static final int CELLFRM  = SciSkin.CELL_FRM;
 
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/data_panel_gui.png");
 
@@ -83,13 +83,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         int x = this.x, y = this.y;
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
         // 搜索框底
-        ctx.fill(x + 178, y + 6, x + 358, y + 24, 0xFF0A1626);
+        ctx.fill(x + 178, y + 6, x + 358, y + 24, SciSkin.CELL);
         // 存储 6×9
         for (int r = 0; r < 6; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 30 + r * 18);
         // m107b 真实比例滚动条（总行数走属性 id4 同步；行数≤6 画暗色满轨=不可滚）
         int sbx = x + 99 + 9 * 18 + 3;
-        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 108, 0xFF0A1626);
+        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 108, SciSkin.CELL);
         int rowsAll = Math.max(6, this.handler.rowsView());
         int th = Math.max(12, 108 * 6 / rowsAll);
         int mr = Math.max(0, this.handler.rowsView() - 6);
@@ -114,11 +114,11 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         ctx.fill(x + 294, y + 94, x + 302, y + 100, CYAN); // 网格→结果 指示
         // m107c 清空网格→回仓按钮（m106b 补料后网格常驻满编，换配方需一键清）
         boolean hovClr = mouseX >= x + 272 && mouseX <= x + 326 && mouseY >= y + 124 && mouseY <= y + 138;
-        ctx.fill(x + 271, y + 123, x + 327, y + 139, hovClr ? 0xFF3FA9D0 : 0xFF1E4258);
-        ctx.fill(x + 272, y + 124, x + 326, y + 138, 0xFF0D1B2C);
+        ctx.fill(x + 271, y + 123, x + 327, y + 139, hovClr ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.fill(x + 272, y + 124, x + 326, y + 138, SciSkin.BTN_FACE);
         String clr = "清空回仓";
         ctx.drawText(this.textRenderer, clr, x + 272 + (54 - this.textRenderer.getWidth(clr)) / 2, y + 127,
-                hovClr ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+                hovClr ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
         // 回收格（红框，放入即销毁）
         int tx = x + 334, ty = y + 216;
         ctx.fill(tx - 1, ty - 1, tx + 17, ty + 17, 0xFF8E2E2E);
@@ -130,10 +130,10 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     private void xpBtn(DrawContext ctx, int bx, int by, String label, int mouseX, int mouseY) {
         boolean hov = mouseX >= bx && mouseX <= bx + 76 && mouseY >= by && mouseY <= by + 18;
-        ctx.fill(bx - 1, by - 1, bx + 77, by + 19, hov ? 0xFF3FA9D0 : 0xFF1E4258);
-        ctx.fill(bx, by, bx + 76, by + 18, 0xFF0D1B2C);
+        ctx.fill(bx - 1, by - 1, bx + 77, by + 19, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.fill(bx, by, bx + 76, by + 18, SciSkin.BTN_FACE);
         ctx.drawText(this.textRenderer, label, bx + (76 - this.textRenderer.getWidth(label)) / 2, by + 5,
-                hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+                hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
     }
 
     private void cell(DrawContext ctx, int x, int y) {
@@ -158,14 +158,14 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         // 表现就是"格子只填了几排再也进不去新东西"，这里把原因亮出来。
         int tu = this.handler.typesUsedView(), tc = this.handler.typesCapView();
         String usage; int ucol; // m98 哨兵：0=无存储核心, 0xFFFF=无限
-        if (tc <= 0)            { usage = "无存储核心"; ucol = 0xFFE07070; }
+        if (tc <= 0)            { usage = "无存储核心"; ucol = SciSkin.RED_SOFT; }
         else if (tc == 0xFFFF)  { usage = "类型 " + tu; ucol = SUB; }
-        else                    { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? 0xFFE07070 : SUB; }
+        else                    { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? SciSkin.RED_SOFT : SUB; }
         int uw = this.textRenderer.getWidth(usage);
         ctx.drawText(this.textRenderer, usage, 99 + 162 - uw, 20, ucol, false);
         header(ctx, "物品栏", 99, 148);
         header(ctx, "合成", 272, 28);
-        ctx.drawText(this.textRenderer, "回收", 306, 220, 0xFFE07070, false);
+        ctx.drawText(this.textRenderer, "回收", 306, 220, SciSkin.RED_SOFT, false);
     }
 
     @Override
@@ -339,20 +339,20 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             for (int k = 0; k < QTY.length; k++) { // 第一行：定量
                 int bx = qtyX + k * 26, by = qtyY;
                 boolean hov = mouseX >= bx && mouseX <= bx + 24 && mouseY >= by && mouseY <= by + 16;
-                ctx.fill(bx - 1, by - 1, bx + 25, by + 17, hov ? 0xFF3FA9D0 : 0xFF1E4258);
-                ctx.fill(bx, by, bx + 24, by + 16, 0xFF0D1B2C);
+                ctx.fill(bx - 1, by - 1, bx + 25, by + 17, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+                ctx.fill(bx, by, bx + 24, by + 16, SciSkin.BTN_FACE);
                 String t = String.valueOf(QTY[k]);
                 ctx.drawText(this.textRenderer, t, bx + (24 - this.textRenderer.getWidth(t)) / 2, by + 4,
-                        hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+                        hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
             }
             for (int j = 0; j < QTY2.length; j++) { // m100 第二行：批量(2组/4组/8组/填满背包)
                 int bx = qtyX + j * 32, by = qtyY + 20;
                 boolean hov = mouseX >= bx && mouseX <= bx + 30 && mouseY >= by && mouseY <= by + 16;
-                ctx.fill(bx - 1, by - 1, bx + 31, by + 17, hov ? 0xFF3FA9D0 : 0xFF1E4258);
-                ctx.fill(bx, by, bx + 30, by + 16, 0xFF0D1B2C);
+                ctx.fill(bx - 1, by - 1, bx + 31, by + 17, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+                ctx.fill(bx, by, bx + 30, by + 16, SciSkin.BTN_FACE);
                 String t = QTY2[j];
                 ctx.drawText(this.textRenderer, t, bx + (30 - this.textRenderer.getWidth(t)) / 2, by + 4,
-                        hov ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+                        hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
             }
         }
     }

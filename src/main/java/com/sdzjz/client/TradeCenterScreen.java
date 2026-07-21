@@ -19,12 +19,12 @@ import java.util.List;
  */
 public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
 
-    private static final int BACKDROP = 0xFF080B12;
-    private static final int TXT      = 0xFFBFD2EC;
-    private static final int SUB      = 0xFF7C90B0;
-    private static final int CYAN     = 0xFF2EC4FF;
-    private static final int CELL     = 0xFF0A1626;
-    private static final int CELLFRM  = 0xFF163049;
+    private static final int BACKDROP = SciSkin.BACKDROP;
+    private static final int TXT      = SciSkin.TXT;
+    private static final int SUB      = SciSkin.SUB;
+    private static final int CYAN     = SciSkin.ACCENT;
+    private static final int CELL     = SciSkin.CELL;
+    private static final int CELLFRM  = SciSkin.CELL_FRM;
     private static final int ROW_H    = 22;
     private static final int VISIBLE_ROWS = 4; // m101 交易列表滚动窗口
     private int tradeScroll;
@@ -66,7 +66,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
             for (int i = 0; i < ids.size(); i++) {
                 int bx = x + 80 + (i % 4) * 68, by = y + 44 + (i / 4) * 24;
                 boolean hov = mouseX >= bx && mouseX < bx + 64 && mouseY >= by && mouseY < by + 20;
-                ctx.fill(bx, by, bx + 64, by + 20, hov ? 0xFF14304A : CELL);
+                ctx.fill(bx, by, bx + 64, by + 20, hov ? SciSkin.HOVER : CELL);
                 ctx.drawBorder(bx, by, 64, 20, hov ? CYAN : CELLFRM);
                 String name = profName(ids.get(i));
                 ctx.drawText(this.textRenderer, name, bx + (64 - this.textRenderer.getWidth(name)) / 2, by + 6, TXT, false);
@@ -78,7 +78,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
             // 治愈按钮
             int hx = x + 288, hy = y + 26;
             boolean hovH = mouseX >= hx && mouseX < hx + 62 && mouseY >= hy && mouseY < hy + 18;
-            ctx.fill(hx, hy, hx + 62, hy + 18, hovH ? 0xFF14304A : CELL);
+            ctx.fill(hx, hy, hx + 62, hy + 18, hovH ? SciSkin.HOVER : CELL);
             ctx.drawBorder(hx, hy, 62, 18, hovH ? CYAN : CELLFRM);
             ctx.drawText(this.textRenderer, disc >= 5 ? "折扣已满" : "治愈+折扣", hx + 5, hy + 5, disc >= 5 ? SUB : TXT, false);
 
@@ -91,7 +91,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 VillagerTrades.Trade t = trades.get(i);
                 int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 boolean hov = mouseX >= rx && mouseX < rx + 270 && mouseY >= ry && mouseY < ry + ROW_H;
-                ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? 0xFF102A40 : CELL);
+                ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? SciSkin.HOVER : CELL);
                 ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
                 int need = VillagerTrades.discounted(t.inCount(), disc);
                 ItemStack in = new ItemStack(Registries.ITEM.get(Identifier.of(t.inItem())));
@@ -109,7 +109,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 if (t.enchant() != null) { // m101 附魔书：显示附魔名+等级（走原版翻译键）
                     String en = Text.translatable("enchantment." + t.enchant().replace(':', '.')).getString()
                             + (t.enchantLv() > 1 ? " " + roman(t.enchantLv()) : "");
-                    ctx.drawText(this.textRenderer, en, rx + 170, ry + 8, 0xFF9BE8FF, false);
+                    ctx.drawText(this.textRenderer, en, rx + 170, ry + 8, SciSkin.TXT_HI, false);
                 } else {
                     ctx.drawText(this.textRenderer, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
                 }

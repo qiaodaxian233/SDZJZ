@@ -44,18 +44,18 @@ import java.util.List;
  */
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
 
-    private static final int BACKDROP = 0xFF080B12;
+    private static final int BACKDROP = SciSkin.BACKDROP;
     private static final Identifier FRAME = Identifier.of("sdzjz", "textures/gui/structure_core_canvas.png");
     private static final int GRID     = 0x22284A6B;
-    private static final int TXT      = 0xFFBFD2EC;
-    private static final int SUB      = 0xFF7C90B0;
-    private static final int ON       = 0xFF33D07A;
-    private static final int CYAN     = 0xFF2EC4FF;
+    private static final int TXT      = SciSkin.TXT;
+    private static final int SUB      = SciSkin.SUB;
+    private static final int ON       = SciSkin.ON;
+    private static final int CYAN     = SciSkin.ACCENT;
     private static final int NODEBG   = 0xE00A1626;
-    private static final int NODEFRM  = 0xFF1C5A80;
+    private static final int NODEFRM  = SciSkin.FRAME;
     private static final int STORFRM  = 0xFF1E8A5A;   // 存储节点边框（绿）
     private static final int TERMFRM  = 0xFF7A5AC8;   // 数据终端边框（紫）
-    private static final int OFFFRM   = 0xFF5A6470;   // 离线边框（灰）
+    private static final int OFFFRM   = SciSkin.OFF_GRAY;   // 离线边框（灰）
     private static final int NW = 100, NH = 52;
     private static final int SW = 88, SH = 30;        // 存储节点尺寸（m92 紧凑化，用户点名"还是太大"）
     private static final String[] KIND = {"绑定", "有线", "无线", "卫星", "离线", "终端", "接口"};
@@ -330,15 +330,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             // 收起/展开开关（右上角小块）
             int tx = workRight() - 34;
             boolean th = mouseX >= tx && mouseX <= tx + 22 && mouseY >= 26 && mouseY <= 40;
-            ctx.fill(tx - 1, 25, tx + 23, 41, th ? 0xFF3FA9D0 : 0xFF1E4258);
-            ctx.fill(tx, 26, tx + 22, 40, 0xFF0D1B2C);
-            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? 0xFF9BE8FF : 0xFFB9D8E8, false);
+            ctx.fill(tx - 1, 25, tx + 23, 41, th ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+            ctx.fill(tx, 26, tx + 22, 40, SciSkin.BTN_FACE);
+            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
             // m93：总线大小滑块（0.8x~1.25x）
             int trx = busTrackX();
             ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SUB, false);
-            ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, 0xFF1E4258);
+            ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, SciSkin.BTN_FRM);
             int knx = trx + Math.round((busScale - 0.8f) / 0.45f * (BUS_TRACK_W - 6));
-            ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? 0xFF9BE8FF : 0xFF3FA9D0);
+            ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? SciSkin.TXT_HI : SciSkin.BTN_FRM_HOV);
             if (busVisible() && ends.isEmpty())
                 ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
@@ -520,15 +520,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
             boolean on = StructureCoreBlockEntity.switchOn(st);
-            int bfr = on ? ON : 0xFF5A6470;
+            int bfr = on ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
-            ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? 0xFF10321E : 0xFF141A24);
+            ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawText(this.textRenderer, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isFilter(st)) {
             boolean black = StructureCoreBlockEntity.filterBlacklist(st);
-            ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? 0xFFE8C43C : ON, false);
+            ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
             List<String> fl = StructureCoreBlockEntity.filterList(st);
             if (fl.isEmpty()) {
                 ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
@@ -551,8 +551,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 long th = StructureCoreBlockEntity.sensorThreshold(st);
                 boolean less = StructureCoreBlockEntity.sensorLess(st);
                 ctx.drawText(this.textRenderer, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
-                ctx.fill(x + 57, y + 36, x + 71, y + 49, 0xFF0C1E30); // [−]
-                ctx.fill(x + 74, y + 36, x + 88, y + 49, 0xFF0C1E30); // [+]
+                ctx.fill(x + 57, y + 36, x + 71, y + 49, SciSkin.BTN_FACE); // [−]
+                ctx.fill(x + 74, y + 36, x + 88, y + 49, SciSkin.BTN_FACE); // [+]
                 ctx.drawText(this.textRenderer, "-", x + 62, y + 39, TXT, false);
                 ctx.drawText(this.textRenderer, "+", x + 79, y + 39, TXT, false);
             }
@@ -563,7 +563,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (st.getItem() instanceof AutoCrafterItem || isCrop) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
-            ctx.fill(bx, by, bx + 20, by + 20, 0xFF0C1E30);
+            ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
             java.util.List<String> cropsSel = isCrop ? StructureCoreBlockEntity.cropList(st) : java.util.List.of();
             String t = StructureCoreBlockEntity.craftTarget(st);
             if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
@@ -591,8 +591,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (!this.handler.isRunning()) c = 0xFF3A424E;
         else c = switch (stat) {
             case 1 -> ((165 + (int) (88 * Math.sin(System.currentTimeMillis() / 300.0))) << 24) | 0x33D07A;
-            case 2 -> 0xFFE8C43C;
-            case 3 -> 0xFFE85050;
+            case 2 -> SciSkin.GOLD;
+            case 3 -> SciSkin.RED;
             default -> 0xFF3A424E;
         };
         ctx.fill(x - 1, y - 1, x + 7, y + 7, 0xFF06101C);
@@ -611,7 +611,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int k = 0; k < 3; k++) {
             int sx = x + 4 + k * 32, sy = y + NH + 4;
             ctx.fill(sx - 1, sy - 1, sx + 25, sy + 19, NODEFRM);
-            ctx.fill(sx, sy, sx + 24, sy + 18, 0xFF0C1E30);
+            ctx.fill(sx, sy, sx + 24, sy + 18, SciSkin.BTN_FACE);
             ctx.drawItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
             ctx.drawText(this.textRenderer, "" + lv[k], sx + 18, sy + 6, lv[k] > 0 ? ON : SUB, false);
         }
@@ -826,8 +826,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int i = 0; i < menuLabels.size(); i++) {
             int y0 = menuY + i * MENU_H;
             boolean hov = mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= y0 && mouseY < y0 + MENU_H;
-            ctx.fill(menuX, y0, menuX + MENU_W, y0 + MENU_H, hov ? 0xFF14304A : 0xF00A1626);
-            ctx.drawText(this.textRenderer, menuLabels.get(i), menuX + 6, y0 + 4, hov ? 0xFFE8FBFF : TXT, false);
+            ctx.fill(menuX, y0, menuX + MENU_W, y0 + MENU_H, hov ? SciSkin.HOVER : 0xF00A1626);
+            ctx.drawText(this.textRenderer, menuLabels.get(i), menuX + 6, y0 + 4, hov ? SciSkin.TXT_MAX : TXT, false);
         }
     }
 
@@ -1322,7 +1322,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
             boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
             if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
-            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? 0xFF14304A : sel ? 0xFF10321E : 0xFF0C1E30);
+            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
             ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
             if (hov) hovered = pickerFiltered.get(k);
         }
@@ -1347,20 +1347,4 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return super.charTyped(chr, modifiers);
     }
 
-    private static class SciButton extends ButtonWidget {
-        SciButton(int x, int y, int w, int h, Text t, PressAction a) {
-            super(x, y, w, h, t, a, s -> s.get());
-        }
-        @Override
-        protected void renderWidget(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            boolean hover = this.isHovered();
-            int border = hover ? 0xFF2EC4FF : 0xFF1C5A80;
-            int fill = hover ? 0xFF123249 : 0xFF0C1E30;
-            int tc = hover ? 0xFFE8FBFF : 0xFFBFD2EC;
-            ctx.fill(getX() - 1, getY() - 1, getX() + width + 1, getY() + height + 1, border);
-            ctx.fill(getX(), getY(), getX() + width, getY() + height, fill);
-            ctx.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(),
-                    getX() + width / 2, getY() + (height - 8) / 2, tc);
-        }
-    }
 }

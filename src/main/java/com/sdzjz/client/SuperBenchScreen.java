@@ -17,11 +17,11 @@ import java.util.Map;
 public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
     private static final int PANEL = 0xF00A1626;
-    private static final int CELLF = 0xFF1C5A80;
-    private static final int CELLB = 0xFF0C1E30;
-    private static final int CYAN  = 0xFF2EC4FF;
-    private static final int TXT   = 0xFFBFD2EC;
-    private static final int SUB   = 0xFF7C90B0;
+    private static final int CELLF = SciSkin.FRAME;
+    private static final int CELLB = SciSkin.BTN_FACE;
+    private static final int CYAN  = SciSkin.ACCENT;
+    private static final int TXT   = SciSkin.TXT;
+    private static final int SUB   = SciSkin.SUB;
     private static final int SEL   = 0x552EC4FF;
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
 
@@ -40,6 +40,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         int x = this.x, y = this.y;
+        ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP); // m117：与其余三屏统一的全屏底色（此前唯独本屏漏铺）
         ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
         ctx.fill(x, y, x + backgroundWidth, y + 16, 0xB80A1626);                                   // 标题条可读性底
@@ -103,7 +104,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 boolean caged = hasCagedMob(mob);
                 ctx.drawText(this.textRenderer,
                         caged ? "已捕获: " + mn + " ✔" : "需捕获: " + mn + "（笼子装它）",
-                        PX + 58, dy, caged ? 0xFF50E850 : 0xFFE85050, false);
+                        PX + 58, dy, caged ? 0xFF50E850 : SciSkin.RED, false);
             }
             Map<String, Integer> have = countAvailable();
             int iy = dy + 12, col = 0;
@@ -114,7 +115,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 boolean ok = got >= e.getValue();
                 ctx.drawText(this.textRenderer, ok ? "×" + e.getValue() : got + "/" + e.getValue(),
-                        sx + 15, sy + 5, ok ? 0xFF50E850 : 0xFFE85050, false);
+                        sx + 15, sy + 5, ok ? 0xFF50E850 : SciSkin.RED, false);
                 col++;
             }
         }
