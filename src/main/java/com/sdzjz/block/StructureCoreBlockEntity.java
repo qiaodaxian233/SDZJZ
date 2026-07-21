@@ -49,7 +49,7 @@ import org.jetbrains.annotations.Nullable;
  *  11..18 输出缓存
  * 运行时：开机后按周期让机器免费产出（消耗对齐原版，刷线机=农场类不吃料），
  * 速度升级缩短周期、数量升级放大单次产量、并发升级提高同时运行的机器数；
- * 产物进输出缓存，尝试推入正下方容器；缓存满则暂停（不掉落物实体）。
+ * 产物进输出缓存，尝试送入面板/存储/箱子；全都连不到时从顶面喷射掉落物（m114，节流 1 组/10t），缓存满则暂停。
  */
 public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, Inventory {
 
@@ -471,6 +471,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.pushOutput(world, pos);
             be.markDirty();
         }
+        if (be.ticks % 10 == 0) be.ejectOverflow(world, pos); // m114 断网喷射：独立于 produced（停产后也要排水）
         if (be.statusDirty && be.ticks % 20 == 0) { // 状态灯：有变化才同步，最多 1 次/秒
             be.statusDirty = false;
             be.markDirty();
@@ -1478,7 +1479,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return src;
     }
 
-    /** 解析输出目标（存储核心或普通容器），带缓存。仅缓存同维度目标。 */
+    private long cachedOutMissUntil = -1000; // m114 断网负缓存时间戳
+
+    /** 解析输出目标（存储核心或普通容器），带缓存。仅缓存同维度目标；查无目标也缓存 40t（m114）。 */
     private Object resolveOutTarget(World world, BlockPos corePos) {
         long now = world.getTime();
         if (cachedOutPos != null && now < cachedOutUntil
@@ -1487,6 +1490,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (be instanceof StorageCoreBlockEntity sc) return sc;
             if (be instanceof Inventory inv && !(be instanceof StructureCoreBlockEntity)) return inv;
         }
+        if (now < cachedOutMissUntil) return null; // m114 负缓存：断网核心不必每次全套 BFS+无线/卫星扫描
         cachedOutPos = null;
         Object target = boundPanel(world, corePos);
         if (target == null) target = findTarget(world, corePos);
@@ -1495,6 +1499,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (target instanceof BlockEntity tbe && tbe.getWorld() == world) {
             cachedOutPos = tbe.getPos().toImmutable();
             cachedOutUntil = now + 40;
+        } else if (target == null) {
+            cachedOutMissUntil = now + 40; // 新接存储最迟 2s 被感知——与全 MOD 既有 40t 缓存同语义
         }
         return target;
     }
@@ -1510,6 +1516,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (target instanceof StorageCoreBlockEntity panel) panel.deposit(slot);
             else if (target instanceof Inventory inv) insertInto(inv, slot);
             if (slot.isEmpty()) items.set(i, ItemStack.EMPTY);
+        }
+    }
+
+    /** m114 断网喷射：核心连不到面板/存储/箱子时，输出缓存不再憋死——每 10t 从顶面发射器式
+     *  喷出一组。有存储时不喷（pushOutput 正常落库）；节流 1 组/10t 防实体洪水（同类掉落物原版
+     *  自动合堆+5 分钟消失双兜底）。m99 封顶仍在：缓存满停产、喷射腾格后自动续产——
+     *  离网吞吐≈喷射速率（约 2 组/秒），天然自限。 */
+    private void ejectOverflow(World world, BlockPos corePos) {
+        if (resolveOutTarget(world, corePos) != null) return; // 有去处不喷
+        for (int i = OUTPUT_START; i < OUTPUT_START + OUTPUT_SLOTS; i++) {
+            ItemStack slot = items.get(i);
+            if (slot.isEmpty()) continue;
+            ItemStack out = slot.copy();
+            items.set(i, ItemStack.EMPTY);
+            var r = world.getRandom();
+            net.minecraft.entity.ItemEntity e = new net.minecraft.entity.ItemEntity(world,
+                    corePos.getX() + 0.5, corePos.getY() + 1.1, corePos.getZ() + 0.5, out,
+                    (r.nextDouble() - 0.5) * 0.16, 0.30 + r.nextDouble() * 0.08, (r.nextDouble() - 0.5) * 0.16);
+            e.setToDefaultPickupDelay();
+            world.spawnEntity(e);
+            markDirty();
+            return; // 每次最多一组
         }
     }
 
