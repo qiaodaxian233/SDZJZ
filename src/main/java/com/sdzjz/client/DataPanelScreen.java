@@ -223,7 +223,9 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             clickXp(button == 0 ? 4 : 5);
             return true;
         }
-        if (button == 1 && hasShiftDown()) { // m111 批量浮层挪到 Shift+右键；普通右键交还原版=抓半组（AE/箱子肌肉记忆）
+        if (button == 1) { // m113 浮层回到普通右键（用户点名"右键拿一组/拿满哪去了"）——本模组存量动辄百万，
+            // 定量/拿满才是主力，AE 的"右键抓半组"在这个量级没用，肌肉记忆优先。Shift+右键同样开浮层。
+            // 光标拿着东西时右键=存1（上方拦截在先），空手右键=浮层，语义不冲突。
             for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
                 var sl = this.handler.slots.get(i);
                 if (!sl.hasStack()) continue;
