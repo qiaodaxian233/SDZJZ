@@ -101,6 +101,7 @@ public final class SuperBenchRecipes {
         add("sdzjz:deep_mining_platform", 0, "minecraft:diamond", "minecraft:diamond", "minecraft:ancient_debris", "minecraft:ancient_debris"); // m102 引子模式:先亲手挖到样本
         add("sdzjz:archaeology_station", 1, "minecraft:echo_shard", "minecraft:echo_shard", "minecraft:heart_of_the_sea", "minecraft:heart_of_the_sea"); // m109a 引子:远古城+藏宝图亲手跑
         add("sdzjz:end_expedition_platform", 2, "minecraft:end_stone", "minecraft:end_stone", "minecraft:dragon_breath", "minecraft:dragon_breath"); // m109b 引子:先亲手打一次龙
+        add("sdzjz:trial_farm", 3, "minecraft:trial_key", "minecraft:trial_key", "minecraft:ominous_bottle", "minecraft:ominous_bottle"); // m109c 引子:试炼密室+亲手杀袭击队长
         // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞 140+ 件的机器配方）
         addSmall("sdzjz:filter_node", "minecraft:hopper");
         addSmall("sdzjz:sensor_node", "minecraft:comparator");

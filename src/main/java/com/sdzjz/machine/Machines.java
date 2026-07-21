@@ -70,6 +70,17 @@ public final class Machines {
             drop("minecraft:end_stone", 1, 3),
             drop("minecraft:dragon_breath", 1, 1, 0.12f),
             drop("minecraft:elytra", 1, 1, 0.004f));
+    /** m109c 试炼农场（量产覆盖提案4，重锤核心与试炼钥匙并入）：试炼/不祥钥匙、不祥之瓶（袭击队长掉）、
+     * 1.21 三种试炼密室罐子陶片（Flow/Guster/Scrape 按出处归此表）、重锤核心 0.008 极低
+     * （原版不祥宝库每玩家一次的物品，必须压到极稀）。引子配方：试炼钥匙×2+不祥之瓶×2。 */
+    public static final MachineDef TRIAL_FARM = defMulti("trial_farm", 40,
+            drop("minecraft:trial_key", 1, 1, 0.25f),
+            drop("minecraft:ominous_trial_key", 1, 1, 0.06f),
+            drop("minecraft:ominous_bottle", 1, 1, 0.15f),
+            drop("minecraft:flow_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:guster_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:scrape_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:heavy_core", 1, 1, 0.008f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 

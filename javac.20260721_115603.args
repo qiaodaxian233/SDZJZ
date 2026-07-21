@@ -1,0 +1,4 @@
+-nowarn
+-d
+/tmp/out4
+@/tmp/all.txt
