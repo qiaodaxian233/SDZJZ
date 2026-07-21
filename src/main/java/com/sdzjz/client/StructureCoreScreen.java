@@ -471,7 +471,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
-        ctx.drawItem(icon, x + 4, y + 7); // m92 紧凑化：1x 图标
+        float isc = 1.5f * busScale; // m122 图标 1.5× 且随尺寸滑块缩放（用户点名"看不清"）
+        var msI = ctx.getMatrices(); msI.push();
+        msI.translate(x + 4, y + (bh() - 16 * isc) / 2f, 0);
+        msI.scale(isc, isc, 1f);
+        ctx.drawItem(icon, 0, 0);
+        msI.pop();
+        int txI = x + 8 + Math.round(16 * isc); // 文字随图标宽度让位
         String title;
         if (iface) title = "输出接口";
         else { // 分组编号：存储1/2…、数据面板1/2…（服务端已按 接口→存储→面板 排序）
@@ -481,8 +487,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
             title = (kind == 5 ? "数据面板" : "存储") + no;
         }
-        ctx.drawText(this.textRenderer, title, x + 24, y + 5, TXT, false);
-        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", x + 24 + this.textRenderer.getWidth(title) + 3, y + 5,
+        ctx.drawText(this.textRenderer, title, txI, y + 5, TXT, false);
+        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", txI + this.textRenderer.getWidth(title) + 3, y + 5,
                 iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
         String sub;
         if (iface) {
@@ -497,7 +503,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 sub += sc.maxTypes() == Integer.MAX_VALUE ? ("  类型 " + sc.usedTypes()) : ("  类型 " + sc.usedTypes() + "/" + sc.maxTypes()); // 仅同维度读数; m98 无限不显上限
             }
         }
-        ctx.drawText(this.textRenderer, sub, x + 24, y + 17, SUB, false);
+        ctx.drawText(this.textRenderer, sub, txI, y + 17, SUB, false);
     }
 
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
@@ -629,23 +635,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
         int dx = Math.max(40, Math.abs(x2 - x1) / 2);
         float c1x = x1 + dx, c2x = x2 - dx;
-        int steps = 56;
-        // 流动效果：暗色底线常亮 + 亮色能量段沿线行进（方向 = 出口→入口 = 物流方向）
-        float phase = (System.currentTimeMillis() % 1000L) / 1000f * 10f; // 1s 走完一个虚线周期
-        int dim = (color & 0x00FFFFFF) | 0x66000000;
-        int glow = 0x66FFFFFF & color | 0x33FFFFFF;
+        // m122 精修：断点虚线→连续实体线。三层：外晕(体积感)+常亮底线+行进能量段(亮核带光晕)。
+        // 步数按线长自适应——长线不再散成点阵，短线不浪费填充。
+        int steps = Math.max(48, Math.min(120, (Math.abs(x2 - x1) + Math.abs(y2 - y1)) / 6));
+        float phase = (System.currentTimeMillis() % 1200L) / 1200f * 12f;
+        int glowO = (color & 0x00FFFFFF) | 0x22000000;
+        int base  = (color & 0x00FFFFFF) | 0x8C000000;
+        int spark = 0xAAFFFFFF & color | 0x55FFFFFF;
         for (int s = 0; s <= steps; s++) {
             float t = s / (float) steps, u = 1 - t;
             float bx = u * u * u * x1 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x2;
             float by = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
             int px = (int) bx, py = (int) by;
-            float m = (s - phase) % 10f;
-            if (m < 0) m += 10f;
-            if (m < 3.5f) { // 行进亮段（带 1px 光晕）
-                ctx.fill(px - 2, py - 2, px + 2, py + 2, glow);
+            ctx.fill(px - 2, py - 2, px + 2, py + 2, glowO);   // 外晕（连续）
+            ctx.fill(px - 1, py - 1, px + 1, py + 1, base);    // 底线（连续实体）
+            float m = (s - phase) % 12f;
+            if (m < 0) m += 12f;
+            if (m < 4f) { // 行进能量段
+                ctx.fill(px - 2, py - 2, px + 2, py + 2, spark);
                 ctx.fill(px - 1, py - 1, px + 1, py + 1, color);
-            } else {        // 常亮暗底
-                ctx.fill(px - 1, py - 1, px + 1, py + 1, dim);
             }
         }
     }
@@ -1032,7 +1040,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
                         long pl = ends.get(j)[0];
                         int oxp = snx(be, pl, j) + bw() - 14, oyp = sny(be, pl, j) + bh();
-                        if (Math.abs(mouseX - oxp) <= 8 && Math.abs(mouseY - oyp) <= 8) {
+                        if (Math.abs(mouseX - oxp) <= 12 && Math.abs(mouseY - oyp) <= 12) { // m122 抓取半径放宽
                             linking = true; linkStor = pl; linkFrom = -1; return true;
                         }
                     }
@@ -1081,9 +1089,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         }
                     }
                     // 机器输出口(绿) → 连线
+                    double pR = Math.max(7, 10 / zoom); // m122 抓取半径随缩放反比——屏幕上恒 ~10px，低倍率下也点得中
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int oxp = wnx(be, nodes, i) + NW, oyp = wny(be, nodes, i) + NH / 2;
-                        if (Math.abs(wx - oxp) <= 7 && Math.abs(wy - oyp) <= 7) {
+                        if (Math.abs(wx - oxp) <= pR && Math.abs(wy - oyp) <= pR) {
                             linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
                         }
                     }
@@ -1141,16 +1150,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0]; // 数据面板也可连（存进它聚合的整个网络）
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
+                        if (mouseX >= sx - 6 && mouseX <= sx + bw() + 6 && mouseY >= sy - 4 && mouseY <= sy + bh() + 10) { // m122 覆盖下缘凸出的收料口
                             ClientPlayNetworking.send(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));
                             done = true;
                             break;
                         }
                     }
                     if (!done) {
+                        double pad = 6 / zoom; // m122 落点外扩（屏幕恒定 ~6px）
                         for (int i = nodes.size() - 1; i >= 0; i--) {
                             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-                            if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
+                            if (wx >= nx - pad && wx <= nx + NW + pad && wy >= ny - pad && wy <= ny + NH + pad) {
                                 if (i != linkFrom) ClientPlayNetworking.send(new NodeLinkPayload(p, linkFrom, i));
                                 break;
                             }
@@ -1160,9 +1170,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     // 存储→机器 定向供料
                     int j = endpointIndex(ends, linkStor);
                     String dim = j >= 0 && j < dims.size() ? dims.get(j) : "";
+                    double pad2 = 6 / zoom; // m122 落点外扩
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-                        if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
+                        if (wx >= nx - pad2 && wx <= nx + NW + pad2 && wy >= ny - pad2 && wy <= ny + NH + pad2) {
                             ClientPlayNetworking.send(new StorageLinkPayload(p, i, linkStor, 1, dim));
                             break;
                         }
