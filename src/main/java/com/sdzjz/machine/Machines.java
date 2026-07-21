@@ -64,6 +64,12 @@ public final class Machines {
             drop("minecraft:music_disc_relic", 1, 1, 0.02f),
             drop("minecraft:heart_of_the_sea", 1, 1, 0.01f),
             drop("minecraft:enchanted_golden_apple", 1, 1, 0.005f));
+    /** m109b 末地远征平台（量产覆盖提案3）：末地石主产（原版再生形同虚设）、龙息（免反复屠龙）、
+     * 鞘翅 0.004 极低。引子配方：末地石×2+龙息×2（先亲手打一次龙拿龙息，仪式感照 m102）。 */
+    public static final MachineDef END_EXPEDITION_PLATFORM = defMulti("end_expedition_platform", 40,
+            drop("minecraft:end_stone", 1, 3),
+            drop("minecraft:dragon_breath", 1, 1, 0.12f),
+            drop("minecraft:elytra", 1, 1, 0.004f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 
