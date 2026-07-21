@@ -11,8 +11,27 @@
 | `slot.png` | 槽位格（**已接线，简易稿在库**） | 18×18 | 内凹插槽+四角青色角括号；同名覆盖即换肤 |
 | `button.png` | 按钮底（**已接线，简易稿在库**） | 200×32 | 上半常态/下半悬停；左右各 8px 帽区放装饰、中段须均匀可拉伸 |
 
-> **m118 生图工作流**：把 `素材/skin_reference.png`（参考板，含色板/规格/提示词）连同两张简易稿
-> 一起喂给 GPT 出精修图 → 同名覆盖 `textures/gui/slot.png`、`button.png` → 进游戏即全 MOD 生效，代码零改动。
+> **m118 生图工作流**：把 `素材/skin_reference.png`（参考板）连同两张简易稿一起喂给 GPT，
+> 用下面的提示词出精修图 → **出大图丢 `素材/` 我来缩放归位** → 进游戏即全 MOD 生效，代码零改动。
+
+## GPT 生图提示词（复制即用）
+
+**slot.png（让 GPT 画 512×512，最终缩 18×18）**
+> 参考我发的参考板和小图的风格，画一张正方形游戏 UI 槽位贴图：深海军蓝（#0A1626）内凹金属插槽，
+> 外圈一圈深蓝细边（#163049），四个角有青色（#2EC4FF）L 形角括号，内部可加极淡电路纹理和磨砂金属
+> 质感。直角、扁平游戏 UI、正视无透视、边缘干净。无文字、无图标、无物品、无圆角、不要强光晕。
+> 以大色块为主别画细碎纹理——缩到 18×18 后角括号要仍清晰。
+> 英文关键词：sci-fi game UI inventory slot, dark navy recessed metal socket, cyan L-shaped corner
+> brackets, faint circuitry, flat game UI, sharp square corners, front view, no text, no icons, symmetrical
+
+**button.png（让 GPT 画 1600×128 两张：常态+悬停，我拼 200×32）**
+> 横向长条游戏 UI 按钮底图，比例 200:16：深蓝金属面（#0C1E30）、蓝色细边框（#1C5A80）、顶部一条
+> 淡高光；左右两端各留一小段装饰帽区（斜角饰纹），中间大段必须均匀纯净（会被横向拉伸）。
+> 正视、直角、无文字无图标。悬停态同款：边框换亮青（#2EC4FF）、面板略亮（#123249）、内侧一圈淡青内发光。
+> 英文关键词：sci-fi game UI button bar, dark navy metal, thin blue frame, subtle top highlight,
+> decorative end caps, clean stretchable middle, flat game UI, no text / hover: bright cyan frame, soft inner glow
+
+**通用红线**：禁止圆角、金色描边、浮雕立体、透视角度、图内文字；配色严格用参考板九色。
 
 ## 提示词
 ```
