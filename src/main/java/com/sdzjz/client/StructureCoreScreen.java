@@ -312,6 +312,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i))
                     && !StructureCoreBlockEntity.isSwitch(nodes.get(i)) && !StructureCoreBlockEntity.isDistributor(nodes.get(i)))
                 drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
+            drawGear(ctx, nx + NW - 24, ny + 4); // m110b 齿轮=节点设置入口
+            if (StructureCoreBlockEntity.nodePaused(nodes.get(i))) { // m110b 暂停视觉：压暗+角标
+                ctx.fill(nx, ny, nx + NW, ny + NH, 0x66000000);
+                ctx.drawText(this.textRenderer, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
+            }
         }
         m.pop();
 
@@ -771,6 +776,50 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuActions.add(action);
     }
 
+    /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
+    private void openNodeMenu(int idx, int atX, int atY) {
+        StructureCoreBlockEntity be = be();
+        if (be == null || idx < 0 || idx >= be.nodes().size()) return;
+        final ItemStack st = be.nodes().get(idx);
+        BlockPos p = this.handler.blockPos();
+        clearMenu();
+        addMenu("取出机器", () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); });
+        addMenu(StructureCoreBlockEntity.nodePaused(st) ? "恢复运行" : "暂停节点",
+                () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+        addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
+        if (st.getItem() instanceof AutoCrafterItem)
+            addMenu("选择合成目标", () -> openPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
+            addMenu("选择种植作物", () -> openCropPicker(idx));
+        if (StructureCoreBlockEntity.isFilter(st)) {
+            addMenu("配置过滤物品…", () -> openFilterPicker(idx));
+            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单",
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+        }
+        if (StructureCoreBlockEntity.isSwitch(st)) {
+            addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启",
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
+        }
+        if (StructureCoreBlockEntity.isSensor(st)) {
+            addMenu("监测物品…", () -> openSensorPicker(idx));
+            addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行",
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
+                            StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
+        }
+        addMenu("取消", () -> {});
+        openMenu(atX, atY);
+    }
+
+    /** m110b 标题栏齿轮（滑杆式设置图标，纯 fill 不依赖字体字形）。 */
+    private void drawGear(DrawContext ctx, int x, int y) {
+        ctx.fill(x, y + 1, x + 9, y + 2, SUB);
+        ctx.fill(x, y + 4, x + 9, y + 5, SUB);
+        ctx.fill(x, y + 7, x + 9, y + 8, SUB);
+        ctx.fill(x + 2, y, x + 4, y + 3, TXT);
+        ctx.fill(x + 5, y + 3, x + 7, y + 6, TXT);
+        ctx.fill(x + 1, y + 6, x + 3, y + 9, TXT);
+    }
+
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY) {
         int h = menuLabels.size() * MENU_H;
         ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, NODEFRM);
@@ -926,6 +975,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         }
                     }
                 }
+                // m110b 标题栏齿轮：左键打开节点设置菜单（世界坐标，随缩放）
+                if (button == 0) {
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                        if (wx >= nx + NW - 26 && wx <= nx + NW - 13 && wy >= ny + 2 && wy <= ny + 15) {
+                            openNodeMenu(i, (int) mouseX, (int) mouseY);
+                            return true;
+                        }
+                    }
+                }
                 if (button == 1) {
                     // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标；m91 总线收起时跳过）
                     if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
@@ -939,37 +998,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 右键机器节点 → 菜单
+                    // 右键机器节点 → 菜单（m110b 与标题栏齿轮共用 openNodeMenu）
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
-                            final int idx = i;
-                            BlockPos p = this.handler.blockPos();
-                            clearMenu();
-                            addMenu("取出机器", () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); });
-                            addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
-                            if (nodes.get(i).getItem() instanceof AutoCrafterItem)
-                                addMenu("选择合成目标", () -> openPicker(idx));
-                            if (nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem)
-                                addMenu("选择种植作物", () -> openCropPicker(idx));
-                            if (StructureCoreBlockEntity.isFilter(nodes.get(i))) {
-                                addMenu("配置过滤物品…", () -> openFilterPicker(idx));
-                                addMenu(StructureCoreBlockEntity.filterBlacklist(nodes.get(i)) ? "切为白名单" : "切为黑名单",
-                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
-                            }
-                            if (StructureCoreBlockEntity.isSwitch(nodes.get(i))) {
-                                addMenu(StructureCoreBlockEntity.switchOn(nodes.get(i)) ? "切为:关闭" : "切为:开启",
-                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
-                            }
-                            if (StructureCoreBlockEntity.isSensor(nodes.get(i))) {
-                                final ItemStack ns = nodes.get(i);
-                                addMenu("监测物品…", () -> openSensorPicker(idx));
-                                addMenu(StructureCoreBlockEntity.sensorLess(ns) ? "改为:高于阈值放行" : "改为:低于阈值放行",
-                                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
-                                                StructureCoreBlockEntity.sensorThreshold(ns), !StructureCoreBlockEntity.sensorLess(ns))); });
-                            }
-                            addMenu("取消", () -> {});
-                            openMenu((int) mouseX, (int) mouseY);
+                            openNodeMenu(i, (int) mouseX, (int) mouseY);
                             return true;
                         }
                     }

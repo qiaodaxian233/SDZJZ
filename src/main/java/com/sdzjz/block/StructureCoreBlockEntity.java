@@ -199,6 +199,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
 
+            // m110b 单节点暂停：最先判——不产不耗不攒进度（m99 教训：early-continue 必须在累积之前）
+            if (StructureCoreBlockEntity.nodePaused(st)) { be.stat(i, 2); continue; }
+
             // 传感器闸门：该节点全部出线目标都关闸 → 整台暂停（不白产、不绕道塞存储）
             if (hasOut[i] && be.allGatesClosed(world, outT.get(i))) {
                 be.stat(i, 2);
@@ -599,6 +602,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return !n.contains("so") || n.getBoolean("so");
     }
 
+    /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
+    public static boolean nodePaused(ItemStack s) { return nbtOf(s).getBoolean("np"); }
+
+    /** 切换节点 暂停/运行（m110b）。 */
+    public void togglePause(int index) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (s.isEmpty()) return;
+        NbtCompound n = nbtOf(s);
+        n.putBoolean("np", !nodePaused(s));
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        markDirty();
+        syncToClient();
+    }
+
     /** 切换开关节点 开/关。 */
     public void toggleSwitch(int index) {
         if (index < 0 || index >= machineNodes.size()) return;
@@ -698,7 +716,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (int t : targets) {
             if (t < 0 || t >= machineNodes.size()) return false;
             ItemStack ts = machineNodes.get(t);
-            boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts));
+            boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts))
+                    || nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
             if (!closedGate) return false;
         }
         return true;
@@ -1067,6 +1086,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
+        if (nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
         if (isFilter(st)) {
             if (!filterPasses(st, id)) return false;
         } else if (isSwitch(st)) {
@@ -1300,6 +1320,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 目标机器是否"吃"该物品：万能熔炉=可熔炼物；消耗机=配方输入；自动合成机=当前目标用料；农场=不吃。 */
     private boolean accepts(World world, int target, String id) {
         ItemStack st = machineNodes.get(target);
+        if (nodePaused(st)) return false;                // m110b 暂停不收（上游改走默认路由）
         if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
         if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
         if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上

@@ -1,0 +1,4 @@
+-nowarn
+-d
+/tmp/o6
+@/tmp/all.txt
