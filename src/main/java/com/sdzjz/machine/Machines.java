@@ -33,6 +33,37 @@ public final class Machines {
             drop("minecraft:raw_gold", 0, 1, 0.35f),
             drop("minecraft:diamond", 1, 1, 0.15f),
             drop("minecraft:ancient_debris", 1, 1, 0.05f));
+    /** m109a 考古工作站（量产覆盖提案2）：20 种考古陶片各 0.04 随机出 + 回响碎片 + 唱片残片5 +
+     * 三张稀有唱片；海洋之心/附魔金苹果极低概率。引子配方：回响碎片×2+海洋之心×2（远古城+藏宝图亲手跑）。
+     * 1.21 新增的 Flow/Guster/Scrape 三陶片出处是试炼密室罐子，按出处归试炼农场（m109c），不在此表。 */
+    public static final MachineDef ARCHAEOLOGY_STATION = defMulti("archaeology_station", 40,
+            drop("minecraft:angler_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:archer_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:arms_up_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:blade_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:brewer_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:burn_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:danger_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:explorer_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:friend_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:heart_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:heartbreak_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:howl_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:miner_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:mourner_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:plenty_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:prize_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:sheaf_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:shelter_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:skull_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:snort_pottery_sherd", 1, 1, 0.04f),
+            drop("minecraft:echo_shard", 1, 2, 0.10f),
+            drop("minecraft:disc_fragment_5", 1, 1, 0.06f),
+            drop("minecraft:music_disc_pigstep", 1, 1, 0.02f),
+            drop("minecraft:music_disc_otherside", 1, 1, 0.02f),
+            drop("minecraft:music_disc_relic", 1, 1, 0.02f),
+            drop("minecraft:heart_of_the_sea", 1, 1, 0.01f),
+            drop("minecraft:enchanted_golden_apple", 1, 1, 0.005f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 

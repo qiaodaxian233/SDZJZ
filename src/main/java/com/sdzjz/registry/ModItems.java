@@ -45,6 +45,7 @@ public class ModItems {
     public static final Item PIG_FARM      = reg("pig_farm",      new MachineItem(new Item.Settings(), Machines.PIG_FARM)); // m92
     public static final Item CROP_FARM    = reg("crop_farm",    new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.CROP_FARM));
     public static final Item DEEP_MINING_PLATFORM = reg("deep_mining_platform", new MachineItem(new Item.Settings(), Machines.DEEP_MINING_PLATFORM)); // m102 引子:钻石x2+远古残骸x2
+    public static final Item ARCHAEOLOGY_STATION = reg("archaeology_station", new MachineItem(new Item.Settings(), Machines.ARCHAEOLOGY_STATION)); // m109a 引子:回响碎片x2+海洋之心x2
 
     // 机器（MachineItem 携带 MachineDef）
     public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
@@ -127,6 +128,7 @@ public class ModItems {
             entries.add(PIG_FARM);
             entries.add(CROP_FARM);
             entries.add(DEEP_MINING_PLATFORM);
+            entries.add(ARCHAEOLOGY_STATION);
             entries.add(SPEED_UPGRADE);
             entries.add(COUNT_UPGRADE);
             entries.add(PARALLEL_UPGRADE);
