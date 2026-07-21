@@ -79,6 +79,16 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFusePayload.ID, com.sdzjz.net.NodeFusePayload.CODEC); // m123
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFusePayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.fuseNode(p, payload.index(), payload.up());
+                }
+            });
+        });
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodePausePayload.ID, com.sdzjz.net.NodePausePayload.CODEC); // m110b
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodePausePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();

@@ -512,18 +512,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(x, y + 3, x + NW, y + 15, 0x40060E1A); // m120 标题读数底带
         ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
         ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
+        int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
+        float isc = 2f + 0.45f * mt;
         var msi = ctx.getMatrices();
         msi.push();
-        msi.translate(x + 6, y + 16, 0);
-        msi.scale(2f, 2f, 1f);
+        msi.translate(x + 6, y + 16 - (isc - 2f) * 10, 0);
+        msi.scale(isc, isc, 1f);
         ctx.drawItem(st, 0, 0);
         msi.pop();
+        String pre = mt <= 0 ? "" : mt == 1 ? "超级·" : mt == 2 ? "神级·" : "GM·";
+        int preW = pre.isEmpty() ? 0 : this.textRenderer.getWidth(pre);
+        if (preW > 0) ctx.drawText(this.textRenderer, pre, x + 6, y + 6,
+                mt == 1 ? SciSkin.GOLD : mt == 2 ? 0xFFB06AE8 : SciSkin.RED, false);
         String name = st.getName().getString();
-        if (this.textRenderer.getWidth(name) > NW - 22) {
-            while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 22) name = name.substring(0, name.length() - 1);
+        if (this.textRenderer.getWidth(name) > NW - 22 - preW) {
+            while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 22 - preW) name = name.substring(0, name.length() - 1);
             name = name + "…";
         }
-        ctx.drawText(this.textRenderer, name, x + 6, y + 6, TXT, false);
+        ctx.drawText(this.textRenderer, name, x + 6 + preW, y + 6, TXT, false);
         drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
         if (StructureCoreBlockEntity.isDistributor(st)) {
             int outs = 0;
@@ -572,7 +578,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             }
             return;
         }
-        ctx.drawText(this.textRenderer, "×" + st.getCount(), x + 44, y + 26, CYAN, false);
+        ctx.drawText(this.textRenderer, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
         boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
         if (st.getItem() instanceof AutoCrafterItem || isCrop) {
             int bx = x + NW - 30, by = y + 14;
@@ -803,6 +809,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         addMenu("取出机器", () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); });
         addMenu(StructureCoreBlockEntity.nodePaused(st) ? "恢复运行" : "暂停节点",
                 () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+        if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
+            int mt = StructureCoreBlockEntity.machineTier(st);
+            String[] TN = {"普通", "超级", "神级", "GM"};
+            if (mt < 3 && st.getCount() >= 4)
+                addMenu("融合：4台→" + TN[mt + 1] + "×1",
+                        () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
+            if (mt > 0)
+                addMenu("拆解：1台→" + TN[mt - 1] + "×4",
+                        () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
+        }
         addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
         if (st.getItem() instanceof AutoCrafterItem)
             addMenu("选择合成目标", () -> openPicker(idx));

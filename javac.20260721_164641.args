@@ -1,0 +1,6 @@
+-nowarn
+-Xmaxerrs
+3000
+-d
+/tmp/oj
+@/tmp/all.txt

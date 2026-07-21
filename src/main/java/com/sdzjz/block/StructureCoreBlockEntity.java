@@ -540,6 +540,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m99 并发升级直接乘台数：运行台数 = 节点内机器数 ×(1+并发级)×核心层级。 */
     private static int runningCount(ItemStack st, int parallelLv, int tier) {
         long r = (long) Math.max(1, st.getCount()) * (1L + Math.max(0, parallelLv)) * Math.max(1, tier);
+        r <<= 3 * Math.min(3, Math.max(0, machineTier(st))); // m123 阶位战力 8^mt（4台份×2速/阶）
         return (int) Math.min(r, 1_000_000L);
     }
 
@@ -612,6 +613,44 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static boolean switchOn(ItemStack s) {
         NbtCompound n = nbtOf(s);
         return !n.contains("so") || n.getBoolean("so");
+    }
+
+    /** m123 机器阶位：0普通 1超级 2神级 3GM。每阶=4台合1、战力8×/阶（4台份×2速）。 */
+    public static int machineTier(ItemStack s) { return nbtOf(s).getInt("mt"); }
+
+    /** m123 融合升阶（up=true：4台同阶→1台高阶，余数还玩家）/ 拆解降阶（1台→4台低阶，超堆叠上限的还玩家）。 */
+    public void fuseNode(PlayerEntity player, int index, boolean up) {
+        if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = machineNodes.get(index);
+        if (s.isEmpty() || !(s.getItem() instanceof MachineItem)) return;
+        int mt = machineTier(s);
+        if (up) {
+            if (mt >= 3 || s.getCount() < 4) return;
+            int rem = s.getCount() % 4, keep = s.getCount() / 4;
+            if (rem > 0) { // 余数保持原阶还给玩家（copy 带原 NBT），绝不凭空消失
+                ItemStack back = s.copyWithCount(rem);
+                if (!player.getInventory().insertStack(back)) player.dropItem(back, false);
+            }
+            NbtCompound n = nbtOf(s);
+            n.putInt("mt", mt + 1);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+            s.setCount(keep);
+        } else {
+            if (mt <= 0) return;
+            NbtCompound n = nbtOf(s);
+            n.putInt("mt", mt - 1);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+            long c = (long) s.getCount() * 4;
+            int nc = (int) Math.min(c, s.getMaxCount());
+            s.setCount(nc);
+            long over = c - nc;
+            if (over > 0) { // 超堆叠上限的低阶机还给玩家（copy 已带新阶 NBT）
+                ItemStack back = s.copyWithCount((int) over);
+                if (!player.getInventory().insertStack(back)) player.dropItem(back, false);
+            }
+        }
+        markDirty();
+        syncToClient();
     }
 
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
