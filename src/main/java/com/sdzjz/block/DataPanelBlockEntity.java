@@ -78,7 +78,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         long xp = 0; // m107a：经验总量顺手统计（复用同一次 BFS）
         for (StorageCoreBlockEntity core : cores()) {
             coreCount++;
-            used += core.storeView().size();
+            used += core.usedTypes(); // m130：精确条目同占类型额度
             xp += core.xpBank();
             int mt = core.maxTypes();
             if (mt == Integer.MAX_VALUE) unlimited = true; else cap += mt; // 防 MAX_VALUE 求和溢出
@@ -151,6 +151,17 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return got;
     }
 
+    /** m130：精确取出（按物品+组件跨核心累计），返回实际取出。 */
+    public int withdrawExact(ItemStack template, int amount) {
+        if (this.world != null && this.world.isClient) return 0; // m112 保险丝同款
+        int got = 0;
+        for (StorageCoreBlockEntity core : cores()) {
+            if (got >= amount) break;
+            got += core.withdrawExact(template, amount - got);
+        }
+        return got;
+    }
+
     private java.util.Set<String> matchedIds = java.util.Set.of();
 
     public void setView(String search, int scroll, java.util.List<String> matched) {
@@ -162,18 +173,45 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public int filteredRows() { return (filteredCount + 8) / 9; }
 
+    /** m130：展示条目——tpl==null 为普通(id账本)，否则为精确件(模板账本，count=1)。 */
+    private static final class DispEnt {
+        final String id; final ItemStack tpl; long n;
+        DispEnt(String id, ItemStack tpl, long n) { this.id = id; this.tpl = tpl; this.n = n; }
+    }
+
     public void refreshDisplay() { // m111 升 public：光标存取后 handler 即时刷新，不等 10t 节拍
         // m112 保险丝：客户端 BE 账本恒空，跑聚合=把展示页 54 格全写 EMPTY 且服务端不知情无从纠正（视频 bug）。
         // 客户端展示页只允许原版槽位同步来写。
         if (this.world == null || this.world.isClient) return;
+        java.util.List<DispEnt> all = new java.util.ArrayList<>();
         LinkedHashMap<String, Long> agg = aggregate();
-        java.util.List<Map.Entry<String, Long>> filtered = new java.util.ArrayList<>();
+        for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
+        // m130：精确条目跨核心按「物品+组件」合并后并入同一张列表
+        java.util.List<DispEnt> exacts = new java.util.ArrayList<>();
+        for (StorageCoreBlockEntity core : cores()) {
+            java.util.List<ItemStack> tpls = core.exactTemplates();
+            for (int k = 0; k < tpls.size(); k++) {
+                ItemStack t = tpls.get(k); long n = core.exactCount(k);
+                boolean merged = false;
+                for (DispEnt d : exacts) if (ItemStack.areItemsAndComponentsEqual(d.tpl, t)) { d.n += n; merged = true; break; }
+                if (!merged) exacts.add(new DispEnt(Registries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
+            }
+        }
+        all.addAll(exacts);
+        java.util.List<DispEnt> filtered = new java.util.ArrayList<>();
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();
-        for (Map.Entry<String, Long> e : agg.entrySet())
-            if (q.isEmpty() || e.getKey().toLowerCase().contains(q) || matchedIds.contains(e.getKey())) filtered.add(e);
+        for (DispEnt d : all)
+            if (q.isEmpty() || d.id.toLowerCase().contains(q) || matchedIds.contains(d.id)) filtered.add(d);
         filtered.sort((a, b) -> { // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
-            int c = Long.compare(b.getValue(), a.getValue());
-            return c != 0 ? c : a.getKey().compareTo(b.getKey());
+            int c = Long.compare(b.n, a.n);
+            if (c != 0) return c;
+            c = a.id.compareTo(b.id);
+            if (c != 0) return c;
+            c = Boolean.compare(a.tpl != null, b.tpl != null); // 同量同 id：普通在前
+            if (c != 0) return c;
+            String ca = a.tpl == null ? "" : String.valueOf(a.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
+            String cb = b.tpl == null ? "" : String.valueOf(b.tpl.getComponentChanges());
+            return ca.compareTo(cb);
         });
         filteredCount = filtered.size();
         int rows = (filteredCount + 8) / 9;
@@ -183,13 +221,20 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
         int i = 0;
         for (int idx = scrollRow * 9; idx < filtered.size() && i < PAGE; idx++, i++) {
-            Map.Entry<String, Long> e = filtered.get(idx);
-            Item item = Registries.ITEM.get(Identifier.of(e.getKey()));
-            int max = new ItemStack(item).getMaxCount();
-            int show = (int) Math.min(e.getValue(), (long) max);
-            ItemStack st = new ItemStack(item, Math.max(1, show));
-            NbtCompound tag = new NbtCompound();
-            tag.putLong("amt", e.getValue());
+            DispEnt d = filtered.get(idx);
+            ItemStack st;
+            if (d.tpl == null) {
+                Item item = Registries.ITEM.get(Identifier.of(d.id));
+                int max = new ItemStack(item).getMaxCount();
+                st = new ItemStack(item, Math.max(1, (int) Math.min(d.n, (long) max)));
+            } else {
+                st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxCount())));
+            }
+            // m130：展示栈=真身+amt 数量标签——精确件保留自身 CUSTOM_DATA，仅并入 amt 键；
+            // 取出方剥掉 amt 即还原真身（handler stripAmt）。自家 NBT 键无 "amt" 冲突（全键清单核对）。
+            NbtCompound tag = st.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                    net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
+            tag.putLong("amt", d.n);
             st.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
                     net.minecraft.component.type.NbtComponent.of(tag));
             display.setStack(i, st);

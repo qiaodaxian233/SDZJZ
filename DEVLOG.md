@@ -1206,3 +1206,25 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **F3 批量升级瞬卡**：add/removeNodeUpgrade 拆 Raw 无同步内核+syncNow()；收包器循环走 Raw、
   结束 any 才 syncNow 一次（此前 64 连发=一 tick 64 次全量 BE 同步）。
 - 待编译验证；聚敛涉及升级退还/下标前移/连线重映射三处易错，验证按 HANDOVER m125 三条原样跑。
+
+## m130 精确存储（用户拍板路线：精确存储→酿造塔→附魔自动化 第一步）
+- **架构：双账本**。存储核心保留 store(id→long) 普通账本——机器产线/过滤器/传感器/熔炉扫描/
+  自动补货全部热路径**零改动**；新增精确账本 exactTpl(模板 count=1)+exactN(long) 两表对齐，
+  键=「物品+组件」(areItemsAndComponentsEqual)。deposit() 按 getComponentChanges().isEmpty()
+  自动分流；depositExact/withdrawExact 按模板并账/取出；usedTypes=两本之和同占类型额度；
+  NBT "exact" 列表持久化（解析失败/物品卸载的条目静默跳过不炸档）。
+- **展示两本合一**：面板 refreshDisplay 重写为 DispEnt 统一列表（tpl==null 为普通），精确条目
+  跨核心按组件合并；同一排序（量降序→id→普通在前→组件串兜底稳定，防同 id 多附魔条目刷新抖动）。
+  **展示栈=真身+amt 注入**：精确件保留自身 CUSTOM_DATA 仅并入 "amt" 键（自家 NBT 全键清单无
+  "amt" 冲突）；取出方 stripAmt 剥掉 amt 即还原真身——普通件剥后归零组件（与旧行为逐字一致），
+  精确件附魔/损耗/阶位原样带走。带阶位机器(m128 {"mt"})存取闭环白拿。
+- **闸门全拆**：quickMove 存入/光标 id4/5/清空网格 id3 三处"带组件不入仓（防抹数据）"拒收
+  与 actionbar 提示全部移除——防抹的根因(按 id 记账)已除。展示格取出/quickMove/批量取出(id≥1000)
+  三路全部双路由：剥 amt 后有组件→withdrawExact(模板)，否则按 id；批量取出的 give 用模板 copy。
+- **设计留痕**：①机器不吃精确件——过滤器/链式需求/熔炉扫描仍只见普通账本（附魔书不该被熔炉当燃料
+  扫走）；②合成网格网络补料仍只补普通件（损耗件补"同款"语义不清，保持不补）；③交易所附魔书仍
+  直发背包（用户肌肉记忆，现在手动可存仓；要改直入仓说一声）；④极端边角：物品自带 CUSTOM_DATA
+  含 "amt" 键会与数量标签冲突——自家物品无此键，第三方物品理论可撞，登记不处理。
+- 待编译验证盯点：NbtComponent.DEFAULT / getOrDefault(CUSTOM_DATA,…) 组合（StructureCore 同款
+  用法照抄）、ItemStack.fromNbt/encode（仓库既有）。验证脚本：附魔书/损耗钻镐/GM机器 各存取一轮
+  组件无损；同书不同附魔分行显示；批量取出附魔书 2 组；类型计数含精确条目。

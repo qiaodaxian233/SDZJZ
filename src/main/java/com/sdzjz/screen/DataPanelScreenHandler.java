@@ -45,13 +45,17 @@ public class DataPanelScreenHandler extends ScreenHandler {
                         // m112：账本只在服务端动（m95 铁律）。此钩子客户端预测也会跑——客户端 BE 账本是空的，
                         // 在这里 withdraw/钳数会按空账把光标预测成 0，还会污染客户端核心读数。
                         if (!player.getWorld().isClient && panel != null && !stack.isEmpty()) {
-                            int got = panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount());
+                            ItemStack tpl = stack.copy(); // m130：剥掉 amt 即真身模板——普通/精确统一判别
+                            stripAmt(tpl);
+                            int got = tpl.getComponentChanges().isEmpty()
+                                    ? panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount())
+                                    : panel.withdrawExact(tpl, stack.getCount());
                             // m111：网络实收多少给多少——展示栈在 10t 刷新窗口内可能过期，绝不超发凭空造物
                             if (got < stack.getCount()) stack.setCount(Math.max(0, got));
                             panel.refreshDisplay(); // 取走后余量立刻回显，格子不再空 0.5s（AE 手感）
                         }
-                        // 剥掉展示用的数量 NBT，否则取出的物品与普通同类物品无法堆叠
-                        stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+                        // m130：剥掉展示用的 amt 数量标签（精确件保留自身组件——附魔/损耗/阶位原样带走）
+                        stripAmt(stack);
                         super.onTakeItem(player, stack);
                     }
                 });
@@ -208,6 +212,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (slotIdx < 0 || slotIdx >= DataPanelBlockEntity.PAGE || k > 8) return false;
             ItemStack disp = this.slots.get(slotIdx).getStack();
             if (disp.isEmpty()) return true;
+            ItemStack tpl = disp.copy(); // m130：剥 amt 即真身——精确件按模板取，普通件按 id 取
+            stripAmt(tpl);
+            boolean exact = !tpl.getComponentChanges().isEmpty();
             String idStr = Registries.ITEM.getId(disp.getItem()).toString();
             int maxStack = Math.max(1, disp.getItem().getMaxCount());
             int[] fixed = {1, 8, 16, 32, 64};
@@ -215,9 +222,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
             long given = 0;
             while (want > 0) {
                 int chunk = (int) Math.min(want, maxStack);
-                int got = panel.withdraw(idStr, chunk);
+                int got = exact ? panel.withdrawExact(tpl, chunk) : panel.withdraw(idStr, chunk);
                 if (got <= 0) break; // 仓储见底
-                ItemStack give = new ItemStack(disp.getItem(), got);
+                ItemStack give = exact ? tpl.copyWithCount(got) : new ItemStack(disp.getItem(), got);
                 player.getInventory().insertStack(give);
                 given += got - give.getCount();
                 if (!give.isEmpty()) { // 背包满：余量原路回仓，绝不落地/销毁
@@ -233,10 +240,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         if (id == 4 || id == 5) { // m111 AE 手感：光标存入网络（4=全放 5=放1）——服务端权威，客户端零预测
             ItemStack cur = this.getCursorStack();
             if (cur.isEmpty()) return true;
-            if (!cur.getComponentChanges().isEmpty()) { // 与 quickMove 存入同一条红线：防抹组件
-                msg(player, "带附魔/耐久等组件的物品不入仓（防抹数据）");
-                return true;
-            }
+            // m130：带组件物品进精确账本（deposit 自动分流），拒收闸门拆除
             if (id == 5) {
                 ItemStack one = cur.copyWithCount(1);
                 panel.deposit(one);                    // deposit 按实际存入量扣减
@@ -266,12 +270,12 @@ public class DataPanelScreenHandler extends ScreenHandler {
             this.setCursorStack(cursor.isEmpty() ? ItemStack.EMPTY : cursor); // 光标同步走原版 cursor 跟踪（m111 同通道）
             return true;
         }
-        if (id == 3) { // m107c 清空合成网格：无组件回网络，带组件/无核心的余量回背包，绝不落地销毁
+        if (id == 3) { // m107c 清空合成网格：回网络（m130 起带组件也可入仓），无核心的余量回背包，绝不落地销毁
             for (int i = 0; i < 9; i++) {
                 ItemStack st = craft.getStack(i);
                 if (st.isEmpty()) continue;
                 craft.setStack(i, ItemStack.EMPTY);
-                if (st.getComponentChanges().isEmpty()) panel.deposit(st); // deposit 按实际存入量扣减 st
+                panel.deposit(st); // deposit 按实际存入量扣减 st；带组件自动分流精确账本
                 if (!st.isEmpty() && !player.getInventory().insertStack(st)) player.dropItem(st, false);
             }
             return true;
@@ -297,6 +301,18 @@ public class DataPanelScreenHandler extends ScreenHandler {
     }
 
     private static void msg(PlayerEntity p, String s) { p.sendMessage(net.minecraft.text.Text.literal(s), true); }
+
+    /** m130：从展示栈剥掉数量标签 "amt"——展示栈=真身+amt 注入，剥后即还原真身：
+     *  普通物品剥后归零组件可正常堆叠（与旧行为一致）；精确件保留自身其余组件（附魔/损耗/阶位不丢）。 */
+    private static void stripAmt(ItemStack stack) {
+        var nc = stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (nc == null) return;
+        net.minecraft.nbt.NbtCompound n = nc.copyNbt();
+        n.remove("amt");
+        if (n.isEmpty()) stack.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        else stack.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                net.minecraft.component.type.NbtComponent.of(n));
+    }
 
     /** 玩家当前总经验点（原版等级公式）。 */
     private static long totalXp(PlayerEntity p) {
@@ -336,14 +352,19 @@ public class DataPanelScreenHandler extends ScreenHandler {
         ItemStack stack = slot.getStack();
 
         if (index < DataPanelBlockEntity.PAGE) {
-            // 展示格 → 玩家背包：先试塞（干净副本，无展示 NBT），按实际塞入量扣 store。
+            // 展示格 → 玩家背包：先试塞（真身副本），按实际塞入量扣账。
             // 顺序绝不能反：先扣后塞时背包满/塞一半 = 物品凭空消失。
-            ItemStack clean = new ItemStack(stack.getItem(), stack.getCount());
+            ItemStack clean = stack.copy(); // m130：剥 amt 即真身——精确件保留组件，普通件归零组件（双端同算）
+            stripAmt(clean);
             int before = clean.getCount();
             this.insertItem(clean, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
             int inserted = before - clean.getCount();
             if (inserted > 0 && panel != null && !player.getWorld().isClient) { // m112 账本只在服务端扣
-                panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), inserted);
+                ItemStack tpl = stack.copy();
+                stripAmt(tpl);
+                if (tpl.getComponentChanges().isEmpty())
+                    panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), inserted);
+                else panel.withdrawExact(tpl, inserted);
                 panel.refreshDisplay(); // 余量立刻回显
             }
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
@@ -380,12 +401,8 @@ public class DataPanelScreenHandler extends ScreenHandler {
             // 玩家背包 → 存入面板
             if (player.getWorld().isClient) return ItemStack.EMPTY; // m112 存入零预测：客户端跑到这会用空账本刷屏（视频实锤的整页清空）
             if (panel != null) {
-                // 带组件的物品（附魔/损耗/药水/成书等）拒存：仓储按 id 记账，存入会抹掉组件——宁可不动，绝不销毁数据
-                if (!stack.getComponentChanges().isEmpty()) {
-                    // m107c：此前静默拒收，玩家不知道为什么存不进——服务端 actionbar 说明原因（返回 EMPTY 循环即止，一次点击一条）
-                    if (!player.getWorld().isClient) msg(player, "带附魔/耐久等组件的物品不入仓（防抹数据）");
-                    return ItemStack.EMPTY;
-                }
+                // m130：带组件的物品（附魔/损耗/药水/带阶位机器）自动进精确账本，组件原样保存——
+                // m107c 的"不入仓"拒收闸门就此拆除。
                 ItemStack copy = stack.copy();
                 panel.deposit(copy);
                 // 只按实际存入量扣：无存储核心/类型满时余量留在原槽，绝不凭空消失

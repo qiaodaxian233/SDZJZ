@@ -24,12 +24,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 存储核心：逻辑仓储(id→long)，类型数受等级上限；可升级。数据面板/机器经网络(数据线/相邻)访问。 */
+/** 存储核心：双账本逻辑仓储——普通(id→long) + 精确(物品+组件模板→long, m130)；类型数受等级上限；可升级。
+ *  数据面板/机器经网络(数据线/相邻)访问；机器/过滤器/熔炉只见普通账本。 */
 public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess {
 
     /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。 */
     private static int typesPerTier() { return com.sdzjz.config.SdzjzConfig.get().storageTypesPerTier; }
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();
+    // m130 精确存储：带组件物品的模板账本（模板 count=1 + 独立 long 计数，两表下标对齐）。
+    // 普通物品仍走 store（机器热路径零改动）；过滤器/熔炉/传感器只见普通账本——机器不吃附魔书（设计留痕）。
+    private final List<ItemStack> exactTpl = new ArrayList<>();
+    private final List<Long> exactN = new ArrayList<>();
     private int tier = 1;
 
     private static final Map<RegistryKey<World>, Set<BlockPos>> CORES = new HashMap<>();
@@ -82,7 +87,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
 
     public int tier() { return tier; }
     public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
-    public int usedTypes() { return store.size(); }
+    public int usedTypes() { return store.size() + exactTpl.size(); } // m130：精确条目同占类型额度
     public void upgrade() { tier++; markDirty(); }
 
     // ===== m80c 经验库：网络级经验银行（数据面板界面存/取）=====
@@ -102,15 +107,55 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         return v == null ? 0L : v;
     }
 
-    /** 存入。默认无限类型（m98）；config 启用上限时，类型未满或已有该类型才收（拒收时栈原样保留）。 */
+    /** 存入。默认无限类型（m98）；config 启用上限时，类型未满或已有该类型才收（拒收时栈原样保留）。
+     *  m130：带组件的物品自动分流进精确账本，组件原样保存——附魔书/药水/损耗工具/带阶位机器全部可入仓。 */
     public void deposit(ItemStack stack) {
         if (stack.isEmpty()) return;
+        if (!stack.getComponentChanges().isEmpty()) { depositExact(stack); return; }
         String id = Registries.ITEM.getId(stack.getItem()).toString();
-        if (!store.containsKey(id) && store.size() >= maxTypes()) return;
+        if (!store.containsKey(id) && usedTypes() >= maxTypes()) return;
         store.merge(id, (long) stack.getCount(), Long::sum);
         stack.setCount(0);
         markDirty();
     }
+
+    /** m130：精确存入——按「物品+组件」找同款条目并账；新类型受同一类型上限（拒收时栈原样保留）。 */
+    public void depositExact(ItemStack stack) {
+        if (stack.isEmpty()) return;
+        for (int i = 0; i < exactTpl.size(); i++) {
+            if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), stack)) {
+                exactN.set(i, exactN.get(i) + stack.getCount());
+                stack.setCount(0);
+                markDirty();
+                return;
+            }
+        }
+        if (usedTypes() >= maxTypes()) return;
+        exactTpl.add(stack.copyWithCount(1));
+        exactN.add((long) stack.getCount());
+        stack.setCount(0);
+        markDirty();
+    }
+
+    /** m130：精确取出——按「物品+组件」匹配模板，返回实际取出数量。 */
+    public int withdrawExact(ItemStack template, int amount) {
+        if (template == null || template.isEmpty() || amount <= 0) return 0;
+        for (int i = 0; i < exactTpl.size(); i++) {
+            if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), template)) {
+                long have = exactN.get(i);
+                int take = (int) Math.min((long) amount, have);
+                long left = have - take;
+                if (left <= 0) { exactTpl.remove(i); exactN.remove(i); } else exactN.set(i, left);
+                if (take > 0) markDirty();
+                return take;
+            }
+        }
+        return 0;
+    }
+
+    /** m130：精确账本视图（面板聚合用；模板 count 恒为 1，计数走 exactCount）。 */
+    public List<ItemStack> exactTemplates() { return exactTpl; }
+    public long exactCount(int i) { return (i >= 0 && i < exactN.size()) ? exactN.get(i) : 0L; }
 
     public int withdraw(String id, int amount) {
         Long have = store.get(id);
@@ -157,6 +202,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             list.add(c);
         }
         nbt.put("store", list);
+        NbtList ex = new NbtList(); // m130：精确账本持久化（模板 encode + long 计数）
+        for (int i = 0; i < exactTpl.size(); i++) {
+            NbtCompound c = new NbtCompound();
+            c.put("item", exactTpl.get(i).encode(lookup));
+            c.putLong("n", exactN.get(i));
+            ex.add(c);
+        }
+        nbt.put("exact", ex);
         nbt.putLong("xpBank", xpBank);
     }
 
@@ -170,6 +223,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         for (int i = 0; i < list.size(); i++) {
             NbtCompound c = list.getCompound(i);
             store.put(c.getString("id"), c.getLong("n"));
+        }
+        exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
+        exactN.clear();
+        NbtList ex = nbt.getList("exact", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < ex.size(); i++) {
+            NbtCompound c = ex.getCompound(i);
+            ItemStack t = ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY);
+            long n = c.getLong("n");
+            if (!t.isEmpty() && n > 0) { exactTpl.add(t.copyWithCount(1)); exactN.add(n); }
         }
     }
 }
