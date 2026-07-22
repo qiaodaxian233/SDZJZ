@@ -29,7 +29,7 @@ public class SdzjzClient implements ClientModInitializer {
         // m80：全模组物品 tooltip 水印
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))
-                lines.add(net.minecraft.text.Text.literal("抖音：乔大仙").formatted(net.minecraft.util.Formatting.GOLD));
+                lines.add(net.minecraft.text.Text.literal("DY：乔大仙").formatted(net.minecraft.util.Formatting.GOLD));
         });
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }

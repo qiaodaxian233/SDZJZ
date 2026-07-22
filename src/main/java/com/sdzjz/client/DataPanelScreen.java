@@ -99,8 +99,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 158 + r * 18);
         for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 216);
-        // ===== m80c 左侧：乔大仙立牌 + 经验库 =====
-        ctx.drawTexture(QDX, x + 10, y + 22, 0.0F, 0.0F, 78, 138, 78, 138);
+        // ===== m80c 左侧：经验库（m127a 撤乔大仙立牌，用户点名）=====
         ctx.fill(x + 8, y + 166, x + 92, y + 240, 0xC0081120);
         ctx.drawText(this.textRenderer, "经验库", x + 14, y + 170, SUB, false);
         String xv = fmt(((com.sdzjz.screen.DataPanelScreenHandler) this.handler).xpBankView());
@@ -124,9 +123,6 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         ctx.fill(tx - 1, ty - 1, tx + 17, ty + 17, 0xFF8E2E2E);
         ctx.fill(tx, ty, tx + 16, ty + 16, 0xFF1A0D0D);
     }
-
-    private static final net.minecraft.util.Identifier QDX =
-            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/qdx_card.png");
 
     private void xpBtn(DrawContext ctx, int bx, int by, String label, int mouseX, int mouseY) {
         boolean hov = mouseX >= bx && mouseX <= bx + 76 && mouseY >= by && mouseY <= by + 18;
