@@ -58,6 +58,17 @@ public class DataPanelBlock extends BlockWithEntity {
         return ActionResult.SUCCESS;
     }
 
+    @Override
+    protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
+        // m126a：网格常驻 BE 后拆方块必须散落内容物（照 TradeCenterBlock 同款样板，绝不吞）
+        if (!state.isOf(newState.getBlock())) {
+            if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity panel) {
+                panel.dropCraftGrid(world, pos);
+            }
+            super.onStateReplaced(state, world, pos, newState, moved);
+        }
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {

@@ -1131,3 +1131,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 **事故留痕**：本条提交时沙箱 bash 工具宕机——代码修复与冒烟已完成在盘，文档经文件工具补写，
 恢复后立即补推。工作流铁律再验：**冒烟一过先 commit，文档可以后补——反过来就是赌命。**
 
+
+## m126a 合成网格常驻方块（用户点名"存储终端合成问题，学 AE 的代码"——AE2 源码实拉对照）
+- 拉 AE2 主线源码通读 CraftingTermSlot/CraftingTermMenu/CraftingTerminalPart 三件套（思路自学，
+  代码自写，LGPL 不抄，m106 老规矩）。**最大手感差距实锤：AE2 的合成网格存在方块部件里随 NBT
+  持久化——配方摆一次永远在；我们的网格是 handler 私有，关界面回背包，每次开终端重摆 9 格。**
+- 落地：①craftGrid 迁入 DataPanelBlockEntity（writeNbt/readNbt 稀疏槽位表，照 StorageCore/
+  TradeCenter 既有 NBT 写法；构造挂 markDirty 监听落盘）；②DataPanelBlock.onStateReplaced
+  散落网格内容（照 TradeCenterBlock 样板，绝不吞）；③handler 网格绑 BE 实例（客户端 BE 同样有
+  实例，槽位同步写它——与原版箱子同机制）；onClosed 撤"清空回背包"。
+- **监听器泄漏预防**：共享 BE 网格后，原匿名 lambda addListener 无法注销——每开一次界面泄漏一个
+  引旧 handler 的监听器（客户端服务端都漏）。改存字段 craftListener，onClosed 双端 removeListener
+  （放在 isClient 早退**之前**）。
+- 开界面即出结果：构造末尾补 updateCraftResult()（持久化网格可能已带配方，不等首次改动；
+  内部自带客户端守卫，m112 保险丝不破）。
+- 多人语义：多玩家共开同一面板=共用同一网格，AE2 同款；原版槽位 tracking 天然处理并发同步。
+- 待编译验证盯点：InventoryChangedListener（Yarn 1.21 名）、ItemStack.encode/fromNbt 与
+  NbtList/NbtElement.COMPOUND_TYPE（仓库既有用法照抄，风险低）。

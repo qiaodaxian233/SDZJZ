@@ -18,9 +18,11 @@ public class DataPanelScreenHandler extends ScreenHandler {
 
     private final DataPanelBlockEntity panel;
     private final BlockPos blockPos;
-    private final SimpleInventory craft = new SimpleInventory(9);       // m84b 合成终端
+    private final SimpleInventory craft;                                // m126a：BE 常驻网格（AE2 式模板）
     private final SimpleInventory craftResult = new SimpleInventory(1);
     private final SimpleInventory trash = new SimpleInventory(1);       // 回收格：放入即销毁
+    // m126a：共享 BE 网格必须可注销监听——匿名 lambda 无法 remove，每开一次界面就泄漏一个引旧 handler 的监听器
+    private final net.minecraft.inventory.InventoryChangedListener craftListener = inv -> updateCraftResult();
 
     public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
         this(syncId, playerInv, resolve(playerInv, pos));
@@ -30,6 +32,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         super(ModScreenHandlers.DATA_PANEL, syncId);
         this.panel = be;
         this.blockPos = (be != null) ? be.getPos() : null;
+        this.craft = (be != null) ? be.craftGrid : new SimpleInventory(9); // 客户端 BE 同样有实例，槽位同步写它
         Inventory display = (be != null) ? be.display : new SimpleInventory(DataPanelBlockEntity.PAGE);
 
         // 展示区 6×9（只取不放）
@@ -61,7 +64,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         for (int c = 0; c < 9; c++)
             this.addSlot(new Slot(playerInv, c, 99 + c * 18, 216));
         // m84b 合成终端：3×3(90..98) + 结果(99) + 回收(100)
-        craft.addListener(inv -> updateCraftResult());
+        craft.addListener(craftListener);
         trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 3; c++)
@@ -77,6 +80,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
         // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
         if (be != null && be.getWorld() != null && !be.getWorld().isClient) be.addViewer();
+        updateCraftResult(); // m126a：网格常驻后开界面可能已带配方——立即出结果，不等首次改动（内部自带客户端守卫）
     }
 
     // ===== m84b 合成终端（ME 风格：终端里直接手动合成）=====
@@ -136,15 +140,10 @@ public class DataPanelScreenHandler extends ScreenHandler {
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);
+        craft.removeListener(craftListener); // m126a：双端都注销——共享 BE 网格，不注销=重开累积泄漏监听器
         if (player.getWorld().isClient) return;
         if (panel != null) panel.removeViewer(); // m107a：注销查看者（断线也走 onClosed，不泄漏）
-        for (int i = 0; i < 9; i++) { // 关界面归还合成格材料，绝不吞
-            ItemStack st = craft.getStack(i);
-            if (!st.isEmpty()) {
-                craft.setStack(i, ItemStack.EMPTY);
-                if (!player.getInventory().insertStack(st)) player.dropItem(st, false);
-            }
-        }
+        // m126a：网格常驻 BE（AE2 式模板），关界面不再回背包——配方摆一次永远在，重开接着合
     }
 
     // ===== m80c 经验库 =====

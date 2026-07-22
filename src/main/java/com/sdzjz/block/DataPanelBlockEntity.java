@@ -32,9 +32,13 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private int filteredCount = 0;
     private int refreshTicker = 0;
     public final SimpleInventory display = new SimpleInventory(PAGE);
+    /** m126a：合成网格常驻方块（学 AE2 CraftingTerminalPart，代码自写）——关界面模板不清空，
+     *  重开即接着合；多人共开同一面板共用同一网格（AE2 同款语义）。随 NBT 持久化，拆方块散落。 */
+    public final SimpleInventory craftGrid = new SimpleInventory(9);
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_PANEL_BE, pos, state);
+        craftGrid.addListener(inv -> this.markDirty()); // 网格改动落盘（markDirty 自带 world==null 守卫）
     }
 
     public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
@@ -191,6 +195,40 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             display.setStack(i, st);
         }
         for (; i < PAGE; i++) display.setStack(i, ItemStack.EMPTY);
+    }
+
+    @Override
+    protected void writeNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup lookup) {
+        super.writeNbt(nbt, lookup);
+        // m126a：合成网格持久化（稀疏槽位表，照 StorageCoreBlockEntity/TradeCenter 既有 NBT 写法）
+        net.minecraft.nbt.NbtList list = new net.minecraft.nbt.NbtList();
+        for (int i = 0; i < 9; i++) {
+            ItemStack st = craftGrid.getStack(i);
+            if (st.isEmpty()) continue;
+            NbtCompound c = new NbtCompound();
+            c.putInt("slot", i);
+            c.put("item", st.encode(lookup));
+            list.add(c);
+        }
+        nbt.put("craftGrid", list);
+    }
+
+    @Override
+    protected void readNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup lookup) {
+        super.readNbt(nbt, lookup);
+        for (int i = 0; i < 9; i++) craftGrid.setStack(i, ItemStack.EMPTY);
+        net.minecraft.nbt.NbtList list = nbt.getList("craftGrid", net.minecraft.nbt.NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < list.size(); i++) {
+            NbtCompound c = list.getCompound(i);
+            int s = c.getInt("slot");
+            if (s >= 0 && s < 9)
+                craftGrid.setStack(s, ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
+        }
+    }
+
+    /** m126a：拆方块散落合成网格内容（AE2 addAdditionalDrops 同义，绝不吞）。 */
+    public void dropCraftGrid(World world, BlockPos pos) {
+        net.minecraft.util.ItemScatterer.spawn(world, pos, craftGrid);
     }
 
     @Override
