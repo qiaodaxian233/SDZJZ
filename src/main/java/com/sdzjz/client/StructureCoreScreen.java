@@ -138,7 +138,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     // 自动合成机目标选择器
     private int pickerNode = -1;
-    private int pickerMode = 0; // 0=合成目标 1=过滤名单(多选) 2=传感器监测物品
+    private int pickerMode = 0; // 0=合成目标 1=过滤名单(多选) 2=传感器监测物品 3=作物多选 4=药水目标(m131b)
+    private int brewForm = 0; // m131b 药水形态：0=普通 1=喷溅 2=滞留
+    private java.util.List<net.minecraft.util.Identifier> potionIds; // 全药水注册id（一次构建）
+    private final List<ItemStack> potionFiltered = new ArrayList<>();
+    private final List<String> potionFilteredIds = new ArrayList<>(); // 与上表对齐的完整目标串 id|形态
     private TextFieldWidget pickerField;
     private List<Item> craftables;
     private List<Item> allItems;
@@ -580,7 +584,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
         boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
-        if (st.getItem() instanceof AutoCrafterItem || isCrop) {
+        boolean isBrew = st.getItem() instanceof com.sdzjz.item.BrewingTowerItem; // m131b
+        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
@@ -593,7 +598,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
                 ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
             } else if (!isCrop && !t.isEmpty()) {
-                ItemStack ts = new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
+                ItemStack ts = isBrew ? com.sdzjz.machine.BrewPlanner.targetStack(t)
+                        : new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
+                if (ts == null) ts = new ItemStack(net.minecraft.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载等）
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
                 while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 50) tn = tn.substring(0, tn.length() - 1);
@@ -827,6 +834,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
         if (st.getItem() instanceof AutoCrafterItem)
             addMenu("选择合成目标", () -> openPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem)
+            addMenu("选择目标药水", () -> openPotionPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", () -> openCropPicker(idx));
         if (StructureCoreBlockEntity.isFilter(st)) {
@@ -957,6 +966,28 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (pickerNode >= 0) {
             int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
             if (pickerField.mouseClicked(mouseX, mouseY, button)) return true;
+            if (pickerMode == 4) { // m131b 药水目标：形态按钮→重过滤；点药水→设目标关窗
+                for (int f = 0; f < 3; f++) {
+                    int fx = px + PICK_W - 118 + f * 38, fy = py + 5;
+                    if (mouseX >= fx && mouseX < fx + 34 && mouseY >= fy && mouseY < fy + 14) {
+                        if (brewForm != f) { brewForm = f; refilterPicker(); }
+                        return true;
+                    }
+                }
+                int pgx = px + 8, pgy = py + 44;
+                for (int k = 0; k < potionFiltered.size(); k++) {
+                    int cx = pgx + (k % PICK_COLS) * 21, cy = pgy + (k / PICK_COLS) * 21;
+                    if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
+                        BlockPos bpp = this.handler.blockPos();
+                        if (bpp != null && button == 0)
+                            ClientPlayNetworking.send(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
+                        closePicker();
+                        return true;
+                    }
+                }
+                if (mouseX < px || mouseX > px + PICK_W || mouseY < py || mouseY > py + PICK_H) closePicker();
+                return true;
+            }
             int gx = px + 8, gy = py + 44;
             for (int k = 0; k < pickerFiltered.size(); k++) {
                 int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
@@ -1098,14 +1129,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 目标徽章：自动合成机=全物品选择器；全自动农场=作物选择器
+                    // 目标徽章：自动合成机=全物品选择器；全自动农场=作物选择器；酿造塔=药水选择器(m131b)
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         boolean auto = nodes.get(i).getItem() instanceof AutoCrafterItem;
                         boolean crop = nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem;
-                        if (!auto && !crop) continue;
+                        boolean brew = nodes.get(i).getItem() instanceof com.sdzjz.item.BrewingTowerItem;
+                        if (!auto && !crop && !brew) continue;
                         int bx = wnx(be, nodes, i) + NW - 30, by = wny(be, nodes, i) + 14;
                         if (wx >= bx && wx <= bx + 20 && wy >= by && wy <= by + 20) {
-                            if (crop) openCropPicker(i); else openPicker(i);
+                            if (crop) openCropPicker(i); else if (brew) openPotionPicker(i); else openPicker(i);
                             return true;
                         }
                     }
@@ -1235,6 +1267,45 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerField.setFocused(true);
     }
 
+    /** m131b 药水目标选择器：单选，含形态切换（普通/喷溅/滞留）；延长/强化是独立药水项直接列出。 */
+    private void openPotionPicker(int node) {
+        pickerMode = 4;
+        pickerNode = node;
+        if (potionIds == null) {
+            potionIds = new ArrayList<>(Registries.POTION.getIds());
+            potionIds.sort(java.util.Comparator.comparing(net.minecraft.util.Identifier::toString));
+        }
+        StructureCoreBlockEntity beP = be();
+        if (beP != null && node >= 0 && node < beP.nodes().size()) { // 已有目标→回显形态
+            String t = StructureCoreBlockEntity.craftTarget(beP.nodes().get(node));
+            brewForm = t.endsWith("|s") ? 1 : t.endsWith("|l") ? 2 : 0;
+        }
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    private static char brewFormChar(int f) { return f == 1 ? 's' : f == 2 ? 'l' : 'p'; }
+    private static final String[] BREW_FORM_NAMES = {"普通", "喷溅", "滞留"};
+
+    private void refilterPotions() {
+        potionFiltered.clear();
+        potionFilteredIds.clear();
+        String q = pickerField.getText().trim().toLowerCase();
+        for (net.minecraft.util.Identifier pid : potionIds) {
+            if (brewForm == 0 && pid.getPath().equals("water")) continue; // 普通水瓶无酿造意义（喷溅水=水+火药可酿，保留）
+            String tgt = pid + "|" + brewFormChar(brewForm);
+            ItemStack ps = com.sdzjz.machine.BrewPlanner.targetStack(tgt);
+            if (ps == null) continue;
+            if (q.isEmpty() || ps.getName().getString().toLowerCase().contains(q) || pid.getPath().contains(q)) {
+                potionFiltered.add(ps);
+                potionFilteredIds.add(tgt);
+                if (potionFiltered.size() >= PICK_COLS * PICK_ROWS) break;
+            }
+        }
+    }
+
     /** 过滤名单多选：点选=加/移，不关窗。 */
     private void openFilterPicker(int node) {
         pickerMode = 1;
@@ -1304,6 +1375,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void refilterPicker() {
         pickerFiltered.clear();
+        if (pickerMode == 4) { refilterPotions(); return; } // m131b 药水目标走独立表
         List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
@@ -1345,8 +1417,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
                 : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"
+                : pickerMode == 4 ? "选择目标药水"
                 : "选择目标产物（中文/英文搜索）";
         ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
+        if (pickerMode == 4) { // m131b 形态切换按钮
+            for (int f = 0; f < 3; f++) {
+                int fx = px + PICK_W - 118 + f * 38, fy = py + 5;
+                boolean on = brewForm == f;
+                boolean hovF = mouseX >= fx && mouseX < fx + 34 && mouseY >= fy && mouseY < fy + 14;
+                ctx.fill(fx - 1, fy - 1, fx + 35, fy + 15, NODEFRM);
+                ctx.fill(fx, fy, fx + 34, fy + 14, on ? SciSkin.ON_DARK : hovF ? SciSkin.HOVER : SciSkin.BTN_FACE);
+                ctx.drawText(this.textRenderer, BREW_FORM_NAMES[f], fx + 5, fy + 3, on ? ON : SUB, false);
+            }
+        }
         List<String> selIds = java.util.Collections.emptyList();
         if (pickerMode == 1 || pickerMode == 3) { // m93：作物多选沿用白名单的已选高亮
             StructureCoreBlockEntity be3 = be();
@@ -1360,17 +1443,35 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerField.render(ctx, mouseX, mouseY, delta);
         int gx = px + 8, gy = py + 44;
         Item hovered = null;
-        for (int k = 0; k < pickerFiltered.size(); k++) {
-            int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
-            boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
-            boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
-            if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
-            ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-            ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
-            if (hov) hovered = pickerFiltered.get(k);
+        ItemStack hoveredStack = null;
+        if (pickerMode == 4) { // m131b 药水网格：栈直绘（带药水配色），当前目标=绿框
+            String curT = "";
+            StructureCoreBlockEntity beC = be();
+            if (beC != null && pickerNode >= 0 && pickerNode < beC.nodes().size())
+                curT = StructureCoreBlockEntity.craftTarget(beC.nodes().get(pickerNode));
+            for (int k = 0; k < potionFiltered.size(); k++) {
+                int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
+                boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
+                boolean sel = potionFilteredIds.get(k).equals(curT);
+                if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON);
+                ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
+                ctx.drawItem(potionFiltered.get(k), cx + 2, cy + 2);
+                if (hov) hoveredStack = potionFiltered.get(k);
+            }
+        } else {
+            for (int k = 0; k < pickerFiltered.size(); k++) {
+                int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
+                boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
+                boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(Registries.ITEM.getId(pickerFiltered.get(k)).toString());
+                if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
+                ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
+                ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
+                if (hov) hovered = pickerFiltered.get(k);
+            }
         }
-        String tip = hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
-        ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, hovered != null ? ON : SUB, false);
+        String tip = hoveredStack != null ? hoveredStack.getName().getString()
+                : hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
+        ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
     }
 
     @Override
