@@ -35,6 +35,7 @@ public class ModItems {
 
     // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
     public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Settings(), Machines.AUTO_CRAFTER));
+    public static final Item BREWING_TOWER = reg("brewing_tower", new com.sdzjz.item.BrewingTowerItem(new Item.Settings(), Machines.BREWING_TOWER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
@@ -120,6 +121,7 @@ public class ModItems {
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
             entries.add(CORE_MODULE);
             entries.add(AUTO_CRAFTER);
+            entries.add(BREWING_TOWER);
             entries.add(FILTER_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);

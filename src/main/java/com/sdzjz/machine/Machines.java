@@ -8,6 +8,8 @@ public final class Machines {
 
     // ---- 自动合成机（目标动态，画布上设置；此 def 仅作占位元数据）----
     public static final MachineDef AUTO_CRAFTER = new MachineDef("auto_crafter", List.of(), 40, false, List.of());
+    /** 酿造塔（m131b）：目标药水在画布节点徽章选择，配方由 BrewPlanner 从原版酿造注册表解析。 */
+    public static final MachineDef BREWING_TOWER = new MachineDef("brewing_tower", List.of(), 40, false, List.of());
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());
