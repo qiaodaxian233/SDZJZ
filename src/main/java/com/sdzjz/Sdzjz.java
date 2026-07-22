@@ -53,6 +53,7 @@ public class Sdzjz implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             StorageCoreBlockEntity.clearAll();
             CraftPlanner.clearCache();
+            com.sdzjz.machine.BrewPlanner.clearCache();
             com.sdzjz.machine.SmeltPlanner.clearCache();
         });
 

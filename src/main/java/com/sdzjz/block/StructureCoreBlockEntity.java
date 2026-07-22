@@ -327,6 +327,61 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) {
+                // 酿造塔（m131b）：按原版酿造链吃料出药水，目标在画布节点徽章选择。
+                // 产物带 POTION_CONTENTS——不走 distribute/内部缓存（id 账本会抹组件），
+                // 出线一律无视，只走 存储入库（m130 精确账本自动分流）或输出缓存（addOutput 已保组件）。
+                String target = craftTarget(st);
+                if (target.isEmpty()) continue;
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                com.sdzjz.machine.BrewPlanner.Plan plan = com.sdzjz.machine.BrewPlanner.plan(world, target);
+                if (plan == null) continue; // 目标串非法/酿造不可达
+                int running = runningCount(st, parallelLv, tier);
+                long crafts = (long) running * (1 + countLv) * cycles;
+                com.sdzjz.machine.StorageAccess depositBt = be.depositFor(world, i);
+                if (depositBt == null)
+                    crafts = Math.min(crafts, (long) OUTPUT_SLOTS / com.sdzjz.machine.BrewPlanner.BOTTLES_PER_BATCH); // 药水 max=1，无存储时封顶防白扣
+                int steps = plan.steps();
+                int fuelNd = plan.needs().getOrDefault(com.sdzjz.machine.BrewPlanner.FUEL_ID, 0); // 力量药水的材料烈焰粉，与燃料两账并存
+                int ops = com.sdzjz.machine.BrewPlanner.OPS_PER_FUEL;
+                if (hasIn[i]) {
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
+                    long fuelAvail = be.bufCountFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID);
+                    crafts = Math.min(crafts, fuelAvail * ops / ((long) fuelNd * ops + steps));
+                    while (crafts > 0 && (long) fuelNd * crafts + (crafts * steps + ops - 1) / ops > fuelAvail) crafts--; // ceil 兜底
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
+                    be.bufWithdrawFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID, (crafts * steps + ops - 1) / ops);
+                } else {
+                    com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
+                    if (supply == null) {
+                        if (!srcResolved) {
+                            src = be.resolveInputSource(world, pos);
+                            srcResolved = true;
+                        }
+                        supply = src;
+                    }
+                    if (supply == null) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
+                    long fuelAvail = supply.count(com.sdzjz.machine.BrewPlanner.FUEL_ID);
+                    crafts = Math.min(crafts, fuelAvail * ops / ((long) fuelNd * ops + steps));
+                    while (crafts > 0 && (long) fuelNd * crafts + (crafts * steps + ops - 1) / ops > fuelAvail) crafts--;
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        supply.withdraw(en.getKey(), (int) Math.min(Integer.MAX_VALUE, (long) en.getValue() * crafts));
+                    supply.withdraw(com.sdzjz.machine.BrewPlanner.FUEL_ID, (int) Math.min(Integer.MAX_VALUE, (crafts * steps + ops - 1) / ops));
+                }
+                be.stat(i, 1);
+                int total = (int) Math.min(Integer.MAX_VALUE, crafts * com.sdzjz.machine.BrewPlanner.BOTTLES_PER_BATCH);
+                be.prodTally(total);
+                ItemStack brewOut = plan.result().copyWithCount(total);
+                if (depositBt != null) be.depositOrBuffer(depositBt, brewOut);
+                else be.addOutput(brewOut);
+                produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) {
                 // 全自动农场：按所选作物产出（免费，对齐原版农场）。m93：多选≤8种，逐种产出
                 java.util.List<String> cropsSel = cropList(st);
@@ -834,7 +889,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
         boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk) return;
+        boolean brewOk = s.getItem() instanceof com.sdzjz.item.BrewingTowerItem
+                && com.sdzjz.machine.BrewPlanner.targetStack(id) != null; // m131b 目标串服务端校验
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
             java.util.List<String> cur = cropList(s);
@@ -1451,6 +1508,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             var plan = CraftPlanner.plan(world, tgt);
             return plan != null && plan.needs().containsKey(id);
         }
+        if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) { // m131b：吃酿造链材料+燃料
+            String tgt = craftTarget(st);
+            if (tgt.isEmpty()) return false;
+            var plan = com.sdzjz.machine.BrewPlanner.plan(world, tgt);
+            return plan != null && (plan.needs().containsKey(id) || com.sdzjz.machine.BrewPlanner.FUEL_ID.equals(id));
+        }
         if (st.getItem() instanceof MachineItem mi) {
             if ("super_smelter".equals(mi.def().id())) return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
             if (mi.def().consumesInputs()) {
@@ -1562,9 +1625,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             ItemStack slot = items.get(i);
             if (slot.isEmpty()) {
                 int put = Math.min(remain, out.getMaxCount());
-                items.set(i, new ItemStack(out.getItem(), put));
+                items.set(i, out.copyWithCount(put)); // m131b：保组件（此前重建栈抹组件——药水/附魔件进输出缓存会变裸件）
                 remain -= put;
-            } else if (slot.isOf(out.getItem()) && slot.getCount() < slot.getMaxCount()) {
+            } else if (ItemStack.areItemsAndComponentsEqual(slot, out) && slot.getCount() < slot.getMaxCount()) { // m131b：异组件不并栈
                 int put = Math.min(remain, slot.getMaxCount() - slot.getCount());
                 slot.increment(put);
                 remain -= put;
