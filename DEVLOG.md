@@ -1165,3 +1165,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   64 连≈130+ 趟；现在稳定配方全程 matches 短路。updateCraftResult/consumeCraft 两处统一走 findRecipe。
 - 待编译验证盯点：RecipeEntry<CraftingRecipe> 泛型（Yarn 1.21 getFirstMatch 返回类型）、
   CraftingRecipe.matches(CraftingRecipeInput, World) 签名。
+
+## m127 双条：a 撤乔大仙立牌+水印改DY；b 结果格"部分取出"漏洞族全焊（深挖BUG，终端+超级工作台双修）
+- **m127a**（用户点名）：终端左侧乔大仙立牌撤除（drawTexture+QDX 常量+qdx_card.png 三处归零，
+  grep 残留确认）；全模组 tooltip 水印"抖音：乔大仙"→"DY：乔大仙"。
+- **m127b 漏洞族确诊**：两台的结果格都是 canInsert=false + onTakeItem 扣料，但对原版"部分取出"
+  三条路径零防线——①右键取半（tryTakeStackRange 的 min=半、max=MAX_VALUE，canTakePartial 检查
+  只看 max 拦不住）②Q 键取 1 ③双击收集(PICKUP_ALL) 用 takeStack 直取绕过 tryTakeStackRange。
+  三条都会走 onTakeItem→扣整份料，结果随即被重算覆盖成满编=**玩家白丢差额**；超级工作台一份料
+  是 144 格配方，丢一次伤害更大。AE2 的防线是 mayPickup=false 全走自定义包（源码实证）；
+  我们左键刻意保留原版流，故照原版 CraftingScreenHandler 的思路补两道：
+  ①两处结果格 override tryTakeStackRange：min(min,max) < 结果数 → 整取或不取（右键取半/近满同类
+  光标/Q 键全焊死；ctrl+Q 整取、左键空手整取不受影响；count=1 时右键=整取仍通）。钩子双端同跑，
+  客户端预测同样被拒零闪烁。
+  ②两 handler override canInsertIntoSlot(stack, slot)：结果格从 PICKUP_ALL 候选中排除（原版
+  CraftingScreenHandler 排除 result 同款语义）；终端顺带排除展示格（常规光标因 amt 组件不等吸不走，
+  但创造中键 CLONE 出的光标带同款组件可绕开 onTakeItem 正门的账本钳数——一并绝缘）。
+  该方法另参与拖拽落格判定，两类格 canInsert 本就 false，零行为变化。
+- 终端右键结果的正路仍是 m126b 客户端拦截→id=6 整组合成；本条是它身后的服务端防线
+  （防造假包/同步窗口内的原始 PICKUP button=1）。
+- 待编译验证盯点：tryTakeStackRange(int,int,PlayerEntity) 与 canInsertIntoSlot(ItemStack,Slot)、
+  Slot.id 字段三个 Yarn 1.21 名，报错即改。

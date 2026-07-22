@@ -56,6 +56,13 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 if (!player.getWorld().isClient) consumeIngredients();
                 super.onTakeItem(player, stack);
             }
+            // m127b：整取或不取——右键取半/Q键取1 也会 consumeIngredients 扣整份料，
+            // onContentChanged 再把剩余覆盖成满结果=白丢差额（与终端结果格同族漏洞，同款焊法）。
+            @Override public java.util.Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
+                ItemStack st = this.getStack();
+                if (!st.isEmpty() && Math.min(min, max) < st.getCount()) return java.util.Optional.empty();
+                return super.tryTakeStackRange(min, max, player);
+            }
         });
 
         // 玩家背包（网格下方）
@@ -135,6 +142,13 @@ public class SuperBenchScreenHandler extends ScreenHandler {
     @Override
     public boolean canUse(PlayerEntity player) {
         return true;
+    }
+
+    // m127b：双击收集(PICKUP_ALL)对结果格绝缘——该路径 takeStack 直取可部分吸走结果，
+    // 每吸一口都扣整份 144 格配方料（原版 CraftingScreenHandler 排除 result 的同款语义）。
+    @Override
+    public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
+        return slot.inventory != result;
     }
 
     /** 配方浏览器点击：把 #id 配方的材料从背包填入网格（先清空网格还给玩家）。 */

@@ -75,6 +75,14 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 consumeCraft(player);
                 super.onTakeItem(player, stack);
             }
+            // m127b：结果格整取或不取——取一半也触发 consumeCraft 扣整份料，随后重算把格内剩余覆盖成
+            // 满结果=玩家白丢差额。原版右键取半(min=半)/近满同类光标(max=余位)/Q键(min=1) 三条部分取出
+            // 路径在此焊死；此钩子双端同跑，客户端预测同样被拒，零闪烁。
+            @Override public java.util.Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
+                ItemStack st = this.getStack();
+                if (!st.isEmpty() && Math.min(min, max) < st.getCount()) return java.util.Optional.empty();
+                return super.tryTakeStackRange(min, max, player);
+            }
         });
         this.addSlot(new Slot(trash, 0, 334, 216));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
@@ -310,6 +318,15 @@ public class DataPanelScreenHandler extends ScreenHandler {
     @Override
     public boolean canUse(PlayerEntity player) {
         return panel != null;
+    }
+
+    // m127b：双击收集(PICKUP_ALL)绝缘名单——原版该路径走 takeStack 直取，绕过 tryTakeStackRange 的整取防线：
+    // ①结果格：部分吸取=扣整份料丢差额（原版 CraftingScreenHandler 排除 result 的同款语义）；
+    // ②展示格(id<PAGE)：常规光标因 amt 组件不相等吸不走，但创造中键 CLONE 出的光标带同款组件可绕开
+    // onTakeItem 正门外的账本钳数。本方法另参与拖拽落格判定，两类格 canInsert 本就 false，零行为变化。
+    @Override
+    public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
+        return slot.inventory != craftResult && slot.id >= DataPanelBlockEntity.PAGE;
     }
 
     @Override
