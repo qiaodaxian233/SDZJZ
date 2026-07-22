@@ -1228,3 +1228,36 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 待编译验证盯点：NbtComponent.DEFAULT / getOrDefault(CUSTOM_DATA,…) 组合（StructureCore 同款
   用法照抄）、ItemStack.fromNbt/encode（仓库既有）。验证脚本：附魔书/损耗钻镐/GM机器 各存取一轮
   组件无损；同书不同附魔分行显示；批量取出附魔书 2 组；类型计数含精确条目。
+
+## m131b 酿造塔（已拍板路线第二步：精确存储→酿造塔→附魔自动化；沙箱断线后按铁律全量重建并小步快推 5 笔）
+- **前情**：上轮 m131b 写到一半沙箱额度断线，盘上代码蒸发（m125 同款事故）——但 m131a
+  （真美术三张归位+五张概念图入库）断线前已推成功，素材零损失。本轮重建改为**每完成一块立即 push**。
+- **BrewPlanner（machine/）**：给定目标串「药水id|形态」（p=普通 s=喷溅 l=滞留），从原版
+  BrewingRecipeRegistry BFS——起点=水瓶，边=isValidIngredient 收集的材料做一步 craft()，
+  首达即最短链。延长/强化=独立药水注册项（long_/strong_）天然覆盖；第三方模组照原版注册的
+  药水一并支持。Plan{needs(玻璃瓶3+各步材料), steps, result(带POTION_CONTENTS样板栈)}；
+  缓存挂 SERVER_STOPPED（与 CraftPlanner 同位）。燃料不进 needs：1 烈焰粉=20 步（原版），
+  按 steps 在 tick 聚合结算——力量药水的**材料**烈焰粉与**燃料**烈焰粉两账并存不混。
+- **注册四件套**：MachineDef "brewing_tower"(40t)；BrewingTowerItem(tooltip 四行)；ModItems+创造栏；
+  引子签名 brewing_stand×2+blaze_rod+nether_wart（全表 63 条签名多重集唯一，脚本核对过）。
+  物品图从概念图 素材/概念图/酿造塔.png 裁切归位（透明底单体立绘，管线断言过，覆盖率 68%）。
+- **服务端 tick 分支**：镜像自动合成机（周期 40t、吃加速/数量/并列、双供料路径 hasIn 缓存/网络），
+  两点关键差异：①**产物带组件——出线一律无视**，不走 distribute/内部缓存（id 账本会抹组件），
+  只走 depositFor→m130 精确账本 或 addOutput 输出缓存；无存储时封顶 OUTPUT_SLOTS/3（药水 max=1 防白扣）。
+  ②材料界+燃料界联合裁定：crafts≤fuelAvail×20/(材料粉×20+steps)，ceil 兜底 while 递减，
+  取料=needs×crafts+⌈crafts×steps/20⌉。产出=crafts×3 瓶（原版一批 3 瓶）。
+- **accepts 链需求**：吃 plan.needs 全部材料+燃料烈焰粉（上游机器可连线直喂）。
+- **setNodeTarget**：放行酿造塔并 targetStack 服务端校验（垃圾串不入 NBT）；复用 "ct" 键与
+  NodeTargetPayload（机器类型天然区分解释方式，收包器 128 字长限已有）。
+- **顺修 addOutput 真 bug**：原 `new ItemStack(out.getItem(), put)` 重建栈**抹组件**、
+  `slot.isOf` 并栈**混异组件**——药水/附魔件进输出缓存会变裸件混堆。改 copyWithCount +
+  areItemsAndComponentsEqual。全模组所有走输出缓存的组件产物受益。
+- **客户端**：选择器模式 4（全药水注册表列出、三形态按钮切换即重过滤、当前目标绿框回显、
+  搜索照旧、普通水瓶剔除/喷溅水保留）；节点菜单「选择目标药水」；徽章点击分流；徽章图标
+  targetStack 直绘真药水配色（解析失败兜底酿造台图标）。
+- **待编译验证盯点（Yarn 1.21.1）**：World.getBrewingRecipeRegistry()、
+  BrewingRecipeRegistry.isValidIngredient(ItemStack)/craft(ItemStack,ItemStack)、
+  PotionContentsComponent.createStack(Item,RegistryEntry)、Registries.POTION.getEntry(Identifier)、
+  RegistryEntry.getIdAsString()、Registries.POTION.getIds()、ItemStack.copyWithCount。
+  验证脚本：选 强化迅捷·喷溅 →应吃 玻璃瓶3+地狱疣1+糖1+萤石粉1+火药1+烈焰粉(4步→每5批1粉)，
+  出 3 瓶且入库为精确条目；断存储时输出缓存里药水不变裸瓶不混堆；力量药水双账扣粉对得上。

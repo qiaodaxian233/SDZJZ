@@ -71,6 +71,8 @@
 - **生产/升级/tick**：`block/StructureCoreBlockEntity.java`（~1900 行核心；五分支 tick、
   cyclesThisTick/runningCount/rollDrops、供料 supplyFor/入库 depositFor/分发 distribute、链式需求 chainWants）
 - **机器定义/注册**：`machine/Machines.java`(掉落表) + `registry/ModItems.java` + `machine/SuperBenchRecipes.java`(引子签名配方)
+- **配方规划器**：合成=`machine/CraftPlanner.java`；熔炼=`machine/SmeltPlanner.java`；
+  酿造=`machine/BrewPlanner.java`(m131b,BFS原版酿造注册表,目标串「药水id|p/s/l」,缓存挂SERVER_STOPPED)
 - **存储网络**：`block/StorageCoreBlockEntity.java`（connectedCores=贴邻/数据线 BFS4096；类型默认无限 m98）
 - **存储终端**：`screen/DataPanelScreenHandler.java`(按钮 id=1000+格×10+档位0..8；id6=右键整组合成) + `client/DataPanelScreen.java`；合成网格 m126a 起常驻 `block/DataPanelBlockEntity.java`(craftGrid, NBT 持久化)
 - **交易所**：`machine/VillagerTrades.java`(纯Java,Trade record 含 enchant 字段) +
@@ -108,9 +110,11 @@
    全黑；取整组/半组后格子即时显示余量；shift 入库/取出各连打十几下看有无错乱；其余按键表照验（m113 终版：
    空手左键=抓整组、空手右键=数量浮层(一组/拿满)、拿着左键=全存/右键=存1、Shift+左键=一组入背包）。
    m110 地图/暂停顺带。
-2. **已拍板路线（m129 用户确认）**：精确存储(m130✅) → 酿造塔(m131,下一步) → 附魔自动化(m132)。
-   酿造塔设计要点：照自动合成机选择器套路选目标药水，吃 材料+玻璃瓶+烈焰粉（网络扣料），
-   支持喷溅/滞留/延长/强化链；产物药水带 POTION_CONTENTS 组件——正因 m130 才能入仓。
+2. **已拍板路线（m129 用户确认）**：精确存储(m130✅) → 酿造塔(m131b✅待编译验证) → 附魔自动化(m132,下一步)。
+   m131b 验证：超级工作台 brewing_stand×2+blaze_rod+nether_wart 合出酿造塔；放画布点徽章开药水选择器
+   （三形态按钮/搜索/绿框回显）；选 强化迅捷·喷溅 挂网络后应吃 玻璃瓶3+地狱疣+糖+萤石粉+火药+烈焰粉
+   （4步→每5批1粉）出3瓶入库为精确条目（终端分行显示）；断存储时输出缓存药水不变裸瓶不混堆；
+   力量药水材料粉+燃料粉双账扣数对得上；上游机器连线直喂材料可行（accepts）。
 3. 其余量产覆盖候选（仍待拍板）：G组杂项（蜘蛛网/孢子花/萌芽紫水晶）、
    附魔自动化（需"精确存储"先行）、酿造塔/幽匿线等"顺带"名单。
 4. 真美术：m109 三张程序占位图待作者重绘（考古工作站/末地远征平台/试炼农场，见绘图名单.md；m102 深层采掘平台已于 m104 归位）。
