@@ -812,7 +812,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
             int mt = StructureCoreBlockEntity.machineTier(st);
             String[] TN = {"普通", "超级", "神级", "GM"};
-            if (mt < 3 && st.getCount() >= 4)
+            // m128(F1)：条件改全画布同类同阶总数——m78 后单节点恒为 ×1，按本节点 count 判菜单永不出现；
+            // 服务端融合会先跨节点聚敛(gatherSame)再合成，客户端只负责"够不够格显示入口"。
+            int sameTotal = 0;
+            for (ItemStack o : be.nodes())
+                if (o.getItem() == st.getItem() && StructureCoreBlockEntity.machineTier(o) == mt) sameTotal += o.getCount();
+            if (mt < 3 && sameTotal >= 4)
                 addMenu("融合：4台→" + TN[mt + 1] + "×1",
                         () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
             if (mt > 0)

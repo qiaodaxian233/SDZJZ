@@ -159,11 +159,14 @@ public class Sdzjz implements ModInitializer {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     int n = Math.max(1, Math.min(64, payload.count())); // m115a 批量：服务端钳幅，逐个到失败即停
+                    boolean any = false; // m128(F3)：循环走 Raw 无同步内核，结束一次 syncNow——此前 64 连发=一 tick 64 次全量 BE 同步瞬卡
                     for (int k = 0; k < n; k++) {
-                        boolean ok = payload.add() ? core.addNodeUpgrade(p, payload.index(), payload.type())
-                                                   : core.removeNodeUpgrade(p, payload.index(), payload.type());
+                        boolean ok = payload.add() ? core.addNodeUpgradeRaw(p, payload.index(), payload.type())
+                                                   : core.removeNodeUpgradeRaw(p, payload.index(), payload.type());
                         if (!ok) break;
+                        any = true;
                     }
+                    if (any) core.syncNow();
                 }
             });
         });

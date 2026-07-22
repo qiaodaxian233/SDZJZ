@@ -1186,3 +1186,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （防造假包/同步窗口内的原始 PICKUP button=1）。
 - 待编译验证盯点：tryTakeStackRange(int,int,PlayerEntity) 与 canInsertIntoSlot(ItemStack,Slot)、
   Slot.id 字段三个 Yarn 1.21 名，报错即改。
+
+## m128 m125三修代码补推（用户问"四合一做了吗"牵出重大事故：m125 只推了文档，代码全丢）
+- **事故确认**：`git show 4d6f044 --stat` 实锤——m125 提交只含 DEVLOG/HANDOVER 两个文档，**零 Java**。
+  对上 m125 自己的事故留痕：那轮沙箱 bash 宕机，代码"已完成在盘"待补推，沙箱重置即蒸发，
+  文档经文件工具写入所以活了下来。后果：用户游戏里融合菜单永不出现（节点恒 ×1 凑不满 4）——
+  正是用户这次来问"四个合成一个的那个做了吗"的原因。铁律再镀一层：**"恢复后立即补推"不算数，
+  没 push 成功的代码等于不存在；宕机恢复第一件事必须 git status+diff 核对盘上与远端。**
+- 按 m125 DEVLOG 记载全量重建三修（编号 m128，与丢失版本可能存在实现细节差异，以本条为准）：
+- **F1 融合不可达**：①removeNodeAt 摘除簿记逐字抽为 detachNode（机器线重映射+存储线剪/移位+
+  在途缓存并遗留池+状态位，返回节点栈，不含归还/同步）；removeNodeAt/ejectOne/聚敛三处共用
+  （ejectOne 原 removeIf 写法对末位节点与 detachNode 等价，顺手归一）；②gatherSame 跨节点聚敛：
+  倒序遍历同物品同阶节点抽调（detach 只动更高下标，倒序安全）；将被抽空的节点**先读后抽**——
+  先按 NBT 退还内嵌升级（refundUpgrades 与 returnNodeClean 共用）再 detach；摘除低位节点时
+  目标下标前移并返回新下标；③fuseNode 升阶分支：count<4 先聚敛；仍凑不齐 actionbar 说明并
+  照样落盘同步（聚敛可能已部分并栈）；④客户端菜单条件 st.getCount()≥4 → 全画布同类同阶总数≥4。
+- **F2 取出蒸发阶位**：returnNodeClean 先读 mt 再抹 CUSTOM_DATA，mt>0 重挂纯 {"mt"}——
+  取出 GM 仍是 GM；同阶可堆叠/异阶组件不同天然不混栈；再放回 insertMachine copy 自然携带。
+- **F3 批量升级瞬卡**：add/removeNodeUpgrade 拆 Raw 无同步内核+syncNow()；收包器循环走 Raw、
+  结束 any 才 syncNow 一次（此前 64 连发=一 tick 64 次全量 BE 同步）。
+- 待编译验证；聚敛涉及升级退还/下标前移/连线重映射三处易错，验证按 HANDOVER m125 三条原样跑。

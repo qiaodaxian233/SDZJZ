@@ -626,7 +626,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (s.isEmpty() || !(s.getItem() instanceof MachineItem)) return;
         int mt = machineTier(s);
         if (up) {
-            if (mt >= 3 || s.getCount() < 4) return;
+            if (mt >= 3) return;
+            if (s.getCount() < 4) { // m128(F1)：m78 后 insertMachine 恒为 ×1 节点——不聚敛则单节点永远
+                // 凑不满 4，融合出厂即死（m125 审计实锤，本条为丢失代码重建）。跨节点抽调同物品同阶机器。
+                index = gatherSame(player, index, 4);
+                s = machineNodes.get(index);
+            }
+            if (s.getCount() < 4) { // 全画布凑不齐：聚敛可能已部分发生（同类并栈），照样落盘同步
+                player.sendMessage(net.minecraft.text.Text.literal(
+                        "画布上同类同阶机器不足 4 台，无法融合"), true);
+                markDirty();
+                syncToClient();
+                return;
+            }
             int rem = s.getCount() % 4, keep = s.getCount() / 4;
             if (rem > 0) { // 余数保持原阶还给玩家（copy 带原 NBT），绝不凭空消失
                 ItemStack back = s.copyWithCount(rem);
@@ -652,6 +664,32 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         markDirty();
         syncToClient();
+    }
+
+    /** m128(F1)：跨节点聚敛——从画布其它「同物品同阶」节点抽调机器进 index 节点，凑 need 台。
+     *  被抽空的节点：**先读后抽**（栈随 detach 清空后 NBT 即失）——先退还其内嵌升级，再走 detachNode
+     *  全套簿记；聚敛无视暂停/升级差异（机器可互换，升级留原节点或退还，m125 设计留痕）。
+     *  返回聚敛后 index 的新下标（摘除低位节点会使下标前移）。倒序遍历：detach 只影响更高下标，安全。 */
+    private int gatherSame(PlayerEntity player, int index, int need) {
+        ItemStack target = machineNodes.get(index);
+        int mt = machineTier(target);
+        int idx = index;
+        for (int j = machineNodes.size() - 1; j >= 0 && target.getCount() < need; j--) {
+            if (j == idx) continue;
+            ItemStack o = machineNodes.get(j);
+            if (o.isEmpty() || o.getItem() != target.getItem() || machineTier(o) != mt) continue;
+            int take = Math.min(need - target.getCount(), o.getCount());
+            if (take >= o.getCount()) { // 将被抽空：先读后抽——升级退还，再摘节点
+                refundUpgrades(player, nbtOf(o));
+                target.increment(take);
+                detachNode(j);
+                if (j < idx) idx--; // 摘除低位节点，目标下标前移
+            } else {
+                o.decrement(take);
+                target.increment(take);
+            }
+        }
+        return idx;
     }
 
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
@@ -815,6 +853,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     public boolean addNodeUpgrade(PlayerEntity player, int index, int type) {
+        if (!addNodeUpgradeRaw(player, index, type)) return false;
+        syncNow();
+        return true;
+    }
+
+    /** m128(F3)：无同步内核——批量接收器循环用（此前 Shift 批量 64 连发=一 tick 64 次全量 BE 同步瞬卡），
+     *  循环结束由调用方 syncNow() 一次。 */
+    public boolean addNodeUpgradeRaw(PlayerEntity player, int index, int type) {
         if (index < 0 || index >= machineNodes.size()) return false;
         Item item = upgradeItem(type);
         String key = upgradeKey(type);
@@ -823,13 +869,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         n.putInt(key, n.getInt(key) + 1);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
-        markDirty();
-        syncToClient();
         return true;
     }
 
     /** 从该节点取回一个升级还给玩家。 */
     public boolean removeNodeUpgrade(PlayerEntity player, int index, int type) {
+        if (!removeNodeUpgradeRaw(player, index, type)) return false;
+        syncNow();
+        return true;
+    }
+
+    /** m128(F3)：无同步内核（同 addNodeUpgradeRaw）。 */
+    public boolean removeNodeUpgradeRaw(PlayerEntity player, int index, int type) {
         if (index < 0 || index >= machineNodes.size()) return false;
         Item item = upgradeItem(type);
         String key = upgradeKey(type);
@@ -841,9 +892,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         n.putInt(key, lv - 1);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         if (!player.getInventory().insertStack(new ItemStack(item))) player.dropItem(new ItemStack(item), false);
+        return true;
+    }
+
+    /** m128(F3)：落盘+全量同步一次（批量收包器循环后调用；单发包装方法内部也走它）。 */
+    public void syncNow() {
         markDirty();
         syncToClient();
-        return true;
     }
 
     private static Item upgradeItem(int type) {
@@ -921,11 +976,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 右键取出指定节点：内嵌升级折成物品归还，机器本体清掉画布 NBT（可正常堆叠）。 */
     public void removeNodeAt(PlayerEntity player, int index) {
         if (index < 0 || index >= machineNodes.size()) return;
+        ItemStack s = detachNode(index);
+        returnNodeClean(player, s);
+        markDirty();
+        syncToClient();
+    }
+
+    /** m128(F1)：摘除节点的全套簿记（谨慎重构：逐字搬运自 removeNodeAt 原逻辑）——机器线重映射+
+     *  存储线剪/移位+在途缓存并遗留池+状态位；返回被摘的节点栈。不含归还与同步，调用方自理。
+     *  removeNodeAt / ejectOne / 融合聚敛三处共用，双写漂移归零。 */
+    private ItemStack detachNode(int index) {
         nodeBuf(machineNodes.size() - 1); // 先补齐对齐
         ItemStack s = machineNodes.remove(index);
         if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
         if (index < nodeStatus.size()) nodeStatus.remove(index);
-        returnNodeClean(player, s);
         java.util.List<int[]> kept = new java.util.ArrayList<>();
         for (int[] c : connections) {
             if (c[0] == index || c[1] == index) continue; // 触及被删节点→断
@@ -940,13 +1004,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (e[0] == index) { storageEdges.remove(i); storageEdgeDims.remove(i); }
             else if (e[0] > index) e[0]--;
         }
-        markDirty();
-        syncToClient();
+        return s;
     }
 
     /** 归还节点：先把嵌在 NBT 里的升级折成升级物品还给玩家，再清掉画布数据返还机器本体。 */
     private void returnNodeClean(PlayerEntity player, ItemStack s) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        int mt = n.getInt("mt"); // m128(F2)：先读后抹——阶位是机器本体属性不是画布数据
+        refundUpgrades(player, n);
+        s.remove(DataComponentTypes.CUSTOM_DATA);
+        if (mt > 0) { // m128(F2)：重挂纯 {"mt"}——取出 GM 仍是 GM，再放回经 insertMachine copy 自然携带；
+            // 同阶同物品可堆叠、异阶 CUSTOM_DATA 不同天然不混栈（原版机制白拿）。此前一刀抹全=511 台凭空蒸发。
+            NbtCompound keep = new NbtCompound();
+            keep.putInt("mt", mt);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(keep));
+        }
+        if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
+    }
+
+    /** m128：把节点 NBT 里的内嵌升级折成物品退还玩家（returnNodeClean 与融合聚敛共用，双写归一）。 */
+    private void refundUpgrades(PlayerEntity player, NbtCompound n) {
         for (int type = 0; type < 3; type++) {
             int lv = n.getInt(upgradeKey(type));
             Item item = upgradeItem(type);
@@ -955,22 +1032,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!player.getInventory().insertStack(up)) player.dropItem(up, false);
             }
         }
-        s.remove(DataComponentTypes.CUSTOM_DATA);
-        if (!player.getInventory().insertStack(s)) player.dropItem(s, false);
     }
 
     /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
     public void ejectOne(PlayerEntity player) {
         if (!machineNodes.isEmpty()) {
-            int removed = machineNodes.size() - 1;
-            nodeBuf(removed); // 补齐对齐
-            ItemStack s = machineNodes.remove(removed);
-            if (removed < nodeBufs.size()) mergeLegacy(nodeBufs.remove(removed));
-            if (removed < nodeStatus.size()) nodeStatus.remove(removed);
-            connections.removeIf(c -> c[0] == removed || c[1] == removed);
-            for (int i = storageEdges.size() - 1; i >= 0; i--) {
-                if (storageEdges.get(i)[0] == removed) { storageEdges.remove(i); storageEdgeDims.remove(i); }
-            }
+            // m128：改共用 detachNode（末位节点无更高下标需要移位，与原 removeIf 写法等价，三写归一）
+            ItemStack s = detachNode(machineNodes.size() - 1);
             returnNodeClean(player, s);
             markDirty();
             syncToClient();
