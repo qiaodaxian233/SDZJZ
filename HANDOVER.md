@@ -33,9 +33,9 @@
 5. 每里程碑写 DEVLOG（现象→根因→修法→教训），提交信息带 mNN 编号。
 6. 升级/封顶类公式改动必问："到顶之后玩家再投入会怎样"——静默无效比数值弱更伤（m99 教训）。
 
-## 当前状态（m125 · 2026-07）
+## 当前状态（m126 · 2026-07）
 
-**作者已本地编译全绿至 m106；m107/m108 待编译验证。** 近期里程碑：
+**作者已本地编译全绿至 m106；m107/m108 起待编译验证。** 近期里程碑：
 
 - **m99 升级数学重写**：工作量累积模型。速率=(1+speedGain)^速度级×productionRateMultiplier，
   每 tick 累积、溢出折同 tick 多周期永不触底；并发=直接乘台数(台数×(1+级)×tier)；数量封顶只剩
@@ -72,7 +72,7 @@
   cyclesThisTick/runningCount/rollDrops、供料 supplyFor/入库 depositFor/分发 distribute、链式需求 chainWants）
 - **机器定义/注册**：`machine/Machines.java`(掉落表) + `registry/ModItems.java` + `machine/SuperBenchRecipes.java`(引子签名配方)
 - **存储网络**：`block/StorageCoreBlockEntity.java`（connectedCores=贴邻/数据线 BFS4096；类型默认无限 m98）
-- **存储终端**：`screen/DataPanelScreenHandler.java`(按钮 id=1000+格×10+档位0..8) + `client/DataPanelScreen.java`
+- **存储终端**：`screen/DataPanelScreenHandler.java`(按钮 id=1000+格×10+档位0..8；id6=右键整组合成) + `client/DataPanelScreen.java`；合成网格 m126a 起常驻 `block/DataPanelBlockEntity.java`(craftGrid, NBT 持久化)
 - **交易所**：`machine/VillagerTrades.java`(纯Java,Trade record 含 enchant 字段) +
   `block/TradeCenterBlockEntity.java`(employ/trade/heal) + `client/TradeCenterScreen.java`
 - **画布 UI**：`client/StructureCoreScreen.java`（节点/总线/机器库侧栏/视图控制）
@@ -82,7 +82,11 @@
 
 ## 待办池（按优先级）
 
-1. 验证 m112-m125。重点 m125 审计三修：①画布散放 4 台同类 ×1 机器→任一节点菜单"融合"应聚敛合成，
+1. 验证 m112-m126。**m126 存储终端合成双修（AE2 源码实拉对照后落地）**：
+   ①网格常驻——终端摆好配方关界面再开，9 格原样还在；退出重进世界仍在；拆面板方块网格内容散落不吞；
+   两人同开一个面板看网格同步；②右键结果格=连续合成一整组到光标（光标拿着同类=续装到满），
+   不再出现"右键取一半白丢一半"；左键单取/Shift 整组进背包/清空按钮不回归；
+   ③shift 整组连打应比之前顺（配方缓存撤全表扫）。其余：m125 审计三修：①画布散放 4 台同类 ×1 机器→任一节点菜单"融合"应聚敛合成，
    被抽空节点消失、其升级回背包、连线不错乱；②取出超级/GM 机器再放回，阶位前缀仍在；
    ③Shift 批量塞升级不再瞬卡。其余：m117 换肤第一步：四屏观感应与之前几乎一致（刻意变化仅两处：终端/交易所的
    按钮悬停色并入画布蓝族、超级工作台多了全屏暗底），重点看有没有哪块颜色明显错位；
