@@ -218,6 +218,17 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             clickXp(button == 0 ? 4 : 5);
             return true;
         }
+        // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标。原版右键=取一半，对结果格是吞产物的
+        // 残废语义（取半也触发 consumeCraft 扣整份料，随后 updateCraftResult 又把剩余覆盖成满结果——白丢一半），
+        // 无论光标空否都拦截交服务端权威处理。
+        if (button == 1) {
+            var resSlot = this.handler.slots.get(DataPanelBlockEntity.PAGE + 45);
+            int rsx = this.x + resSlot.x, rsy = this.y + resSlot.y;
+            if (mx >= rsx && mx < rsx + 16 && my >= rsy && my < rsy + 16) {
+                if (resSlot.hasStack()) clickXp(6);
+                return true;
+            }
+        }
         if (button == 1) { // m113 浮层回到普通右键（用户点名"右键拿一组/拿满哪去了"）——本模组存量动辄百万，
             // 定量/拿满才是主力，AE 的"右键抓半组"在这个量级没用，肌肉记忆优先。Shift+右键同样开浮层。
             // 光标拿着东西时右键=存1（上方拦截在先），空手右键=浮层，语义不冲突。

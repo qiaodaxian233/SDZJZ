@@ -90,12 +90,23 @@ public class DataPanelScreenHandler extends ScreenHandler {
         return net.minecraft.recipe.input.CraftingRecipeInput.create(3, 3, l);
     }
 
+    // m126b：配方查找缓存（学 AE2 currentRecipe：上次命中的配方仍 matches 就直接用，不再全表扫）。
+    // 此前 shift 合一整组=每轮 updateCraftResult+consumeCraft 各一次 getFirstMatch，64 连 130+ 趟全表扫描。
+    private net.minecraft.recipe.RecipeEntry<net.minecraft.recipe.CraftingRecipe> cachedRecipe;
+
+    private java.util.Optional<net.minecraft.recipe.RecipeEntry<net.minecraft.recipe.CraftingRecipe>> findRecipe(
+            net.minecraft.recipe.input.CraftingRecipeInput input, net.minecraft.world.World w) {
+        if (cachedRecipe != null && cachedRecipe.value().matches(input, w)) return java.util.Optional.of(cachedRecipe);
+        var m = w.getRecipeManager().getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w);
+        cachedRecipe = m.orElse(null);
+        return m;
+    }
+
     private void updateCraftResult() {
         if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return;
         var w = panel.getWorld();
         var input = craftInput();
-        craftResult.setStack(0, w.getRecipeManager()
-                .getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w)
+        craftResult.setStack(0, findRecipe(input, w)
                 .map(e -> e.value().craft(input, w.getRegistryManager())).orElse(ItemStack.EMPTY));
     }
 
@@ -104,7 +115,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return; // m95 同款：只在服务端扣料，客户端等同步纠正
         var w = panel.getWorld();
         var input = craftInput();
-        var match = w.getRecipeManager().getFirstMatch(net.minecraft.recipe.RecipeType.CRAFTING, input, w);
+        var match = findRecipe(input, w); // m126b：走缓存，shift/整组连打不再逐轮全表扫
         net.minecraft.util.collection.DefaultedList<ItemStack> rem =
                 match.map(e -> e.value().getRemainder(input)).orElse(null);
         // m106b AE 式补料：cores 快照一次，9 格共用（不逐格 BFS）
@@ -227,6 +238,24 @@ public class DataPanelScreenHandler extends ScreenHandler {
             }
             this.setCursorStack(cur.isEmpty() ? ItemStack.EMPTY : cur);
             panel.refreshDisplay();                    // 存完立刻可见
+            return true;
+        }
+        if (id == 6) { // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标（服务端权威零预测，m95 同款）
+            ItemStack want = craftResult.getStack(0).copy();
+            if (want.isEmpty()) return true;
+            ItemStack cursor = this.getCursorStack();
+            if (!cursor.isEmpty() && !ItemStack.areItemsAndComponentsEqual(cursor, want)) return true; // 光标异类：不动
+            int per = Math.max(1, want.getCount());
+            while (true) {
+                updateCraftResult(); // 补料后配方可能断，每轮重算（m106b 同款）
+                ItemStack cur = craftResult.getStack(0);
+                if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
+                int space = cursor.isEmpty() ? want.getMaxCount() : cursor.getMaxCount() - cursor.getCount();
+                if (space < per) break; // 光标装不下下一轮产出即停，绝不超装（单产>堆叠上限的怪配方走左键单取）
+                if (cursor.isEmpty()) cursor = cur.copy(); else cursor.increment(cur.getCount());
+                consumeCraft(player); // 扣料+网络补料+重算
+            }
+            this.setCursorStack(cursor.isEmpty() ? ItemStack.EMPTY : cursor); // 光标同步走原版 cursor 跟踪（m111 同通道）
             return true;
         }
         if (id == 3) { // m107c 清空合成网格：无组件回网络，带组件/无核心的余量回背包，绝不落地销毁

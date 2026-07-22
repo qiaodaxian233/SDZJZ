@@ -1148,3 +1148,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 多人语义：多玩家共开同一面板=共用同一网格，AE2 同款；原版槽位 tracking 天然处理并发同步。
 - 待编译验证盯点：InventoryChangedListener（Yarn 1.21 名）、ItemStack.encode/fromNbt 与
   NbtList/NbtElement.COMPOUND_TYPE（仓库既有用法照抄，风险低）。
+
+## m126b 结果格右键=整组到光标（AE2 CRAFT_STACK 补齐）+ 修右键取半吞产物 + 配方缓存
+- AE2 结果格四档实测对照（AEBaseScreen 点击映射实拉源码核对）：左键=合1到光标（连点累积）/
+  右键=CRAFT_STACK 合一整组到光标 / Shift=CRAFT_SHIFT 整组进背包 / 空格=CRAFT_ALL 合到背包满。
+  我们已有左键(原版流)与 Shift(m106b)；本条补右键整组；CRAFT_ALL 暂不做——m113 教训：
+  照搬范式先掂量，等用户要再议。
+- **顺带修实锤 bug**：此前右键结果格走原版"取一半"——取半也触发 onTakeItem→consumeCraft 扣整份料，
+  updateCraftResult 又把格内剩余覆盖成满结果，玩家每次右键白丢一半产出。现客户端无条件拦截
+  右键结果格（含光标非空）交服务端。
+- 实现：客户端拦截右键结果格→onButtonClick id=6（照 m111 id4/5 通道）；服务端循环
+  updateCraftResult→校验结果未变→光标容量够一轮才合（绝不超装；单产>堆叠上限的怪配方右键不动，
+  左键单取仍通）→consumeCraft 扣料+网络补料；光标同步走原版 cursor 跟踪（m111 已验证的同通道）。
+- **配方缓存（学 AE2 currentRecipe/findRecipe）**：上次命中配方仍 matches 就直接复用，
+  否则全表 getFirstMatch 并更新缓存。此前 shift 合一整组=每轮 update+consume 各扫一次全配方表，
+  64 连≈130+ 趟；现在稳定配方全程 matches 短路。updateCraftResult/consumeCraft 两处统一走 findRecipe。
+- 待编译验证盯点：RecipeEntry<CraftingRecipe> 泛型（Yarn 1.21 getFirstMatch 返回类型）、
+  CraftingRecipe.matches(CraftingRecipeInput, World) 签名。
