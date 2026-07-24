@@ -1261,3 +1261,40 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   RegistryEntry.getIdAsString()、Registries.POTION.getIds()、ItemStack.copyWithCount。
   验证脚本：选 强化迅捷·喷溅 →应吃 玻璃瓶3+地狱疣1+糖1+萤石粉1+火药1+烈焰粉(4步→每5批1粉)，
   出 3 瓶且入库为精确条目；断存储时输出缓存里药水不变裸瓶不混堆；力量药水双账扣粉对得上。
+
+## m132 附魔工厂（已拍板路线第三步收官：精确存储→酿造塔→附魔自动化；小步快推 5 笔）
+- **经验来源拍板（本条最大设计决策）**：不引入经验瓶经济——附魔耗**本画布核心经验池 xpPool**。
+  刷怪塔/熔炉机器早就在往池里攒（MachineXp，m*既有），玩家画布可领；附魔工厂直接从同一池扣，
+  "烈焰人塔攒经验→附魔工厂吃经验出书"同画布闭环，零新物品经济、零新存档字段。
+  设计留痕：工厂与玩家"领取经验"按钮**共享同池竞争**——属特性（想留经验给自己就先领/暂停工厂）。
+- **EnchantPlanner（machine/）**：目标串「附魔id|等级」（如 minecraft:sharpness|5）。1.21 附魔是
+  数据驱动动态注册表——一切经 world.getRegistryManager().getWrapperOrThrow(RegistryKeys.ENCHANTMENT)，
+  注册表驱动=第三方模组附魔/诅咒天然全谱，零白名单。成本公式集中一处便于调参：
+  书×1 + 青金石×(3×级)（附魔台单次上限3青金石按级放大）+ 经验 = B×级×25 点，
+  B=max(1, anvilCost/2)（原版铁砧"附魔书减半"倍率 1/2/4/8→1/1/2/4）。
+  例：锋利V=15青金石+125经验；经验修补=3青金石+50经验。缓存挂 SERVER_STOPPED（Plan 持有
+  注册表绑定样板栈，防跨存档窜档）；客户端只走 targetStack/targetName 无缓存（注册表随数据包变）。
+- **注册六件套**：MachineDef "enchant_factory"(40t)；EnchantFactoryItem(tooltip 四行)；ModItems+创造栏；
+  引子签名 enchanting_table+bookshelf+book+lapis_lazuli（全表 64 条签名多重集唯一，脚本核对过）。
+  物品图从概念图 附魔自动化.png 选区裁切归位（主体龙门架+发光书，覆盖率 64.4% 真美术同档）。
+- **服务端 tick 分支**：镜像酿造塔（40t、吃三升级、双供料路径、缺料统一 stat=3 红灯），差异三点：
+  ①经验闸最先判——crafts=min(crafts, xpPool/xpCost)，池空=红灯（画布经验池数字可见，可自查）；
+  ②无燃料轴（经验非物品，不走线不进 needs）；③附魔书 max=1，无存储时封顶 OUTPUT_SLOTS 防白扣。
+  产物出路与酿造塔逐字同款：带 ENCHANTMENTS 组件——出线一律无视，只走 depositFor→m130 精确账本
+  或 addOutput 输出缓存（m131b 已修保组件）。扣池放在材料界裁定之后，用最终 crafts 结算不多扣。
+- **accepts 链需求**：只吃 书+青金石（上游机器可连线直喂）；setNodeTarget 放行附魔工厂并
+  targetStack(world,·) 服务端校验（垃圾串不入 NBT），复用 "ct" 键与 NodeTargetPayload。
+- **客户端选择器模式 5 = 行式列表（与药水网格刻意不同）**：附魔书图标全长一个样，21px 网格
+  没法认——改 图标+原版 Enchantment.getName（罗马数字等级/诅咒红字自带）每行一条；每级独立成行
+  （锋利I..V），附魔按名排序、等级降序；当前目标绿框；搜索中文名/英文id；全表**每次开窗按当前世界
+  动态注册表重建**（附魔随存档/数据包变，不做跨世界静态缓存——与药水 potionIds 静态缓存刻意不同，
+  药水是静态注册表所以能缓）。徽章文字走 targetName（书 getName 恒为"附魔书"）；悬停提示同用附魔名。
+- **待编译验证盯点（Yarn 1.21.1）**：RegistryWrapper.Impl.getOptional(RegistryKey)/streamEntries()、
+  Enchantment.getMaxLevel()/getAnvilCost()（若无则改 definition().maxLevel()/anvilCost()）、
+  Enchantment.getName(RegistryEntry,int)、RegistryEntry.Reference.registryKey().getValue()、
+  ItemStack.addEnchantment(entry,lv)（m101 交易所同款已编译绿，风险低）。
+- 验证脚本：超级工作台 附魔台+书架+书+青金石 合出附魔工厂；放画布节点菜单"选择目标附魔"开行式
+  选择器（搜"锋利"应出 锋利V..I 五行）；选 锋利V 挂网络+同画布烈焰人塔攒经验后，应吃 书1+青金石15+
+  经验125/本 出附魔书入库为精确条目（终端分行显示、与交易所同款书同行合并计数）；池空红灯、
+  领取经验按钮与工厂抢池；断存储时输出缓存书不混堆不变裸书；上游机器连线直喂书/青金石可行；
+  经验修补/诅咒/模组附魔均可选。
