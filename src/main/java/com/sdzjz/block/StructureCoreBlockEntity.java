@@ -1326,6 +1326,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 return plan == null ? java.util.Set.of() : plan.needs().keySet();
             });
             return needs.contains(id);
+        } else if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) {
+            // m132 顺修：m131b 漏接链式需求——存储→过滤器→酿造塔 的拉料此前恒 false
+            // （落进下方通用 MachineItem 分支，免费型 def 不吃供料）。语义照 accepts：材料+燃料。
+            String tgtB = craftTarget(st);
+            if (tgtB.isEmpty()) return false;
+            var planB = com.sdzjz.machine.BrewPlanner.plan(world, tgtB);
+            return planB != null && (planB.needs().containsKey(id) || com.sdzjz.machine.BrewPlanner.FUEL_ID.equals(id));
+        } else if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) {
+            // m132：附魔工厂链式需求=书+青金石（经验非物品不走线）。
+            String tgtE = craftTarget(st);
+            if (tgtE.isEmpty()) return false;
+            var planE = com.sdzjz.machine.EnchantPlanner.plan(world, tgtE);
+            return planE != null && planE.needs().containsKey(id);
         } else if (st.getItem() instanceof MachineItem mi) {
             var def = mi.def();
             if ("super_smelter".equals(def.id()))
