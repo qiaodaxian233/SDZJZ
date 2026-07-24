@@ -382,6 +382,53 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (depositBt != null) be.depositOrBuffer(depositBt, brewOut);
                 else be.addOutput(brewOut);
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) {
+                // 附魔工厂（m132）：按目标附魔+等级吃 书+青金石+经验（核心经验池）出附魔书。
+                // 产物带 ENCHANTMENTS 组件——与酿造塔同款出路：不走 distribute/id 账本，
+                // 出线一律无视，只走 存储入库（m130 精确账本）或输出缓存（addOutput 保组件）。
+                String target = craftTarget(st);
+                if (target.isEmpty()) continue;
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                com.sdzjz.machine.EnchantPlanner.Plan plan = com.sdzjz.machine.EnchantPlanner.plan(world, target);
+                if (plan == null) continue; // 目标串非法/附魔不存在（数据包变更等）
+                int running = runningCount(st, parallelLv, tier);
+                long crafts = (long) running * (1 + countLv) * cycles;
+                com.sdzjz.machine.StorageAccess depositEf = be.depositFor(world, i);
+                if (depositEf == null)
+                    crafts = Math.min(crafts, OUTPUT_SLOTS); // 附魔书 max=1，无存储时封顶防白扣
+                crafts = Math.min(crafts, (long) (be.xpPool / plan.xpCost())); // 经验闸：池里够几本合几本
+                if (crafts <= 0) { be.stat(i, 3); continue; } // 经验不足=缺料红灯（画布经验池可见）
+                if (hasIn[i]) {
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
+                } else {
+                    com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
+                    if (supply == null) {
+                        if (!srcResolved) {
+                            src = be.resolveInputSource(world, pos);
+                            srcResolved = true;
+                        }
+                        supply = src;
+                    }
+                    if (supply == null) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
+                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    for (var en : plan.needs().entrySet())
+                        supply.withdraw(en.getKey(), (int) Math.min(Integer.MAX_VALUE, (long) en.getValue() * crafts));
+                }
+                be.xpPool -= (double) plan.xpCost() * crafts;
+                be.stat(i, 1);
+                int totalEf = (int) Math.min(Integer.MAX_VALUE, crafts);
+                be.prodTally(totalEf);
+                ItemStack enchOut = plan.result().copyWithCount(totalEf);
+                if (depositEf != null) be.depositOrBuffer(depositEf, enchOut);
+                else be.addOutput(enchOut);
+                produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) {
                 // 全自动农场：按所选作物产出（免费，对齐原版农场）。m93：多选≤8种，逐种产出
                 java.util.List<String> cropsSel = cropList(st);
@@ -891,7 +938,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
         boolean brewOk = s.getItem() instanceof com.sdzjz.item.BrewingTowerItem
                 && com.sdzjz.machine.BrewPlanner.targetStack(id) != null; // m131b 目标串服务端校验
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk) return;
+        boolean enchOk = s.getItem() instanceof com.sdzjz.item.EnchantFactoryItem
+                && com.sdzjz.machine.EnchantPlanner.targetStack(this.world, id) != null; // m132 目标串服务端校验
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
             java.util.List<String> cur = cropList(s);
@@ -1513,6 +1562,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (tgt.isEmpty()) return false;
             var plan = com.sdzjz.machine.BrewPlanner.plan(world, tgt);
             return plan != null && (plan.needs().containsKey(id) || com.sdzjz.machine.BrewPlanner.FUEL_ID.equals(id));
+        }
+        if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) { // m132：吃书+青金石（经验非物品不走线）
+            String tgt = craftTarget(st);
+            if (tgt.isEmpty()) return false;
+            var plan = com.sdzjz.machine.EnchantPlanner.plan(world, tgt);
+            return plan != null && plan.needs().containsKey(id);
         }
         if (st.getItem() instanceof MachineItem mi) {
             if ("super_smelter".equals(mi.def().id())) return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
