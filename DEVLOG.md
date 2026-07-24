@@ -1506,3 +1506,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 验证脚本：创造栏/画布机器库里 12 台新机器图标应为概念图机身（凋灵=星门主塔、青蛙灯=灯柜、
   山羊角=角柜、犰狳=粉鳞柜、嗅探兽=双花柜、蛛网/孢子花/紫水晶=三仓、幽匿三塔、附魔=全厂），
   格子里轮廓规整无斜边残楼；砂轮仍为规整占位属预期。
+
+## m142 崩服真凶实锤：m133 毒区块票（m140"非本模组"误判撤回，认错）
+- **现象**：用户第二次崩（02:53），栈与 m140 完全同族——LongAVLTreeSet.subSet start>end，
+  这回 TISCM 的 entityChunkSectionIndexXOverflowFix 就在栈里（wrapOperation 帧）依旧没兜住。
+- **解码破案**：subSet start=区段(2097151,0,-1)、end=(-2097152,0,0)——即
+  getSections(chunkX=2097151, chunkZ=-1)，X+1 在 22 位打包里回卷成 MIN。逆推：
+  OUTPUT_IFACE = Long.MIN_VALUE+7 经 BlockPos.fromLong 解出 (-33554432, 7, 0) → 区块
+  (-2097152, 0)；ticket radius=1 把邻块 (-2097153, -1) 一并拉起，-2097153 回卷 = **+2097151**
+  ——与崩溃报告逐位吻合。z=-1 也对上（0 的邻块）。铁证。
+- **根因链**：scanStorageEndpoints 把 OUTPUT_IFACE **常驻**塞 storageEndpoints 头部（m80 起）
+  → m133 refreshForceChunks 两个循环都没有哨兵守卫，直接 fromLong 解垃圾坐标 →
+  毒区块进 forceChunks 并 **markDirty 落盘 NBT** → renewEndpointTickets 每 100t 续毒票 →
+  区块状态变更打进 ServerEntityManager.updateTrackingStatus → 区段 subSet 数学崩。
+- **m140 错哪了（两处，认错）**：①审 fromLong 十处时把 refreshForceChunks 的来源当
+  "真实端点"——漏了端点表第 0 项永远是哨兵；②框架错误：找"谁把实体送到 3355 万"，
+  实际**零实体也能崩**——一张远区块票足矣（票→区块状态变更→实体管理器逐区段登记）。
+  "末次存档早于毒实体、回档即回滚"的好消息也是错的：毒在核心 NBT + 活代码每拍重造，
+  回档必复发——这正是用户"又崩了"的复发机理。教训入账：**排查外部嫌疑前，先把自己
+  新增的系统级触点（票/强加载/调度）过一遍，不止实体触点**；哨兵值每新增一个消费面
+  （m133 的端点枚举就是新消费面）都要重问一次"哨兵进来会怎样"。
+- **三层修**：①源头 refreshForceChunks 两循环跳 OUTPUT_IFACE + plausibleChunkLong
+  （区块 ±187.5万 = 世界边界 ±3000万方块）拒一切坏数据；②末端 CoreChunkLoading.ticket
+  拒发边界外票——上游任何漏网走到这也发不出；③存量自愈：NBT 读入时清洗毒条目，
+  **用户老存档下次进图即痊愈**，无需回档无需手工清理（miss 衰减 2 分钟等不起，
+  票在衰减完成前就可能再崩，故必须读入即清）。
+- 待编译验证盯点：无新 API（全是既有调用加守卫），风险极低。
+- 验证脚本：装新包进上次崩的存档应不再崩（无需回档）；/forceload query 应只见核心自身
+  区块；开核心挂机 10 分钟无崩；日志无天边区块加载痕迹；输出接口路由功能照常
+  （resolveStorageAt 的哨兵语义未动）。
