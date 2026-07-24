@@ -1,0 +1,9 @@
+-nowarn
+-Xmaxerrs
+3000
+-d
+/tmp/smoke4
+src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
+src/main/java/com/sdzjz/machine/Machines.java
+src/main/java/com/sdzjz/registry/ModItems.java
+src/main/java/com/sdzjz/machine/SuperBenchRecipes.java

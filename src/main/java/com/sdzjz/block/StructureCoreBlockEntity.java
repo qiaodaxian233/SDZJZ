@@ -532,6 +532,50 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 } else {
                     be.stat(i, 3); // 本周期没料可烧
                 }
+            } else if (st.getItem() instanceof MachineItem gr && "grindstone_recycler".equals(gr.def().id())) {
+                // m139 砂轮祛魔（缺口#4 另一半收官）：扫源仓精确账本里的附魔书→磨成裸书回原仓+
+                // 经验进核心池。V1 只收附魔书不碰装备（防误吞玩家神装）；纯诅咒书不收（原版砂轮
+                // 不祛诅咒，磨了还是原书=死循环）；回收值=Σ各附魔 getMinPower(等级)（原版砂轮同源），
+                // 逐附魔封顶工厂成本 80%（B×级×25×0.8）——防第三方附魔 minPower 异常高形成
+                // 「工厂造书→砂轮回收」经验泵。供料边（存储→机器）选磨哪个仓，没连线走默认源。
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                com.sdzjz.machine.StorageAccess accG = be.supplyFor(world, i);
+                if (accG == null) {
+                    if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                    accG = src;
+                }
+                if (accG == null) { be.stat(i, 3); continue; } // 无网络=红灯（这台离了仓没意义）
+                java.util.List<StorageCoreBlockEntity> banks = new java.util.ArrayList<>();
+                if (accG instanceof StorageCoreBlockEntity c1) banks.add(c1);
+                else if (accG instanceof DataPanelBlockEntity pn)
+                    banks.addAll(StorageCoreBlockEntity.connectedCores(world, pn.getPos()));
+                long budget = (long) running * (1 + countLv) * cycles; // 本tick磨几本
+                boolean ground = false;
+                long groundN = 0;
+                for (StorageCoreBlockEntity bank : banks) {
+                    if (budget <= 0) break;
+                    java.util.List<ItemStack> tpls = bank.exactTemplates();
+                    for (int k = tpls.size() - 1; k >= 0 && budget > 0; k--) { // 倒序：取空会删条目
+                        ItemStack t = tpls.get(k);
+                        if (!t.isOf(net.minecraft.item.Items.ENCHANTED_BOOK)) continue;
+                        double per = grindValue(t);
+                        if (per <= 0) continue; // 纯诅咒/空组件不收
+                        ItemStack tpl = t.copyWithCount(1); // withdrawExact 可能移除模板，先复制
+                        int take = bank.withdrawExact(tpl, (int) Math.min(budget, bank.exactCount(k)));
+                        if (take <= 0) continue;
+                        be.xpPool += per * take;
+                        ItemStack books = new ItemStack(net.minecraft.item.Items.BOOK, take);
+                        accG.deposit(books);
+                        if (!books.isEmpty()) be.addOutput(books); // 仓满兜底进输出缓存不蒸发
+                        budget -= take;
+                        groundN += take;
+                        ground = true;
+                    }
+                }
+                be.stat(i, ground ? 1 : 0); // 没书可磨=待机不是故障
+                if (ground) { be.prodTally(groundN); produced = true; }
             } else if (st.getItem() instanceof MachineItem sk && sk.def().id().startsWith("sculk_")) {
                 // m138 幽匿三机：吃核心经验池产幽匿件（原版幽匿=经验具象化——催化体吸收死亡经验长
                 // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
@@ -748,6 +792,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (deposit != null) depositOrBuffer(deposit, horn);
             else addOutput(horn);
         }
+    }
+
+    /** m139 砂轮回收值：Σ各附魔 getMinPower(等级)（原版砂轮经验同源公式），诅咒跳过；
+     *  逐附魔封顶 0.8×工厂成本（B×级×25，B=max(1,anvilCost/2)）——第三方附魔 minPower 再高
+     *  也造不成「附魔工厂→砂轮」经验永动泵。空组件/纯诅咒返 0（调用方不收）。 */
+    private double grindValue(ItemStack book) {
+        net.minecraft.component.type.ItemEnchantmentsComponent comp =
+                book.get(DataComponentTypes.STORED_ENCHANTMENTS);
+        if (comp == null || comp.isEmpty()) return 0;
+        double v = 0;
+        for (var en : comp.getEnchantmentEntries()) {
+            var entry = en.getKey();
+            int lvl = en.getIntValue();
+            if (entry.isIn(net.minecraft.registry.tag.EnchantmentTags.CURSE)) continue;
+            net.minecraft.enchantment.Enchantment e = entry.value();
+            double cap = 0.8 * Math.max(1, e.getAnvilCost() / 2) * lvl * 25;
+            v += Math.min(e.getMinPower(lvl), cap);
+        }
+        return v;
     }
 
     private int nodeInt(ItemStack s, String key) {

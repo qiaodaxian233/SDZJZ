@@ -57,6 +57,9 @@ public final class Machines {
     /** 幽匿尖啸机：9经验/轮；尖啸体原版不可合成、仅精准采集。 */
     public static final MachineDef SCULK_SHRIEKER_FARM = defMulti("sculk_shrieker_farm", 40,
             drop("minecraft:sculk_shrieker", 1, 1, 0.5f));
+
+    /** m139 砂轮祛魔机：扫源仓附魔书磨成裸书+经验回核心池（tick 专属分支，掉落表空）。 */
+    public static final MachineDef GRINDSTONE_RECYCLER = new MachineDef("grindstone_recycler", List.of(), 40, false, List.of());
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

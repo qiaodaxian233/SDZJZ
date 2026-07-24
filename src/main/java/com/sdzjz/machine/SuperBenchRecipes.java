@@ -63,6 +63,8 @@ public final class SuperBenchRecipes {
         add("sdzjz:sculk_catalyst_farm", 2, "minecraft:sculk_catalyst", "minecraft:sculk", "minecraft:sculk", "minecraft:sculk");
         add("sdzjz:sculk_sensor_farm", 3, "minecraft:sculk_sensor", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
         add("sdzjz:sculk_shrieker_farm", 4, "minecraft:sculk_shrieker", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
+        // m139 砂轮祛魔机
+        add("sdzjz:grindstone_recycler", 1, "minecraft:grindstone", "minecraft:grindstone", "minecraft:book", "minecraft:book");
         add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
         addM("sdzjz:blaze_farm", 2, "minecraft:blaze", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
         addM("sdzjz:ghast_tower", 3, "minecraft:ghast", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");
