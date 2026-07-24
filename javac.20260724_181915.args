@@ -1,0 +1,6 @@
+-nowarn
+-Xmaxerrs
+3000
+-d
+/tmp/smoke5
+src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java

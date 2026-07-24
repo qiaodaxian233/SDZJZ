@@ -560,7 +560,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     for (int k = tpls.size() - 1; k >= 0 && budget > 0; k--) { // 倒序：取空会删条目
                         ItemStack t = tpls.get(k);
                         if (!t.isOf(net.minecraft.item.Items.ENCHANTED_BOOK)) continue;
-                        double per = grindValue(t);
+                        double per = be.grindValue(t);
                         if (per <= 0) continue; // 纯诅咒/空组件不收
                         ItemStack tpl = t.copyWithCount(1); // withdrawExact 可能移除模板，先复制
                         int take = bank.withdrawExact(tpl, (int) Math.min(budget, bank.exactCount(k)));
