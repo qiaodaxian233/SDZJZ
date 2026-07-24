@@ -13,17 +13,7 @@
   "item.sdzjz.auto_crafter": "Auto Crafter",
   "item.sdzjz.brewing_tower": "Brewing Tower",
   "item.sdzjz.enchant_factory": "Enchanting Factory",
-  "item.sdzjz.cobweb_machine": "Cobweb Machine",
-  "item.sdzjz.spore_blossom_farm": "Spore Blossom Farm",
-  "item.sdzjz.budding_amethyst_farm": "Budding Amethyst Farm",
   "item.sdzjz.wither_farm": "Wither Farm",
-  "item.sdzjz.froglight_farm": "Froglight Farm",
-  "item.sdzjz.goat_horn_farm": "Goat Horn Farm",
-  "item.sdzjz.armadillo_farm": "Armadillo Farm",
-  "item.sdzjz.sniffer_garden": "Sniffer Garden",
-  "item.sdzjz.sculk_catalyst_farm": "Sculk Catalyst Farm",
-  "item.sdzjz.sculk_sensor_farm": "Sculk Sensor Farm",
-  "item.sdzjz.sculk_shrieker_farm": "Sculk Shrieker Farm",
   "item.sdzjz.grindstone_recycler": "Grindstone Recycler",
   "item.sdzjz.bamboo_farm": "Bamboo Farm",
   "item.sdzjz.blaze_farm": "Blaze Farm",
@@ -101,5 +91,7 @@
   "item.sdzjz.archaeology_station": "Archaeology Station",
   "item.sdzjz.end_expedition_platform": "End Expedition Platform",
   "item.sdzjz.trial_farm": "Trial Farm",
-  "item.sdzjz.logo": "SDZJZ"
+  "item.sdzjz.logo": "SDZJZ",
+  "item.sdzjz.g_misc_machine": "G-Group Misc Machine",
+  "item.sdzjz.sculk_line": "Sculk Line"
 }

@@ -84,6 +84,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private static final int ENDPOINT_CAP = 9; // 含常驻输出接口
     /** 常驻「输出接口」哨兵端点：连它=显式走默认自动路由（绑定>有线>无线>卫星>输出缓存）。 */
     public static final long OUTPUT_IFACE = Long.MIN_VALUE + 7;
+    /** m143 机器合并（用户拍板：概念图一图=一机）：旧子机器 id → 合并机 id 的存档重映射表。 */
+    private static final java.util.Map<String, String> MERGED_IDS = java.util.Map.ofEntries(
+            java.util.Map.entry("sdzjz:froglight_farm", "sdzjz:wither_farm"),
+            java.util.Map.entry("sdzjz:goat_horn_farm", "sdzjz:wither_farm"),
+            java.util.Map.entry("sdzjz:armadillo_farm", "sdzjz:wither_farm"),
+            java.util.Map.entry("sdzjz:sniffer_garden", "sdzjz:wither_farm"),
+            java.util.Map.entry("sdzjz:cobweb_machine", "sdzjz:g_misc_machine"),
+            java.util.Map.entry("sdzjz:spore_blossom_farm", "sdzjz:g_misc_machine"),
+            java.util.Map.entry("sdzjz:budding_amethyst_farm", "sdzjz:g_misc_machine"),
+            java.util.Map.entry("sdzjz:sculk_catalyst_farm", "sdzjz:sculk_line"),
+            java.util.Map.entry("sdzjz:sculk_sensor_farm", "sdzjz:sculk_line"),
+            java.util.Map.entry("sdzjz:sculk_shrieker_farm", "sdzjz:sculk_line"));
     private BlockPos boundPanelPos;
     private String boundPanelDim;
     public boolean running = false;
@@ -588,12 +600,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
                 // 池里够几轮跑几轮，池空=缺料红灯（画布经验池数字可见）。产物无组件，出路走通用三条
                 //（distribute/精确入库/输出缓存）不特判。经验成本对齐原版蔓延电荷量级：
-                // 催化=2/轮（散块便宜）；传感/尖啸=9/轮（原版蔓延长一个传感器约耗 9 电荷）。
+                // m143 三塔合并为幽匿线一台：单价=催化2+传感9+尖啸9 合计 20/轮（三表齐滚，总账不变）。
                 MachineDef def = sk.def();
                 int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg);
                 if (cycles <= 0) continue;
                 int running = runningCount(st, parallelLv, tier);
-                double xpPer = "sculk_catalyst_farm".equals(def.id()) ? 2.0 : 9.0;
+                double xpPer = 20.0;
                 long attempts = (long) running * cycles;
                 attempts = Math.min(attempts, (long) (be.xpPool / xpPer)); // 经验闸
                 if (attempts <= 0) { be.stat(i, 3); continue; }
@@ -2322,7 +2334,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         Inventories.readNbt(nbt, items, lookup);
         machineNodes.clear();
         NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < mn.size(); i++) ItemStack.fromNbt(lookup, mn.getCompound(i)).ifPresent(machineNodes::add);
+        for (int i = 0; i < mn.size(); i++) {
+            NbtCompound mc = mn.getCompound(i);
+            String mid = MERGED_IDS.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
+            if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
+            ItemStack.fromNbt(lookup, mc).ifPresent(machineNodes::add);
+        }
         connections.clear();
         int[] flat = nbt.getIntArray("connections");
         for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});

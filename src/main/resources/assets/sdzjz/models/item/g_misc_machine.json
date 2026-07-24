@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "sdzjz:item/cobweb_machine"
+    "layer0": "sdzjz:item/g_misc_machine"
   }
 }

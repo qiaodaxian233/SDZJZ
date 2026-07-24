@@ -13,17 +13,7 @@
   "item.sdzjz.auto_crafter": "自动合成机",
   "item.sdzjz.brewing_tower": "酿造塔",
   "item.sdzjz.enchant_factory": "附魔工厂",
-  "item.sdzjz.cobweb_machine": "蛛网机",
-  "item.sdzjz.spore_blossom_farm": "孢子花圃",
-  "item.sdzjz.budding_amethyst_farm": "萌芽紫水晶机",
   "item.sdzjz.wither_farm": "凋灵机",
-  "item.sdzjz.froglight_farm": "青蛙灯机",
-  "item.sdzjz.goat_horn_farm": "山羊角机",
-  "item.sdzjz.armadillo_farm": "犰狳鳞机",
-  "item.sdzjz.sniffer_garden": "嗅探兽花园",
-  "item.sdzjz.sculk_catalyst_farm": "幽匿催化机",
-  "item.sdzjz.sculk_sensor_farm": "幽匿传感机",
-  "item.sdzjz.sculk_shrieker_farm": "幽匿尖啸机",
   "item.sdzjz.grindstone_recycler": "砂轮祛魔机",
   "item.sdzjz.bamboo_farm": "竹子农场",
   "item.sdzjz.blaze_farm": "烈焰人塔",
@@ -101,5 +91,7 @@
   "item.sdzjz.archaeology_station": "考古工作站",
   "item.sdzjz.end_expedition_platform": "末地远征平台",
   "item.sdzjz.trial_farm": "试炼农场",
-  "item.sdzjz.logo": "生电终结者"
+  "item.sdzjz.logo": "生电终结者",
+  "item.sdzjz.g_misc_machine": "G组杂项机器",
+  "item.sdzjz.sculk_line": "幽匿线"
 }

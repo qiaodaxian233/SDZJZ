@@ -13,49 +13,37 @@ public final class Machines {
     /** 附魔工厂（m132）：目标附魔+等级在画布节点徽章选择，成本由 EnchantPlanner 解析（经验从核心经验池扣）。 */
     public static final MachineDef ENCHANT_FACTORY = new MachineDef("enchant_factory", List.of(), 40, false, List.of());
 
-    // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）=====
-    public static final MachineDef COBWEB_MACHINE = defMulti("cobweb_machine", 40,
-            drop("minecraft:cobweb", 1, 2));
-    public static final MachineDef SPORE_BLOSSOM_FARM = defMulti("spore_blossom_farm", 40,
-            drop("minecraft:spore_blossom", 1, 1));
-    public static final MachineDef BUDDING_AMETHYST_FARM = defMulti("budding_amethyst_farm", 40,
+    // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
+    /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */
+    public static final MachineDef G_MISC_MACHINE = defMulti("g_misc_machine", 40,
+            drop("minecraft:cobweb", 1, 2),
+            drop("minecraft:spore_blossom", 1, 1),
             drop("minecraft:budding_amethyst", 1, 1, 0.15f),
             drop("minecraft:small_amethyst_bud", 1, 1, 0.25f),
             drop("minecraft:medium_amethyst_bud", 1, 1, 0.25f),
             drop("minecraft:large_amethyst_bud", 1, 1, 0.25f),
             drop("minecraft:amethyst_cluster", 1, 1, 0.3f));
 
-    // ===== m137 凋灵机+四副机（概念图五分区；均免费产出走通用分支）=====
-    /** 凋灵机：主产下界之星（0.04 与残骸0.05/陶片0.04同档——boss战利品压最稀档；引子含星本体=先亲手打一次凋灵）。 */
+    // ===== m137 凋灵机+四副机 → m143 合并为一台（概念图本就是一座含四副仓的综合体）=====
+    /** 凋灵机：主产下界之星（0.04 压最稀档；引子含星本体=先亲手打一次凋灵），副仓四线
+     *  （三色青蛙灯/山羊角8变体组件特判键在掉落物id照常/犰狳鳞/嗅探兽双花籽）同台齐出。 */
     public static final MachineDef WITHER_FARM = defMulti("wither_farm", 40,
-            drop("minecraft:nether_star", 1, 1, 0.04f));
-    /** 青蛙灯机：三色青蛙灯（蛙吞小岩浆怪，色随蛙变——机器直接三色齐出，装饰件从宽）。 */
-    public static final MachineDef FROGLIGHT_FARM = defMulti("froglight_farm", 40,
+            drop("minecraft:nether_star", 1, 1, 0.04f),
             drop("minecraft:ochre_froglight", 1, 2, 0.5f),
             drop("minecraft:verdant_froglight", 1, 2, 0.5f),
-            drop("minecraft:pearlescent_froglight", 1, 2, 0.5f));
-    /** 山羊角机：8 变体 instrument 组件随机（掉落表滚 id，组件在核心 tick 特判挂上走精确账本）。 */
-    public static final MachineDef GOAT_HORN_FARM = defMulti("goat_horn_farm", 40,
-            drop("minecraft:goat_horn", 1, 1, 0.25f));
-    /** 犰狳鳞机：狼铠原料要量，从宽。 */
-    public static final MachineDef ARMADILLO_FARM = defMulti("armadillo_farm", 40,
-            drop("minecraft:armadillo_scute", 1, 2, 0.8f));
-    /** 嗅探兽花园：双花种子（火把花籽/瓶子草荚——嗅探兽只能刨出种子，成株自己种）。 */
-    public static final MachineDef SNIFFER_GARDEN = defMulti("sniffer_garden", 40,
+            drop("minecraft:pearlescent_froglight", 1, 2, 0.5f),
+            drop("minecraft:goat_horn", 1, 1, 0.25f),
+            drop("minecraft:armadillo_scute", 1, 2, 0.8f),
             drop("minecraft:torchflower_seeds", 1, 1, 0.5f),
             drop("minecraft:pitcher_pod", 1, 1, 0.5f));
 
-    // ===== m138 幽匿线三塔（吃核心经验池——原版幽匿=经验具象化；tick 有专属经验闸分支）=====
-    /** 幽匿催化机：散块便宜量大（2经验/轮），催化体本体压稀档（原版=监守者掉一个）。 */
-    public static final MachineDef SCULK_CATALYST_FARM = defMulti("sculk_catalyst_farm", 40,
+    // ===== m138 幽匿线三塔（吃核心经验池）→ m143 合并为一台（三张掉落表齐滚，经验单价=2+9+9合计）=====
+    /** 幽匿线：散块流水+催化体/传感器/尖啸体同台齐出；20经验/轮（=原三台各跑一轮的合计，总账不变）。 */
+    public static final MachineDef SCULK_LINE = defMulti("sculk_line", 40,
             drop("minecraft:sculk", 4, 8),
             drop("minecraft:sculk_vein", 2, 4),
-            drop("minecraft:sculk_catalyst", 1, 1, 0.08f));
-    /** 幽匿传感机：9经验/轮对齐原版蔓延电荷量级。 */
-    public static final MachineDef SCULK_SENSOR_FARM = defMulti("sculk_sensor_farm", 40,
-            drop("minecraft:sculk_sensor", 1, 1, 0.6f));
-    /** 幽匿尖啸机：9经验/轮；尖啸体原版不可合成、仅精准采集。 */
-    public static final MachineDef SCULK_SHRIEKER_FARM = defMulti("sculk_shrieker_farm", 40,
+            drop("minecraft:sculk_catalyst", 1, 1, 0.08f),
+            drop("minecraft:sculk_sensor", 1, 1, 0.6f),
             drop("minecraft:sculk_shrieker", 1, 1, 0.5f));
 
     /** m139 砂轮祛魔机：扫源仓附魔书磨成裸书+经验回核心池（tick 专属分支，掉落表空）。 */

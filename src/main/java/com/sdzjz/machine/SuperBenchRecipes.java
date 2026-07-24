@@ -50,19 +50,11 @@ public final class SuperBenchRecipes {
         add("sdzjz:auto_crafter", 0, "minecraft:crafting_table", "minecraft:crafting_table", "minecraft:crafter", "minecraft:crafter");
         add("sdzjz:brewing_tower", 0, "minecraft:brewing_stand", "minecraft:brewing_stand", "minecraft:blaze_rod", "minecraft:nether_wart");
         add("sdzjz:enchant_factory", 1, "minecraft:enchanting_table", "minecraft:bookshelf", "minecraft:book", "minecraft:lapis_lazuli");
-        add("sdzjz:cobweb_machine", 2, "minecraft:cobweb", "minecraft:cobweb", "minecraft:string", "minecraft:string");
-        add("sdzjz:spore_blossom_farm", 3, "minecraft:spore_blossom", "minecraft:spore_blossom", "minecraft:moss_block", "minecraft:moss_block");
-        add("sdzjz:budding_amethyst_farm", 4, "minecraft:amethyst_block", "minecraft:amethyst_block", "minecraft:calcite", "minecraft:calcite");
         // m137 凋灵机+四副机：凋灵=星本体入引子(先亲手打一次凋灵,对齐末地远征平台先打龙的仪式感)
         add("sdzjz:wither_farm", 1, "minecraft:nether_star", "minecraft:wither_skeleton_skull", "minecraft:wither_skeleton_skull", "minecraft:soul_sand");
-        add("sdzjz:froglight_farm", 2, "minecraft:ochre_froglight", "minecraft:verdant_froglight", "minecraft:pearlescent_froglight", "minecraft:magma_cream");
-        add("sdzjz:goat_horn_farm", 3, "minecraft:goat_horn", "minecraft:goat_horn", "minecraft:snow_block", "minecraft:snow_block");
-        add("sdzjz:armadillo_farm", 4, "minecraft:armadillo_scute", "minecraft:armadillo_scute", "minecraft:spider_eye", "minecraft:spider_eye");
-        add("sdzjz:sniffer_garden", 1, "minecraft:torchflower_seeds", "minecraft:pitcher_pod", "minecraft:moss_block", "minecraft:moss_block");
+        add("sdzjz:g_misc_machine", 2, "minecraft:cobweb", "minecraft:spore_blossom", "minecraft:amethyst_block", "minecraft:calcite");
+        add("sdzjz:sculk_line", 3, "minecraft:sculk_catalyst", "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk");
         // m138 幽匿线：三件本体入引子=先亲手下一次深暗之域（尖啸体/传感器须精准采集）
-        add("sdzjz:sculk_catalyst_farm", 2, "minecraft:sculk_catalyst", "minecraft:sculk", "minecraft:sculk", "minecraft:sculk");
-        add("sdzjz:sculk_sensor_farm", 3, "minecraft:sculk_sensor", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
-        add("sdzjz:sculk_shrieker_farm", 4, "minecraft:sculk_shrieker", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
         // m139 砂轮祛魔机
         add("sdzjz:grindstone_recycler", 1, "minecraft:grindstone", "minecraft:grindstone", "minecraft:book", "minecraft:book");
         add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
