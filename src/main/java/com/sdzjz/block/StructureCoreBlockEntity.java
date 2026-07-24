@@ -566,6 +566,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         int take = bank.withdrawExact(tpl, (int) Math.min(budget, bank.exactCount(k)));
                         if (take <= 0) continue;
                         be.xpPool += per * take;
+                        int lapPer = be.grindLapis(tpl); // m140 青金石退款：1/级（工厂成本3/级的33%，有损回收无泵）
+                        if (lapPer > 0) {
+                            ItemStack lap = new ItemStack(net.minecraft.item.Items.LAPIS_LAZULI,
+                                    (int) Math.min((long) lapPer * take, Integer.MAX_VALUE));
+                            accG.deposit(lap);
+                            if (!lap.isEmpty()) be.addOutput(lap);
+                        }
                         ItemStack books = new ItemStack(net.minecraft.item.Items.BOOK, take);
                         accG.deposit(books);
                         if (!books.isEmpty()) be.addOutput(books); // 仓满兜底进输出缓存不蒸发
@@ -811,6 +818,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             v += Math.min(e.getMinPower(lvl), cap);
         }
         return v;
+    }
+
+    /** m140 砂轮青金石退款：Σ非诅咒附魔等级 × 1（附魔工厂成本 3/级 的 33%——有损回收，
+     *  「工厂造书→砂轮回收」每圈净亏 2青金石/级+50%以上经验，无泵）。 */
+    private int grindLapis(ItemStack book) {
+        net.minecraft.component.type.ItemEnchantmentsComponent comp =
+                book.get(DataComponentTypes.STORED_ENCHANTMENTS);
+        if (comp == null || comp.isEmpty()) return 0;
+        int lv = 0;
+        for (var en : comp.getEnchantmentEntries()) {
+            if (en.getKey().isIn(net.minecraft.registry.tag.EnchantmentTags.CURSE)) continue;
+            lv += en.getIntValue();
+        }
+        return lv;
     }
 
     private int nodeInt(ItemStack s, String key) {
