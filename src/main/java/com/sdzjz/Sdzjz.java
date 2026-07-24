@@ -54,6 +54,7 @@ public class Sdzjz implements ModInitializer {
             StorageCoreBlockEntity.clearAll();
             CraftPlanner.clearCache();
             com.sdzjz.machine.BrewPlanner.clearCache();
+            com.sdzjz.machine.EnchantPlanner.clearCache();
             com.sdzjz.machine.SmeltPlanner.clearCache();
         });
 
