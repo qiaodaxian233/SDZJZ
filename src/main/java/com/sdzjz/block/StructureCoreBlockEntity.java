@@ -76,6 +76,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // m90【根因修复】原为 Long.MIN_VALUE：getTime()-MIN_VALUE 长整型溢出为负 → ">=40" 永假 →
     // 端点扫描自诞生起一次都没执行过——这就是"总线/停靠栏在所有截图里都不出现"的唯一真凶。
     private long lastEndpointScan = -1000;
+    // m133 强制加载：待续票端点区块清单 {区块long, miss连续未见次数} + 维度（持久化——重启后先按清单发票自举，
+    // 等端点区块加载、登记表重建后清单自然刷新；miss 衰减防"重启后登记表为空时扫描把清单冲掉"）
+    private final java.util.List<long[]> forceChunks = new java.util.ArrayList<>();
+    private final java.util.List<String> forceDims = new java.util.ArrayList<>();
+    private boolean chunkForceOn; // 瞬态：本核心当前是否登记了自身区块 FORCED
     private static final int ENDPOINT_CAP = 9; // 含常驻输出接口
     /** 常驻「输出接口」哨兵端点：连它=显式走默认自动路由（绑定>有线>无线>卫星>输出缓存）。 */
     public static final long OUTPUT_IFACE = Long.MIN_VALUE + 7;
@@ -147,6 +152,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         || !pos.equals(h.blockPos())) continue;
                 if (pk == null) pk = be.buildEndsPayload(pos);
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+            }
+        }
+        // m133 强制加载：开机+配置开 → 钉住自身区块(FORCED,持久化,重启自恢复) + 每100t给端点区块续有期票；
+        // 停机/配置关 → 解除；孤儿 forced（重启遗留：停机核心落盘前没来得及解除）每100t回收一次。
+        if (world.getTime() % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld swf) {
+            boolean want = be.running && SdzjzConfig.get().coreChunkLoading;
+            if (want != be.chunkForceOn) {
+                if (want) CoreChunkLoading.force(swf, pos);
+                else CoreChunkLoading.release(swf, pos);
+                be.chunkForceOn = want;
+            }
+            if (world.getTime() % 100 == 0) {
+                if (want) {
+                    be.refreshForceChunks(world);
+                    be.renewEndpointTickets(swf);
+                } else if (swf.getForcedChunks().contains(new net.minecraft.util.math.ChunkPos(pos).toLong())) {
+                    CoreChunkLoading.release(swf, pos); // 孤儿回收（手动/forceload撞同区块的极边角已在类头留痕）
+                }
             }
         }
         if (!be.running) return;
@@ -1356,6 +1379,59 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return false;
     }
 
+    /** m133：从当前端点+定向连线重算待加载区块清单（并入+miss衰减：连续24拍(≈2分钟)未见才剔除，
+     *  重启自举期登记表为空不误删；上限64区块；自身区块走 FORCED 不占票）。 */
+    private void refreshForceChunks(World world) {
+        String selfDim = world.getRegistryKey().getValue().toString();
+        long ownChunk = new net.minecraft.util.math.ChunkPos(pos).toLong();
+        java.util.Set<String> cur = new java.util.HashSet<>();
+        for (int i = 0; i < storageEndpoints.size(); i++) {
+            BlockPos ep = BlockPos.fromLong(storageEndpoints.get(i)[0]);
+            String d = storageEndpointDims.get(i);
+            long c = net.minecraft.util.math.ChunkPos.toLong(ep.getX() >> 4, ep.getZ() >> 4);
+            if (d.equals(selfDim) && c == ownChunk) continue;
+            cur.add(d + "|" + c);
+        }
+        for (int i = 0; i < storageEdges.size(); i++) {
+            BlockPos ep = BlockPos.fromLong(storageEdges.get(i)[1]);
+            String d = i < storageEdgeDims.size() ? storageEdgeDims.get(i) : selfDim;
+            long c = net.minecraft.util.math.ChunkPos.toLong(ep.getX() >> 4, ep.getZ() >> 4);
+            if (d.equals(selfDim) && c == ownChunk) continue;
+            cur.add(d + "|" + c);
+        }
+        boolean changed = false;
+        for (int i = forceChunks.size() - 1; i >= 0; i--) {
+            String key = forceDims.get(i) + "|" + forceChunks.get(i)[0];
+            if (cur.remove(key)) {
+                if (forceChunks.get(i)[1] != 0) { forceChunks.get(i)[1] = 0; changed = true; }
+            } else if (++forceChunks.get(i)[1] > 24) {
+                forceChunks.remove(i);
+                forceDims.remove(i);
+                changed = true;
+            }
+        }
+        for (String key : cur) {
+            if (forceChunks.size() >= 64) break;
+            int cut = key.lastIndexOf('|');
+            forceDims.add(key.substring(0, cut));
+            forceChunks.add(new long[]{Long.parseLong(key.substring(cut + 1)), 0});
+            changed = true;
+        }
+        if (changed) markDirty();
+    }
+
+    /** m133：对清单逐项续有期票（跨维度经 resolveDimWorld；票 300t 自动过期零清理）。 */
+    private void renewEndpointTickets(net.minecraft.server.world.ServerWorld sw) {
+        for (int i = 0; i < forceChunks.size(); i++) {
+            World tw = resolveDimWorld(sw, forceDims.get(i));
+            if (tw instanceof net.minecraft.server.world.ServerWorld tsw)
+                CoreChunkLoading.ticket(tsw, forceChunks.get(i)[0]);
+        }
+    }
+
+    /** m133：本核心当前是否钉住了自身区块（拆方块时由 Block 调 release）。 */
+    public boolean chunkForceActive() { return chunkForceOn; }
+
     private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
         return edgeStorage(world, machineIndex, 1);
     }
@@ -2029,6 +2105,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nbt.putBoolean("running", running);
         nbt.putDouble("xpPool", xpPool);
+        NbtList flc = new NbtList(); // m133 待续票端点区块（重启自举清单）
+        for (int i = 0; i < forceChunks.size(); i++) {
+            NbtCompound fc = new NbtCompound();
+            fc.putLong("c", forceChunks.get(i)[0]);
+            fc.putInt("m", (int) forceChunks.get(i)[1]);
+            fc.putString("d", forceDims.get(i));
+            flc.add(fc);
+        }
+        nbt.put("forceChunks", flc);
         int[] nst = new int[machineNodes.size()];
         for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
         nbt.putIntArray("nodeStat", nst);
@@ -2096,6 +2181,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         running = nbt.getBoolean("running");
         xpPool = nbt.getDouble("xpPool");
+        forceChunks.clear();
+        forceDims.clear();
+        NbtList flc = nbt.getList("forceChunks", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < flc.size(); i++) {
+            NbtCompound fc = flc.getCompound(i);
+            forceChunks.add(new long[]{fc.getLong("c"), fc.getInt("m")});
+            forceDims.add(fc.getString("d"));
+        }
         nodeStatus.clear();
         for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
         storageEndpoints.clear();

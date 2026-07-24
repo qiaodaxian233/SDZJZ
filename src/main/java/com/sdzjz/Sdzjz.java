@@ -52,6 +52,7 @@ public class Sdzjz implements ModInitializer {
         // 服务器停止时清空存储核心登记表（防跨存档幽灵坐标）
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             StorageCoreBlockEntity.clearAll();
+            com.sdzjz.block.CoreChunkLoading.clearAll(); // m133 强加载登记表（不解除forced——持久化正是重启自恢复的根基）
             CraftPlanner.clearCache();
             com.sdzjz.machine.BrewPlanner.clearCache();
             com.sdzjz.machine.EnchantPlanner.clearCache();

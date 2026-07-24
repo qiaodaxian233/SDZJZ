@@ -81,6 +81,8 @@ public class StructureCoreBlock extends BlockWithEntity {
         if (!state.isOf(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof StructureCoreBlockEntity core) {
                 core.dropAll(world, pos);
+                if (core.chunkForceActive() && world instanceof net.minecraft.server.world.ServerWorld swr)
+                    CoreChunkLoading.release(swr, pos); // m133 拆核心解除自身区块钉住（端点有期票自动过期）
             }
             super.onStateReplaced(state, world, pos, newState, moved);
         }
