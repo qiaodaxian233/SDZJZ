@@ -68,9 +68,12 @@ public final class CoreChunkLoading {
         w.setChunkForced(cp.x, cp.z, false);
     }
 
-    /** 给端点区块续一张有期票（radius=1：本块可tick、邻块可访问）。 */
+    /** 给端点区块续一张有期票（radius=1：本块可tick、邻块可访问）。
+     *  m142 末端防线：世界边界外（区块 ±187.5万）的票直接拒发——上游任何坏数据（哨兵解码/
+     *  存档损坏）走到这里也发不出毒票，radius 邻块回卷崩实体管理器的路从此焊死。 */
     public static void ticket(ServerWorld w, long chunkLong) {
         ChunkPos cp = new ChunkPos(chunkLong);
+        if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) return;
         w.getChunkManager().addTicket(ENDPOINT, cp, 1, cp);
     }
 }

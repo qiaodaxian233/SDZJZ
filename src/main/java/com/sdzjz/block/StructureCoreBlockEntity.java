@@ -1538,16 +1538,22 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         long ownChunk = new net.minecraft.util.math.ChunkPos(pos).toLong();
         java.util.Set<String> cur = new java.util.HashSet<>();
         for (int i = 0; i < storageEndpoints.size(); i++) {
-            BlockPos ep = BlockPos.fromLong(storageEndpoints.get(i)[0]);
+            long pl = storageEndpoints.get(i)[0];
+            if (pl == OUTPUT_IFACE) continue; // m142：哨兵不是真实方块——解成天边区块发票=崩服根因（m140/本轮两连崩）
+            BlockPos ep = BlockPos.fromLong(pl);
             String d = storageEndpointDims.get(i);
             long c = net.minecraft.util.math.ChunkPos.toLong(ep.getX() >> 4, ep.getZ() >> 4);
+            if (!plausibleChunkLong(c)) continue; // m142：任何坏数据解出的边界外区块一律拒收
             if (d.equals(selfDim) && c == ownChunk) continue;
             cur.add(d + "|" + c);
         }
         for (int i = 0; i < storageEdges.size(); i++) {
-            BlockPos ep = BlockPos.fromLong(storageEdges.get(i)[1]);
+            long pl = storageEdges.get(i)[1];
+            if (pl == OUTPUT_IFACE) continue; // m142：连到输出接口节点的边同病，一并跳过
+            BlockPos ep = BlockPos.fromLong(pl);
             String d = i < storageEdgeDims.size() ? storageEdgeDims.get(i) : selfDim;
             long c = net.minecraft.util.math.ChunkPos.toLong(ep.getX() >> 4, ep.getZ() >> 4);
+            if (!plausibleChunkLong(c)) continue;
             if (d.equals(selfDim) && c == ownChunk) continue;
             cur.add(d + "|" + c);
         }
@@ -1570,6 +1576,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             changed = true;
         }
         if (changed) markDirty();
+    }
+
+    /** m142：区块 long 合法性——世界边界 ±3000万方块 = 区块 ±187.5万。哨兵/坏数据解出的
+     *  天边区块（如 OUTPUT_IFACE=Long.MIN+7 → 区块 -2097152，radius=1 邻块 -2097153 在
+     *  22 位区段打包里回卷成 +2097151）会打崩实体管理器的 subSet 数学，一律拒收。 */
+    private static boolean plausibleChunkLong(long chunkLong) {
+        int cx = (int) chunkLong, cz = (int) (chunkLong >>> 32);
+        return Math.abs(cx) <= 1_875_000 && Math.abs(cz) <= 1_875_000;
     }
 
     /** m133：对清单逐项续有期票（跨维度经 resolveDimWorld；票 300t 自动过期零清理）。 */
@@ -2338,7 +2352,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         NbtList flc = nbt.getList("forceChunks", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < flc.size(); i++) {
             NbtCompound fc = flc.getCompound(i);
-            forceChunks.add(new long[]{fc.getLong("c"), fc.getInt("m")});
+            long c = fc.getLong("c");
+            if (!plausibleChunkLong(c)) continue; // m142：清洗 m133~m141 存档里落盘的毒区块（读入即自愈）
+            forceChunks.add(new long[]{c, fc.getInt("m")});
             forceDims.add(fc.getString("d"));
         }
         nodeStatus.clear();
