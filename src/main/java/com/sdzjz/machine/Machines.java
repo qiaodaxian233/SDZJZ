@@ -24,6 +24,26 @@ public final class Machines {
             drop("minecraft:medium_amethyst_bud", 1, 1, 0.25f),
             drop("minecraft:large_amethyst_bud", 1, 1, 0.25f),
             drop("minecraft:amethyst_cluster", 1, 1, 0.3f));
+
+    // ===== m137 凋灵机+四副机（概念图五分区；均免费产出走通用分支）=====
+    /** 凋灵机：主产下界之星（0.04 与残骸0.05/陶片0.04同档——boss战利品压最稀档；引子含星本体=先亲手打一次凋灵）。 */
+    public static final MachineDef WITHER_FARM = defMulti("wither_farm", 40,
+            drop("minecraft:nether_star", 1, 1, 0.04f));
+    /** 青蛙灯机：三色青蛙灯（蛙吞小岩浆怪，色随蛙变——机器直接三色齐出，装饰件从宽）。 */
+    public static final MachineDef FROGLIGHT_FARM = defMulti("froglight_farm", 40,
+            drop("minecraft:ochre_froglight", 1, 2, 0.5f),
+            drop("minecraft:verdant_froglight", 1, 2, 0.5f),
+            drop("minecraft:pearlescent_froglight", 1, 2, 0.5f));
+    /** 山羊角机：8 变体 instrument 组件随机（掉落表滚 id，组件在核心 tick 特判挂上走精确账本）。 */
+    public static final MachineDef GOAT_HORN_FARM = defMulti("goat_horn_farm", 40,
+            drop("minecraft:goat_horn", 1, 1, 0.25f));
+    /** 犰狳鳞机：狼铠原料要量，从宽。 */
+    public static final MachineDef ARMADILLO_FARM = defMulti("armadillo_farm", 40,
+            drop("minecraft:armadillo_scute", 1, 2, 0.8f));
+    /** 嗅探兽花园：双花种子（火把花籽/瓶子草荚——嗅探兽只能刨出种子，成株自己种）。 */
+    public static final MachineDef SNIFFER_GARDEN = defMulti("sniffer_garden", 40,
+            drop("minecraft:torchflower_seeds", 1, 1, 0.5f),
+            drop("minecraft:pitcher_pod", 1, 1, 0.5f));
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

@@ -40,6 +40,11 @@ public class ModItems {
     public static final Item COBWEB_MACHINE = reg("cobweb_machine", new MachineItem(new Item.Settings(), Machines.COBWEB_MACHINE));
     public static final Item SPORE_BLOSSOM_FARM = reg("spore_blossom_farm", new MachineItem(new Item.Settings(), Machines.SPORE_BLOSSOM_FARM));
     public static final Item BUDDING_AMETHYST_FARM = reg("budding_amethyst_farm", new MachineItem(new Item.Settings(), Machines.BUDDING_AMETHYST_FARM));
+    public static final Item WITHER_FARM = reg("wither_farm", new MachineItem(new Item.Settings(), Machines.WITHER_FARM));
+    public static final Item FROGLIGHT_FARM = reg("froglight_farm", new MachineItem(new Item.Settings(), Machines.FROGLIGHT_FARM));
+    public static final Item GOAT_HORN_FARM = reg("goat_horn_farm", new MachineItem(new Item.Settings(), Machines.GOAT_HORN_FARM));
+    public static final Item ARMADILLO_FARM = reg("armadillo_farm", new MachineItem(new Item.Settings(), Machines.ARMADILLO_FARM));
+    public static final Item SNIFFER_GARDEN = reg("sniffer_garden", new MachineItem(new Item.Settings(), Machines.SNIFFER_GARDEN));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
@@ -130,6 +135,11 @@ public class ModItems {
             entries.add(COBWEB_MACHINE);
             entries.add(SPORE_BLOSSOM_FARM);
             entries.add(BUDDING_AMETHYST_FARM);
+            entries.add(WITHER_FARM);
+            entries.add(FROGLIGHT_FARM);
+            entries.add(GOAT_HORN_FARM);
+            entries.add(ARMADILLO_FARM);
+            entries.add(SNIFFER_GARDEN);
             entries.add(FILTER_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);

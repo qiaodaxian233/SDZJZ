@@ -570,6 +570,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long sum = be.rollDrops(world.getRandom(), d, doCycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
+                    if ("minecraft:goat_horn".equals(d.item())) {
+                        // m137 山羊角：8 变体 instrument 组件、maxCount=1——组件产物规矩同酿造/附魔：
+                        // 出线一律无视（distribute 走 id 账本带不了组件），只走 精确账本 或 输出缓存；
+                        // 有出线时 depositMi 为 null，此处单独解析入库口；无存储按缓存格数封顶防白扣。
+                        com.sdzjz.machine.StorageAccess dHorn = depositMi != null ? depositMi : be.depositFor(world, i);
+                        if (dHorn == null) total = Math.min(total, OUTPUT_SLOTS);
+                        if (total <= 0) continue;
+                        be.prodTally(total);
+                        be.depositGoatHorns(world, dHorn, total);
+                        produced = true;
+                        continue;
+                    }
                     if (cappedMi) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
@@ -680,6 +692,34 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             sum += amt + (long) countLv * 8;
         }
         return sum;
+    }
+
+    /** m137 山羊角入库：8 变体 instrument 组件（原版 GOAT_HORNS 标签枚举，模组扩展自动跟随），
+     *  total 均摊到各变体（余数随机加成），逐变体建栈挂组件走 精确账本（m130）或 输出缓存（addOutput 保组件、
+     *  maxCount=1 自动一格一支）。注册表异常兜底裸角不吞产量。 */
+    private void depositGoatHorns(net.minecraft.world.World world, com.sdzjz.machine.StorageAccess deposit, long total) {
+        java.util.List<net.minecraft.registry.entry.RegistryEntry<net.minecraft.item.Instrument>> vars = new java.util.ArrayList<>();
+        for (var e : net.minecraft.registry.Registries.INSTRUMENT.iterateEntries(
+                net.minecraft.registry.tag.InstrumentTags.GOAT_HORNS)) vars.add(e);
+        if (vars.isEmpty()) { // 数据包清空标签的兜底：裸角照常入库（普通条目），产量不蒸发
+            ItemStack bare = new ItemStack(Registries.ITEM.get(Identifier.of("minecraft:goat_horn")),
+                    (int) Math.min(total, Integer.MAX_VALUE));
+            if (deposit != null) depositOrBuffer(deposit, bare); else addOutput(bare);
+            return;
+        }
+        long base = total / vars.size(), rem = total % vars.size();
+        net.minecraft.util.math.random.Random rand = world.getRandom();
+        long[] share = new long[vars.size()];
+        for (int k = 0; k < vars.size(); k++) share[k] = base;
+        for (long r = 0; r < rem; r++) share[rand.nextInt(vars.size())]++;
+        for (int k = 0; k < vars.size(); k++) {
+            if (share[k] <= 0) continue;
+            ItemStack horn = new ItemStack(Registries.ITEM.get(Identifier.of("minecraft:goat_horn")),
+                    (int) Math.min(share[k], Integer.MAX_VALUE));
+            horn.set(DataComponentTypes.INSTRUMENT, vars.get(k));
+            if (deposit != null) depositOrBuffer(deposit, horn);
+            else addOutput(horn);
+        }
     }
 
     private int nodeInt(ItemStack s, String key) {

@@ -22,6 +22,7 @@ public final class MachineXp {
         MACHINE.put("slime_farm", 2.0);
         MACHINE.put("magma_farm", 2.0);
         MACHINE.put("guardian_farm", 10.0);
+        MACHINE.put("wither_farm", 50.0); // m137 凋灵原版击杀经验
         MACHINE.put("blaze_farm", 10.0);
         MACHINE.put("breeze_farm", 10.0);
         // ---- 熔炼类（原版每件经验）----
