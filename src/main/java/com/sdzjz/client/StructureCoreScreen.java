@@ -143,6 +143,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private java.util.List<net.minecraft.util.Identifier> potionIds; // 全药水注册id（一次构建）
     private final List<ItemStack> potionFiltered = new ArrayList<>();
     private final List<String> potionFilteredIds = new ArrayList<>(); // 与上表对齐的完整目标串 id|形态
+    // m132 附魔目标选择器：附魔书图标全长一个样，网格式没法认——改行式（图标+原版名字，罗马数字/诅咒红字自带）。
+    // 全表每次开窗按当前世界动态注册表重建（附魔随存档/数据包变，不做跨世界静态缓存）。
+    private java.util.List<String> enchAllIds;                        // 全部目标串 附魔id|等级（同附魔等级降序）
+    private java.util.List<net.minecraft.text.Text> enchAllNames;
+    private final List<ItemStack> enchFiltered = new ArrayList<>();   // 行样板栈（绿框/悬停用）
+    private final List<String> enchFilteredIds = new ArrayList<>();
+    private final List<net.minecraft.text.Text> enchFilteredNames = new ArrayList<>();
+    private static final int ENCH_ROW_H = 18, ENCH_ROWS = 8;
     private TextFieldWidget pickerField;
     private List<Item> craftables;
     private List<Item> allItems;
@@ -585,7 +593,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
         boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
         boolean isBrew = st.getItem() instanceof com.sdzjz.item.BrewingTowerItem; // m131b
-        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew) {
+        boolean isEnch = st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem; // m132
+        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew || isEnch) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
@@ -599,15 +608,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
             } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = isBrew ? com.sdzjz.machine.BrewPlanner.targetStack(t)
+                        : isEnch ? com.sdzjz.machine.EnchantPlanner.targetStack(MinecraftClient.getInstance().world, t)
                         : new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
-                if (ts == null) ts = new ItemStack(net.minecraft.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载等）
+                if (ts == null) ts = new ItemStack(isEnch ? net.minecraft.item.Items.ENCHANTED_BOOK
+                        : net.minecraft.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载/数据包变更等）
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
+                if (isEnch) { // m132 附魔书名恒为"附魔书"——徽章文字用附魔名（罗马数字自带）
+                    var en = com.sdzjz.machine.EnchantPlanner.targetName(MinecraftClient.getInstance().world, t);
+                    if (en != null) tn = en.getString();
+                }
                 while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 50) tn = tn.substring(0, tn.length() - 1);
                 ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                ctx.drawText(this.textRenderer, isCrop ? "选作物" : "设目标", x + 44, y + 38, SUB, false);
+                ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
     }
@@ -836,6 +851,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择合成目标", () -> openPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem)
             addMenu("选择目标药水", () -> openPotionPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)
+            addMenu("选择目标附魔", () -> openEnchantPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", () -> openCropPicker(idx));
         if (StructureCoreBlockEntity.isFilter(st)) {
@@ -981,6 +998,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         BlockPos bpp = this.handler.blockPos();
                         if (bpp != null && button == 0)
                             ClientPlayNetworking.send(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
+                        closePicker();
+                        return true;
+                    }
+                }
+                if (mouseX < px || mouseX > px + PICK_W || mouseY < py || mouseY > py + PICK_H) closePicker();
+                return true;
+            }
+            if (pickerMode == 5) { // m132 附魔目标：点行=设目标关窗
+                int rgx = px + 8, rgy = py + 44;
+                for (int k = 0; k < enchFilteredIds.size(); k++) {
+                    int ry = rgy + k * ENCH_ROW_H;
+                    if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
+                        BlockPos bpe = this.handler.blockPos();
+                        if (bpe != null && button == 0)
+                            ClientPlayNetworking.send(new NodeTargetPayload(bpe, pickerNode, enchFilteredIds.get(k)));
                         closePicker();
                         return true;
                     }
@@ -1286,6 +1318,52 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerField.setFocused(true);
     }
 
+    /** m132 附魔目标选择器：单选行式列表；每级独立成行（锋利I..V），等级降序、附魔按名排序。 */
+    private void openEnchantPicker(int node) {
+        pickerMode = 5;
+        pickerNode = node;
+        enchAllIds = new ArrayList<>();
+        enchAllNames = new ArrayList<>();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world != null) {
+            var reg = mc.world.getRegistryManager().getWrapperOrThrow(net.minecraft.registry.RegistryKeys.ENCHANTMENT);
+            var es = reg.streamEntries().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            es.sort(java.util.Comparator.comparing(e -> net.minecraft.enchantment.Enchantment.getName(e, 1).getString()));
+            for (var e : es) {
+                String id = e.registryKey().getValue().toString();
+                for (int lv = e.value().getMaxLevel(); lv >= 1; lv--) {
+                    enchAllIds.add(id + "|" + lv);
+                    enchAllNames.add(net.minecraft.enchantment.Enchantment.getName(e, lv));
+                }
+            }
+        }
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    private void refilterEnchants() {
+        enchFiltered.clear();
+        enchFilteredIds.clear();
+        enchFilteredNames.clear();
+        if (enchAllIds == null) return;
+        String q = pickerField.getText().trim().toLowerCase();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null) return;
+        for (int k = 0; k < enchAllIds.size(); k++) {
+            String tgt = enchAllIds.get(k);
+            net.minecraft.text.Text nm = enchAllNames.get(k);
+            if (!q.isEmpty() && !nm.getString().toLowerCase().contains(q) && !tgt.contains(q)) continue;
+            ItemStack bs = com.sdzjz.machine.EnchantPlanner.targetStack(mc.world, tgt);
+            if (bs == null) continue;
+            enchFiltered.add(bs);
+            enchFilteredIds.add(tgt);
+            enchFilteredNames.add(nm);
+            if (enchFiltered.size() >= ENCH_ROWS) break;
+        }
+    }
+
     private static char brewFormChar(int f) { return f == 1 ? 's' : f == 2 ? 'l' : 'p'; }
     private static final String[] BREW_FORM_NAMES = {"普通", "喷溅", "滞留"};
 
@@ -1376,6 +1454,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void refilterPicker() {
         pickerFiltered.clear();
         if (pickerMode == 4) { refilterPotions(); return; } // m131b 药水目标走独立表
+        if (pickerMode == 5) { refilterEnchants(); return; } // m132 附魔目标走独立表
         List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
@@ -1418,6 +1497,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
                 : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"
                 : pickerMode == 4 ? "选择目标药水"
+                : pickerMode == 5 ? "选择目标附魔（中文/英文搜索）"
                 : "选择目标产物（中文/英文搜索）";
         ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
         if (pickerMode == 4) { // m131b 形态切换按钮
@@ -1444,7 +1524,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int gx = px + 8, gy = py + 44;
         Item hovered = null;
         ItemStack hoveredStack = null;
-        if (pickerMode == 4) { // m131b 药水网格：栈直绘（带药水配色），当前目标=绿框
+        String hoverName = null; // m132 模式5行悬停名（附魔书 getName 恒为"附魔书"，提示行用附魔名）
+        if (pickerMode == 5) { // m132 附魔行式列表：图标+原版名字（罗马数字/诅咒红字），当前目标=绿框
+            String curT = "";
+            StructureCoreBlockEntity beE = be();
+            if (beE != null && pickerNode >= 0 && pickerNode < beE.nodes().size())
+                curT = StructureCoreBlockEntity.craftTarget(beE.nodes().get(pickerNode));
+            for (int k = 0; k < enchFiltered.size(); k++) {
+                int ry = gy + k * ENCH_ROW_H;
+                boolean hov = mouseX >= gx && mouseX < gx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2;
+                boolean sel = enchFilteredIds.get(k).equals(curT);
+                if (sel) ctx.fill(gx - 1, ry - 1, gx + PICK_W - 15, ry + ENCH_ROW_H - 1, ON);
+                ctx.fill(gx, ry, gx + PICK_W - 16, ry + ENCH_ROW_H - 2, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
+                ctx.drawItem(enchFiltered.get(k), gx + 1, ry);
+                ctx.drawText(this.textRenderer, enchFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
+                if (hov) { hoveredStack = enchFiltered.get(k); hoverName = enchFilteredNames.get(k).getString(); }
+            }
+            if (enchFiltered.isEmpty())
+                ctx.drawText(this.textRenderer, "无匹配附魔（试试中文名或英文id）", gx, gy + 4, SUB, false);
+        } else if (pickerMode == 4) { // m131b 药水网格：栈直绘（带药水配色），当前目标=绿框
             String curT = "";
             StructureCoreBlockEntity beC = be();
             if (beC != null && pickerNode >= 0 && pickerNode < beC.nodes().size())
@@ -1469,7 +1567,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (hov) hovered = pickerFiltered.get(k);
             }
         }
-        String tip = hoveredStack != null ? hoveredStack.getName().getString()
+        String tip = hoverName != null ? hoverName
+                : hoveredStack != null ? hoveredStack.getName().getString()
                 : hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
         ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
     }
