@@ -45,6 +45,9 @@ public class ModItems {
     public static final Item GOAT_HORN_FARM = reg("goat_horn_farm", new MachineItem(new Item.Settings(), Machines.GOAT_HORN_FARM));
     public static final Item ARMADILLO_FARM = reg("armadillo_farm", new MachineItem(new Item.Settings(), Machines.ARMADILLO_FARM));
     public static final Item SNIFFER_GARDEN = reg("sniffer_garden", new MachineItem(new Item.Settings(), Machines.SNIFFER_GARDEN));
+    public static final Item SCULK_CATALYST_FARM = reg("sculk_catalyst_farm", new MachineItem(new Item.Settings(), Machines.SCULK_CATALYST_FARM));
+    public static final Item SCULK_SENSOR_FARM = reg("sculk_sensor_farm", new MachineItem(new Item.Settings(), Machines.SCULK_SENSOR_FARM));
+    public static final Item SCULK_SHRIEKER_FARM = reg("sculk_shrieker_farm", new MachineItem(new Item.Settings(), Machines.SCULK_SHRIEKER_FARM));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
@@ -140,6 +143,9 @@ public class ModItems {
             entries.add(GOAT_HORN_FARM);
             entries.add(ARMADILLO_FARM);
             entries.add(SNIFFER_GARDEN);
+            entries.add(SCULK_CATALYST_FARM);
+            entries.add(SCULK_SENSOR_FARM);
+            entries.add(SCULK_SHRIEKER_FARM);
             entries.add(FILTER_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);

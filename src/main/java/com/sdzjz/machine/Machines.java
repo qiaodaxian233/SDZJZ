@@ -44,6 +44,19 @@ public final class Machines {
     public static final MachineDef SNIFFER_GARDEN = defMulti("sniffer_garden", 40,
             drop("minecraft:torchflower_seeds", 1, 1, 0.5f),
             drop("minecraft:pitcher_pod", 1, 1, 0.5f));
+
+    // ===== m138 幽匿线三塔（吃核心经验池——原版幽匿=经验具象化；tick 有专属经验闸分支）=====
+    /** 幽匿催化机：散块便宜量大（2经验/轮），催化体本体压稀档（原版=监守者掉一个）。 */
+    public static final MachineDef SCULK_CATALYST_FARM = defMulti("sculk_catalyst_farm", 40,
+            drop("minecraft:sculk", 4, 8),
+            drop("minecraft:sculk_vein", 2, 4),
+            drop("minecraft:sculk_catalyst", 1, 1, 0.08f));
+    /** 幽匿传感机：9经验/轮对齐原版蔓延电荷量级。 */
+    public static final MachineDef SCULK_SENSOR_FARM = defMulti("sculk_sensor_farm", 40,
+            drop("minecraft:sculk_sensor", 1, 1, 0.6f));
+    /** 幽匿尖啸机：9经验/轮；尖啸体原版不可合成、仅精准采集。 */
+    public static final MachineDef SCULK_SHRIEKER_FARM = defMulti("sculk_shrieker_farm", 40,
+            drop("minecraft:sculk_shrieker", 1, 1, 0.5f));
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

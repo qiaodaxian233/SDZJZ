@@ -59,6 +59,10 @@ public final class SuperBenchRecipes {
         add("sdzjz:goat_horn_farm", 3, "minecraft:goat_horn", "minecraft:goat_horn", "minecraft:snow_block", "minecraft:snow_block");
         add("sdzjz:armadillo_farm", 4, "minecraft:armadillo_scute", "minecraft:armadillo_scute", "minecraft:spider_eye", "minecraft:spider_eye");
         add("sdzjz:sniffer_garden", 1, "minecraft:torchflower_seeds", "minecraft:pitcher_pod", "minecraft:moss_block", "minecraft:moss_block");
+        // m138 幽匿线：三件本体入引子=先亲手下一次深暗之域（尖啸体/传感器须精准采集）
+        add("sdzjz:sculk_catalyst_farm", 2, "minecraft:sculk_catalyst", "minecraft:sculk", "minecraft:sculk", "minecraft:sculk");
+        add("sdzjz:sculk_sensor_farm", 3, "minecraft:sculk_sensor", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
+        add("sdzjz:sculk_shrieker_farm", 4, "minecraft:sculk_shrieker", "minecraft:sculk_sensor", "minecraft:sculk", "minecraft:sculk");
         add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
         addM("sdzjz:blaze_farm", 2, "minecraft:blaze", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
         addM("sdzjz:ghast_tower", 3, "minecraft:ghast", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");

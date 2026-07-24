@@ -532,6 +532,34 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 } else {
                     be.stat(i, 3); // 本周期没料可烧
                 }
+            } else if (st.getItem() instanceof MachineItem sk && sk.def().id().startsWith("sculk_")) {
+                // m138 幽匿三机：吃核心经验池产幽匿件（原版幽匿=经验具象化——催化体吸收死亡经验长
+                // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
+                // 池里够几轮跑几轮，池空=缺料红灯（画布经验池数字可见）。产物无组件，出路走通用三条
+                //（distribute/精确入库/输出缓存）不特判。经验成本对齐原版蔓延电荷量级：
+                // 催化=2/轮（散块便宜）；传感/尖啸=9/轮（原版蔓延长一个传感器约耗 9 电荷）。
+                MachineDef def = sk.def();
+                int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                double xpPer = "sculk_catalyst_farm".equals(def.id()) ? 2.0 : 9.0;
+                long attempts = (long) running * cycles;
+                attempts = Math.min(attempts, (long) (be.xpPool / xpPer)); // 经验闸
+                if (attempts <= 0) { be.stat(i, 3); continue; }
+                be.xpPool -= xpPer * attempts;
+                be.stat(i, 1);
+                com.sdzjz.machine.StorageAccess depositSk = hasOut[i] ? null : be.depositFor(world, i);
+                boolean cappedSk = !hasOut[i] && depositSk == null;
+                for (MachineDef.Drop d : def.outputs()) {
+                    long sum = be.rollDrops(world.getRandom(), d, (int) Math.min(attempts, Integer.MAX_VALUE), countLv);
+                    if (sum <= 0) continue;
+                    if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
+                    be.prodTally(sum);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), sum);
+                    else if (depositSk != null) be.depositOrBuffer(depositSk, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(sum, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) sum));
+                    produced = true;
+                }
             } else if (st.getItem() instanceof MachineItem mi) {
                 MachineDef def = mi.def();
                 int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
