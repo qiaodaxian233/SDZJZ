@@ -308,22 +308,40 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         List<ItemStack> nodes = be.nodes();
         List<long[]> ends = endsOf(be);
 
+        // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
+        // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
+        if (busVisible()) for (long[] e : be.storageEdgesView()) {
+            int mi = (int) e[0];
+            if (mi >= nodes.size()) continue;
+            int j = endpointIndex(ends, e[1]);
+            if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
+            int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
+            float mys = (float) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
+            if (e[2] == 0) { // 机器→存储（产出）：机器右缘水平出线 → 垂直向上接入卡底左收料口
+                float mxs = (float) (panX + (wnx(be, nodes, mi) + NW) * zoom);
+                drawWire(ctx, mxs, mys, 1, 0, sx + 14, sy + bh() + 2, 0, -1, CYAN, 1f);
+            } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器左缘
+                float mxi = (float) (panX + wnx(be, nodes, mi) * zoom);
+                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, 1, 0, ON, 1f);
+            }
+        }
+
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(panX, panY, 0);
         m.scale((float) zoom, (float) zoom, 1);
 
-        // 机器↔机器 连线
+        // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）
         for (int[] c : be.connections()) {
             if (c[0] < nodes.size() && c[1] < nodes.size()) {
                 int ax = wnx(be, nodes, c[0]) + NW, ay = wny(be, nodes, c[0]) + NH / 2;
                 int bx = wnx(be, nodes, c[1]),      by = wny(be, nodes, c[1]) + NH / 2;
-                drawWire(ctx, ax, ay, bx, by, CYAN);
+                drawWire(ctx, ax, ay, 1, 0, bx, by, 1, 0, CYAN, (float) zoom);
             }
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int ax = wnx(be, nodes, linkFrom) + NW, ay = wny(be, nodes, linkFrom) + NH / 2;
-            drawWire(ctx, ax, ay, (int) wmx(mouseX), (int) wmy(mouseY), 0xFF88E0FF);
+            drawWireFree(ctx, ax, ay, 1, 0, (float) wmx(mouseX), (float) wmy(mouseY), 0xFF88E0FF, (float) zoom);
         }
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
@@ -375,26 +393,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 cx += cw;
             }
         }
-        // 机器↔存储 定向连线：机器端做 画布→屏幕 换算，存储端已是屏幕坐标（m91：总线收起时不画）
-        if (busVisible()) for (long[] e : be.storageEdgesView()) {
-            int mi = (int) e[0];
-            if (mi >= nodes.size()) continue;
-            int j = endpointIndex(ends, e[1]);
-            if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
-            int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
-            int mys = (int) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
-            if (e[2] == 0) { // 机器→存储（产出）：接到节点下缘左收料口
-                int mxs = (int) (panX + (wnx(be, nodes, mi) + NW) * zoom);
-                drawWire(ctx, mxs, mys, sx + 14, sy + bh() + 2, CYAN);
-            } else {         // 存储→机器（供料）：从节点下缘右供料口出
-                int mxi = (int) (panX + wnx(be, nodes, mi) * zoom);
-                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, mxi, mys, ON);
-            }
-        }
+        // 定向连线本体已前移到节点卡片之前绘制（m136 走下层）；此处只留拖线预览（反馈要压最上层）
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
-            drawWire(ctx, sx + bw() - 14, sy + bh() + 2, mouseX, mouseY, 0xFF9BF0C0);
+            drawWireFree(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mouseX, mouseY, 0xFF9BF0C0, 1f);
         }
         if (busVisible()) for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
@@ -660,30 +663,159 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
     }
 
-    private void drawWire(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
-        int dx = Math.max(40, Math.abs(x2 - x1) / 2);
-        float c1x = x1 + dx, c2x = x2 - dx;
-        // m122 精修：断点虚线→连续实体线。三层：外晕(体积感)+常亮底线+行进能量段(亮核带光晕)。
-        // 步数按线长自适应——长线不再散成点阵，短线不浪费填充。
-        int steps = Math.max(48, Math.min(120, (Math.abs(x2 - x1) + Math.abs(y2 - y1)) / 6));
-        float phase = (System.currentTimeMillis() % 1200L) / 1200f * 12f;
-        int glowO = (color & 0x00FFFFFF) | 0x22000000;
-        int base  = (color & 0x00FFFFFF) | 0x8C000000;
-        int spark = 0xAAFFFFFF & color | 0x55FFFFFF;
-        for (int s = 0; s <= steps; s++) {
-            float t = s / (float) steps, u = 1 - t;
-            float bx = u * u * u * x1 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x2;
-            float by = u * u * u * y1 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y2;
-            int px = (int) bx, py = (int) by;
-            ctx.fill(px - 2, py - 2, px + 2, py + 2, glowO);   // 外晕（连续）
-            ctx.fill(px - 1, py - 1, px + 1, py + 1, base);    // 底线（连续实体）
-            float m = (s - phase) % 12f;
-            if (m < 0) m += 12f;
-            if (m < 4f) { // 行进能量段
-                ctx.fill(px - 2, py - 2, px + 2, py + 2, spark);
-                ctx.fill(px - 1, py - 1, px + 1, py + 1, color);
-            }
+    // ===== m136 连线精修（用户点名"不够好看不够精美"）：方块盖章 → 逐顶点着色缎带 =====
+    // 旧法（m122）：贝塞尔采样后逐点 fill 2×2/4×4 方块——长线颗粒感、无抗锯齿、光晕是方块套方块。
+    // 新法：沿曲线发四边形条带（与 fill 同 RenderLayer.getGui() 同批次），顶点色向两缘渐隐=免费羽化抗锯齿；
+    // 三层：投影(浮出网格) + 软光晕 + 亮核；亮度沿线 82%→105% 坡升暗示方向；彗星脉冲顺流而行
+    // （替代旧方块能量段，头亮尾散、过处线身微胀），相位按端点座标播种——并排线不同步呼吸；
+    // 两端点各一枚羽化发光端口圆点，线不再"凭空消失在卡片边上"；线宽除以 pxScale——世界坐标层
+    // 缩放 0.4~2.5 下屏幕线宽恒定，缩小不细成发丝、放大不糊成粗杠。
+
+    /** 标准连线：两端切线已知（水平出入卡缘 / 垂直出入总线端口）。pxScale=当前矩阵缩放（屏幕坐标传 1）。 */
+    private void drawWire(DrawContext ctx, float x1, float y1, float tx1, float ty1,
+                          float x2, float y2, float tx2, float ty2, int color, float pxScale) {
+        wirePath(ctx, x1, y1, tx1, ty1, x2, y2, tx2, ty2, color, pxScale);
+    }
+
+    /** 拖线预览：终点跟随鼠标，末端切线取行进方向，曲线自然收尾。 */
+    private void drawWireFree(DrawContext ctx, float x1, float y1, float tx1, float ty1,
+                              float x2, float y2, int color, float pxScale) {
+        float dx = x2 - x1, dy = y2 - y1;
+        float l = (float) Math.hypot(dx, dy);
+        if (l < 1f) { dx = 1; dy = 0; l = 1; }
+        wirePath(ctx, x1, y1, tx1, ty1, x2, y2, dx / l, dy / l, color, pxScale);
+    }
+
+    private void wirePath(DrawContext ctx, float x1, float y1, float tx1, float ty1,
+                          float x2, float y2, float tx2, float ty2, int color, float pxScale) {
+        float dist = (float) Math.hypot(x2 - x1, y2 - y1);
+        if (dist < 2f) return;
+        float d = Math.max(36f, Math.min(150f, dist * 0.42f)); // 控制柄长度：近不打结、远不拉直
+        float c1x = x1 + tx1 * d, c1y = y1 + ty1 * d;
+        float c2x = x2 - tx2 * d, c2y = y2 - ty2 * d;
+        int n = Math.max(20, Math.min(56, (int) (dist / 8f))) + 1; // 采样数按线长自适应
+        float[] px = new float[n], py = new float[n], nx = new float[n], ny = new float[n], cum = new float[n];
+        for (int i = 0; i < n; i++) {
+            float t = i / (float) (n - 1), u = 1 - t;
+            float a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, e = t * t * t;
+            px[i] = a * x1 + b * c1x + c * c2x + e * x2;
+            py[i] = a * y1 + b * c1y + c * c2y + e * y2;
         }
+        for (int i = 0; i < n; i++) { // 单位法线（中央差分）+ 弧长累计（脉冲定位用）
+            int i0 = Math.max(0, i - 1), i1 = Math.min(n - 1, i + 1);
+            float dx = px[i1] - px[i0], dy = py[i1] - py[i0];
+            float l = (float) Math.hypot(dx, dy); if (l < 1e-4f) l = 1;
+            nx[i] = -dy / l; ny[i] = dx / l;
+            if (i > 0) cum[i] = cum[i - 1] + (float) Math.hypot(px[i] - px[i - 1], py[i] - py[i - 1]);
+        }
+        net.minecraft.client.render.VertexConsumer vc =
+                ctx.getVertexConsumers().getBuffer(net.minecraft.client.render.RenderLayer.getGui());
+        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
+
+        int rgb = color & 0xFFFFFF;
+        float time = (System.currentTimeMillis() % 600000L) / 1000f;
+        float seed = ((x1 * 13f + y1 * 7f + x2 * 3f + y2) % 88f + 88f) % 88f; // 并排线错相
+        float[] w = new float[n];
+        int[] col = new int[n];
+
+        // 第一层：投影（右下偏移的暗缎带，把线从网格上抬起来）
+        float shOff = 1.4f / pxScale;
+        java.util.Arrays.fill(w, 1.2f / pxScale);
+        java.util.Arrays.fill(col, 0x3A000000);
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.8f / pxScale, col, shOff, shOff * 1.2f);
+
+        // 第二层：软光晕（宽羽化低透明，脉冲过处微微透亮）
+        for (int i = 0; i < n; i++) {
+            float p = pulseAt(cum[i], time, seed);
+            w[i] = 2.1f / pxScale;
+            col[i] = ((int) (0x24 + 0x2C * p) << 24) | rgb;
+        }
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 3.4f / pxScale, col, 0, 0);
+
+        // 第三层：亮核（沿线亮度坡升暗示方向；脉冲提亮向白并微胀线身）
+        for (int i = 0; i < n; i++) {
+            float t = cum[i] / cum[n - 1];
+            float p = pulseAt(cum[i], time, seed);
+            int cc = towardWhite(mulRgb(rgb, 0.82f + 0.23f * t), p * 0.75f);
+            col[i] = (Math.min(0xFF, 0xD8 + (int) (0x27 * p)) << 24) | cc;
+            w[i] = (0.9f + 0.5f * p) / pxScale;
+        }
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.0f / pxScale, col, 0, 0);
+
+        // 端口圆点：线的起讫落在发光接点上，不再凭空断在卡片边缘
+        portDot(vc, mat, x1, y1, rgb, pxScale);
+        portDot(vc, mat, x2, y2, rgb, pxScale);
+    }
+
+    /** 彗星脉冲强度 0..1：等距脉冲沿弧长顺流（速度110px/s 间距88px），头缘陡尾缘缓。 */
+    private static float pulseAt(float s, float time, float seed) {
+        float m = (s - time * 110f - seed) % 88f;
+        if (m < 0) m += 88f;
+        float head = m < 10f ? 1f - m / 10f : 0f;          // 头前 10px 陡降
+        float tail = m > 88f - 22f ? (m - (88f - 22f)) / 22f : 0f; // 尾后 22px 缓升到头
+        float v = Math.max(head, tail * tail * 0.85f);
+        return v * v * (3 - 2 * v); // smoothstep 圆润
+    }
+
+    /** 单条缎带：中心两侧 halfW 实体 + feather 羽化到全透明（顶点插色=抗锯齿）。绕线方向发四边形，与 fill 同绕序。 */
+    private void ribbon(net.minecraft.client.render.VertexConsumer vc, org.joml.Matrix4f mat,
+                        float[] px, float[] py, float[] nx, float[] ny, float[] cum,
+                        float[] halfW, float feather, int[] col, float ox, float oy) {
+        int n = px.length;
+        for (int i = 0; i + 1 < n; i++) {
+            int c0 = col[i], c1 = col[i + 1];
+            int f0 = c0 & 0x00FFFFFF, f1 = c1 & 0x00FFFFFF;
+            float ax = px[i] + ox, ay = py[i] + oy, bx = px[i + 1] + ox, by = py[i + 1] + oy;
+            float anx = nx[i], any = ny[i], bnx = nx[i + 1], bny = ny[i + 1];
+            float ah = halfW[i], bh = halfW[i + 1], af = ah + feather, bf = bh + feather;
+            quad(vc, mat, ax - anx * af, ay - any * af, f0, ax - anx * ah, ay - any * ah, c0,
+                          bx - bnx * bh, by - bny * bh, c1, bx - bnx * bf, by - bny * bf, f1); // 左羽化
+            quad(vc, mat, ax - anx * ah, ay - any * ah, c0, ax + anx * ah, ay + any * ah, c0,
+                          bx + bnx * bh, by + bny * bh, c1, bx - bnx * bh, by - bny * bh, c1); // 核心
+            quad(vc, mat, ax + anx * ah, ay + any * ah, c0, ax + anx * af, ay + any * af, f0,
+                          bx + bnx * bf, by + bny * bf, f1, bx + bnx * bh, by + bny * bh, c1); // 右羽化
+        }
+    }
+
+    /** 端口接点：羽化发光圆点（12 段三角扇 + 渐隐外环），中心提白、边缘线色、外环透明。 */
+    private void portDot(net.minecraft.client.render.VertexConsumer vc, org.joml.Matrix4f mat,
+                         float cx, float cy, int rgb, float pxScale) {
+        float r = 2.5f / pxScale, fe = 1.9f / pxScale;
+        int cCenter = 0xFF000000 | towardWhite(rgb, 0.55f);
+        int cEdge   = 0xE6000000 | rgb;
+        int cOut    = rgb; // alpha 0
+        int seg = 12;
+        for (int k = 0; k < seg; k++) {
+            double a0 = -2 * Math.PI * k / seg, a1 = -2 * Math.PI * (k + 1) / seg; // 负向=与 fill 同绕序
+            float x0 = cx + (float) Math.cos(a0) * r, y0 = cy + (float) Math.sin(a0) * r;
+            float x1 = cx + (float) Math.cos(a1) * r, y1 = cy + (float) Math.sin(a1) * r;
+            float X0 = cx + (float) Math.cos(a0) * (r + fe), Y0 = cy + (float) Math.sin(a0) * (r + fe);
+            float X1 = cx + (float) Math.cos(a1) * (r + fe), Y1 = cy + (float) Math.sin(a1) * (r + fe);
+            quad(vc, mat, cx, cy, cCenter, x0, y0, cEdge, x1, y1, cEdge, cx, cy, cCenter); // 内盘扇片
+            quad(vc, mat, x0, y0, cEdge, X0, Y0, cOut, X1, Y1, cOut, x1, y1, cEdge);       // 外环羽化
+        }
+    }
+
+    private void quad(net.minecraft.client.render.VertexConsumer vc, org.joml.Matrix4f mat,
+                      float x1, float y1, int c1, float x2, float y2, int c2,
+                      float x3, float y3, int c3, float x4, float y4, int c4) {
+        vc.vertex(mat, x1, y1, 0).color(c1);
+        vc.vertex(mat, x2, y2, 0).color(c2);
+        vc.vertex(mat, x3, y3, 0).color(c3);
+        vc.vertex(mat, x4, y4, 0).color(c4);
+    }
+
+    private static int mulRgb(int rgb, float f) {
+        int r = Math.min(255, (int) (((rgb >> 16) & 255) * f));
+        int g = Math.min(255, (int) (((rgb >> 8) & 255) * f));
+        int b = Math.min(255, (int) ((rgb & 255) * f));
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private static int towardWhite(int rgb, float f) {
+        int r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
+        r += (int) ((255 - r) * f); g += (int) ((255 - g) * f); b += (int) ((255 - b) * f);
+        return (r << 16) | (g << 8) | b;
     }
 
     @Override
