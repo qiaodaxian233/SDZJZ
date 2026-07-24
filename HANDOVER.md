@@ -68,6 +68,8 @@
 
 ## 架构速查（改哪类问题去哪个文件）
 
+- **组合玩法/物流语义**：`机器组合.md`（m134 照代码实证：三层物流/四逻辑节点/闸门连锁/链式拉料/蓝图集/防坑）——改路由代码须同步更新
+
 - **生产/升级/tick**：`block/StructureCoreBlockEntity.java`（~1900 行核心；五分支 tick、
   cyclesThisTick/runningCount/rollDrops、供料 supplyFor/入库 depositFor/分发 distribute、链式需求 chainWants）
 - **机器定义/注册**：`machine/Machines.java`(掉落表) + `registry/ModItems.java` + `machine/SuperBenchRecipes.java`(引子签名配方)
