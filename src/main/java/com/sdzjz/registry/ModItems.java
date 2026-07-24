@@ -37,6 +37,9 @@ public class ModItems {
     public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Settings(), Machines.AUTO_CRAFTER));
     public static final Item BREWING_TOWER = reg("brewing_tower", new com.sdzjz.item.BrewingTowerItem(new Item.Settings(), Machines.BREWING_TOWER));
     public static final Item ENCHANT_FACTORY = reg("enchant_factory", new com.sdzjz.item.EnchantFactoryItem(new Item.Settings(), Machines.ENCHANT_FACTORY));
+    public static final Item COBWEB_MACHINE = reg("cobweb_machine", new MachineItem(new Item.Settings(), Machines.COBWEB_MACHINE));
+    public static final Item SPORE_BLOSSOM_FARM = reg("spore_blossom_farm", new MachineItem(new Item.Settings(), Machines.SPORE_BLOSSOM_FARM));
+    public static final Item BUDDING_AMETHYST_FARM = reg("budding_amethyst_farm", new MachineItem(new Item.Settings(), Machines.BUDDING_AMETHYST_FARM));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
@@ -124,6 +127,9 @@ public class ModItems {
             entries.add(AUTO_CRAFTER);
             entries.add(BREWING_TOWER);
             entries.add(ENCHANT_FACTORY);
+            entries.add(COBWEB_MACHINE);
+            entries.add(SPORE_BLOSSOM_FARM);
+            entries.add(BUDDING_AMETHYST_FARM);
             entries.add(FILTER_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);

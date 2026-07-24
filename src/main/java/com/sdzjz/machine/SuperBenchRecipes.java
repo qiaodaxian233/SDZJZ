@@ -50,6 +50,9 @@ public final class SuperBenchRecipes {
         add("sdzjz:auto_crafter", 0, "minecraft:crafting_table", "minecraft:crafting_table", "minecraft:crafter", "minecraft:crafter");
         add("sdzjz:brewing_tower", 0, "minecraft:brewing_stand", "minecraft:brewing_stand", "minecraft:blaze_rod", "minecraft:nether_wart");
         add("sdzjz:enchant_factory", 1, "minecraft:enchanting_table", "minecraft:bookshelf", "minecraft:book", "minecraft:lapis_lazuli");
+        add("sdzjz:cobweb_machine", 2, "minecraft:cobweb", "minecraft:cobweb", "minecraft:string", "minecraft:string");
+        add("sdzjz:spore_blossom_farm", 3, "minecraft:spore_blossom", "minecraft:spore_blossom", "minecraft:moss_block", "minecraft:moss_block");
+        add("sdzjz:budding_amethyst_farm", 4, "minecraft:amethyst_block", "minecraft:amethyst_block", "minecraft:calcite", "minecraft:calcite");
         add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
         addM("sdzjz:blaze_farm", 2, "minecraft:blaze", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
         addM("sdzjz:ghast_tower", 3, "minecraft:ghast", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");

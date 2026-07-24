@@ -12,6 +12,18 @@ public final class Machines {
     public static final MachineDef BREWING_TOWER = new MachineDef("brewing_tower", List.of(), 40, false, List.of());
     /** 附魔工厂（m132）：目标附魔+等级在画布节点徽章选择，成本由 EnchantPlanner 解析（经验从核心经验池扣）。 */
     public static final MachineDef ENCHANT_FACTORY = new MachineDef("enchant_factory", List.of(), 40, false, List.of());
+
+    // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）=====
+    public static final MachineDef COBWEB_MACHINE = defMulti("cobweb_machine", 40,
+            drop("minecraft:cobweb", 1, 2));
+    public static final MachineDef SPORE_BLOSSOM_FARM = defMulti("spore_blossom_farm", 40,
+            drop("minecraft:spore_blossom", 1, 1));
+    public static final MachineDef BUDDING_AMETHYST_FARM = defMulti("budding_amethyst_farm", 40,
+            drop("minecraft:budding_amethyst", 1, 1, 0.15f),
+            drop("minecraft:small_amethyst_bud", 1, 1, 0.25f),
+            drop("minecraft:medium_amethyst_bud", 1, 1, 0.25f),
+            drop("minecraft:large_amethyst_bud", 1, 1, 0.25f),
+            drop("minecraft:amethyst_cluster", 1, 1, 0.3f));
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());
