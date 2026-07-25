@@ -62,6 +62,7 @@ public final class VillagerTrades {
                 t("minecraft:beef", 10, "minecraft:emerald", 1),
                 t("minecraft:emerald", 1, "minecraft:cooked_porkchop", 5))));
         ALL.put("fisherman", new Profession("minecraft:barrel", "sdzjz.prof.fisherman", List.of(
+                t("minecraft:string", 14, "minecraft:emerald", 1), // m146 收线（价取原版制箭师14线/宝石；渔夫做鱼竿用线顺理成章）——刷线机→交易机直连场景的落地条目
                 t("minecraft:cod", 6, "minecraft:emerald", 1),
                 t("minecraft:salmon", 6, "minecraft:emerald", 1),
                 t("minecraft:coal", 10, "minecraft:emerald", 1),
