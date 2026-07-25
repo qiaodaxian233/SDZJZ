@@ -232,6 +232,27 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int got = sup.withdraw(id, (int) (4096 - have));
                     if (got > 0) ownL.merge(id, (long) got, Long::sum);
                 }
+                if (pump) {
+                    // m155 精确账本抽取（用户实测：凋灵机山羊角带乐器组件走精确账本，泵抽不到）：
+                    // 节点缓存按 id 记账带不动组件——抹组件搬运=毁物，所以只在「该 id 的出线链
+                    // 通向垃圾桶」（chainEndsInTrash 尊重过滤白名单）时才抽——反正是去销毁，
+                    // 抹组件无损语义。抽到普通 id 计数进缓存，沿线流到垃圾桶吞掉。
+                    java.util.List<StorageCoreBlockEntity> banksP = new java.util.ArrayList<>();
+                    if (sup instanceof StorageCoreBlockEntity cp) banksP.add(cp);
+                    else if (sup instanceof DataPanelBlockEntity pp)
+                        banksP.addAll(StorageCoreBlockEntity.connectedCores(world, pp.getPos()));
+                    for (StorageCoreBlockEntity bank : banksP) {
+                        for (ItemStack t : new java.util.ArrayList<>(bank.exactTemplates())) {
+                            String idE = Registries.ITEM.getId(t.getItem()).toString();
+                            long haveE = ownL.getOrDefault(idE, 0L);
+                            if (haveE >= 4096) continue;
+                            if (!be.chainEndsInTrash(world, i, idE, 0, new java.util.HashSet<>(), outT)) continue;
+                            ItemStack tpl = t.copyWithCount(1); // withdrawExact 可能移除模板，先复制
+                            int gotE = bank.withdrawExact(tpl, (int) (4096 - haveE));
+                            if (gotE > 0) ownL.merge(idE, (long) gotE, Long::sum);
+                        }
+                    }
+                }
             }
         }
 
@@ -1701,6 +1722,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 该机器的定向供料源（存储→机器 连线）。 */
     /** m92：链式需求判定——物品 id 能否被节点 i（含其下游）真实消费。放行规则沿途生效，深度/环双保护。 */
+    /** m155 该 id 沿此节点的出线链能否到达垃圾桶（尊重过滤/开关/抽取闸门，深度8防环）。
+     *  精确账本物品抽取的授权判定：只有"终点是销毁"才允许抹组件抽走。 */
+    private boolean chainEndsInTrash(World world, int i, String id, int depth, java.util.Set<Integer> visited,
+                                     java.util.Map<Integer, java.util.List<Integer>> outT) {
+        if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = machineNodes.get(i);
+        if (nodePaused(st)) return false;
+        if (isTrash(st)) return true;
+        if (isFilter(st) && !filterPasses(st, id)) return false;
+        if (isSwitch(st) && !switchOn(st)) return false;
+        if (isExtractor(st) && !extractorOn(st)) return false;
+        java.util.List<Integer> targets = outT.get(i);
+        if (targets == null) return false;
+        for (int t : targets)
+            if (chainEndsInTrash(world, t, id, depth + 1, visited, outT)) return true;
+        return false;
+    }
+
     private boolean chainWants(World world, int i, String id, int depth,
                                java.util.Set<Integer> visited,
                                java.util.Map<Integer, java.util.List<Integer>> outT,
