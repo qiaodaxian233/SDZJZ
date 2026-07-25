@@ -1,0 +1,6 @@
+-d
+/tmp/smokeC
+src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
+src/main/java/com/sdzjz/item/TrashNodeItem.java
+src/main/java/com/sdzjz/machine/Machines.java
+src/main/java/com/sdzjz/registry/ModItems.java

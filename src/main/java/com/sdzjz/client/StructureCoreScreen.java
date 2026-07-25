@@ -491,14 +491,29 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int x = snx(be, pl, j), y = sny(be, pl, j);
         boolean iface = kind == 6;
         int frm = iface ? CYAN : kind == 5 ? TERMFRM : kind == 4 ? OFFFRM : STORFRM;
-        SciSkin.drawCard(ctx, x, y, bw(), bh(), frm); // m120 与机器卡同一卡面语言
-        ctx.fill(x, y, x + bw(), y + 3, frm);
-        ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, CYAN);                  // 收料口·下缘左（连到面板=存进它聚合的整个网络）
-        if (!iface) ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, ON); // 供料口·下缘右（输出接口无）
+        // m150b 重画：类型色不再糊满边框（截图里荧光绿/紫大框太吵）——边框压到与机器卡同族的
+        // 暗色（类型色只掺三成），类型身份交给 3px 顶带 + 右上类型药丸；图标垫暗托盘；
+        // 端口从实心色块改成 暗座+亮芯 的接线柱。端口矩形几何原位不动（连线命中区）。
+        int mframe = SciSkin.mix(SciSkin.FRAME, frm, 0.3f);
+        SciSkin.drawCard(ctx, x, y, bw(), bh(), mframe);
+        ctx.fill(x, y, x + bw(), y + 3, frm);                                   // 顶带=类型signature
+        ctx.fill(x, y + 3, x + bw(), y + 15, 0x40060E1A);                       // 标题底带（与机器卡同）
+        ctx.fill(x, y + bh() - 1, x + bw(), y + bh(), SciSkin.withAlpha(frm, 0.35f)); // 底部发丝线
+        ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, SciSkin.mix(CYAN, 0xFF06202E, 0.55f)); // 收料口·暗座
+        ctx.fill(x + 11, y + bh() - 1, x + 17, y + bh() + 3, CYAN);                                  // 收料口·亮芯
+        if (!iface) {
+            ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, SciSkin.mix(ON, 0xFF06280F, 0.55f)); // 供料口·暗座
+            ctx.fill(x + bw() - 17, y + bh() - 1, x + bw() - 11, y + bh() + 3, ON);                                  // 供料口·亮芯
+        }
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
                 : com.sdzjz.registry.ModBlocks.STORAGE_CORE.asItem());
         float isc = 1.5f * busScale; // m122 图标 1.5× 且随尺寸滑块缩放（用户点名"看不清"）
+        int ipx = Math.round(16 * isc);
+        ctx.fill(x + 3, y + (bh() - ipx) / 2 - 1, x + 5 + ipx + 1, y + (bh() + ipx) / 2 + 1,
+                SciSkin.withAlpha(0xFF061018, 0.75f)); // m150b 图标暗托盘（图标不再悬空）
+        ctx.fill(x + 3, y + (bh() - ipx) / 2 - 1, x + 5 + ipx + 1, y + (bh() - ipx) / 2,
+                SciSkin.withAlpha(frm, 0.4f));
         var msI = ctx.getMatrices(); msI.push();
         msI.translate(x + 4, y + (bh() - 16 * isc) / 2f, 0);
         msI.scale(isc, isc, 1f);
@@ -514,9 +529,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
             title = (kind == 5 ? "数据面板" : "存储") + no;
         }
-        ctx.drawText(this.textRenderer, title, txI, y + 5, TXT, false);
-        ctx.drawText(this.textRenderer, "[" + KIND[Math.min(kind, 6)] + "]", txI + this.textRenderer.getWidth(title) + 3, y + 5,
-                iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON, false);
+        ctx.drawText(this.textRenderer, title, txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
+        String tag = KIND[Math.min(kind, 6)];
+        int tagC = iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON;
+        int tw = this.textRenderer.getWidth(tag);
+        int tgx = txI + this.textRenderer.getWidth(title) + 6;
+        ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 14, SciSkin.mix(tagC, 0xFF0A1626, 0.8f)); // m150b 类型药丸
+        ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 5, SciSkin.withAlpha(tagC, 0.55f));
+        ctx.fill(tgx - 3, y + 13, tgx + tw + 3, y + 14, SciSkin.withAlpha(tagC, 0.55f));
+        ctx.drawText(this.textRenderer, tag, tgx, y + 5, tagC, false);
         String sub;
         if (iface) {
             sub = "自动寻路: 绑定>有线>无线>卫星";
@@ -571,6 +592,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawText(this.textRenderer, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
+            return;
+        }
+        if (StructureCoreBlockEntity.isTrash(st)) { // m150
+            long ate = StructureCoreBlockEntity.trashCount(st);
+            ctx.drawText(this.textRenderer, "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
+            ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isFilter(st)) {

@@ -102,5 +102,6 @@
   "sdzjz.prof.toolsmith": "工具匠",
   "sdzjz.prof.cleric": "牧师",
   "sdzjz.prof.butcher": "屠夫",
-  "sdzjz.prof.fisherman": "渔夫"
+  "sdzjz.prof.fisherman": "渔夫",
+  "item.sdzjz.trash_node": "垃圾桶节点"
 }

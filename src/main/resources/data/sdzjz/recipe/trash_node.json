@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["ICI", "CMC", "III"], "key": {"I": {"item": "minecraft:iron_ingot"}, "C": {"item": "minecraft:cactus"}, "M": {"item": "sdzjz:core_module"}}, "result": {"id": "sdzjz:trash_node", "count": 1}}
