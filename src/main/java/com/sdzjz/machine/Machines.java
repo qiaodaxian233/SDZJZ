@@ -48,6 +48,8 @@ public final class Machines {
 
     /** m139 砂轮祛魔机：扫源仓附魔书磨成裸书+经验回核心池（tick 专属分支，掉落表空）。 */
     public static final MachineDef GRINDSTONE_RECYCLER = new MachineDef("grindstone_recycler", List.of(), 40, false, List.of());
+    /** m145 村民打折机：自动治愈——吃网络金苹果，给共网交易所里的合同升折扣（tick 专属分支，掉落表空）。 */
+    public static final MachineDef VILLAGER_DISCOUNT_MACHINE = new MachineDef("villager_discount_machine", List.of(), 40, false, List.of());
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

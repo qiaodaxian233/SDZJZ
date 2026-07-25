@@ -34,6 +34,63 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         @Override public void markDirty() { super.markDirty(); TradeCenterBlockEntity.this.markDirty(); }
     };
 
+    // ---- m145 已加载交易所注册表（村民打折机的发现面）----
+    /** setWorld 登记 / markRemoved 注销；WeakHashMap 键=世界（世界卸载随 GC 清）。
+     *  卸载区块的残留坐标由 loadedIn 的 getBlockEntity 空返回自然过滤（create=false 不强载）。 */
+    private static final java.util.Map<World, java.util.Set<BlockPos>> LOADED =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    @Override
+    public void setWorld(World world) {
+        super.setWorld(world);
+        if (world != null && !world.isClient)
+            LOADED.computeIfAbsent(world, w -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(pos);
+    }
+
+    @Override
+    public void markRemoved() {
+        if (world != null && !world.isClient) {
+            java.util.Set<BlockPos> s = LOADED.get(world);
+            if (s != null) s.remove(pos);
+        }
+        super.markRemoved();
+    }
+
+    /** 当前世界里已加载的交易所（拷贝遍历，坐标验活）。 */
+    public static java.util.List<TradeCenterBlockEntity> loadedIn(World world) {
+        java.util.List<TradeCenterBlockEntity> out = new java.util.ArrayList<>();
+        java.util.Set<BlockPos> s = LOADED.get(world);
+        if (s == null) return out;
+        for (BlockPos p : java.util.List.copyOf(s))
+            if (world.getBlockEntity(p) instanceof TradeCenterBlockEntity tc) out.add(tc);
+        return out;
+    }
+
+    /** m145 打折机接口：与给定仓集共网？（connectedCores 交集，按坐标比不按实例比）。 */
+    public boolean sharesNetwork(java.util.Collection<StorageCoreBlockEntity> banks) {
+        for (StorageCoreBlockEntity a : cores())
+            for (StorageCoreBlockEntity b : banks)
+                if (a.getPos().equals(b.getPos())) return true;
+        return false;
+    }
+
+    /** m145 打折机接口：合同可升折扣？（已就业且未满 5 级）。 */
+    public boolean canCure() {
+        ItemStack c = contractSlot.getStack(0);
+        return contractProf(c) != null && contractDiscount(c) < 5;
+    }
+
+    /** m145 打折机接口：升 1 级（调用方已付金苹果——先取料后调用，别反过来）。 */
+    public void cureOnce() {
+        ItemStack c = contractSlot.getStack(0);
+        String prof = contractProf(c);
+        if (prof == null) return;
+        int d = contractDiscount(c);
+        if (d >= 5) return;
+        setContract(c, prof, d + 1);
+        contractSlot.markDirty();
+    }
+
     public TradeCenterBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.TRADE_CENTER_BE, pos, state);
     }

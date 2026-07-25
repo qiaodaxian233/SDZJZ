@@ -54,6 +54,7 @@ public final class SuperBenchRecipes {
         add("sdzjz:wither_farm", 1, "minecraft:nether_star", "minecraft:wither_skeleton_skull", "minecraft:wither_skeleton_skull", "minecraft:soul_sand");
         add("sdzjz:g_misc_machine", 2, "minecraft:cobweb", "minecraft:spore_blossom", "minecraft:amethyst_block", "minecraft:calcite");
         add("sdzjz:sculk_line", 3, "minecraft:sculk_catalyst", "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk");
+        add("sdzjz:villager_discount_machine", 4, "minecraft:golden_apple", "minecraft:golden_apple", "minecraft:fermented_spider_eye", "minecraft:emerald_block");
         // m138 幽匿线：三件本体入引子=先亲手下一次深暗之域（尖啸体/传感器须精准采集）
         // m139 砂轮祛魔机
         add("sdzjz:grindstone_recycler", 1, "minecraft:grindstone", "minecraft:grindstone", "minecraft:book", "minecraft:book");

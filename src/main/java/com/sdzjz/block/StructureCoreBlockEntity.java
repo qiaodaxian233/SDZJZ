@@ -595,6 +595,52 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, ground ? 1 : 0); // 没书可磨=待机不是故障
                 if (ground) { be.prodTally(groundN); produced = true; }
+            } else if (st.getItem() instanceof MachineItem vd && "villager_discount_machine".equals(vd.def().id())) {
+                // m145 村民打折机（用户拍板：独立画布机自动治愈）：吃网络金苹果给共网交易所里的合同
+                // 升折扣。1 苹果=1 级与交易所手动治愈同价（自动化不改经济账）；低折扣合同优先补短板；
+                // 预算=台数×(1+数量级)×周期。发现面走 TradeCenterBlockEntity.loadedIn 注册表 +
+                // sharesNetwork 共网过滤（connectedCores 坐标交集）。状态灯：无网络/有合同没苹果=红灯，
+                // 无可升合同（没交易所或全满级）=待机，升了=绿灯。
+                int cycles = be.cyclesThisTick(i, vd.def().baseIntervalTicks(), speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                com.sdzjz.machine.StorageAccess accV = be.supplyFor(world, i);
+                if (accV == null) {
+                    if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                    accV = src;
+                }
+                if (accV == null) { be.stat(i, 3); continue; } // 无网络=红灯（苹果没处取）
+                java.util.List<StorageCoreBlockEntity> banksV = new java.util.ArrayList<>();
+                if (accV instanceof StorageCoreBlockEntity cv) banksV.add(cv);
+                else if (accV instanceof DataPanelBlockEntity pv)
+                    banksV.addAll(StorageCoreBlockEntity.connectedCores(world, pv.getPos()));
+                java.util.List<TradeCenterBlockEntity> tcs = new java.util.ArrayList<>();
+                for (TradeCenterBlockEntity tc : TradeCenterBlockEntity.loadedIn(world))
+                    if (tc.canCure() && tc.sharesNetwork(banksV)) tcs.add(tc);
+                if (tcs.isEmpty()) { be.stat(i, 0); continue; } // 无可升合同=待机不是故障
+                tcs.sort(java.util.Comparator.comparingInt(t ->
+                        TradeCenterBlockEntity.contractDiscount(t.contractSlot.getStack(0))));
+                long budgetV = (long) running * (1 + countLv) * cycles;
+                long cured = 0;
+                boolean apples = true;
+                while (budgetV > 0 && apples) {
+                    boolean any = false;
+                    for (TradeCenterBlockEntity tc : tcs) {
+                        if (budgetV <= 0) break;
+                        if (!tc.canCure()) continue;
+                        int got = 0;
+                        for (StorageCoreBlockEntity bank : banksV) {
+                            got = bank.withdraw("minecraft:golden_apple", 1);
+                            if (got > 0) break;
+                        }
+                        if (got <= 0) { apples = false; break; } // 苹果见底，先付后升不欠账
+                        tc.cureOnce();
+                        budgetV--; cured++; any = true;
+                    }
+                    if (!any) break; // 本轮一个都没升成（全满级）
+                }
+                if (cured > 0) { be.prodTally(cured); produced = true; be.stat(i, 1); }
+                else be.stat(i, 3); // 有合同可升却取不到苹果=缺料红灯
             } else if (st.getItem() instanceof MachineItem sk && sk.def().id().startsWith("sculk_")) {
                 // m138 幽匿三机：吃核心经验池产幽匿件（原版幽匿=经验具象化——催化体吸收死亡经验长
                 // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
