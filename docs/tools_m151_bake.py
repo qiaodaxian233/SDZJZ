@@ -64,22 +64,34 @@ FACES = {
 }
 
 quads = []
+CUR_GROUP = ["static"]
+def classify(e):
+    """m156 动画分组：signal=信号波(名字含signal)；scan=锅组(锅/馈源/俯仰轴/支臂,按名字或整体在俯仰轴以上 y>=15)；其余 static。"""
+    name = (e.get("name") or "").lower()
+    if "signal" in name: return "signal"
+    if any(k in name for k in ("dish", "feed", "receiver", "axle", "reflector")): return "scan"
+    lows = []
+    if e.get("type", "cube") == "cube": lows = [e["from"][1], e["to"][1]]
+    else: lows = [v[1] for v in e.get("vertices", {}).values()]
+    return "scan" if lows and min(lows) >= 15.0 else "static"
+
 def emit(tex, pts, uvs, double=False):
     n = norm3(pts[0], pts[1], pts[2])
     uw, uh = UVW[tex]
     u16 = [(u/uw*16.0, v/uh*16.0) for u, v in uvs]
-    q = [TEX[tex]] + [round(v, 4) for v in n]
+    q = [CUR_GROUP[0], TEX[tex]] + [round(v, 4) for v in n]
     for (p, (u, v)) in zip(pts, u16):
         q += [round(p[0],4), round(p[1],4), round(p[2],4), round(u,4), round(v,4)]
     quads.append(q)
     if double:
         n2 = [-x for x in n]
-        q2 = [TEX[tex]] + [round(v,4) for v in n2]
+        q2 = [CUR_GROUP[0], TEX[tex]] + [round(v,4) for v in n2]
         for (p,(u,v)) in zip(reversed(pts), list(reversed(u16))):
             q2 += [round(p[0],4), round(p[1],4), round(p[2],4), round(u,4), round(v,4)]
         quads.append(q2)
 
 for e in d["elements"]:
+    CUR_GROUP[0] = classify(e)
     rot = e.get("rotation", [0,0,0]) or [0,0,0]
     org = e.get("origin", [0,0,0]) or [0,0,0]
     M = rot_mat(*rot)
@@ -112,6 +124,16 @@ for e in d["elements"]:
             emit(fc["texture"], [pts[k] for k in order],
                  [tuple(uvm.get(keys[k], [0,0])) for k in order], double=True)
 
-json.dump(quads, open(OUT, "w"))
-xs=[q[4+i*5] for q in quads for i in range(4)]; ys=[q[5+i*5] for q in quads for i in range(4)]; zs=[q[6+i*5] for q in quads for i in range(4)]
+# 分组枢轴（scan/signal 各自 bbox 中心，Y 旋转只用 xz）写进 geo 头
+piv = {}
+for g in ("scan", "signal"):
+    gs = [q for q in quads if q[0] == g]
+    if gs:
+        gx=[q[5+i*5] for q in gs for i in range(4)]; gy=[q[6+i*5] for q in gs for i in range(4)]; gz=[q[7+i*5] for q in gs for i in range(4)]
+        piv[g] = [round((min(gx)+max(gx))/2/16,4), round((min(gy)+max(gy))/2/16,4), round((min(gz)+max(gz))/2/16,4)]
+piv['scan'] = [0.5, piv.get('scan',[0,1,0])[1], 0.5]  # m156 扫描绕桅杆轴不绕包围盒中心——锅偏北,绕盒心会脱杆乱甩
+json.dump({"pivots": piv, "quads": quads}, open(OUT, "w"))
+from collections import Counter
+print("分组:", dict(Counter(q[0] for q in quads)), "| 枢轴:", piv)
+xs=[q[5+i*5] for q in quads for i in range(4)]; ys=[q[6+i*5] for q in quads for i in range(4)]; zs=[q[7+i*5] for q in quads for i in range(4)]
 print(f"quad {len(quads)} | x {min(xs):.1f}..{max(xs):.1f} y {min(ys):.1f}..{max(ys):.1f} z {min(zs):.1f}..{max(zs):.1f} (方块=0..16)")

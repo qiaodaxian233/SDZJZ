@@ -48,6 +48,10 @@ public final class SatelliteNodeModel implements UnbakedModel {
     private static final SpriteIdentifier JOINT = new SpriteIdentifier(
             SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, Identifier.of("sdzjz", "block/satellite_dish_joint"));
 
+    /** m156：BER 接管渲染时静态模型烘空壳（只留粒子 sprite）——否则双重渲染。
+     *  BER 若编译/运行出问题，把这里改 false 即回 m151 静态渲染兜底。 */
+    public static final boolean BER_TAKEOVER = true;
+
     private final JsonArray quads;
 
     private SatelliteNodeModel(JsonArray quads) { this.quads = quads; }
@@ -61,7 +65,7 @@ public final class SatelliteNodeModel implements UnbakedModel {
             Identifier id = context.resourceId();
             if (id != null && "sdzjz".equals(id.getNamespace()) && id.getPath().endsWith("block/satellite_node")) {
                 JsonArray geo = loadGeo();
-                if (geo != null) return new SatelliteNodeModel(geo);
+                if (geo != null) return new SatelliteNodeModel(BER_TAKEOVER ? new JsonArray() : geo);
             }
             return original;
         }));
@@ -69,7 +73,9 @@ public final class SatelliteNodeModel implements UnbakedModel {
 
     private static JsonArray loadGeo() {
         try (var in = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
-            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonArray();
+            var root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            if (root.isJsonObject()) return root.getAsJsonObject().getAsJsonArray("quads"); // m156 v2 格式
+            return root.getAsJsonArray();
         } catch (Exception e) {
             com.sdzjz.Sdzjz.LOGGER.warn("卫星节点 geo 读取失败，维持原模型: {}", e.toString());
             return null;
@@ -86,12 +92,12 @@ public final class SatelliteNodeModel implements UnbakedModel {
         List<BakedQuad> out = new ArrayList<>(quads.size());
         for (var el : quads) {
             JsonArray q = el.getAsJsonArray();
-            Sprite spr = q.get(0).getAsString().endsWith("dish_joint") ? joint : atlas;
-            float nx = q.get(1).getAsFloat(), ny = q.get(2).getAsFloat(), nz = q.get(3).getAsFloat();
+            Sprite spr = q.get(1).getAsString().endsWith("dish_joint") ? joint : atlas; // m156 v2: 0=分组 1=贴图
+            float nx = q.get(2).getAsFloat(), ny = q.get(3).getAsFloat(), nz = q.get(4).getAsFloat();
             int packedN = ((int) (nx * 127) & 0xFF) | (((int) (ny * 127) & 0xFF) << 8) | (((int) (nz * 127) & 0xFF) << 16);
             int[] data = new int[32];
             for (int v = 0; v < 4; v++) {
-                int base = 4 + v * 5;
+                int base = 5 + v * 5; // m156 v2 索引+1
                 float x = q.get(base).getAsFloat() / 16f, y = q.get(base + 1).getAsFloat() / 16f, z = q.get(base + 2).getAsFloat() / 16f;
                 float u = q.get(base + 3).getAsFloat(), vv = q.get(base + 4).getAsFloat();
                 int o = v * 8;

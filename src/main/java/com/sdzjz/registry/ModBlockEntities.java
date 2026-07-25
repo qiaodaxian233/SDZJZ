@@ -33,6 +33,11 @@ public class ModBlockEntities {
                     FabricBlockEntityTypeBuilder.create(TradeCenterBlockEntity::new,
                             ModBlocks.TRADE_CENTER).build());
 
+    public static final BlockEntityType<com.sdzjz.block.SatelliteNodeBlockEntity> SATELLITE_NODE_BE =
+            Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("satellite_node"),
+                    FabricBlockEntityTypeBuilder.create(com.sdzjz.block.SatelliteNodeBlockEntity::new,
+                            ModBlocks.SATELLITE_NODE).build()); // m156
+
     public static final BlockEntityType<com.sdzjz.block.WirelessNodeBlockEntity> WIRELESS_NODE_BE =
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("wireless_node"),
                     FabricBlockEntityTypeBuilder.create(com.sdzjz.block.WirelessNodeBlockEntity::new,
