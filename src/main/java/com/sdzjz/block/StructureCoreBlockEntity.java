@@ -225,10 +225,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
                 if (sup == null) continue;
                 java.util.Map<String, Long> ownL = be.nodeBuf(i);
+                long pumpRate = 0, pumped = 0; // m159 泵速率=抽取量挡位×(1+数量升级)，缓存上限随速率放宽
+                long bufCapL = 4096;
+                if (pump) {
+                    pumpRate = extractorRate(stL) * (1 + be.nodeCount(stL));
+                    bufCapL = Math.max(4096, Math.min(BUF_CAP, pumpRate * 2)); // 双周期余量防速率>缓存卡喉
+                }
                 for (var en : new java.util.ArrayList<>(sup.storeView().entrySet())) {
                     String id = en.getKey();
                     long have = ownL.getOrDefault(id, 0L);
-                    if (have >= 4096) continue; // m116 每种封顶 64→4096：链式需求门控仍在（只拉下游真吃的），在途量经 8/9 号属性可见
+                    if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）：链式需求门控仍在，在途量经 8/9 号属性可见
                     if (!pump && !be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
                     if (pump && !pumpAll) {
                         // m157（用户实测：猪人塔/幽匿线产物"消失"）：m154 的无条件抽把全网络吸进
@@ -241,8 +247,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 if (t >= 0 && t < nSize && be.accepts(world, t, id)) { anyTake = true; break; }
                         if (!anyTake) continue;
                     }
-                    int got = sup.withdraw(id, (int) (4096 - have));
-                    if (got > 0) ownL.merge(id, (long) got, Long::sum);
+                    long roomL = bufCapL - have;
+                    if (pump) roomL = Math.min(roomL, pumpRate - pumped); // 泵按挡位限速
+                    if (roomL <= 0) { if (pump) break; else continue; }
+                    int got = sup.withdraw(id, (int) Math.min(roomL, Integer.MAX_VALUE));
+                    if (got > 0) { ownL.merge(id, (long) got, Long::sum); pumped += got; }
                 }
                 {
                     // m155 精确账本抽取 → m158 推广到任意逻辑节点的供料边（用户新摆法：
@@ -260,9 +269,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             long haveE = ownL.getOrDefault(idE, 0L);
                             if (haveE >= 4096) continue;
                             if (!be.chainEndsInTrash(world, i, idE, 0, new java.util.HashSet<>(), outT)) continue;
+                            long roomE = bufCapL - haveE;
+                            if (pump) roomE = Math.min(roomE, pumpRate - pumped);
+                            if (roomE <= 0) break;
                             ItemStack tpl = t.copyWithCount(1); // withdrawExact 可能移除模板，先复制
-                            int gotE = bank.withdrawExact(tpl, (int) (4096 - haveE));
-                            if (gotE > 0) ownL.merge(idE, (long) gotE, Long::sum);
+                            int gotE = bank.withdrawExact(tpl, (int) Math.min(roomE, Integer.MAX_VALUE));
+                            if (gotE > 0) { ownL.merge(idE, (long) gotE, Long::sum); pumped += gotE; }
                         }
                     }
                 }
@@ -1123,7 +1135,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     // ===== 画布逻辑节点：过滤器 / 数量传感器 =====
-    private static NbtCompound nbtOf(ItemStack s) {
+    static NbtCompound nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
         return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
     }
 
@@ -1135,6 +1147,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m154 抽取节点开合（默认关——用户点名"点击抽取才开始"）。 */
     public static boolean extractorOn(ItemStack s) { return nbtOf(s).getBoolean("xo"); }
+
+    /** m159 抽取累计读数（卡面用）。 */
+    public static long extractorCount(ItemStack s) { return nbtOf(s).getLong("xc"); }
+
+    /** m159 抽取量/轮（每 5t 每种上限，未设=512；换挡 64→512→4096 循环）。实际抽量再乘 (1+数量升级)。 */
+    public static long extractorRate(ItemStack s) {
+        long r = nbtOf(s).getLong("xr");
+        return r > 0 ? r : 512;
+    }
 
     /** m150 垃圾桶累计吞噬量（卡面读数）。 */
     public static long trashCount(ItemStack s) { return nbtOf(s).getLong("tc"); }
@@ -1301,6 +1322,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleFilterEntry(int index, String id) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
+        if ("#xr".equals(id) && isExtractor(s)) { // m159 抽取量换挡复用此收包口（64→512→4096 循环）
+            NbtCompound nx = nbtOf(s);
+            long cur = extractorRate(s);
+            nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : 64);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nx));
+            markDirty();
+            syncToClient();
+            return;
+        }
         if (!isFilter(s) && !machineFilterable(s)) return; // m149 机器加工过滤同走此口
         NbtCompound n = nbtOf(s);
         if (id == null || id.isEmpty()) {

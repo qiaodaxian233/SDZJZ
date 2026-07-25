@@ -320,6 +320,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         List<ItemStack> nodes = be.nodes();
         List<long[]> ends = endsOf(be);
 
+        ctx.enableScissor(0, 24, workRight(), this.height - 78); // m159 画布剪刀：drawItem自带z偏移(~150)
+        // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
         if (busVisible()) for (long[] e : be.storageEdgesView()) {
@@ -405,6 +407,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 cx += cw;
             }
         }
+        ctx.disableScissor(); // m159 机器区裁剪到此为止——拖线预览/总线卡/小地图要全屏可见
         // 定向连线本体已前移到节点卡片之前绘制（m136 走下层）；此处只留拖线预览（反馈要压最上层）
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
@@ -586,12 +589,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
             return;
         }
-        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 照开关卡面做启停显示
+        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停显示 + m159 速率与已抽读数
             boolean onX = StructureCoreBlockEntity.extractorOn(st);
             int bfx = onX ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawText(this.textRenderer, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
+            long xr = StructureCoreBlockEntity.extractorRate(st);
+            long xc = StructureCoreBlockEntity.extractorCount(st);
+            ctx.drawText(this.textRenderer, xr + "/轮×升级" + (xc > 0 ? "  已抽 " + fmtNum(xc) : ""),
+                    x + 44, y + 48, SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
@@ -1068,6 +1075,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停复用开关收包口
             addMenu(StructureCoreBlockEntity.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.item.Items.PISTON), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
+            addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m159 64→512→4096循环
+                    mi(net.minecraft.item.Items.HOPPER),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#xr")); });
         }
         if (StructureCoreBlockEntity.isSensor(st)) {
             addMenu("监测物品…", mi(net.minecraft.item.Items.OBSERVER), 2, () -> openSensorPicker(idx));
