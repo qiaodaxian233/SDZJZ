@@ -1,0 +1,4 @@
+{ "sources": [
+  { "type": "single", "resource": "sdzjz:block/satellite_node_atlas" },
+  { "type": "single", "resource": "sdzjz:block/satellite_dish_joint" }
+] }
