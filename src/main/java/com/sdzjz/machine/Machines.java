@@ -54,6 +54,8 @@ public final class Machines {
     public static final MachineDef VILLAGER_TRADER = new MachineDef("villager_trader", List.of(), 40, false, List.of());
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
+    /** m154 抽取节点：点击启停的主动泵——无条件抽上游仓沿线推走（不问链式需求）。 */
+    public static final MachineDef EXTRACTOR_NODE = new MachineDef("extractor_node", List.of(), 5, false, List.of());
     /** m150 垃圾桶节点：连啥吞啥的终点节点（distribute 最低优先级）。 */
     public static final MachineDef TRASH_NODE = new MachineDef("trash_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

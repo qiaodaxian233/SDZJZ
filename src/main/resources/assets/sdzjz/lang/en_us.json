@@ -103,5 +103,6 @@
   "sdzjz.prof.cleric": "Cleric",
   "sdzjz.prof.butcher": "Butcher",
   "sdzjz.prof.fisherman": "Fisherman",
-  "item.sdzjz.trash_node": "Trash Node"
+  "item.sdzjz.trash_node": "Trash Node",
+  "item.sdzjz.extractor_node": "Extractor Node"
 }

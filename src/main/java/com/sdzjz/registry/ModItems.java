@@ -45,6 +45,7 @@ public class ModItems {
     public static final Item GRINDSTONE_RECYCLER = reg("grindstone_recycler", new MachineItem(new Item.Settings(), Machines.GRINDSTONE_RECYCLER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item TRASH_NODE = reg("trash_node", new com.sdzjz.item.TrashNodeItem(new Item.Settings(), Machines.TRASH_NODE));
+    public static final Item EXTRACTOR_NODE = reg("extractor_node", new com.sdzjz.item.ExtractorNodeItem(new Item.Settings(), Machines.EXTRACTOR_NODE));
     public static final Item SENSOR_NODE = reg("sensor_node", new com.sdzjz.item.SensorNodeItem(new Item.Settings(), Machines.SENSOR_NODE));
     public static final Item SWITCH_NODE = reg("switch_node", new com.sdzjz.item.SwitchNodeItem(new Item.Settings(), Machines.SWITCH_NODE));
     public static final Item DISTRIBUTOR_NODE = reg("distributor_node", new com.sdzjz.item.DistributorNodeItem(new Item.Settings(), Machines.DISTRIBUTOR_NODE));
@@ -139,6 +140,7 @@ public class ModItems {
             entries.add(GRINDSTONE_RECYCLER);
             entries.add(FILTER_NODE);
             entries.add(TRASH_NODE);
+            entries.add(EXTRACTOR_NODE);
             entries.add(SENSOR_NODE);
             entries.add(SWITCH_NODE);
             entries.add(DISTRIBUTOR_NODE);

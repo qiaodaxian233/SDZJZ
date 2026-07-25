@@ -218,7 +218,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
-                if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL))) continue;
+                if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL) || isExtractor(stL))) continue;
+                boolean pump = isExtractor(stL); // m154 抽取节点=无条件泵：开了就抽，不问下游要不要
+                if (pump && !extractorOn(stL)) continue; // 关=完全不抽（点击抽取才开始）
                 com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
                 if (sup == null) continue;
                 java.util.Map<String, Long> ownL = be.nodeBuf(i);
@@ -226,7 +228,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     String id = en.getKey();
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= 4096) continue; // m116 每种封顶 64→4096：链式需求门控仍在（只拉下游真吃的），在途量经 8/9 号属性可见
-                    if (!be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
+                    if (!pump && !be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
                     int got = sup.withdraw(id, (int) (4096 - have));
                     if (got > 0) ownL.merge(id, (long) got, Long::sum);
                 }
@@ -301,6 +303,39 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.stat(i, 1);
                     produced = true;
                 }
+            } else if (StructureCoreBlockEntity.isExtractor(st)) {
+                // m154 抽取节点（用户点名：点击抽取才开始，抽走物品流动）：开=主动泵——拉料回路
+                // pump 分支已无条件抽上游仓入缓存，这里把缓存沿出线推给"收的"目标；推不出去的
+                // 留在缓存（背压：缓存到顶 4096 拉料自然停），绝不走默认路由——否则抽出来又
+                // 存回同一个仓，每 5t 空转刷账。垃圾桶目标照 distribute 规矩两轮垫底。
+                if (be.ticks % 5 != 0) continue;
+                if (!StructureCoreBlockEntity.extractorOn(st)) { be.stat(i, 2); continue; }
+                java.util.Map<String, Long> ownX = be.nodeBuf(i);
+                boolean movedX = false;
+                java.util.List<Integer> tgX = outT.get(i);
+                for (String id : new java.util.ArrayList<>(ownX.keySet())) {
+                    long amt = ownX.getOrDefault(id, 0L);
+                    if (amt <= 0) { ownX.remove(id); continue; }
+                    long left = amt;
+                    if (tgX != null) {
+                        for (int pass = 0; pass < 2 && left > 0; pass++) {
+                            for (int t : tgX) {
+                                if (left <= 0) break;
+                                if (t < 0 || t >= be.machineNodes.size()) continue;
+                                if ((pass == 0) == StructureCoreBlockEntity.isTrash(be.machineNodes.get(t))) continue;
+                                if (!be.accepts(world, t, id)) continue;
+                                java.util.Map<String, Long> mX = be.nodeBuf(t);
+                                long cur = mX.getOrDefault(id, 0L);
+                                long put = Math.min(Math.max(0, BUF_CAP - cur), left);
+                                if (put > 0) { mX.put(id, cur + put); left -= put; }
+                            }
+                        }
+                    }
+                    if (left != amt) movedX = true;
+                    if (left > 0) ownX.put(id, left); else ownX.remove(id);
+                }
+                be.stat(i, movedX ? 1 : 0);
+                if (movedX) produced = true;
             } else if (StructureCoreBlockEntity.isSwitch(st)) {
                 // 开关节点：开=直通转发，关=持料不动
                 if (be.ticks % 5 != 0) continue;
@@ -1041,6 +1076,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     public static boolean isTrash(ItemStack s) { return s.isOf(ModItems.TRASH_NODE); } // m150
 
+    public static boolean isExtractor(ItemStack s) { return s.isOf(ModItems.EXTRACTOR_NODE); } // m154
+
+    /** m154 抽取节点开合（默认关——用户点名"点击抽取才开始"）。 */
+    public static boolean extractorOn(ItemStack s) { return nbtOf(s).getBoolean("xo"); }
+
     /** m150 垃圾桶累计吞噬量（卡面读数）。 */
     public static long trashCount(ItemStack s) { return nbtOf(s).getLong("tc"); }
     public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
@@ -1148,9 +1188,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleSwitch(int index) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if (!isSwitch(s)) return;
         NbtCompound n = nbtOf(s);
-        n.putBoolean("so", !switchOn(s));
+        if (isSwitch(s)) n.putBoolean("so", !switchOn(s));
+        else if (isExtractor(s)) n.putBoolean("xo", !extractorOn(s)); // m154 抽取启停走同一收包口
+        else return;
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         markDirty();
         syncToClient();
@@ -1260,6 +1301,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (t < 0 || t >= machineNodes.size()) return false;
             ItemStack ts = machineNodes.get(t);
             boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts))
+                    || (isExtractor(ts) && !extractorOn(ts)) // m154
                     || nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
             if (!closedGate) return false;
         }
@@ -1670,6 +1712,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (!filterPasses(st, id)) return false;
         } else if (isSwitch(st)) {
             if (!switchOn(st)) return false;
+        } else if (isExtractor(st)) {
+            if (!extractorOn(st)) return false; // m154 关着的抽取节点=关闸中继
         } else if (isTrash(st)) {
             // m153 垃圾桶链式需求（用户实测：仓→过滤器(白名单山羊角)→垃圾桶抽不动）——
             // 经逻辑节点转接 = 玩家明确布线授权，垃圾桶作为终端什么都"想要"；
@@ -1995,6 +2039,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
         if (isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
         if (isTrash(st)) return true;                        // m150 垃圾桶连啥吞啥（distribute 已排最低优先级）
+        if (isExtractor(st)) return extractorOn(st);         // m154 抽取节点：开=收（当中继站），关=不收
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;

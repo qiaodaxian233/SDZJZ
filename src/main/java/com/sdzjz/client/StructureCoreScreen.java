@@ -586,6 +586,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
             return;
         }
+        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 照开关卡面做启停显示
+            boolean onX = StructureCoreBlockEntity.extractorOn(st);
+            int bfx = onX ? ON : SciSkin.OFF_GRAY;
+            ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
+            ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
+            ctx.drawText(this.textRenderer, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
+            return;
+        }
         if (StructureCoreBlockEntity.isSwitch(st)) {
             boolean on = StructureCoreBlockEntity.switchOn(st);
             int bfr = on ? ON : SciSkin.OFF_GRAY;
@@ -1055,6 +1063,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
             addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.item.Items.LEVER), 2,
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
+        }
+        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停复用开关收包口
+            addMenu(StructureCoreBlockEntity.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.item.Items.PISTON), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
         }
         if (StructureCoreBlockEntity.isSensor(st)) {

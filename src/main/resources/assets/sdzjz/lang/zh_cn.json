@@ -103,5 +103,6 @@
   "sdzjz.prof.cleric": "牧师",
   "sdzjz.prof.butcher": "屠夫",
   "sdzjz.prof.fisherman": "渔夫",
-  "item.sdzjz.trash_node": "垃圾桶节点"
+  "item.sdzjz.trash_node": "垃圾桶节点",
+  "item.sdzjz.extractor_node": "抽取节点"
 }
