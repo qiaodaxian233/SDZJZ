@@ -1700,7 +1700,7 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   原模型——**插件路线全挂也只是维持现状方块观感，不炸游戏**。
 - **盲写 API 对表备忘（沙箱无 MC 依赖，编译报错按类注释四点改）**：①BakedQuad 构造 arity
   （多要 lightEmission 补 0）；②Sprite.getFrameU 入参 0..1 制（已 /16f，若是 16 制去掉）；
-  ③UnbakedModel 三方法名；④OnLoad.Context#id() 或 topLevelId()。另两处艺术向待验：
+  ③UnbakedModel 三方法名；④OnLoad.Context#id()→[实机命中,m151-3 已修]1.21.1 拆为 resourceId()/topLevelId()，文件模型走前者；其余①②③经实机编译全过。另两处艺术向待验：
   欧拉序取 three.js XYZ（馈源臂朝向不对就翻序重跑脚本）；六面 UV 镜像若个别面贴图翻转，
   改脚本 FACES 表对应行。
 - 贴图：atlas/dish_joint 两张进 textures/block；v2 色图、MER（PBR 光影包用）、bbmodel
