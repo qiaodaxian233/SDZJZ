@@ -134,6 +134,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private long menuOpenMs = 0;                                   // m148 开合动画时钟
     private float[] menuHoverP = new float[0];                     // m148 逐行悬停缓动进度
     private long pickerOpenMs = 0;                                 // m148 选择器淡入时钟
+    private List<Item> pickerSrcOverride = null;                   // m149 机器加工过滤的候选源（null=常规）
+    private String pickerTitleOverride = null;                     // m149 机器加工过滤的窗题
     private static final int MENU_W = 136, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带
 
     // m110a 小地图（纯客户端零协议）
@@ -1034,6 +1036,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
                             StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
         }
+        if (StructureCoreBlockEntity.machineFilterable(st)) // m149 二级界面：熔炉选烧什么/多产物机选产物
+            addMenu(st.getItem() instanceof com.sdzjz.item.MachineItem mif && "super_smelter".equals(mif.def().id())
+                            ? "选择烧什么…" : "选择产物…",
+                    mi(net.minecraft.item.Items.FURNACE), 2, () -> openMachineFilterPicker(idx));
         addMenu("取出机器", mi(net.minecraft.item.Items.HOPPER), 1,
                 () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显
         addMenu("取消", null, 2, () -> {});
@@ -1149,8 +1155,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         StructureCoreBlockEntity be = be();
         BlockPos p = this.handler.blockPos();
         if (be == null || p == null) return;
-        for (int i = 0; i < be.nodes().size(); i++)
-            ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i % 6) * 112, 20 + (i / 6) * 88));
+        for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满5台换列）
+            ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i / 5) * 150, 20 + (i % 5) * 130));
         List<long[]> ends = endsOf(be);
         for (int j = 0; j < ends.size(); j++)
             ClientPlayNetworking.send(new StorageNodeMovePayload(p, ends.get(j)[0], 760, 20 + j * 72));
@@ -1660,6 +1666,38 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     /** 过滤名单多选：点选=加/移，不关窗。 */
+    /** m149 机器加工二级界面：复用模式1多选选择器全套（同 fl 名单/同 NodeFilterPayload/
+     *  已选置顶/Esc 完成），只换候选源与窗题。熔炉=全部可熔炼输入；多产物机=自家掉落表。 */
+    private void openMachineFilterPicker(int node) {
+        StructureCoreBlockEntity beM = be();
+        if (beM == null || node < 0 || node >= beM.nodes().size()) return;
+        ItemStack stM = beM.nodes().get(node);
+        if (!(stM.getItem() instanceof com.sdzjz.item.MachineItem mif)) return;
+        List<Item> src = new ArrayList<>();
+        LinkedHashSet<Item> set = new LinkedHashSet<>();
+        if ("super_smelter".equals(mif.def().id())) {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc.world != null)
+                for (var e : mc.world.getRecipeManager().listAllOfType(net.minecraft.recipe.RecipeType.SMELTING))
+                    for (var ing : e.value().getIngredients())
+                        for (ItemStack ms : ing.getMatchingStacks()) set.add(ms.getItem());
+            pickerTitleOverride = "选择烧什么（空=全烧·点选=加/移·Esc完成）";
+        } else {
+            for (var d : mif.def().outputs())
+                set.add(Registries.ITEM.get(net.minecraft.util.Identifier.of(d.item())));
+            pickerTitleOverride = "选择产物（空=全出·点选=加/移·Esc完成）";
+        }
+        src.addAll(set);
+        pickerSrcOverride = src;
+        pickerMode = 1;
+        pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs();
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
     private void openFilterPicker(int node) {
         pickerMode = 1;
         pickerNode = node;
@@ -1711,6 +1749,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void closePicker() {
         pickerNode = -1;
+        pickerSrcOverride = null;  // m149
+        pickerTitleOverride = null;
         pickerField.setFocused(false);
         this.setFocused(null);
     }
@@ -1734,7 +1774,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (pickerMode == 4) { refilterPotions(); return; } // m131b 药水目标走独立表
         if (pickerMode == 5) { refilterEnchants(); return; } // m132 附魔目标走独立表
         if (pickerMode == 6) { refilterTrades(); return; } // m146 交易目标走独立表
-        List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
+        List<Item> src = pickerSrcOverride != null ? pickerSrcOverride // m149 机器加工过滤候选源
+                : pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
         // m116：已选项置顶——窗口只显示一页 70 格，1400+ 物品里已选的经常根本翻不到（用户点名）。
@@ -1779,7 +1820,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(px, py + PICK_H - 4, px + 1, py + PICK_H, tickP);
         ctx.fill(px + PICK_W - 4, py + PICK_H - 1, px + PICK_W, py + PICK_H, tickP);
         ctx.fill(px + PICK_W - 1, py + PICK_H - 4, px + PICK_W, py + PICK_H, tickP);
-        String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
+        String ptitle = pickerTitleOverride != null ? pickerTitleOverride // m149
+                : pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
                 : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"
                 : pickerMode == 4 ? "选择目标药水"

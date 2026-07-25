@@ -506,6 +506,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (done >= capacity) break;
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, id);
                         if (out == null) continue;
+                        if (!machineFilterAllows(st, id)) continue; // m149 选了烧什么就只烧什么
                         long take = Math.min(be.bufCountFor(i, id), capacity - done);
                         if (take <= 0) continue;
                         be.bufWithdrawFor(i, id, take);
@@ -525,6 +526,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (done >= capacity) break;
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, en.getKey());
                         if (out == null) continue;
+                        if (!machineFilterAllows(st, en.getKey())) continue; // m149
                         long take = Math.min(en.getValue(), capacity - done);
                         if (take <= 0) continue;
                         int got = supply.withdraw(en.getKey(), (int) Math.min(take, Integer.MAX_VALUE));
@@ -734,6 +736,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositSk = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedSk = !hasOut[i] && depositSk == null;
                 for (MachineDef.Drop d : def.outputs()) {
+                    if (!machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
                     long sum = be.rollDrops(world.getRandom(), d, (int) Math.min(attempts, Integer.MAX_VALUE), countLv);
                     if (sum <= 0) continue;
                     if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
@@ -778,6 +781,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositMi = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedMi = !hasOut[i] && depositMi == null; // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : def.outputs()) {
+                    if (!machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
                     long sum = be.rollDrops(world.getRandom(), d, doCycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
@@ -813,6 +817,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositCg = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedCg = !hasOut[i] && depositCg == null;  // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : drops) {
+                    if (!machineFilterAllows(st, d.item())) continue; // m149
                     long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
@@ -1145,6 +1150,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return filterBlacklist(s) ? !in : in;
     }
 
+    /** m149 机器加工二级界面：哪些机器有"选加工范围"资格——万能熔炉(选烧什么)或多产物机(选出什么)。 */
+    public static boolean machineFilterable(ItemStack s) {
+        if (!(s.getItem() instanceof com.sdzjz.item.MachineItem mi)) return false;
+        return "super_smelter".equals(mi.def().id()) || mi.def().outputs().size() > 1;
+    }
+
+    /** m149 机器加工过滤（复用 fl 名单，白名单语义）：空=全放行；非空=只加工选中项。
+     *  与过滤节点的 fl+fb 双语义区分：机器侧永远白名单、不碰 fb。 */
+    public static boolean machineFilterAllows(ItemStack s, String id) {
+        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        if (l.isEmpty()) return true;
+        for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) return true;
+        return false;
+    }
+
     public static String sensorItem(ItemStack s) { return nbtOf(s).getString("si"); }
 
     public static long sensorThreshold(ItemStack s) {
@@ -1162,9 +1182,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleFilterEntry(int index, String id) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if (!isFilter(s)) return;
+        if (!isFilter(s) && !machineFilterable(s)) return; // m149 机器加工过滤同走此口
         NbtCompound n = nbtOf(s);
         if (id == null || id.isEmpty()) {
+            if (!isFilter(s)) return; // 机器侧永远白名单，无黑白切换
             n.putBoolean("fb", !n.getBoolean("fb"));
         } else {
             NbtList l = n.getList("fl", NbtElement.STRING_TYPE);
@@ -1651,7 +1672,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else if (st.getItem() instanceof MachineItem mi) {
             var def = mi.def();
             if ("super_smelter".equals(def.id()))
-                return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
+                return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
+                        && machineFilterAllows(st, id); // m149 滤掉的不收，留上游走默认路由
             if (def.consumesInputs()) {
                 for (var in : def.inputs()) if (in.item().equals(id)) return true;
                 return false;
@@ -1959,7 +1981,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return plan != null && plan.needs().containsKey(id);
         }
         if (st.getItem() instanceof MachineItem mi) {
-            if ("super_smelter".equals(mi.def().id())) return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null;
+            if ("super_smelter".equals(mi.def().id()))
+                return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
+                        && machineFilterAllows(st, id); // m149
             if (mi.def().consumesInputs()) {
                 for (MachineDef.Input in : mi.def().inputs()) if (in.item().equals(id)) return true;
             }
