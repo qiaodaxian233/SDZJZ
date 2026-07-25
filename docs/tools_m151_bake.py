@@ -42,8 +42,11 @@ def rot_mat(rx, ry, rz):
     def mul(A,B): return [[sum(A[i][k]*B[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
     return mul(Rx, mul(Ry, Rz)) if ORDER == "xyz" else mul(Rz, mul(Ry, Rx))
 
-def apply(m, o, v):
-    x, y, z = v[0]-o[0], v[1]-o[1], v[2]-o[2]
+def apply(m, o, v, local=False):
+    """cube的from/to是绝对坐标(先减origin再转再加回)；mesh顶点是相对origin的局部坐标
+    (m157实锤:锅顶点±8.6围着origin——直接旋转后加origin,再减一次=散架)。"""
+    if local: x, y, z = v[0], v[1], v[2]
+    else:     x, y, z = v[0]-o[0], v[1]-o[1], v[2]-o[2]
     return [m[0][0]*x+m[0][1]*y+m[0][2]*z+o[0]+SHIFT,
             m[1][0]*x+m[1][1]*y+m[1][2]*z+o[1],
             m[2][0]*x+m[2][1]*y+m[2][2]*z+o[2]+SHIFT]
@@ -110,7 +113,7 @@ for e in d["elements"]:
             if fc.get("texture") not in TEX: continue
             keys = fc["vertices"]
             if len(keys) == 3: keys = keys + [keys[2]]
-            pts = [apply(M, org, vs[k]) for k in keys]
+            pts = [apply(M, org, vs[k], local=True) for k in keys]
             c = [sum(p[i] for p in pts)/4 for i in range(3)]
             n = norm3(pts[0], pts[1], pts[2])
             ref = [pts[0][i]-c[i] for i in range(3)]

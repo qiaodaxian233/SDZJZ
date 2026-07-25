@@ -219,8 +219,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
                 if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL) || isExtractor(stL))) continue;
-                boolean pump = isExtractor(stL); // m154 抽取节点=无条件泵：开了就抽，不问下游要不要
+                boolean pump = isExtractor(stL); // m154 抽取节点=主动泵
                 if (pump && !extractorOn(stL)) continue; // 关=完全不抽（点击抽取才开始）
+                boolean pumpAll = pump && be.depositFor(world, i) != null; // m157 有定向存储出线=搬仓，全抽
                 com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
                 if (sup == null) continue;
                 java.util.Map<String, Long> ownL = be.nodeBuf(i);
@@ -229,6 +230,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= 4096) continue; // m116 每种封顶 64→4096：链式需求门控仍在（只拉下游真吃的），在途量经 8/9 号属性可见
                     if (!pump && !be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
+                    if (pump && !pumpAll) {
+                        // m157（用户实测：猪人塔/幽匿线产物"消失"）：m154 的无条件抽把全网络吸进
+                        // 缓存囤着失踪（每种4096）——改为"没有去处的不抽"：出线机器目标当下肯收
+                        // （过滤白名单在 accepts 里生效→只抽名单内）才抽；搬仓走上面 pumpAll。
+                        boolean anyTake = false;
+                        java.util.List<Integer> tgP = outT.get(i);
+                        if (tgP != null)
+                            for (int t : tgP)
+                                if (t >= 0 && t < nSize && be.accepts(world, t, id)) { anyTake = true; break; }
+                        if (!anyTake) continue;
+                    }
                     int got = sup.withdraw(id, (int) (4096 - have));
                     if (got > 0) ownL.merge(id, (long) got, Long::sum);
                 }
@@ -330,7 +342,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 留在缓存（背压：缓存到顶 4096 拉料自然停），绝不走默认路由——否则抽出来又
                 // 存回同一个仓，每 5t 空转刷账。垃圾桶目标照 distribute 规矩两轮垫底。
                 if (be.ticks % 5 != 0) continue;
-                if (!StructureCoreBlockEntity.extractorOn(st)) { be.stat(i, 2); continue; }
+                if (!StructureCoreBlockEntity.extractorOn(st)) {
+                    // m157 歇工退料：关机把缓存沿默认路由退回存储——用户被 m154 无条件抽吸走的
+                    // 货，点一下"停止抽取"就全数找回，不留缓存黑洞。
+                    java.util.Map<String, Long> ownOff = be.nodeBuf(i);
+                    if (!ownOff.isEmpty()) {
+                        for (String id : new java.util.ArrayList<>(ownOff.keySet())) {
+                            long amt = ownOff.remove(id);
+                            if (amt > 0) be.distribute(world, i, null, id, amt);
+                        }
+                        produced = true;
+                    }
+                    be.stat(i, 2);
+                    continue;
+                }
                 java.util.Map<String, Long> ownX = be.nodeBuf(i);
                 boolean movedX = false;
                 java.util.List<Integer> tgX = outT.get(i);
@@ -350,6 +375,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 long put = Math.min(Math.max(0, BUF_CAP - cur), left);
                                 if (put > 0) { mX.put(id, cur + put); left -= put; }
                             }
+                        }
+                    }
+                    if (left > 0) { // m157 搬仓：机器目标推不完的余量走定向存储出线（明确目的地，非默认路由）
+                        com.sdzjz.machine.StorageAccess depX = be.depositFor(world, i);
+                        if (depX != null) {
+                            be.depositOrBuffer(depX, new ItemStack(Registries.ITEM.get(Identifier.of(id)),
+                                    (int) Math.min(left, Integer.MAX_VALUE)));
+                            left = 0;
                         }
                     }
                     if (left != amt) movedX = true;
