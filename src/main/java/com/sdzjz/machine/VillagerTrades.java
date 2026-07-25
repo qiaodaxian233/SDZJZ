@@ -52,6 +52,7 @@ public final class VillagerTrades {
                 t("minecraft:flint", 30, "minecraft:emerald", 1),
                 t("minecraft:emerald", 1, "minecraft:iron_pickaxe", 1))));
         ALL.put("cleric", new Profession("minecraft:brewing_stand", "sdzjz.prof.cleric", List.of(
+                t("minecraft:emerald", 1, "minecraft:lapis_lazuli", 1), // m153 青金石量产口（原版牧师学徒价）——附魔工厂的青金石此前全表无产路
                 t("minecraft:rotten_flesh", 32, "minecraft:emerald", 1),
                 t("minecraft:gold_ingot", 3, "minecraft:emerald", 1),
                 t("minecraft:emerald", 1, "minecraft:redstone", 2),

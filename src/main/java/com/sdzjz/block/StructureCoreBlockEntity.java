@@ -1670,6 +1670,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (!filterPasses(st, id)) return false;
         } else if (isSwitch(st)) {
             if (!switchOn(st)) return false;
+        } else if (isTrash(st)) {
+            // m153 垃圾桶链式需求（用户实测：仓→过滤器(白名单山羊角)→垃圾桶抽不动）——
+            // 经逻辑节点转接 = 玩家明确布线授权，垃圾桶作为终端什么都"想要"；
+            // 直连仓依然不抽（拉料回路的节点类型清单本就不含垃圾桶，m150 防手滑边界不动）。
+            return true;
         } else if (isSensor(st) || isDistributor(st)) {
             // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行
         } else if (st.getItem() instanceof AutoCrafterItem) {
