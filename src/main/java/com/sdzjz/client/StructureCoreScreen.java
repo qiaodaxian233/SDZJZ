@@ -128,7 +128,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int menuX, menuY;
     private final List<String> menuLabels = new ArrayList<>();
     private final List<Runnable> menuActions = new ArrayList<>();
-    private static final int MENU_W = 108, MENU_H = 16;
+    private final List<ItemStack> menuIcons = new ArrayList<>();   // m148 行图标（可空）
+    private final List<Integer> menuStyles = new ArrayList<>();    // m148 0普通 1危险(红) 2组首(上加分隔线)
+    private String menuTitle = null;                               // m148 标题带（节点菜单=机器名）
+    private long menuOpenMs = 0;                                   // m148 开合动画时钟
+    private float[] menuHoverP = new float[0];                     // m148 逐行悬停缓动进度
+    private long pickerOpenMs = 0;                                 // m148 选择器淡入时钟
+    private static final int MENU_W = 136, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带
 
     // m110a 小地图（纯客户端零协议）
     private boolean mapOpen = false;
@@ -946,20 +952,35 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // ================= 右键菜单 =================
     private void openMenu(int x, int y) {
         menuOpen = true;
+        menuOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 开合动画从零起
+        menuHoverP = new float[menuLabels.size()];
+        int th = menuTitle != null ? MENU_TITLE_H : 0;
         menuX = Math.min(x, workRight() - MENU_W - 4);
-        menuY = Math.min(y, this.height - menuLabels.size() * MENU_H - 4);
+        menuY = Math.min(y, this.height - (menuLabels.size() * MENU_H + th) - 4);
     }
 
     private void clearMenu() {
         menuLabels.clear();
         menuActions.clear();
+        menuIcons.clear();
+        menuStyles.clear();
+        menuTitle = null;
         menuOpen = false;
     }
 
-    private void addMenu(String label, Runnable action) {
+    private void addMenu(String label, Runnable action) { addMenu(label, null, 0, action); }
+
+    private void addMenu(String label, ItemStack icon, Runnable action) { addMenu(label, icon, 0, action); }
+
+    /** m148：style 0=普通 1=危险(红字红条) 2=组首(上方分隔线)。 */
+    private void addMenu(String label, ItemStack icon, int style, Runnable action) {
         menuLabels.add(label);
         menuActions.add(action);
+        menuIcons.add(icon);
+        menuStyles.add(style);
     }
+
+    private static ItemStack mi(net.minecraft.item.Item it) { return new ItemStack(it); }
 
     /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
     private void openNodeMenu(int idx, int atX, int atY) {
@@ -968,8 +989,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         final ItemStack st = be.nodes().get(idx);
         BlockPos p = this.handler.blockPos();
         clearMenu();
-        addMenu("取出机器", () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); });
+        menuTitle = st.getName().getString(); // m148 标题带=机器名
         addMenu(StructureCoreBlockEntity.nodePaused(st) ? "恢复运行" : "暂停节点",
+                mi(StructureCoreBlockEntity.nodePaused(st) ? net.minecraft.item.Items.LIME_DYE : net.minecraft.item.Items.REDSTONE),
                 () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
         if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
             int mt = StructureCoreBlockEntity.machineTier(st);
@@ -980,39 +1002,41 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             for (ItemStack o : be.nodes())
                 if (o.getItem() == st.getItem() && StructureCoreBlockEntity.machineTier(o) == mt) sameTotal += o.getCount();
             if (mt < 3 && sameTotal >= 4)
-                addMenu("融合：4台→" + TN[mt + 1] + "×1",
+                addMenu("融合：4台→" + TN[mt + 1] + "×1", mi(net.minecraft.item.Items.ANVIL), 2,
                         () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
             if (mt > 0)
-                addMenu("拆解：1台→" + TN[mt - 1] + "×4",
+                addMenu("拆解：1台→" + TN[mt - 1] + "×4", mi(net.minecraft.item.Items.GRINDSTONE),
                         () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
         }
-        addMenu("断开全部连线", () -> clearLinksOfMachine(idx));
+        addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 2, () -> clearLinksOfMachine(idx));
         if (st.getItem() instanceof AutoCrafterItem)
-            addMenu("选择合成目标", () -> openPicker(idx));
+            addMenu("选择合成目标", mi(net.minecraft.item.Items.CRAFTING_TABLE), 2, () -> openPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem)
-            addMenu("选择目标药水", () -> openPotionPicker(idx));
+            addMenu("选择目标药水", mi(net.minecraft.item.Items.BREWING_STAND), 2, () -> openPotionPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)
-            addMenu("选择目标附魔", () -> openEnchantPicker(idx));
+            addMenu("选择目标附魔", mi(net.minecraft.item.Items.ENCHANTED_BOOK), 2, () -> openEnchantPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem)
-            addMenu("选择交易条目", () -> openTradePicker(idx));
+            addMenu("选择交易条目", mi(net.minecraft.item.Items.EMERALD), 2, () -> openTradePicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
-            addMenu("选择种植作物", () -> openCropPicker(idx));
+            addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
         if (StructureCoreBlockEntity.isFilter(st)) {
-            addMenu("配置过滤物品…", () -> openFilterPicker(idx));
-            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单",
+            addMenu("配置过滤物品…", mi(net.minecraft.item.Items.COMPARATOR), 2, () -> openFilterPicker(idx));
+            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.item.Items.PAPER),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
-            addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启",
+            addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.item.Items.LEVER), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
         }
         if (StructureCoreBlockEntity.isSensor(st)) {
-            addMenu("监测物品…", () -> openSensorPicker(idx));
-            addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行",
+            addMenu("监测物品…", mi(net.minecraft.item.Items.OBSERVER), 2, () -> openSensorPicker(idx));
+            addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行", mi(net.minecraft.item.Items.REPEATER),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
                             StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
         }
-        addMenu("取消", () -> {});
+        addMenu("取出机器", mi(net.minecraft.item.Items.HOPPER), 1,
+                () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显
+        addMenu("取消", null, 2, () -> {});
         openMenu(atX, atY);
     }
 
@@ -1026,17 +1050,69 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(x + 1, y + 6, x + 3, y + 9, TXT);
     }
 
+    /** m148 菜单 3A 化：110ms 弹入（缩放+淡入 easeOutCubic）、逐行悬停指数缓动（底色渐显+
+     *  强调条滑出+文字右移 2px+颜色插值）、标题带（机器名+青下划线）、组分隔线、行图标（0.8×物品）、
+     *  危险项红系。全程 DrawContext 原语，零贴图零 shader。 */
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY) {
-        int h = menuLabels.size() * MENU_H;
-        ctx.fill(menuX + 2, menuY + 3, menuX + MENU_W + 3, menuY + h + 3, 0x59000000); // m120 投影
-        ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, NODEFRM);
-        for (int i = 0; i < menuLabels.size(); i++) {
-            int y0 = menuY + i * MENU_H;
-            boolean hov = mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= y0 && mouseY < y0 + MENU_H;
-            ctx.fill(menuX, y0, menuX + MENU_W, y0 + MENU_H, hov ? SciSkin.HOVER : 0xF00A1626);
-            if (hov) ctx.fill(menuX, y0, menuX + 2, y0 + MENU_H, CYAN); // m120 悬停行强调条
-            ctx.drawText(this.textRenderer, menuLabels.get(i), menuX + (hov ? 8 : 6), y0 + 4, hov ? SciSkin.TXT_MAX : TXT, false);
+        int th = menuTitle != null ? MENU_TITLE_H : 0;
+        int h = menuLabels.size() * MENU_H + th;
+        float ease = SciSkin.easeOut((net.minecraft.util.Util.getMeasuringTimeMs() - menuOpenMs) / 110f);
+        if (menuHoverP.length != menuLabels.size()) menuHoverP = new float[menuLabels.size()];
+        ctx.getMatrices().push(); // 弹入：以菜单左上角为锚 0.92→1.0
+        ctx.getMatrices().translate(menuX, menuY, 0);
+        float sc = 0.92f + 0.08f * ease;
+        ctx.getMatrices().scale(sc, sc, 1f);
+        ctx.getMatrices().translate(-menuX, -menuY, 0);
+        ctx.fill(menuX + 3, menuY + 4, menuX + MENU_W + 3, menuY + h + 4, SciSkin.withAlpha(0x66000000, ease));
+        ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, SciSkin.withAlpha(NODEFRM, ease));
+        ctx.fill(menuX, menuY, menuX + MENU_W, menuY + h, SciSkin.withAlpha(0xF00A1626, ease));
+        if (th > 0) {
+            ctx.fill(menuX, menuY, menuX + MENU_W, menuY + th, SciSkin.withAlpha(0xF00E2438, ease));
+            ctx.fill(menuX, menuY + th - 1, menuX + MENU_W, menuY + th, SciSkin.withAlpha(CYAN, ease * 0.9f));
+            String tt = menuTitle;
+            while (tt.length() > 1 && this.textRenderer.getWidth(tt) > MENU_W - 12) tt = tt.substring(0, tt.length() - 1);
+            ctx.drawText(this.textRenderer, tt, menuX + 6, menuY + 3,
+                    SciSkin.withAlpha(SciSkin.TXT_HI, Math.max(0.3f, ease)), false);
         }
+        int tick = SciSkin.lighten(NODEFRM); // 四角刻与卡片语言呼应
+        ctx.fill(menuX, menuY, menuX + 4, menuY + 1, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX, menuY, menuX + 1, menuY + 4, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX + MENU_W - 4, menuY, menuX + MENU_W, menuY + 1, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX + MENU_W - 1, menuY, menuX + MENU_W, menuY + 4, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX, menuY + h - 1, menuX + 4, menuY + h, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX, menuY + h - 4, menuX + 1, menuY + h, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX + MENU_W - 4, menuY + h - 1, menuX + MENU_W, menuY + h, SciSkin.withAlpha(tick, ease));
+        ctx.fill(menuX + MENU_W - 1, menuY + h - 4, menuX + MENU_W, menuY + h, SciSkin.withAlpha(tick, ease));
+        for (int i = 0; i < menuLabels.size(); i++) {
+            int y0 = menuY + th + i * MENU_H;
+            boolean hov = mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= y0 && mouseY < y0 + MENU_H;
+            menuHoverP[i] += ((hov ? 1f : 0f) - menuHoverP[i]) * 0.35f; // 指数趋近（~60fps 手感）
+            float pv = menuHoverP[i];
+            boolean danger = menuStyles.get(i) == 1;
+            if (menuStyles.get(i) == 2)
+                ctx.fill(menuX + 6, y0, menuX + MENU_W - 6, y0 + 1, SciSkin.withAlpha(0x552EC4FF, ease));
+            if (pv > 0.02f)
+                ctx.fill(menuX, y0 + 1, menuX + MENU_W, y0 + MENU_H - 1,
+                        SciSkin.withAlpha(danger ? 0xFF3A1420 : SciSkin.HOVER, ease * pv));
+            int barW = Math.round(3 * pv);
+            if (barW > 0)
+                ctx.fill(menuX, y0 + 1, menuX + barW, y0 + MENU_H - 1,
+                        SciSkin.withAlpha(danger ? SciSkin.RED : CYAN, ease));
+            int tx = menuX + 6 + Math.round(2 * pv);
+            ItemStack ic = menuIcons.get(i);
+            if (ic != null && !ic.isEmpty()) {
+                ctx.getMatrices().push();
+                ctx.getMatrices().translate(tx, y0 + 2, 0);
+                ctx.getMatrices().scale(0.8f, 0.8f, 1f);
+                ctx.drawItem(ic, 0, 0);
+                ctx.getMatrices().pop();
+                tx += 16;
+            }
+            int col = danger ? SciSkin.mix(SciSkin.RED_SOFT, SciSkin.RED, pv) : SciSkin.mix(TXT, SciSkin.TXT_MAX, pv);
+            ctx.drawText(this.textRenderer, menuLabels.get(i), tx, y0 + 5,
+                    SciSkin.withAlpha(col, Math.max(0.3f, ease)), false);
+        }
+        ctx.getMatrices().pop();
     }
 
     /** 断开某机器节点的全部连线（机器边 + 存储边，逐条 toggle）。 */
@@ -1111,12 +1187,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return true;
         }
         if (menuOpen) {
-            int h = menuLabels.size() * MENU_H;
-            if (button == 0 && mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= menuY && mouseY < menuY + h) {
-                int idx = (int) ((mouseY - menuY) / MENU_H);
+            int thM = menuTitle != null ? MENU_TITLE_H : 0; // m148 标题带占位
+            int h = menuLabels.size() * MENU_H + thM;
+            if (button == 0 && mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= menuY + thM && mouseY < menuY + h) {
+                int idx = (int) ((mouseY - menuY - thM) / MENU_H);
                 Runnable act = idx >= 0 && idx < menuActions.size() ? menuActions.get(idx) : null;
                 clearMenu();
-                if (act != null) act.run();
+                if (act != null) {
+                    MinecraftClient.getInstance().getSoundManager().play( // m148 点选音（原版按钮同款）
+                            net.minecraft.client.sound.PositionedSoundInstance.master(
+                                    net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                    act.run();
+                }
                 return true;
             }
             clearMenu();
@@ -1253,7 +1335,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
                             clearMenu();
-                            addMenu("断开全部连线", () -> clearLinksOfStorage(pl));
+                            menuTitle = "存储连线"; // m148
+                            addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 1, () -> clearLinksOfStorage(pl));
                             addMenu("取消", () -> {});
                             openMenu((int) mouseX, (int) mouseY);
                             return true;
@@ -1269,9 +1352,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                     // 右键空白 → 画布菜单
                     clearMenu();
-                    addMenu("整理布局", this::autoLayout);
-                    addMenu("重置视角", () -> { panX = 0; panY = 0; zoom = 1.0; });
-                    addMenu("取消", () -> {});
+                    menuTitle = "画布"; // m148
+                    addMenu("整理布局", mi(net.minecraft.item.Items.COMPASS), this::autoLayout);
+                    addMenu("重置视角", mi(net.minecraft.item.Items.SPYGLASS), () -> { panX = 0; panY = 0; zoom = 1.0; });
+                    addMenu("取消", null, 2, () -> {});
                     openMenu((int) mouseX, (int) mouseY);
                     return true;
                 }
@@ -1450,6 +1534,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openPicker(int node) {
         pickerMode = 0;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (craftables == null) buildCraftables();
         pickerField.setText("");
         refilterPicker();
@@ -1461,6 +1546,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openPotionPicker(int node) {
         pickerMode = 4;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (potionIds == null) {
             potionIds = new ArrayList<>(Registries.POTION.getIds());
             potionIds.sort(java.util.Comparator.comparing(net.minecraft.util.Identifier::toString));
@@ -1480,6 +1566,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openEnchantPicker(int node) {
         pickerMode = 5;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         enchAllIds = new ArrayList<>();
         enchAllNames = new ArrayList<>();
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -1505,6 +1592,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openTradePicker(int node) {
         pickerMode = 6;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         tradeAllIds = com.sdzjz.machine.TradePlanner.allTargets();
         pickerField.setText("");
         refilterPicker();
@@ -1575,6 +1663,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openFilterPicker(int node) {
         pickerMode = 1;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (allItems == null) buildAllItems();
         pickerField.setText("");
         refilterPicker();
@@ -1586,6 +1675,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openSensorPicker(int node) {
         pickerMode = 2;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (allItems == null) buildAllItems();
         pickerField.setText("");
         refilterPicker();
@@ -1599,6 +1689,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void openCropPicker(int node) {
         pickerMode = 3;
         pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (cropItems == null) {
             cropItems = new ArrayList<>();
             for (String id : com.sdzjz.machine.CropFarms.KEYS)
@@ -1677,10 +1768,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void renderPicker(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
-        ctx.fill(0, 0, this.width, this.height, 0xA0000000);
+        float easeP = SciSkin.easeOut((net.minecraft.util.Util.getMeasuringTimeMs() - pickerOpenMs) / 130f); // m148 淡入
+        ctx.fill(0, 0, this.width, this.height, SciSkin.withAlpha(0xA0000000, 0.35f + 0.65f * easeP));
+        ctx.fill(px + 3, py + 4, px + PICK_W + 3, py + PICK_H + 4, SciSkin.withAlpha(0x66000000, easeP)); // 投影
         ctx.fill(px - 1, py - 1, px + PICK_W + 1, py + PICK_H + 1, NODEFRM);
         ctx.fill(px, py, px + PICK_W, py + PICK_H, 0xF00A1626);
-        ctx.fill(px, py, px + PICK_W, py + 3, CYAN);
+        ctx.fill(px, py, px + PICK_W, py + 3, SciSkin.withAlpha(CYAN, 0.5f + 0.5f * easeP));
+        int tickP = SciSkin.lighten(NODEFRM); // m148 下沿角刻与卡片语言呼应
+        ctx.fill(px, py + PICK_H - 1, px + 4, py + PICK_H, tickP);
+        ctx.fill(px, py + PICK_H - 4, px + 1, py + PICK_H, tickP);
+        ctx.fill(px + PICK_W - 4, py + PICK_H - 1, px + PICK_W, py + PICK_H, tickP);
+        ctx.fill(px + PICK_W - 1, py + PICK_H - 4, px + PICK_W, py + PICK_H, tickP);
         String ptitle = pickerMode == 1 ? "配置过滤名单（点选=加/移·可多选·Esc完成）"
                 : pickerMode == 2 ? "选择监测物品（中文/英文搜索）"
                 : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"

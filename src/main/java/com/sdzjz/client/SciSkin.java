@@ -64,6 +64,30 @@ public final class SciSkin {
         ctx.fill(x + w - 4, y + h - 1, x + w, y + h, t); ctx.fill(x + w - 1, y + h - 4, x + w, y + h, t);
     }
 
+    /** m148 缓动 easeOutCubic（菜单开合/选择器滑入统一手感）。 */
+    public static float easeOut(float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        float u = 1 - t;
+        return 1 - u * u * u;
+    }
+
+    /** m148 颜色 alpha 乘法（淡入动画用）。注意 MC 把 alpha<0x04 的文字当不透明渲染，
+     *  文字侧请自行钳下限（fills 无此坑）。 */
+    public static int withAlpha(int color, float a) {
+        int al = (int) (((color >>> 24) & 0xFF) * Math.max(0f, Math.min(1f, a)));
+        return (al << 24) | (color & 0xFFFFFF);
+    }
+
+    /** m148 两色插值（悬停渐变用，含 alpha 通道）。 */
+    public static int mix(int c1, int c2, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        int a = (int) (((c1 >>> 24) & 0xFF) + (((c2 >>> 24) & 0xFF) - ((c1 >>> 24) & 0xFF)) * t);
+        int r = (int) (((c1 >> 16) & 0xFF) + (((c2 >> 16) & 0xFF) - ((c1 >> 16) & 0xFF)) * t);
+        int g = (int) (((c1 >> 8) & 0xFF) + (((c2 >> 8) & 0xFF) - ((c1 >> 8) & 0xFF)) * t);
+        int b = (int) ((c1 & 0xFF) + ((c2 & 0xFF) - (c1 & 0xFF)) * t);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     /** 颜色提亮（角刻/悬停微光用）。 */
     public static int lighten(int c) {
         int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
