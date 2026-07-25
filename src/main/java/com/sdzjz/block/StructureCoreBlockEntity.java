@@ -244,11 +244,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     int got = sup.withdraw(id, (int) (4096 - have));
                     if (got > 0) ownL.merge(id, (long) got, Long::sum);
                 }
-                if (pump) {
-                    // m155 精确账本抽取（用户实测：凋灵机山羊角带乐器组件走精确账本，泵抽不到）：
-                    // 节点缓存按 id 记账带不动组件——抹组件搬运=毁物，所以只在「该 id 的出线链
-                    // 通向垃圾桶」（chainEndsInTrash 尊重过滤白名单）时才抽——反正是去销毁，
-                    // 抹组件无损语义。抽到普通 id 计数进缓存，沿线流到垃圾桶吞掉。
+                {
+                    // m155 精确账本抽取 → m158 推广到任意逻辑节点的供料边（用户新摆法：
+                    // 仓→过滤(白名单)→抽取→垃圾桶 过滤打头时原来够不着精确账本，山羊角删不掉）。
+                    // 授权闸不变：只在「该 id 的出线链通向垃圾桶」（chainEndsInTrash 尊重过滤
+                    // 白名单/开关/抽取启停）时才抽——反正是去销毁，抹组件无损语义；
+                    // 顺带收益：链上有关着的抽取节点=闸断不抽，抽取节点成了销毁线的启停阀。
                     java.util.List<StorageCoreBlockEntity> banksP = new java.util.ArrayList<>();
                     if (sup instanceof StorageCoreBlockEntity cp) banksP.add(cp);
                     else if (sup instanceof DataPanelBlockEntity pp)
