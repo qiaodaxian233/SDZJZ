@@ -1683,3 +1683,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   蛙灯角鳞籽进垃圾桶、卡面"已吞"涨；②先连垃圾桶后连过滤器：结果应完全相同（垫底不看顺序）；
   ③仓→垃圾桶直连：仓里的货应纹丝不动；④拔掉垃圾桶连线：其余产物恢复默认入库（喷出来
   的旧行为只在断网时）；⑤总线卡观感：暗框+顶带+药丸+接线柱，连线仍从原端口位置拉出。
+
+## m151 卫星节点 bbmodel 真模型（用户出 Blockbench 模型+PBR 贴图）
+- **为什么不能走原版 JSON**：bbmodel 是 free 格式——任意欧拉角 11 种（5°~40° 锅架弧面分段）、
+  双轴旋转馈源臂 2 件、**mesh 网格 3 件**（抛物面锅本体 224 面/馈源接收器/俯仰轴）。原版
+  JSON 反序列化器只认 0/±22.5/±45 单轴且无 mesh。贴齐角度会把弧面锅架压成三级台阶，废艺术。
+- **方案：python 离线全烘 + Java 瘦壳**。几何全部离线算成平面 quad 表（860 条）落
+  models/block/satellite_node_geo.json（166KB 资产，换皮/改模只需重跑转换脚本覆盖资产，
+  Java 零改动）：欧拉角矩阵精确应用（双轴不近似）；mesh 三角补第四点成退化 quad；
+  顶点绕面心极角排序（bbmodel 面顶点序不保证凸序）；**锅面双面出**（单面 quad 背面剔除
+  会把锅看穿）；UV 按各贴图 uv_width 归一（id0 是 160×16 全幅横铺已是 16 制、id7 要÷10）；
+  cuboid 走原版六面角序+UV 角序+面 rotation 轮转。
+- **Java 侧**：SatelliteNodeModel（UnbakedModel）读 geo→打包顶点→BakedQuad，全进
+  null-face 桶（斜面几何塞方向桶会被邻方块错误剔面），AO 关（薄件斜面吃 AO 出黑斑）。
+  Fabric ModelLoadingPlugin 拦截 block/satellite_node；geo 读取/解析失败 warn 后返回
+  原模型——**插件路线全挂也只是维持现状方块观感，不炸游戏**。
+- **盲写 API 对表备忘（沙箱无 MC 依赖，编译报错按类注释四点改）**：①BakedQuad 构造 arity
+  （多要 lightEmission 补 0）；②Sprite.getFrameU 入参 0..1 制（已 /16f，若是 16 制去掉）；
+  ③UnbakedModel 三方法名；④OnLoad.Context#id() 或 topLevelId()。另两处艺术向待验：
+  欧拉序取 three.js XYZ（馈源臂朝向不对就翻序重跑脚本）；六面 UV 镜像若个别面贴图翻转，
+  改脚本 FACES 表对应行。
+- 贴图：atlas/dish_joint 两张进 textures/block；v2 色图、MER（PBR 光影包用）、bbmodel
+  源件入 素材/模型/卫星节点（faces 引用的是 id0 atlas，v2 未被面引用——若 v2 是替代版，
+  同尺寸直接覆盖 satellite_node_atlas.png 即换）。
+- 验证脚本：①摆放卫星节点应见完整天线：抛物面锅（双面可视）+分段弧形锅架+馈源臂+
+  黄色信号波纹；②锅面从背后看不透明；③薄件无黑斑；④资源包重载(F3+T)模型仍在；
+  ⑤故意改坏 geo.json 再 F3+T：日志 warn+回退旧方块观感不崩。
