@@ -50,6 +50,8 @@ public final class Machines {
     public static final MachineDef GRINDSTONE_RECYCLER = new MachineDef("grindstone_recycler", List.of(), 40, false, List.of());
     /** m145 村民打折机：自动治愈——吃网络金苹果，给共网交易所里的合同升折扣（tick 专属分支，掉落表空）。 */
     public static final MachineDef VILLAGER_DISCOUNT_MACHINE = new MachineDef("villager_discount_machine", List.of(), 40, false, List.of());
+    /** m146 村民无限交易机：目标交易在画布徽章选择（TradePlanner 解析"职业|序号"），tick 专属分支，掉落表空。 */
+    public static final MachineDef VILLAGER_TRADER = new MachineDef("villager_trader", List.of(), 40, false, List.of());
     /** 画布逻辑节点：本体不产不耗，逻辑在结构核心 tick 里（过滤分流/闸门）。 */
     public static final MachineDef FILTER_NODE = new MachineDef("filter_node", List.of(), 5, false, List.of());
     public static final MachineDef SENSOR_NODE = new MachineDef("sensor_node", List.of(), 5, false, List.of());

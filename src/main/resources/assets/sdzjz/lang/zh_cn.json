@@ -94,5 +94,13 @@
   "item.sdzjz.logo": "生电终结者",
   "item.sdzjz.g_misc_machine": "G组杂项机器",
   "item.sdzjz.sculk_line": "幽匿线",
-  "item.sdzjz.villager_discount_machine": "村民打折机"
+  "item.sdzjz.villager_discount_machine": "村民打折机",
+  "item.sdzjz.villager_trader": "村民无限交易机",
+  "sdzjz.prof.farmer": "农民",
+  "sdzjz.prof.librarian": "图书管理员",
+  "sdzjz.prof.cartographer": "制图师",
+  "sdzjz.prof.toolsmith": "工具匠",
+  "sdzjz.prof.cleric": "牧师",
+  "sdzjz.prof.butcher": "屠夫",
+  "sdzjz.prof.fisherman": "渔夫"
 }

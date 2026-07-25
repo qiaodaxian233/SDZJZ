@@ -149,6 +149,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private java.util.List<net.minecraft.text.Text> enchAllNames;
     private final List<ItemStack> enchFiltered = new ArrayList<>();   // 行样板栈（绿框/悬停用）
     private final List<String> enchFilteredIds = new ArrayList<>();
+    private java.util.List<String> tradeAllIds;                       // m146 全部交易目标串 职业|序号
+    private final List<ItemStack> tradeFiltered = new ArrayList<>();
+    private final List<String> tradeFilteredIds = new ArrayList<>();
+    private final List<net.minecraft.text.Text> tradeFilteredNames = new ArrayList<>();
     private final List<net.minecraft.text.Text> enchFilteredNames = new ArrayList<>();
     private static final int ENCH_ROW_H = 18, ENCH_ROWS = 8;
     private TextFieldWidget pickerField;
@@ -597,7 +601,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
         boolean isBrew = st.getItem() instanceof com.sdzjz.item.BrewingTowerItem; // m131b
         boolean isEnch = st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem; // m132
-        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew || isEnch) {
+        boolean isTrade = st.getItem() instanceof com.sdzjz.item.VillagerTraderItem; // m146
+        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew || isEnch || isTrade) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
@@ -612,8 +617,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = isBrew ? com.sdzjz.machine.BrewPlanner.targetStack(t)
                         : isEnch ? com.sdzjz.machine.EnchantPlanner.targetStack(MinecraftClient.getInstance().world, t)
+                        : isTrade ? com.sdzjz.machine.TradePlanner.iconStack(t)
                         : new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
                 if (ts == null) ts = new ItemStack(isEnch ? net.minecraft.item.Items.ENCHANTED_BOOK
+                        : isTrade ? net.minecraft.item.Items.EMERALD
                         : net.minecraft.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载/数据包变更等）
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
@@ -621,11 +628,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     var en = com.sdzjz.machine.EnchantPlanner.targetName(MinecraftClient.getInstance().world, t);
                     if (en != null) tn = en.getString();
                 }
+                if (isTrade) tn = com.sdzjz.machine.TradePlanner.displayName(t).getString(); // m146 徽章=整条交易
                 while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 50) tn = tn.substring(0, tn.length() - 1);
                 ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : "设目标", x + 44, y + 38, SUB, false);
+                ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
     }
@@ -985,6 +993,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择目标药水", () -> openPotionPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)
             addMenu("选择目标附魔", () -> openEnchantPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem)
+            addMenu("选择交易条目", () -> openTradePicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", () -> openCropPicker(idx));
         if (StructureCoreBlockEntity.isFilter(st)) {
@@ -1130,6 +1140,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         BlockPos bpp = this.handler.blockPos();
                         if (bpp != null && button == 0)
                             ClientPlayNetworking.send(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
+                        closePicker();
+                        return true;
+                    }
+                }
+                if (mouseX < px || mouseX > px + PICK_W || mouseY < py || mouseY > py + PICK_H) closePicker();
+                return true;
+            }
+            if (pickerMode == 6) { // m146 交易目标：点行=设目标关窗
+                int rgx = px + 8, rgy = py + 44;
+                for (int k = 0; k < tradeFilteredIds.size(); k++) {
+                    int ry = rgy + k * ENCH_ROW_H;
+                    if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
+                        BlockPos bpt = this.handler.blockPos();
+                        if (bpt != null && button == 0)
+                            ClientPlayNetworking.send(new NodeTargetPayload(bpt, pickerNode, tradeFilteredIds.get(k)));
                         closePicker();
                         return true;
                     }
@@ -1298,10 +1323,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         boolean auto = nodes.get(i).getItem() instanceof AutoCrafterItem;
                         boolean crop = nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem;
                         boolean brew = nodes.get(i).getItem() instanceof com.sdzjz.item.BrewingTowerItem;
-                        if (!auto && !crop && !brew) continue;
+                        boolean trade = nodes.get(i).getItem() instanceof com.sdzjz.item.VillagerTraderItem; // m146
+                        if (!auto && !crop && !brew && !trade) continue;
                         int bx = wnx(be, nodes, i) + NW - 30, by = wny(be, nodes, i) + 14;
                         if (wx >= bx && wx <= bx + 20 && wy >= by && wy <= by + 20) {
-                            if (crop) openCropPicker(i); else if (brew) openPotionPicker(i); else openPicker(i);
+                            if (crop) openCropPicker(i); else if (brew) openPotionPicker(i); else if (trade) openTradePicker(i); else openPicker(i);
                             return true;
                         }
                     }
@@ -1475,6 +1501,35 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerField.setFocused(true);
     }
 
+    /** m146 交易目标选择器：行式列表（职业：付出→获得），照附魔模式5样式。 */
+    private void openTradePicker(int node) {
+        pickerMode = 6;
+        pickerNode = node;
+        tradeAllIds = com.sdzjz.machine.TradePlanner.allTargets();
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    private void refilterTrades() {
+        tradeFiltered.clear();
+        tradeFilteredIds.clear();
+        tradeFilteredNames.clear();
+        if (tradeAllIds == null) return;
+        String q = pickerField.getText().trim().toLowerCase();
+        for (String tgt : tradeAllIds) {
+            net.minecraft.text.Text nm = com.sdzjz.machine.TradePlanner.displayName(tgt);
+            if (!q.isEmpty() && !nm.getString().toLowerCase().contains(q) && !tgt.contains(q)) continue;
+            ItemStack ic = com.sdzjz.machine.TradePlanner.iconStack(tgt);
+            if (ic == null) continue;
+            tradeFiltered.add(ic);
+            tradeFilteredIds.add(tgt);
+            tradeFilteredNames.add(nm);
+            if (tradeFiltered.size() >= ENCH_ROWS) break;
+        }
+    }
+
     private void refilterEnchants() {
         enchFiltered.clear();
         enchFilteredIds.clear();
@@ -1587,6 +1642,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerFiltered.clear();
         if (pickerMode == 4) { refilterPotions(); return; } // m131b 药水目标走独立表
         if (pickerMode == 5) { refilterEnchants(); return; } // m132 附魔目标走独立表
+        if (pickerMode == 6) { refilterTrades(); return; } // m146 交易目标走独立表
         List<Item> src = pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
         String q = pickerField.getText().trim().toLowerCase();
@@ -1630,6 +1686,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 : pickerMode == 3 ? "选择种植作物（可多选≤8，再点=取消）"
                 : pickerMode == 4 ? "选择目标药水"
                 : pickerMode == 5 ? "选择目标附魔（中文/英文搜索）"
+                : pickerMode == 6 ? "选择交易条目（职业：付出→获得·可搜索）"
                 : "选择目标产物（中文/英文搜索）";
         ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
         if (pickerMode == 4) { // m131b 形态切换按钮
@@ -1657,7 +1714,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         Item hovered = null;
         ItemStack hoveredStack = null;
         String hoverName = null; // m132 模式5行悬停名（附魔书 getName 恒为"附魔书"，提示行用附魔名）
-        if (pickerMode == 5) { // m132 附魔行式列表：图标+原版名字（罗马数字/诅咒红字），当前目标=绿框
+        if (pickerMode == 6) { // m146 交易行式列表：产出图标+「职业：付出→获得」，当前目标=绿框
+            String curT = "";
+            StructureCoreBlockEntity beT = be();
+            if (beT != null && pickerNode >= 0 && pickerNode < beT.nodes().size())
+                curT = StructureCoreBlockEntity.craftTarget(beT.nodes().get(pickerNode));
+            for (int k = 0; k < tradeFiltered.size(); k++) {
+                int ry = gy + k * ENCH_ROW_H;
+                boolean hov = mouseX >= gx && mouseX < gx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2;
+                boolean sel = tradeFilteredIds.get(k).equals(curT);
+                if (sel) ctx.fill(gx - 1, ry - 1, gx + PICK_W - 15, ry + ENCH_ROW_H - 1, ON);
+                ctx.fill(gx, ry, gx + PICK_W - 16, ry + ENCH_ROW_H - 2, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
+                ctx.drawItem(tradeFiltered.get(k), gx + 1, ry);
+                ctx.drawText(this.textRenderer, tradeFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
+                if (hov) { hoveredStack = tradeFiltered.get(k); hoverName = tradeFilteredNames.get(k).getString(); }
+            }
+            if (tradeFiltered.isEmpty())
+                ctx.drawText(this.textRenderer, "无匹配交易（试试物品名或职业id）", gx, gy + 4, SUB, false);
+        } else if (pickerMode == 5) { // m132 附魔行式列表：图标+原版名字（罗马数字/诅咒红字），当前目标=绿框
             String curT = "";
             StructureCoreBlockEntity beE = be();
             if (beE != null && pickerNode >= 0 && pickerNode < beE.nodes().size())

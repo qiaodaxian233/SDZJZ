@@ -595,6 +595,80 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, ground ? 1 : 0); // 没书可磨=待机不是故障
                 if (ground) { be.prodTally(groundN); produced = true; }
+            } else if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem) {
+                // m146 村民无限交易机（用户点名：直接对接仓库和刷线机）：目标交易画布徽章选（ct 串
+                // "职业|序号"，TradePlanner 解析）。供料双路照酿造塔：连线喂料（刷线机→交易机直供，
+                // 走节点 inputBuf）优先，否则存储网络自取。折扣自动取共网交易所同职业已就业合同的
+                // 最高档（没合同=原价不堵路——繁殖→就业→打折机→交易机全链有用）。附魔书产物照
+                // 山羊角组件规矩：出线无视（distribute 按 id 记账带不动组件），精确账本或输出缓存。
+                // 交易经验 4.5/次（原版 3-6 均值）进核心经验池——村民交易本就是原版经验源。
+                String tgtT = craftTarget(st);
+                com.sdzjz.machine.VillagerTrades.Trade t = com.sdzjz.machine.TradePlanner.trade(tgtT);
+                if (t == null) { be.stat(i, 0); continue; } // 未选交易=待机（徽章"选交易"）
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                long attempts = (long) running * (1 + countLv) * cycles;
+                com.sdzjz.machine.StorageAccess accT = be.supplyFor(world, i);
+                if (accT == null) {
+                    if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                    accT = src;
+                }
+                // 折扣发现：供料仓集 ∩ 交易所 connectedCores
+                java.util.List<StorageCoreBlockEntity> banksT = new java.util.ArrayList<>();
+                if (accT instanceof StorageCoreBlockEntity cbt) banksT.add(cbt);
+                else if (accT instanceof DataPanelBlockEntity pbt)
+                    banksT.addAll(StorageCoreBlockEntity.connectedCores(world, pbt.getPos()));
+                int discT = 0;
+                String profT = com.sdzjz.machine.TradePlanner.prof(tgtT);
+                if (!banksT.isEmpty())
+                    for (TradeCenterBlockEntity tc : TradeCenterBlockEntity.loadedIn(world)) {
+                        ItemStack cc = tc.contractSlot.getStack(0);
+                        if (profT.equals(TradeCenterBlockEntity.contractProf(cc)) && tc.sharesNetwork(banksT))
+                            discT = Math.max(discT, TradeCenterBlockEntity.contractDiscount(cc));
+                    }
+                int need1 = com.sdzjz.machine.VillagerTrades.discounted(t.inCount(), discT);
+                // 产出口先解析好算封顶（附魔书出线无视=山羊角同规；书 maxCount=1 封顶按格数）
+                com.sdzjz.machine.StorageAccess depositT = (t.enchant() != null || !hasOut[i]) ? be.depositFor(world, i) : null;
+                boolean cappedT = depositT == null && (t.enchant() != null || !hasOut[i]);
+                if (cappedT) attempts = Math.min(attempts, t.enchant() != null ? OUTPUT_SLOTS
+                        : Math.max(1, 64L * OUTPUT_SLOTS / Math.max(1, t.outCount())));
+                if (hasIn[i]) { // 连线喂料（刷线机直供）
+                    attempts = Math.min(attempts, be.bufCountFor(i, t.inItem()) / need1);
+                    if (t.in2Item() != null) attempts = Math.min(attempts, be.bufCountFor(i, t.in2Item()) / t.in2Count());
+                    if (attempts <= 0) { be.stat(i, 3); continue; }
+                    be.bufWithdrawFor(i, t.inItem(), (long) need1 * attempts);
+                    if (t.in2Item() != null) be.bufWithdrawFor(i, t.in2Item(), (long) t.in2Count() * attempts);
+                } else {
+                    if (accT == null) { be.stat(i, 3); continue; } // 没连仓也没喂料
+                    attempts = Math.min(attempts, accT.count(t.inItem()) / need1);
+                    if (t.in2Item() != null) attempts = Math.min(attempts, accT.count(t.in2Item()) / t.in2Count());
+                    if (attempts <= 0) { be.stat(i, 3); continue; }
+                    accT.withdraw(t.inItem(), (int) Math.min(Integer.MAX_VALUE, (long) need1 * attempts));
+                    if (t.in2Item() != null) accT.withdraw(t.in2Item(), (int) Math.min(Integer.MAX_VALUE, (long) t.in2Count() * attempts));
+                }
+                be.stat(i, 1);
+                if (t.enchant() != null) {
+                    ItemStack bookT = new ItemStack(net.minecraft.item.Items.ENCHANTED_BOOK,
+                            (int) Math.min(attempts, Integer.MAX_VALUE));
+                    var regT = world.getRegistryManager()
+                            .getWrapperOrThrow(net.minecraft.registry.RegistryKeys.ENCHANTMENT);
+                    var entryT = regT.getOrThrow(net.minecraft.registry.RegistryKey.of(
+                            net.minecraft.registry.RegistryKeys.ENCHANTMENT, Identifier.of(t.enchant())));
+                    bookT.addEnchantment(entryT, t.enchantLv());
+                    be.prodTally(attempts);
+                    if (depositT != null) be.depositOrBuffer(depositT, bookT);
+                    else be.addOutput(bookT); // maxCount=1 自动一格一本（山羊角同规）
+                } else {
+                    long totalT = attempts * t.outCount();
+                    be.prodTally(totalT);
+                    if (hasOut[i]) be.distribute(world, i, outT.get(i), t.outItem(), totalT);
+                    else if (depositT != null) be.depositOrBuffer(depositT, new ItemStack(
+                            Registries.ITEM.get(Identifier.of(t.outItem())), (int) Math.min(totalT, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())), (int) totalT));
+                }
+                be.xpPool += 4.5 * attempts;
+                produced = true;
             } else if (st.getItem() instanceof MachineItem vd && "villager_discount_machine".equals(vd.def().id())) {
                 // m145 村民打折机（用户拍板：独立画布机自动治愈）：吃网络金苹果给共网交易所里的合同
                 // 升折扣。1 苹果=1 级与交易所手动治愈同价（自动化不改经济账）；低折扣合同优先补短板；
@@ -1173,7 +1247,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 && com.sdzjz.machine.BrewPlanner.targetStack(id) != null; // m131b 目标串服务端校验
         boolean enchOk = s.getItem() instanceof com.sdzjz.item.EnchantFactoryItem
                 && com.sdzjz.machine.EnchantPlanner.targetStack(this.world, id) != null; // m132 目标串服务端校验
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk) return;
+        boolean tradeOk = s.getItem() instanceof com.sdzjz.item.VillagerTraderItem
+                && com.sdzjz.machine.TradePlanner.valid(id); // m146 目标串服务端校验
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
             java.util.List<String> cur = cropList(s);

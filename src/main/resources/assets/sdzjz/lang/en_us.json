@@ -94,5 +94,13 @@
   "item.sdzjz.logo": "SDZJZ",
   "item.sdzjz.g_misc_machine": "G-Group Misc Machine",
   "item.sdzjz.sculk_line": "Sculk Line",
-  "item.sdzjz.villager_discount_machine": "Villager Discount Machine"
+  "item.sdzjz.villager_discount_machine": "Villager Discount Machine",
+  "item.sdzjz.villager_trader": "Infinite Villager Trader",
+  "sdzjz.prof.farmer": "Farmer",
+  "sdzjz.prof.librarian": "Librarian",
+  "sdzjz.prof.cartographer": "Cartographer",
+  "sdzjz.prof.toolsmith": "Toolsmith",
+  "sdzjz.prof.cleric": "Cleric",
+  "sdzjz.prof.butcher": "Butcher",
+  "sdzjz.prof.fisherman": "Fisherman"
 }
