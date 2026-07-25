@@ -14,6 +14,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreens;
 public class SdzjzClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        com.sdzjz.client.SatelliteNodeModel.register(); // m151 卫星节点bbmodel自定义烘焙
         HandledScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
         HandledScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
         HandledScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
