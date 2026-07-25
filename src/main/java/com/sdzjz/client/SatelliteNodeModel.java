@@ -38,7 +38,7 @@ import java.util.function.Function;
  *    Sprite sprite, boolean shade)；若多要 lightEmission(int) 补 0。
  * ② Sprite#getFrameU/getFrameV：入参 0..1（u16/16f 已除好）；若签名是 0..16 制则去掉 /16f。
  * ③ UnbakedModel 三方法名以 Yarn 1.21.1 为准：getModelDependencies/setParents/bake。
- * ④ ModelModifier.OnLoad.Context#id() 若无此方法改 context.topLevelId()/resourceId()。
+ * ④ [m151-3 已命中修正] OnLoad.Context 无 id()——1.21.1 拆为 resourceId()/topLevelId()，文件模型走前者。
  */
 public final class SatelliteNodeModel implements UnbakedModel {
     private static final Identifier MODEL_ID = Identifier.of("sdzjz", "block/satellite_node");
@@ -55,7 +55,10 @@ public final class SatelliteNodeModel implements UnbakedModel {
     /** 客户端入口调用：拦截 sdzjz:block/satellite_node 的模型加载。 */
     public static void register() {
         ModelLoadingPlugin.register(ctx -> ctx.modifyModelOnLoad().register((original, context) -> {
-            Identifier id = context.id();
+            // m151-3 编译修正=类注释备忘④：1.21.1 Fabric 把 id 拆成 resourceId()（文件模型）/
+            // topLevelId()（blockstate/物品顶层，ModelIdentifier），二者恰一非空。我们拦
+            // blockstate 引用的文件模型 sdzjz:block/satellite_node → 走 resourceId()。
+            Identifier id = context.resourceId();
             if (id != null && "sdzjz".equals(id.getNamespace()) && id.getPath().endsWith("block/satellite_node")) {
                 JsonArray geo = loadGeo();
                 if (geo != null) return new SatelliteNodeModel(geo);
