@@ -107,7 +107,7 @@ public class ModItems {
     public static final Item FISHING_MACHINE = reg("fishing_machine", new MachineItem(new Item.Settings(), Machines.FISHING_MACHINE));
     public static final Item DISC_MACHINE = reg("disc_machine", new MachineItem(new Item.Settings(), Machines.DISC_MACHINE));
     public static final Item STONECUTTER_MACHINE = reg("stonecutter_machine", new MachineItem(new Item.Settings(), Machines.STONECUTTER_MACHINE));
-    public static final Item VILLAGER_CONTRACT = reg("villager_contract", new Item(new Item.Settings()));
+    public static final Item VILLAGER_CONTRACT = reg("villager_contract", new com.sdzjz.item.VillagerContractItem(new Item.Settings()));
     public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Settings(), Machines.VILLAGER_BREEDER));
 
     public static final RegistryKey<ItemGroup> GROUP_KEY =
