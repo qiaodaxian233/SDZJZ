@@ -258,7 +258,9 @@ public class DataPanelScreenHandler extends ScreenHandler {
             ItemStack cursor = this.getCursorStack();
             if (!cursor.isEmpty() && !ItemStack.areItemsAndComponentsEqual(cursor, want)) return true; // 光标异类：不动
             int per = Math.max(1, want.getCount());
-            while (true) {
+            int rounds = 0; // m163c 大堆叠护栏：光标"整组"随 ItemStackProMax 类模组暴涨到百万时，该循环=冻死；
+                            // 4096 轮封顶（原版 64 上限下最多 64 轮永不触发），没装满再点一次续装即可
+            while (rounds++ < 4096) {
                 updateCraftResult(); // 补料后配方可能断，每轮重算（m106b 同款）
                 ItemStack cur = craftResult.getStack(0);
                 if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
@@ -383,7 +385,11 @@ public class DataPanelScreenHandler extends ScreenHandler {
             if (first.isEmpty()) return ItemStack.EMPTY;
             ItemStack want = first.copy();
             int per = Math.max(1, want.getCount());
-            int times = Math.max(1, want.getMaxCount() / per); // 最多合一整组（AE2 同款上限）
+            // m163c 大堆叠护栏：堆叠上限模组（用户装着 ItemStackProMax）把 maxCount 提到十万/百万级后，
+            // "合到一整组"=单次 shift 点击百万轮 updateCraftResult+consumeCraft，服务器当场冻死。
+            // 4096 轮封顶——原版 64 上限下 times≤64 永不触发，行为零变化；大堆叠下一次点击最多
+            // 4096 轮（还要更多再点/交给自动合成机，量产本就是它的活）。
+            int times = (int) Math.min(Math.max(1, (long) want.getMaxCount() / per), 4096);
             for (int n = 0; n < times; n++) {
                 updateCraftResult(); // 补料后配方可能断，每轮重算
                 ItemStack cur = craftResult.getStack(0);
