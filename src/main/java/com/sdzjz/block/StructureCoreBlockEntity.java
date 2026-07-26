@@ -1779,7 +1779,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (var en : sc.storeView().entrySet()) agg.merge(en.getKey(), en.getValue(), Long::sum);
                 // m163b：精确账本条目按 id 并入——山羊角(乐器组件)/附魔书全在精确账本，不并的话
                 // 总线库存看不见它们、抽取白名单选择器（候选=网络现有）也列不出，m155 的招牌用例直接失明。
-                List<ItemStack> tplB = sc.exactTemplates();
+                java.util.List<ItemStack> tplB = sc.exactTemplates();
                 for (int k = 0; k < tplB.size(); k++)
                     agg.merge(Registries.ITEM.getId(tplB.get(k).getItem()).toString(), sc.exactCount(k), Long::sum);
             }
