@@ -85,7 +85,16 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             if (idx == selected) ctx.fill(PX, ey - 1, PX + PW, ey + ENTRY_H - 1, SEL);
             ItemStack res = SuperBenchRecipes.resultStack(r);
             ctx.drawItem(res, PX + 1, ey);
-            String nm = res.getName().getString();
+            // m165 档位角标：Ⅰ铜石(主世界早期)/Ⅱ铁(下界期)/Ⅲ金钻(终局)，颜色即材质盘暗示；小件 tier=0 不画
+            int tier = r.tier();
+            int nameW = PW - 22;
+            if (tier > 0) {
+                String chip = tier == 1 ? "Ⅰ" : tier == 3 ? "Ⅲ" : "Ⅱ";
+                int cc = tier == 1 ? 0xFFE8A05A : tier == 3 ? 0xFF66E6FF : 0xFFB8C4D0;
+                ctx.drawText(this.textRenderer, chip, PX + PW - 12, ey + 4, cc, false);
+                nameW = PW - 36;
+            }
+            String nm = this.textRenderer.trimToWidth(res.getName().getString(), nameW);
             ctx.drawText(this.textRenderer, nm, PX + 20, ey + 4, TXT, false);
         }
         // 滚动提示

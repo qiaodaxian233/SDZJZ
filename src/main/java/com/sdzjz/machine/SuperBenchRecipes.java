@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 超大工作台合成表（m61 重做）。5 种 12x12 阵型模板轮换（堡垒双环/菱形矩阵/十字要塞/对角矩阵/同心环廊），
- * 铺满 132~144 格、材料加重（含铁块/双份核心模块）、每台 8 枚标志物（4 种 x2）。
+ * 超大工作台合成表（m61 重做，m165 基座分档）。5 种 12x12 阵型模板轮换（堡垒双环/菱形矩阵/十字要塞/对角矩阵/同心环廊），
+ * 铺满 132~144 格、每台 8 枚标志物（4 种 x2）；公共底料按机器对标的原版工程难度分三档（铜石/铁/金钻，见 LEGEND_T*）。
  * 匹配仍走多重集（位置无关，手动摆料也友好）；自动填充按 layout 指定位置铺满。多重集全表唯一（生成时校验）。
  * 角色字符：I=铁锭 C=铜锭 G=玻璃 R=红石 O=侦测器 M=核心模块 X=铁块 S=标志物 .=空
  */
@@ -25,22 +25,59 @@ public final class SuperBenchRecipes {
         "IIIIIIIIIIIIICCRGGGGRCCIICCCRGGRCCCIIRCCCRRCCCRIIGRCXSSXCRGIIGGRSMMSRGGIIGGRSMMSRGGIIGRCXSSXCRGIIRCCCRRCCCRIICCCRGGRCCCIICCRGGGGRCCIIIIIIIIIIIII",
         "ICICICICICICCGGGGGGGGGGIIGORRRRRROGCCGRCIIIICRGIIGRIXSSXIRGCCGRISMMSIRGIIGRISMMSIRGCCGRIXSSXIRGIIGRCIIIICRGCCGORRRRRROGIIGGGGGGGGGGCCICICICICICI",
     };
-    static final Map<Character, String> LEGEND = new HashMap<>();
+    /** m165 基座三档（对标原版进度）：12×12 几何蓝图不变，公共底料按档位换材质盘。
+     *  依据=该机器替代的原版工程在原版里的搭建难度：
+     *  T1 铜石档（主世界露天就能搭的：刷石机/甘蔗塔/动物栏……）——铜+平滑石为主，一次下界带够石英即可；
+     *  T2 铁档（下界/村庄工程期：铁傻/烈焰塔/酿造……）——现行配置原样；
+     *  T3 金钻档（原版终局工程：凋灵笼/末地/远古城/神殿抽水/袭击塔……）——金锭替铜+钻石块替铁块。
+     *  多重集唯一性不受档位影响：标志物每台唯一（m61 保证），换盘只动公共底料。 */
+    static final Map<Character, String> LEGEND_T1 = new HashMap<>();
+    static final Map<Character, String> LEGEND_T2 = new HashMap<>();
+    static final Map<Character, String> LEGEND_T3 = new HashMap<>();
     static {
-        LEGEND.put('I', "minecraft:iron_ingot");
-        LEGEND.put('C', "minecraft:copper_ingot");
-        LEGEND.put('G', "minecraft:glass");
-        LEGEND.put('R', "minecraft:redstone");
-        LEGEND.put('O', "minecraft:observer");
-        LEGEND.put('M', "sdzjz:core_module");
-        LEGEND.put('X', "minecraft:iron_block");
+        LEGEND_T2.put('I', "minecraft:iron_ingot");
+        LEGEND_T2.put('C', "minecraft:copper_ingot");
+        LEGEND_T2.put('G', "minecraft:glass");
+        LEGEND_T2.put('R', "minecraft:redstone");
+        LEGEND_T2.put('O', "minecraft:observer");
+        LEGEND_T2.put('M', "sdzjz:core_module");
+        LEGEND_T2.put('X', "minecraft:iron_block");
+        LEGEND_T1.putAll(LEGEND_T2);
+        LEGEND_T1.put('I', "minecraft:copper_ingot");   // 主料降为铜（1.17+ 白菜价）
+        LEGEND_T1.put('C', "minecraft:smooth_stone");   // 次料降为平滑石
+        LEGEND_T1.put('X', "minecraft:copper_block");   // 承重块降为铜块
+        LEGEND_T3.putAll(LEGEND_T2);
+        LEGEND_T3.put('C', "minecraft:gold_ingot");     // 次料升为金（终局期猪人塔白产）
+        LEGEND_T3.put('X', "minecraft:diamond_block");  // 承重块升为钻石块×4（一次性门票，对标原版终局工程量）
+    }
+    /** 档位名单：T1/T3 点名，其余机器默认 T2。小件配方（addSmall*）不走档位。 */
+    static final java.util.Set<String> TIER1 = java.util.Set.of(
+        "sdzjz:bamboo_farm", "sdzjz:cactus_farm", "sdzjz:sugarcane_farm", "sdzjz:kelp_farm",
+        "sdzjz:tree_farm", "sdzjz:crop_farm", "sdzjz:moss_farm", "sdzjz:bonemeal_machine",
+        "sdzjz:cobble_maker", "sdzjz:sand_maker", "sdzjz:ice_maker", "sdzjz:charcoal_kiln",
+        "sdzjz:glass_kiln", "sdzjz:stonecutter_machine", "sdzjz:carpet_machine", "sdzjz:rail_machine",
+        "sdzjz:clay_machine", "sdzjz:fishing_machine", "sdzjz:mob_tower", "sdzjz:flesh_farm",
+        "sdzjz:bone_farm", "sdzjz:gunpowder_farm", "sdzjz:wire_brusher", "sdzjz:chicken_farm",
+        "sdzjz:sheep_farm", "sdzjz:cow_farm", "sdzjz:pig_farm", "sdzjz:honey_farm",
+        "sdzjz:iron_smelter", "sdzjz:gold_smelter", "sdzjz:super_smelter");
+    static final java.util.Set<String> TIER3 = java.util.Set.of(
+        "sdzjz:wither_farm", "sdzjz:wither_skeleton_farm", "sdzjz:ghast_tower", "sdzjz:breeze_farm",
+        "sdzjz:shulker_farm", "sdzjz:pearl_farm", "sdzjz:chorus_farm", "sdzjz:sculk_line",
+        "sdzjz:deep_mining_platform", "sdzjz:archaeology_station", "sdzjz:end_expedition_platform",
+        "sdzjz:trial_farm", "sdzjz:guardian_farm", "sdzjz:raid_tower", "sdzjz:villager_trader",
+        "sdzjz:enchant_factory");
+    private static int tierOf(String result) {
+        return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
 
     /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mob 非空=需装着该生物的抓物笼子（合成后生物装进机器，空笼归还）。
      *  count = 单次产出数（m108b，数据线一次 8 根）；旧 4 参构造默认 1。 */
-    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count) {
+    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count, int tier) {
         public Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob) {
-            this(result, layout, ingredients, mob, 1);
+            this(result, layout, ingredients, mob, 1, 0);
+        }
+        public Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count) {
+            this(result, layout, ingredients, mob, count, 0); // 小件不走档位（tier=0，浏览器不画档位角标）
         }
     }
     public static final String CAGE_ID = "sdzjz:capture_cage";
@@ -193,6 +230,8 @@ public final class SuperBenchRecipes {
     }
 
     private static void build(String result, int tpl, String mob, String[] sig) {
+        int tier = tierOf(result);
+        Map<Character, String> legend = tier == 1 ? LEGEND_T1 : tier == 3 ? LEGEND_T3 : LEGEND_T2;
         String template = TEMPLATES[tpl];
         String[] layout = new String[SLOTS];
         Map<String, Integer> ing = new java.util.LinkedHashMap<>(); // 保留蓝图遇到顺序：材料清单显示稳定
@@ -201,22 +240,23 @@ public final class SuperBenchRecipes {
             char ch = template.charAt(i);
             String id = null;
             if (ch == 'S') id = sig[(si++) / 2];
-            else if (ch != '.') id = LEGEND.get(ch);
+            else if (ch != '.') id = legend.get(ch);
             layout[i] = id;
             if (id != null) ing.merge(id, 1, Integer::sum);
         }
-        if (!mob.isEmpty()) { // 用 1 格铁锭的位置放笼子（多重集：铁-1、笼+1，全表唯一性不受影响）
+        if (!mob.isEmpty()) { // 用 1 格主料（本档 'I' 材质）的位置放笼子（多重集：主料-1、笼+1，全表唯一性不受影响）
+            String base = legend.get('I'); // m165：T1 主料是铜——硬编码铁锭会找不到格，笼子静默丢失、配方废掉
             for (int i = 0; i < SLOTS; i++) {
-                if ("minecraft:iron_ingot".equals(layout[i])) {
+                if (base.equals(layout[i])) {
                     layout[i] = CAGE_ID;
-                    ing.merge("minecraft:iron_ingot", -1, Integer::sum);
-                    if (ing.getOrDefault("minecraft:iron_ingot", 0) <= 0) ing.remove("minecraft:iron_ingot");
+                    ing.merge(base, -1, Integer::sum);
+                    if (ing.getOrDefault(base, 0) <= 0) ing.remove(base);
                     ing.put(CAGE_ID, 1);
                     break;
                 }
             }
         }
-        ALL.add(new Recipe(result, layout, ing, mob));
+        ALL.add(new Recipe(result, layout, ing, mob, 1, tier));
     }
 
     /** 网格多重集精确匹配到配方。 */
