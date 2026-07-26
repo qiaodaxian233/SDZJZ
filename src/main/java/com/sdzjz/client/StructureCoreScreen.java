@@ -595,10 +595,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawText(this.textRenderer, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
-            long xr = StructureCoreBlockEntity.extractorRate(st);
-            long xc = StructureCoreBlockEntity.extractorCount(st);
-            ctx.drawText(this.textRenderer, xr + "/轮×升级" + (xc > 0 ? "  已抽 " + fmtNum(xc) : ""),
-                    x + 44, y + 48, SUB, false);
+            String siX = StructureCoreBlockEntity.sensorItem(st);
+            if (!siX.isEmpty()) { // m160 自动启停行：图标 <阈值 [−][+]
+                try { ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(siX))), x + 4, y + 44); } catch (Exception ignored) {}
+                long thX = StructureCoreBlockEntity.sensorThreshold(st);
+                ctx.drawText(this.textRenderer, (StructureCoreBlockEntity.sensorLess(st) ? "<" : ">") + fmtNum(thX),
+                        x + 22, y + 48, CYAN, false);
+                ctx.fill(x + 62, y + 46, x + 76, y + 59, SciSkin.BTN_FACE);
+                ctx.fill(x + 79, y + 46, x + 93, y + 59, SciSkin.BTN_FACE);
+                ctx.drawText(this.textRenderer, "-", x + 67, y + 49, TXT, false);
+                ctx.drawText(this.textRenderer, "+", x + 84, y + 49, TXT, false);
+            } else {
+                long xr = StructureCoreBlockEntity.extractorRate(st);
+                long xc = StructureCoreBlockEntity.extractorCount(st);
+                ctx.drawText(this.textRenderer, xr + "/轮×升级" + (xc > 0 ? "  已抽 " + fmtNum(xc) : ""),
+                        x + 44, y + 48, SUB, false);
+            }
             return;
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
@@ -609,10 +621,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
             return;
         }
-        if (StructureCoreBlockEntity.isTrash(st)) { // m150
+        if (StructureCoreBlockEntity.isTrash(st)) { // m150 卡面 / 菜单入口见 openNodeMenu
             long ate = StructureCoreBlockEntity.trashCount(st);
-            ctx.drawText(this.textRenderer, "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
-            ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : "连啥吞啥", x + 44, y + 38, SUB, false);
+            int tfN = StructureCoreBlockEntity.filterList(st).size();
+            ctx.drawText(this.textRenderer, tfN > 0 ? "[白名单·" + tfN + "]" : "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
+            ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isFilter(st)) {
@@ -1078,6 +1091,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m159 64→512→4096循环
                     mi(net.minecraft.item.Items.HOPPER),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#xr")); });
+            int flN = StructureCoreBlockEntity.filterList(st).size(); // m160 内置白名单
+            addMenu("抽取白名单" + (flN > 0 ? "(" + flN + ")" : "") + "…", mi(net.minecraft.item.Items.COMPARATOR),
+                    () -> openFilterPicker(idx));
+            addMenu("自动启停·监测物品…", mi(net.minecraft.item.Items.OBSERVER), 2, () -> openSensorPicker(idx)); // m160
+            if (!StructureCoreBlockEntity.sensorItem(st).isEmpty()) {
+                addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值才抽" : "改为:低于阈值才抽",
+                        mi(net.minecraft.item.Items.REPEATER),
+                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
+                                StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
+                addMenu("清除自动启停", mi(net.minecraft.item.Items.BARRIER),
+                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "§clear",
+                                StructureCoreBlockEntity.sensorThreshold(st), StructureCoreBlockEntity.sensorLess(st))); });
+            }
         }
         if (StructureCoreBlockEntity.isSensor(st)) {
             addMenu("监测物品…", mi(net.minecraft.item.Items.OBSERVER), 2, () -> openSensorPicker(idx));
@@ -1089,6 +1115,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu(st.getItem() instanceof com.sdzjz.item.MachineItem mif && "super_smelter".equals(mif.def().id())
                             ? "选择烧什么…" : "选择产物…",
                     mi(net.minecraft.item.Items.FURNACE), 2, () -> openMachineFilterPicker(idx));
+        if (StructureCoreBlockEntity.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
+            int tfN = StructureCoreBlockEntity.filterList(st).size();
+            addMenu("吞噬白名单" + (tfN > 0 ? "(" + tfN + ")" : "·全吞") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
+                    () -> openFilterPicker(idx));
+        }
         addMenu("取出机器", mi(net.minecraft.item.Items.HOPPER), 1,
                 () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显
         addMenu("取消", null, 2, () -> {});
@@ -1440,14 +1471,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 传感器阈值 [−][+]：步进100，Shift=1000
+                    // 传感器阈值 [−][+]：步进100，Shift=1000（m160 抽取节点感应行同用，几何各异）
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        if (!StructureCoreBlockEntity.isSensor(nodes.get(i))) continue;
+                        boolean senH = StructureCoreBlockEntity.isSensor(nodes.get(i));
+                        boolean extH = StructureCoreBlockEntity.isExtractor(nodes.get(i));
+                        if (!senH && !extH) continue;
                         if (StructureCoreBlockEntity.sensorItem(nodes.get(i)).isEmpty()) continue;
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         int hit = 0;
-                        if (wx >= nx + 57 && wx <= nx + 71 && wy >= ny + 36 && wy <= ny + 49) hit = -1;
-                        else if (wx >= nx + 74 && wx <= nx + 88 && wy >= ny + 36 && wy <= ny + 49) hit = 1;
+                        if (senH && wx >= nx + 57 && wx <= nx + 71 && wy >= ny + 36 && wy <= ny + 49) hit = -1;
+                        else if (senH && wx >= nx + 74 && wx <= nx + 88 && wy >= ny + 36 && wy <= ny + 49) hit = 1;
+                        else if (extH && wx >= nx + 62 && wx <= nx + 76 && wy >= ny + 46 && wy <= ny + 59) hit = -1;
+                        else if (extH && wx >= nx + 79 && wx <= nx + 93 && wy >= ny + 46 && wy <= ny + 59) hit = 1;
                         if (hit != 0) {
                             long step = hasShiftDown() ? 1000 : 100;
                             long th = Math.max(0, StructureCoreBlockEntity.sensorThreshold(nodes.get(i)) + hit * step);

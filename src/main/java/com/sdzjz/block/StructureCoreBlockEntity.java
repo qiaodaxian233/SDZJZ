@@ -220,7 +220,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 ItemStack stL = be.machineNodes.get(i);
                 if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL) || isExtractor(stL))) continue;
                 boolean pump = isExtractor(stL); // m154 抽取节点=主动泵
-                if (pump && !extractorOn(stL)) continue; // 关=完全不抽（点击抽取才开始）
+                if (pump && !be.extractorLive(world, i, stL)) continue; // m160 手动关或感应未放行=不抽
                 boolean pumpAll = pump && be.depositFor(world, i) != null; // m157 有定向存储出线=搬仓，全抽
                 com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
                 if (sup == null) continue;
@@ -236,6 +236,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）：链式需求门控仍在，在途量经 8/9 号属性可见
                     if (!pump && !be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
+                    if (pump && !machineFilterAllows(stL, id)) continue; // m160 抽取白名单：名单外碰都不碰
                     if (pump && !pumpAll) {
                         // m157（用户实测：猪人塔/幽匿线产物"消失"）：m154 的无条件抽把全网络吸进
                         // 缓存囤着失踪（每种4096）——改为"没有去处的不抽"：出线机器目标当下肯收
@@ -268,6 +269,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             String idE = Registries.ITEM.getId(t.getItem()).toString();
                             long haveE = ownL.getOrDefault(idE, 0L);
                             if (haveE >= 4096) continue;
+                            if (isExtractor(stL) && !machineFilterAllows(stL, idE)) continue; // m160
                             if (!be.chainEndsInTrash(world, i, idE, 0, new java.util.HashSet<>(), outT)) continue;
                             long roomE = bufCapL - haveE;
                             if (pump) roomE = Math.min(roomE, pumpRate - pumped);
@@ -355,6 +357,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 留在缓存（背压：缓存到顶 4096 拉料自然停），绝不走默认路由——否则抽出来又
                 // 存回同一个仓，每 5t 空转刷账。垃圾桶目标照 distribute 规矩两轮垫底。
                 if (be.ticks % 5 != 0) continue;
+                if (StructureCoreBlockEntity.extractorOn(st) && !be.extractorLive(world, i, st)) {
+                    be.stat(i, 2); // m160 感应暂停：持料待命不退料（条件一到自动续跑）
+                    continue;
+                }
                 if (!StructureCoreBlockEntity.extractorOn(st)) {
                     // m157 歇工退料：关机把缓存沿默认路由退回存储——用户被 m154 无条件抽吸走的
                     // 货，点一下"停止抽取"就全数找回，不留缓存黑洞。
@@ -1148,6 +1154,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m154 抽取节点开合（默认关——用户点名"点击抽取才开始"）。 */
     public static boolean extractorOn(ItemStack s) { return nbtOf(s).getBoolean("xo"); }
 
+    /** m160 抽取节点有效运转态：手动开 且（无感应规则 或 感应放行）。感应键位与传感器
+     *  同套（si/sv/sl，sensorOpen 通用判定）——配了监测物品的抽取节点=自带阈值自动启停。 */
+    boolean extractorLive(World world, int i, ItemStack st) {
+        return extractorOn(st) && (sensorItem(st).isEmpty() || sensorOpen(world, i));
+    }
+
     /** m159 抽取累计读数（卡面用）。 */
     public static long extractorCount(ItemStack s) { return nbtOf(s).getLong("xc"); }
 
@@ -1331,7 +1343,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             syncToClient();
             return;
         }
-        if (!isFilter(s) && !machineFilterable(s)) return; // m149 机器加工过滤同走此口
+        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s)) return;
+        // m149 机器加工过滤 / m160 抽取白名单+垃圾桶白名单（安全桶）同走此口
         NbtCompound n = nbtOf(s);
         if (id == null || id.isEmpty()) {
             if (!isFilter(s)) return; // 机器侧永远白名单，无黑白切换
@@ -1356,9 +1369,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void setSensorConfig(int index, String id, long threshold, boolean less) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if (!isSensor(s)) return;
+        if (!isSensor(s) && !isExtractor(s)) return; // m160 抽取节点内置自动启停同走此口
         NbtCompound n = nbtOf(s);
-        if (id != null && !id.isEmpty()) n.putString("si", id);
+        if ("§clear".equals(id)) n.remove("si"); // m160 清除感应（传感/抽取通用）
+        else if (id != null && !id.isEmpty()) n.putString("si", id);
         n.putLong("sv", Math.max(0, Math.min(1_000_000_000_000L, threshold)));
         n.putBoolean("sl", less);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
@@ -1386,7 +1400,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (t < 0 || t >= machineNodes.size()) return false;
             ItemStack ts = machineNodes.get(t);
             boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts))
-                    || (isExtractor(ts) && !extractorOn(ts)) // m154
+                    || (isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
                     || nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
             if (!closedGate) return false;
         }
@@ -1793,10 +1807,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
         if (nodePaused(st)) return false;
-        if (isTrash(st)) return true;
+        if (isTrash(st)) return machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
         if (isFilter(st) && !filterPasses(st, id)) return false;
         if (isSwitch(st) && !switchOn(st)) return false;
-        if (isExtractor(st) && !extractorOn(st)) return false;
+        if (isExtractor(st) && (!extractorLive(world, i, st) || !machineFilterAllows(st, id))) return false; // m160
         java.util.List<Integer> targets = outT.get(i);
         if (targets == null) return false;
         for (int t : targets)
@@ -1816,7 +1830,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else if (isSwitch(st)) {
             if (!switchOn(st)) return false;
         } else if (isExtractor(st)) {
-            if (!extractorOn(st)) return false; // m154 关着的抽取节点=关闸中继
+            if (!extractorLive(world, i, st) || !machineFilterAllows(st, id)) return false; // m160 感应+白名单闸
         } else if (isTrash(st)) {
             // m153 垃圾桶链式需求（用户实测：仓→过滤器(白名单山羊角)→垃圾桶抽不动）——
             // 经逻辑节点转接 = 玩家明确布线授权，垃圾桶作为终端什么都"想要"；
@@ -2141,8 +2155,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
         if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
         if (isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
-        if (isTrash(st)) return true;                        // m150 垃圾桶连啥吞啥（distribute 已排最低优先级）
-        if (isExtractor(st)) return extractorOn(st);         // m154 抽取节点：开=收（当中继站），关=不收
+        if (isTrash(st)) return machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥，非空=只吞名单内
+        if (isExtractor(st))                                  // m154 开=收 / m160 感应联动+白名单一起闸
+            return extractorLive(world, target, st) && machineFilterAllows(st, id);
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;
