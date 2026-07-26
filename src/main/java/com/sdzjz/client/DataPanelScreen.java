@@ -36,9 +36,16 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     @Override
     protected void init() {
         super.init();
-        this.search = new TextFieldWidget(this.textRenderer, this.x + 180, this.y + 8, 176, 14, Text.literal("搜索"));
+        // m161b 搜索框去黑壳：原版 TextFieldWidget 自带黑底灰边压在科幻皮上突兀（用户截图点名"不好看"）。
+        // setDrawsBackground(false) 后由 drawBackground 的 CELL 底+细边接管观感；聚焦时边框亮青。
+        // 顺带照 StructureCoreScreen.pickerField 的做法：resize 重建控件时保留已输入文字。
+        String keep = this.search != null ? this.search.getText() : "";
+        this.search = new TextFieldWidget(this.textRenderer, this.x + 184, this.y + 7, 168, 16, Text.literal("搜索"));
+        this.search.setDrawsBackground(false);
+        this.search.setEditableColor(SciSkin.TXT_HI);
         this.search.setPlaceholder(Text.literal("搜索物品(支持中文)…"));
         this.search.setChangedListener(s -> { scroll = 0; sendView(); });
+        this.search.setText(keep);
         this.addDrawableChild(this.search);
     }
 
@@ -82,7 +89,9 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         int x = this.x, y = this.y;
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
-        // 搜索框底
+        // 搜索框底（m161b：细边接管原版黑壳——聚焦亮青、平时格边色，与 slot/按钮同族）
+        int sfrm = (search != null && search.isFocused()) ? SciSkin.ACCENT : SciSkin.CELL_FRM;
+        ctx.fill(x + 177, y + 5, x + 359, y + 25, sfrm);
         ctx.fill(x + 178, y + 6, x + 358, y + 24, SciSkin.CELL);
         // 存储 6×9
         for (int r = 0; r < 6; r++)
