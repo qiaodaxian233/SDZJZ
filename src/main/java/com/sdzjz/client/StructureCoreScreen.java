@@ -320,6 +320,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         List<ItemStack> nodes = be.nodes();
         List<long[]> ends = endsOf(be);
 
+        // m164b 悬停聚焦（用户点名"线看着还是乱"）：指着哪张卡，只有它的线保持全亮，其余压暗成
+        // 三成底色——一眼看清单张卡的进出走向；不指任何卡=全亮照旧，零学习成本。压暗走
+        // SciSkin.mix 向底色靠拢（wirePath 会丢传入 alpha，改 alpha 无效——见其 rgb=color&0xFFFFFF）。
+        int hovN = -1; long hovEnd = Long.MIN_VALUE;
+        {
+            double hx = wmx(mouseX), hy = wmy(mouseY);
+            for (int i = nodes.size() - 1; i >= 0; i--) {
+                int nxH = wnx(be, nodes, i), nyH = wny(be, nodes, i);
+                if (hx >= nxH && hx <= nxH + NW && hy >= nyH && hy <= nyH + NH + 26) { hovN = i; break; }
+            }
+            if (hovN < 0 && busVisible()) for (int j = 0; j < ends.size(); j++) {
+                int sxH = snx(be, ends.get(j)[0], j), syH = sny(be, ends.get(j)[0], j);
+                if (mouseX >= sxH && mouseX <= sxH + bw() && mouseY >= syH && mouseY <= syH + bh()) { hovEnd = ends.get(j)[0]; break; }
+            }
+        }
+        boolean hovAny = hovN >= 0 || hovEnd != Long.MIN_VALUE;
+
         ctx.enableScissor(0, 24, workRight(), this.height - 78); // m159 画布剪刀：drawItem自带z偏移(~150)
         // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
@@ -331,12 +348,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             float mys = (float) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
+            boolean lit = !hovAny || mi == hovN || e[1] == hovEnd; // m164b 悬停聚焦
             if (e[2] == 0) { // 机器→存储（产出）：机器右缘水平出线 → 垂直向上接入卡底左收料口
                 float mxs = (float) (panX + (wnx(be, nodes, mi) + NW) * zoom);
-                drawWire(ctx, mxs, mys, 1, 0, sx + 14, sy + bh() + 2, 0, -1, CYAN, 1f);
+                drawWire(ctx, mxs, mys, 1, 0, sx + 14, sy + bh() + 2, 0, -1,
+                        lit ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), 1f);
             } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器左缘
                 float mxi = (float) (panX + wnx(be, nodes, mi) * zoom);
-                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, 1, 0, ON, 1f);
+                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, 1, 0,
+                        lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
             }
         }
 
@@ -350,7 +370,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (c[0] < nodes.size() && c[1] < nodes.size()) {
                 int ax = wnx(be, nodes, c[0]) + NW, ay = wny(be, nodes, c[0]) + NH / 2;
                 int bx = wnx(be, nodes, c[1]),      by = wny(be, nodes, c[1]) + NH / 2;
-                drawWire(ctx, ax, ay, 1, 0, bx, by, 1, 0, CYAN, (float) zoom);
+                boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
+                drawWire(ctx, ax, ay, 1, 0, bx, by, 1, 0,
+                        lit2 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
             }
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
@@ -366,6 +388,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             drawGear(ctx, nx + NW - 24, ny + 4); // m110b 齿轮=节点设置入口
             if (StructureCoreBlockEntity.nodePaused(nodes.get(i))) { // m110b 暂停视觉：压暗+角标
                 ctx.fill(nx, ny, nx + NW, ny + NH, 0x66000000);
+                ctx.fill(nx + NW - 43, ny + NH - 15, nx + NW - 3, ny + NH - 3, 0xE0121A28); // m164a 角标垫底，不再与目标行叠字
                 ctx.drawText(this.textRenderer, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
             }
         }
@@ -554,7 +577,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 sub += sc.maxTypes() == Integer.MAX_VALUE ? ("  类型 " + sc.usedTypes()) : ("  类型 " + sc.usedTypes() + "/" + sc.maxTypes()); // 仅同维度读数; m98 无限不显上限
             }
         }
-        ctx.drawText(this.textRenderer, sub, txI, y + 17, SUB, false);
+        // m164a 文字自适应（用户点名"上面的文字都出框了"）：副行按卡片剩余宽度截断加省略号
+        ctx.drawText(this.textRenderer, fitText(sub, x + bw() - txI - 4), txI, y + 17, SUB, false);
     }
 
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
@@ -608,7 +632,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             } else {
                 long xr = StructureCoreBlockEntity.extractorRate(st);
                 long xc = StructureCoreBlockEntity.extractorCount(st);
-                ctx.drawText(this.textRenderer, xr + "/轮×升级" + (xc > 0 ? "  已抽 " + fmtNum(xc) : ""),
+                // m164a：262144 挡原样拼"262144/轮×升级"必出框——速率走 fmtNum(262.1K)，整行 fitText 兜底
+                ctx.drawText(this.textRenderer, fitText(fmtNum(xr) + "/轮" + (xc > 0 ? " 抽" + fmtNum(xc) : "×升级"), NW - 48),
                         x + 44, y + 48, SUB, false);
             }
             return;
@@ -692,7 +717,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (en != null) tn = en.getString();
                 }
                 if (isTrade) tn = com.sdzjz.machine.TradePlanner.displayName(t).getString(); // m146 徽章=整条交易
-                while (tn.length() > 1 && this.textRenderer.getWidth("→" + tn) > NW - 50) tn = tn.substring(0, tn.length() - 1);
+                tn = fitText(tn, NW - 50 - this.textRenderer.getWidth("→")); // m164a：硬切改省略号截断
                 ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
