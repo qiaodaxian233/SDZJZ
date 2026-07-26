@@ -229,7 +229,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long bufCapL = 4096;
                 if (pump) {
                     pumpRate = extractorRate(stL) * (1 + be.nodeCount(stL));
-                    bufCapL = Math.max(4096, Math.min(BUF_CAP, pumpRate * 2)); // 双周期余量防速率>缓存卡喉
+                    // m163a：撤 BUF_CAP 钳位——新高挡(32768/262144)×升级后 速率×2 远超 20 万，钳住就回到
+                    // m159 修过的"速率>缓存卡喉"。泵缓存只是 id→long 计数不占实存，直接放到双周期余量。
+                    bufCapL = Math.max(4096, pumpRate * 2);
                 }
                 for (var en : new java.util.ArrayList<>(sup.storeView().entrySet())) {
                     String id = en.getKey();
@@ -268,7 +270,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         for (ItemStack t : new java.util.ArrayList<>(bank.exactTemplates())) {
                             String idE = Registries.ITEM.getId(t.getItem()).toString();
                             long haveE = ownL.getOrDefault(idE, 0L);
-                            if (haveE >= 4096) continue;
+                            if (haveE >= bufCapL) continue; // m163a：原硬编码 4096 没跟 bufCapL 统一——泵开高挡后精确支路先被卡死
                             if (isExtractor(stL) && !machineFilterAllows(stL, idE)) continue; // m160
                             if (!be.chainEndsInTrash(world, i, idE, 0, new java.util.HashSet<>(), outT)) continue;
                             long roomE = bufCapL - haveE;
@@ -1163,7 +1165,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m159 抽取累计读数（卡面用）。 */
     public static long extractorCount(ItemStack s) { return nbtOf(s).getLong("xc"); }
 
-    /** m159 抽取量/轮（每 5t 每种上限，未设=512；换挡 64→512→4096 循环）。实际抽量再乘 (1+数量升级)。 */
+    /** m159 抽取量/轮（每 5t 每种上限，未设=512）；m163a 五挡循环 64→512→4096→32768→262144。实际抽量再乘 (1+数量升级)。 */
     public static long extractorRate(ItemStack s) {
         long r = nbtOf(s).getLong("xr");
         return r > 0 ? r : 512;
@@ -1334,10 +1336,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleFilterEntry(int index, String id) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if ("#xr".equals(id) && isExtractor(s)) { // m159 抽取量换挡复用此收包口（64→512→4096 循环）
+        if ("#xr".equals(id) && isExtractor(s)) { // m159 抽取量换挡复用此收包口；m163a 扩至五挡（用户点名"还是太少"）
             NbtCompound nx = nbtOf(s);
             long cur = extractorRate(s);
-            nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : 64);
+            nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : cur == 4096 ? 32768 : cur == 32768 ? 262144 : 64);
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nx));
             markDirty();
             syncToClient();
@@ -1773,12 +1775,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (tw == null) continue;
             BlockPos bp = BlockPos.fromLong(v[0]);
             if (!tw.getChunkManager().isChunkLoaded(bp.getX() >> 4, bp.getZ() >> 4)) continue;
-            if (tw.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc)
+            if (tw.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
                 for (var en : sc.storeView().entrySet()) agg.merge(en.getKey(), en.getValue(), Long::sum);
+                // m163b：精确账本条目按 id 并入——山羊角(乐器组件)/附魔书全在精确账本，不并的话
+                // 总线库存看不见它们、抽取白名单选择器（候选=网络现有）也列不出，m155 的招牌用例直接失明。
+                List<ItemStack> tplB = sc.exactTemplates();
+                for (int k = 0; k < tplB.size(); k++)
+                    agg.merge(Registries.ITEM.getId(tplB.get(k).getItem()).toString(), sc.exactCount(k), Long::sum);
+            }
         }
         java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
         top.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-        if (top.size() > 10) top = new java.util.ArrayList<>(top.subList(0, 10));
+        // m163b：前10→前400。总线条按可用宽度自截断（超宽画"…"），多带的部分喂给抽取白名单
+        // 选择器当候选源（客户端 busIdsCache 复用，零新协议）；400 封顶防极端档 NBT/包体失控。
+        if (top.size() > 400) top = new java.util.ArrayList<>(top.subList(0, 400));
         java.util.List<String> nIds = new java.util.ArrayList<>();
         java.util.List<Long> nCts = new java.util.ArrayList<>();
         for (var en : top) { nIds.add(en.getKey()); nCts.add(en.getValue()); }

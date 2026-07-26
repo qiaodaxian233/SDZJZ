@@ -1088,7 +1088,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停复用开关收包口
             addMenu(StructureCoreBlockEntity.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.item.Items.PISTON), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
-            addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m159 64→512→4096循环
+            addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m163a 五挡循环 64→512→4096→32768→262144
                     mi(net.minecraft.item.Items.HOPPER),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#xr")); });
             int flN = StructureCoreBlockEntity.filterList(st).size(); // m160 内置白名单
@@ -1787,6 +1787,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerNode = node;
         pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs(); // m148 淡入
         if (allItems == null) buildAllItems();
+        // m163b 抽取白名单候选=仓库现有（用户点名：别给我列全物品表）——复用 m149 的 pickerSrcOverride
+        // 机制 + m85/m163b 总线库存同步通道（busIdsCache，含精确条目），零新协议。已选置顶逻辑按 id
+        // 独立解析，仓里已抽空的旧名单项照样置顶可移除。端点还没同步到（列表空）回退全物品表不堵人。
+        StructureCoreBlockEntity beF = be();
+        if (beF != null && node >= 0 && node < beF.nodes().size()
+                && StructureCoreBlockEntity.isExtractor(beF.nodes().get(node))) {
+            List<Item> src = new ArrayList<>();
+            for (String id : busIdsOf(beF)) {
+                Item it = Registries.ITEM.get(net.minecraft.util.Identifier.of(id));
+                if (it != net.minecraft.item.Items.AIR && !src.contains(it)) src.add(it);
+            }
+            if (!src.isEmpty()) {
+                pickerSrcOverride = src;
+                pickerTitleOverride = "抽取白名单（候选=仓库现有·点选=加/移·Esc完成）";
+            }
+        }
         pickerField.setText("");
         refilterPicker();
         this.setFocused(pickerField);
