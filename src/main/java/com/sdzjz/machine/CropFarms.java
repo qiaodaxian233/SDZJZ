@@ -30,6 +30,10 @@ public final class CropFarms {
                 new MachineDef.Drop("minecraft:red_mushroom", 0, 1, 0.7f),
                 new MachineDef.Drop("minecraft:brown_mushroom", 0, 1, 0.7f)));
         TABLE.put("minecraft:cocoa_beans", List.of(new MachineDef.Drop("minecraft:cocoa_beans", 1, 3, 1f)));
+        // m164c 量产补缺：双浆果此前全 MOD 零产路（甜浆果=食物/狐狸，发光浆果=食物/光源/狐狸），
+        // 本就是原版可种作物，进作物表即多选可用；产量对齐原版成熟丛/藤蔓采收量。
+        TABLE.put("minecraft:sweet_berries", List.of(new MachineDef.Drop("minecraft:sweet_berries", 1, 3, 1f)));
+        TABLE.put("minecraft:glow_berries", List.of(new MachineDef.Drop("minecraft:glow_berries", 1, 2, 1f)));
         KEYS = List.copyOf(TABLE.keySet());
     }
 

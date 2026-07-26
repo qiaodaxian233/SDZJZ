@@ -46,6 +46,11 @@ public final class MobDrops {
         put("minecraft:elder_guardian", d("minecraft:prismarine_shard", 1, 3), d("minecraft:prismarine_crystals", 0, 2), d("minecraft:wet_sponge", 0, 1, 0.2f));
         put("minecraft:cod", d("minecraft:cod", 1, 1));
         put("minecraft:salmon", d("minecraft:salmon", 1, 1));
+        // m164c 量产补缺：热带鱼（美西螈驯养/喂猫原料，此前全 MOD 零产路）；
+        // 海龟按"圈养产鳞甲"语义（原版小龟长大掉鳞甲；鳞甲=海龟壳=神龟药水唯一原料，
+        // 不补的话酿造塔的神龟药水整条死路），顺带海草对齐原版掉落。
+        put("minecraft:tropical_fish", d("minecraft:tropical_fish", 1, 1));
+        put("minecraft:turtle", d("minecraft:turtle_scute", 0, 1, 0.5f), d("minecraft:seagrass", 0, 2));
         put("minecraft:pufferfish", d("minecraft:pufferfish", 1, 1));
         put("minecraft:squid", d("minecraft:ink_sac", 1, 3));
         put("minecraft:glow_squid", d("minecraft:glow_ink_sac", 1, 3));
