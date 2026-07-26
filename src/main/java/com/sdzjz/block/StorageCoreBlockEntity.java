@@ -1,8 +1,14 @@
 package com.sdzjz.block;
 
 import com.sdzjz.registry.ModBlockEntities;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -10,6 +16,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -19,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,6 +176,136 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     public Map<String, Long> storeView() { return store; }
+
+    // ===== m161c 跨模组直连：Fabric Transfer API =====
+    // 管道/机器怼在存储核心方块任意面即可存取（Create/Modern Industrialization/Tech Reborn/AE2
+    // 等一切走 fabric-transfer-api 的模组；注册在 Sdzjz.onInitialize）。双账本全量暴露：普通账本按
+    // id、精确账本连组件（附魔书可被管道按模板抽走）。类型上限与 deposit 同一道闸——满员拒收新类型。
+    // 事务安全：SnapshotParticipant 整本快照（账本典型几百条，浅拷微秒级；模板栈从不被原地改，
+    // 浅拷即安全）；markDirty 推迟到 onFinalCommit——事务中动世界状态是 FTA 明令禁区，回滚回不掉
+    // dirty 标记。防长整溢出：管道惯用 Long.MAX_VALUE 试探性 insert，累加前先钳余量。
+    // 【盲写 API 对表备忘（沙箱无 MC 依赖，编译报错按此四点改）】：
+    //  ① Storage#iterator 为无参（1.19.3 起去掉 TransactionContext 参数）——报错就补参；
+    //  ② SnapshotParticipant 包名 ...transfer.v1.transaction.base——报错查 fabric-transfer-api-v1 源；
+    //  ③ ItemStorage.SIDED.registerForBlockEntity(单数) 在 Sdzjz.java——无此重载改 registerForBlockEntities；
+    //  ④ ItemVariant.of(ItemStack)/of(Item)/toStack(int) 签名不符查 ItemVariant 源。
+    private FabricLedger fabricLedger;
+
+    public Storage<ItemVariant> fabricStorage() {
+        if (fabricLedger == null) fabricLedger = new FabricLedger();
+        return fabricLedger;
+    }
+
+    public class FabricLedger extends SnapshotParticipant<FabricLedger.Snap> implements Storage<ItemVariant> {
+
+        record Snap(LinkedHashMap<String, Long> store, List<ItemStack> tpl, List<Long> n) {}
+
+        @Override protected Snap createSnapshot() {
+            return new Snap(new LinkedHashMap<>(store), new ArrayList<>(exactTpl), new ArrayList<>(exactN));
+        }
+
+        @Override protected void readSnapshot(Snap s) {
+            store.clear(); store.putAll(s.store());
+            exactTpl.clear(); exactTpl.addAll(s.tpl());
+            exactN.clear(); exactN.addAll(s.n());
+        }
+
+        @Override protected void onFinalCommit() { markDirty(); }
+
+        @Override public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            if (resource.isBlank() || maxAmount <= 0) return 0;
+            ItemStack one = resource.toStack(1);
+            if (one.getComponentChanges().isEmpty()) { // 与 deposit 同一分流：无组件走普通账本
+                String id = Registries.ITEM.getId(one.getItem()).toString();
+                if (!store.containsKey(id) && usedTypes() >= maxTypes()) return 0;
+                long cur = store.getOrDefault(id, 0L);
+                long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
+                if (accept <= 0) return 0;
+                updateSnapshots(tx);
+                store.put(id, cur + accept);
+                return accept;
+            }
+            for (int i = 0; i < exactTpl.size(); i++) { // 带组件走精确账本（m130 同款匹配）
+                if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) {
+                    long cur = exactN.get(i);
+                    long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
+                    if (accept <= 0) return 0;
+                    updateSnapshots(tx);
+                    exactN.set(i, cur + accept);
+                    return accept;
+                }
+            }
+            if (usedTypes() >= maxTypes()) return 0;
+            updateSnapshots(tx);
+            exactTpl.add(one); // toStack(1) 即模板规格（count=1，组件原样）
+            exactN.add(maxAmount);
+            return maxAmount;
+        }
+
+        @Override public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            if (resource.isBlank() || maxAmount <= 0) return 0;
+            ItemStack one = resource.toStack(1);
+            if (one.getComponentChanges().isEmpty()) {
+                String id = Registries.ITEM.getId(one.getItem()).toString();
+                long have = store.getOrDefault(id, 0L);
+                long take = Math.min(have, maxAmount);
+                if (take <= 0) return 0;
+                updateSnapshots(tx);
+                if (have - take <= 0) store.remove(id); else store.put(id, have - take);
+                return take;
+            }
+            for (int i = 0; i < exactTpl.size(); i++) {
+                if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) {
+                    long have = exactN.get(i);
+                    long take = Math.min(have, maxAmount);
+                    if (take <= 0) return 0;
+                    updateSnapshots(tx);
+                    if (have - take <= 0) { exactTpl.remove(i); exactN.remove(i); }
+                    else exactN.set(i, have - take);
+                    return take;
+                }
+            }
+            return 0;
+        }
+
+        @Override public Iterator<StorageView<ItemVariant>> iterator() {
+            List<StorageView<ItemVariant>> views = new ArrayList<>(store.size() + exactTpl.size());
+            for (String id : new ArrayList<>(store.keySet())) { // 键快照：迭代中抽空条目不炸游标
+                Item it = Registries.ITEM.get(Identifier.of(id));
+                ItemVariant v = ItemVariant.of(it);
+                if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
+                views.add(new View(v, id));
+            }
+            for (ItemStack tpl : new ArrayList<>(exactTpl)) views.add(new View(ItemVariant.of(tpl), null));
+            return views.iterator();
+        }
+
+        /** 游标视图：金额按键实时查（迭代途中被别的事务抽走也读不到脏值）；抽取转正门统一走外层 extract。 */
+        private class View implements StorageView<ItemVariant> {
+            private final ItemVariant v;
+            private final String id; // 非 null=普通账本键；null=精确账本按模板匹配
+
+            View(ItemVariant v, String id) { this.v = v; this.id = id; }
+
+            @Override public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
+                if (!v.equals(resource)) return 0;
+                return FabricLedger.this.extract(resource, maxAmount, tx);
+            }
+
+            @Override public boolean isResourceBlank() { return v.isBlank(); }
+            @Override public ItemVariant getResource() { return v; }
+
+            @Override public long getAmount() {
+                if (id != null) return store.getOrDefault(id, 0L);
+                ItemStack one = v.toStack(1);
+                for (int i = 0; i < exactTpl.size(); i++)
+                    if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) return exactN.get(i);
+                return 0;
+            }
+
+            @Override public long getCapacity() { return Long.MAX_VALUE; }
+        }
+    }
 
     /** BFS：从某位置经数据线/相邻找到所有存储核心。 */
     public static List<StorageCoreBlockEntity> connectedCores(World world, BlockPos from) {

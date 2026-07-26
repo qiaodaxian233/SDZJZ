@@ -1829,3 +1829,34 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   仓铁锭降到 1000 停、补货后自动续；③感应暂停时缓存不退、手动关立退；
   ④安全桶只选圆石→其他推送物被拒留上游走默认路由；⑤仓→抽取(白名单山羊角)→安全桶
   两节点链：山羊角清零其余不动；⑥传感器节点"清除感应"可用。
+
+## m161 三连：图标换皮 + 搜索框去黑壳 + 跨模组直连（用户一轮点三样）
+- **a 图标换皮**：用户重出 1254² 透明底高清立绘两张（村民无限交易机/村民打折机），标准管线
+  （alpha>16 裁边→4%边距补方→LANCZOS 128→尺寸/模式/覆盖率断言）归位覆盖，覆盖率 60.4%/56.2%，
+  绘图名单记账。同名覆盖零代码改动。
+- **诊断留痕（截图里的粉↓箭头/紫色K/右上四小钮不是咱们的）**：像素级排查——data_panel_gui.png
+  全图扫描零品红像素；全代码 grep 无箭头/紫色绘制；箭头精确落每个快捷栏格左上（GUI 坐标反推
+  scale=6 对齐验证）。特征组合（容器右上排序按钮组+快捷栏槽位标记）指向 Inventory Profiles
+  Next 的 slot locking。修法在游戏侧：IPN 设置关 lock 显示或按解锁键，与本模组无关。
+  教训：别人的 UI 叠在咱们屏上时，先坐标反推+资产扫描定归属，别上来就翻自己代码找箭头。
+- **b 搜索框去黑壳**：原版 TextFieldWidget 自带黑底灰边压科幻皮突兀（用户点名"不好看"）。
+  setDrawsBackground(false)+CELL 底/CELL_FRM 细边接管，聚焦边框亮青（ACCENT）；顺带照
+  pickerField 做法 resize 保留输入文字。文字色 TXT_HI。
+- **c 跨模组直连（用户点名"可以直接对接的那种"）**：存储核心挂 Fabric Transfer API
+  （ItemStorage.SIDED，注册在 Sdzjz.onInitialize）——Create/MI/TechReborn/AE2 等一切走
+  fabric-transfer-api 的管道怼存储核心任意面即可存取。设计要点：①双账本全量暴露，普通按 id、
+  精确连组件（附魔书可被管道按模板抽走），类型上限与 deposit 同闸；②事务安全走
+  SnapshotParticipant 整本快照（浅拷微秒级；模板栈从不原地改），markDirty 推迟 onFinalCommit
+  （事务中动世界状态是 FTA 禁区，回滚回不掉 dirty）；③防长整溢出——管道惯用 Long.MAX_VALUE
+  试探 insert，累加前钳余量；④iterator 键快照防迭代中抽空炸游标，缺失 id 落 air 即 blank 跳过。
+  盲写 API 对表四点已注释在类头（iterator 无参/SnapshotParticipant 包名/registerForBlockEntity
+  单复数/ItemVariant 签名）。
+- **刻意边界**：①原版漏斗不走 FTA（只认 Inventory），漏斗对接=给核心实现幻影槽 SidedInventory，
+  另开里程碑（内部 BFS 已核实全部先判 StorageCoreBlockEntity 再判 Inventory，无自冲突，可做）；
+  ②反向（咱们的机器往别的模组机器里塞）现只支持对方实现 Inventory 的，对方只暴露 FTA 的目标
+  要改 pushOutput 走 ItemStorage.SIDED.find，另开里程碑；③EMI 插件（超级工作台配方进浏览器）
+  需加 EMI 编译依赖，用户拍板再上。
+- 验证脚本（需装任一 FTA 管道模组，如 Create 机械动力）：①管道怼存储核心→泵入圆石：终端里
+  圆石计数涨；②管道设过滤"铁锭"从核心抽：仓内铁锭降、管道流出铁锭；③抽附魔书（精确条目）：
+  按模板整本抽走组件无损；④类型上限 config 开启且已满：泵入新种类被拒（管道憋住不丢货）；
+  ⑤Create 机械臂/漏斗皮带对核心存取一轮账目分毫不差；⑥无 FTA 模组时空跑无异常（注册懒加载）。

@@ -39,6 +39,12 @@ public class Sdzjz implements ModInitializer {
         ModScreenHandlers.init();
         ModItems.init();
 
+        // m161c 跨模组直连：存储核心双账本挂上 Fabric Transfer API——Create/Modern Industrialization/
+        // Tech Reborn/AE2 等一切走 fabric-transfer-api 的管道怼在存储核心任意面即可存取。
+        // 注意原版漏斗不走此 API（漏斗只认 Inventory 接口），漏斗对接另开里程碑（见 DEVLOG m161）。
+        net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.registerForBlockEntity(
+                (be, direction) -> be.fabricStorage(), ModBlockEntities.STORAGE_CORE_BE);
+
         // m94：抓物笼捕获改走实体交互事件——抢在 entity.interact() 之前触发，
         // 否则村民（交易界面）/马（骑乘）/驯服猫狗（坐下）等自带右键交互的生物会把捕获整个截胡，
         // useOnEntity 永远轮不到执行（僵尸/骷髅这类无交互生物不受影响，两条路都通）。
