@@ -26,7 +26,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
 
     // 浏览器布局（GUI 相对坐标）
-    private static final int PX = 270, PW = 192, LIST_Y = 30, ENTRY_H = 18, LIST_ROWS = 12;
+    private static final int PX = 270, PW = 192, LIST_Y = 30, ENTRY_H = 18, LIST_ROWS = 11; // m166 让位一行：BOM 配方材料可达 14+ 种，清单区要放下三行
 
     private int scroll = 0;
     private int selected = -1;
@@ -105,21 +105,28 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         if (selected >= 0 && selected < all.size()) {
             int dy = LIST_Y + LIST_ROWS * ENTRY_H + 14;
             ctx.drawText(this.textRenderer, "需要材料：", PX, dy, SUB, false);
-            String mob = all.get(selected).mob();
-            if (!mob.isEmpty()) {
-                String mn;
-                try { mn = net.minecraft.registry.Registries.ENTITY_TYPE.get(Identifier.of(mob)).getName().getString(); }
-                catch (Exception ex) { mn = mob; }
-                boolean caged = hasCagedMob(mob);
-                ctx.drawText(this.textRenderer,
-                        caged ? "已捕获: " + mn + " ✔" : "需捕获: " + mn + "（笼子装它）",
-                        PX + 58, dy, caged ? 0xFF50E850 : SciSkin.RED, false);
+            java.util.List<String> mobs = all.get(selected).mobs();
+            if (!mobs.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                boolean allOk = true;
+                for (String mob : mobs) { // m166 多生物逐只显示 ✔/✘（如刷铁机=村民+僵尸）
+                    String mn;
+                    try { mn = net.minecraft.registry.Registries.ENTITY_TYPE.get(Identifier.of(mob)).getName().getString(); }
+                    catch (Exception ex) { mn = mob; }
+                    if (sb.length() > 0) sb.append(' ');
+                    boolean caged = hasCagedMob(mob);
+                    allOk &= caged;
+                    sb.append(mn).append(caged ? "✔" : "✘");
+                }
+                String line = (allOk ? "已捕获: " : "需捕获(笼子装它): ") + sb;
+                ctx.drawText(this.textRenderer, this.textRenderer.trimToWidth(line, PW - 58),
+                        PX + 58, dy, allOk ? 0xFF50E850 : SciSkin.RED, false);
             }
             Map<String, Integer> have = countAvailable();
             int iy = dy + 12, col = 0;
             for (Map.Entry<String, Integer> e : all.get(selected).ingredients().entrySet()) {
                 ItemStack s = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
-                int sx = PX + (col % 6) * 32, sy = iy + (col / 6) * 20; // 6 列×32px：11 种材料两行放下，不越底
+                int sx = PX + (col % 6) * 32, sy = iy + (col / 6) * 20; // 6 列×32px；m166 列表让位后清单区可放三行=18 种，BOM 最多 14 种不越底
                 ctx.drawItem(s, sx, sy);
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 boolean ok = got >= e.getValue();

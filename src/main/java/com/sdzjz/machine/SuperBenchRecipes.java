@@ -9,48 +9,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 超大工作台合成表（m61 重做，m165 基座分档）。5 种 12x12 阵型模板轮换（堡垒双环/菱形矩阵/十字要塞/对角矩阵/同心环廊），
- * 铺满 132~144 格、每台 8 枚标志物（4 种 x2）；公共底料按机器对标的原版工程难度分三档（铜石/铁/金钻，见 LEGEND_T*）。
- * 匹配仍走多重集（位置无关，手动摆料也友好）；自动填充按 layout 指定位置铺满。多重集全表唯一（生成时校验）。
- * 角色字符：I=铁锭 C=铜锭 G=玻璃 R=红石 O=侦测器 M=核心模块 X=铁块 S=标志物 .=空
+ * 超大工作台合成表（m61 重做，m166 全表换制：原版建造清单 BOM）。
+ * 每台机器的配方=在原版里亲手搭这座农场的进货单（刷铁机=床+木板+泥土+漏斗+营火+村民+僵尸；
+ * 小黑塔=末地石+命名牌+矿车+漏斗+末影人……），外加 4 枚核心模块（模组机芯税，石英门槛与原版
+ * 侦测器农场的"去一次下界"同构）。刷怪类每种生物一只抓物笼（m166 起支持多生物）。
+ * 匹配仍走多重集（位置无关，手动摆料也友好，格内可堆叠）；自动填充按 autoLayout 逐行居中铺
+ * （1 格 1 件，故单方 BOM 总件数 ≤144，离线校验）。多重集全表唯一（生成时离线校验）。
+ * 档位角标 Ⅰ/Ⅱ/Ⅲ（TIER1/TIER3 名单）纯属浏览器分类提示，不再影响用料（m165 材质盘制已废）。
  */
 public final class SuperBenchRecipes {
     public static final int GRID = 12;
     public static final int SLOTS = 144;
 
-    static final String[] TEMPLATES = {
-        "IIIIIIIIIIIIICCCCCCCCCCIICOGGGGGGOCIICGMRRRRMGCIICGRXSSXRGCIICGRSMMSRGCIICGRSMMSRGCIICGRXSSXRGCIICGMRRRRMGCIICOGGGGGGOCIICCCCCCCCCCIIIIIIIIIIIII",
-        ".IICCGGCCII.IICCGGGGCCIIICCGGRRGGCCICCGGRSSRGGCCCGGRMOOMRGGCGGRSOXXOSRGGGGRSOXXOSRGGCGGRMOOMRGGCCCGGRSSRGGCCICCGGRRGGCCIIICCGGGGCCII.IICCGGCCII.",
-        "IIIIIIIIIIIIIGGGRCCRGGGIIGOGRCCRGOGIIGGGRCCRGGGIIRRRMSSMRRRIICCCSXXSCCCIICCCSXXSCCCIIRRRMSSMRRRIIGGGRCCRGGGIIGOGRCCRGOGIIGGGRCCRGGGIIIIIIIIIIIII",
-        "IIIIIIIIIIIIICCRGGGGRCCIICCCRGGRCCCIIRCCCRRCCCRIIGRCXSSXCRGIIGGRSMMSRGGIIGGRSMMSRGGIIGRCXSSXCRGIIRCCCRRCCCRIICCCRGGRCCCIICCRGGGGRCCIIIIIIIIIIIII",
-        "ICICICICICICCGGGGGGGGGGIIGORRRRRROGCCGRCIIIICRGIIGRIXSSXIRGCCGRISMMSIRGIIGRISMMSIRGCCGRIXSSXIRGIIGRCIIIICRGCCGORRRRRROGIIGGGGGGGGGGCCICICICICICI",
-    };
-    /** m165 基座三档（对标原版进度）：12×12 几何蓝图不变，公共底料按档位换材质盘。
-     *  依据=该机器替代的原版工程在原版里的搭建难度：
-     *  T1 铜石档（主世界露天就能搭的：刷石机/甘蔗塔/动物栏……）——铜+平滑石为主，一次下界带够石英即可；
-     *  T2 铁档（下界/村庄工程期：铁傻/烈焰塔/酿造……）——现行配置原样；
-     *  T3 金钻档（原版终局工程：凋灵笼/末地/远古城/神殿抽水/袭击塔……）——金锭替铜+钻石块替铁块。
-     *  多重集唯一性不受档位影响：标志物每台唯一（m61 保证），换盘只动公共底料。 */
-    static final Map<Character, String> LEGEND_T1 = new HashMap<>();
-    static final Map<Character, String> LEGEND_T2 = new HashMap<>();
-    static final Map<Character, String> LEGEND_T3 = new HashMap<>();
-    static {
-        LEGEND_T2.put('I', "minecraft:iron_ingot");
-        LEGEND_T2.put('C', "minecraft:copper_ingot");
-        LEGEND_T2.put('G', "minecraft:glass");
-        LEGEND_T2.put('R', "minecraft:redstone");
-        LEGEND_T2.put('O', "minecraft:observer");
-        LEGEND_T2.put('M', "sdzjz:core_module");
-        LEGEND_T2.put('X', "minecraft:iron_block");
-        LEGEND_T1.putAll(LEGEND_T2);
-        LEGEND_T1.put('I', "minecraft:copper_ingot");   // 主料降为铜（1.17+ 白菜价）
-        LEGEND_T1.put('C', "minecraft:smooth_stone");   // 次料降为平滑石
-        LEGEND_T1.put('X', "minecraft:copper_block");   // 承重块降为铜块
-        LEGEND_T3.putAll(LEGEND_T2);
-        LEGEND_T3.put('C', "minecraft:gold_ingot");     // 次料升为金（终局期猪人塔白产）
-        LEGEND_T3.put('X', "minecraft:diamond_block");  // 承重块升为钻石块×4（一次性门票，对标原版终局工程量）
-    }
-    /** 档位名单：T1/T3 点名，其余机器默认 T2。小件配方（addSmall*）不走档位。 */
+    /** 档位名单（浏览器角标用）：Ⅰ=主世界露天就能搭的原版农场，Ⅲ=原版终局工程，其余 Ⅱ。 */
     static final java.util.Set<String> TIER1 = java.util.Set.of(
         "sdzjz:bamboo_farm", "sdzjz:cactus_farm", "sdzjz:sugarcane_farm", "sdzjz:kelp_farm",
         "sdzjz:tree_farm", "sdzjz:crop_farm", "sdzjz:moss_farm", "sdzjz:bonemeal_machine",
@@ -70,103 +41,168 @@ public final class SuperBenchRecipes {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
 
-    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mob 非空=需装着该生物的抓物笼子（合成后生物装进机器，空笼归还）。
-     *  count = 单次产出数（m108b，数据线一次 8 根）；旧 4 参构造默认 1。 */
-    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count, int tier) {
+    /** layout[i] = 该格物品 id（null=空）。ingredients 为多重集用量。mobs 每项=需一只装着该生物的
+     *  抓物笼子（合成后生物装进机器，空笼归还）。count = 单次产出数（m108b，数据线一次 8 根）。 */
+    public record Recipe(String result, String[] layout, Map<String, Integer> ingredients,
+                         List<String> mobs, int count, int tier) {
         public Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob) {
-            this(result, layout, ingredients, mob, 1, 0);
+            this(result, layout, ingredients,
+                 mob.isEmpty() ? java.util.List.<String>of() : java.util.List.of(mob), 1, 0);
         }
         public Recipe(String result, String[] layout, Map<String, Integer> ingredients, String mob, int count) {
-            this(result, layout, ingredients, mob, count, 0); // 小件不走档位（tier=0，浏览器不画档位角标）
+            this(result, layout, ingredients, java.util.List.<String>of(), count, 0); // 小件无生物
         }
     }
     public static final String CAGE_ID = "sdzjz:capture_cage";
     public static final List<Recipe> ALL = new ArrayList<>();
 
     static {
-        add("sdzjz:auto_crafter", 0, "minecraft:crafting_table", "minecraft:crafting_table", "minecraft:crafter", "minecraft:crafter");
-        add("sdzjz:brewing_tower", 0, "minecraft:brewing_stand", "minecraft:brewing_stand", "minecraft:blaze_rod", "minecraft:nether_wart");
-        add("sdzjz:enchant_factory", 1, "minecraft:enchanting_table", "minecraft:bookshelf", "minecraft:book", "minecraft:lapis_lazuli");
-        // m137 凋灵机+四副机：凋灵=星本体入引子(先亲手打一次凋灵,对齐末地远征平台先打龙的仪式感)
-        add("sdzjz:wither_farm", 1, "minecraft:nether_star", "minecraft:wither_skeleton_skull", "minecraft:wither_skeleton_skull", "minecraft:soul_sand");
-        add("sdzjz:g_misc_machine", 2, "minecraft:cobweb", "minecraft:spore_blossom", "minecraft:amethyst_block", "minecraft:calcite");
-        add("sdzjz:sculk_line", 3, "minecraft:sculk_catalyst", "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk");
-        add("sdzjz:villager_discount_machine", 4, "minecraft:golden_apple", "minecraft:golden_apple", "minecraft:fermented_spider_eye", "minecraft:emerald_block");
-        addM("sdzjz:villager_trader", 1, "minecraft:villager", "minecraft:emerald_block", "minecraft:emerald_block", "minecraft:gold_block", "minecraft:chest");
-        // m138 幽匿线：三件本体入引子=先亲手下一次深暗之域（尖啸体/传感器须精准采集）
-        // m139 砂轮祛魔机
-        add("sdzjz:grindstone_recycler", 1, "minecraft:grindstone", "minecraft:grindstone", "minecraft:book", "minecraft:book");
-        add("sdzjz:bamboo_farm", 1, "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo", "minecraft:bamboo");
-        addM("sdzjz:blaze_farm", 2, "minecraft:blaze", "minecraft:blaze_rod", "minecraft:blaze_rod", "minecraft:blaze_powder", "minecraft:blaze_powder");
-        addM("sdzjz:ghast_tower", 3, "minecraft:ghast", "minecraft:ghast_tear", "minecraft:ghast_tear", "minecraft:gunpowder", "minecraft:gunpowder");
-        addM("sdzjz:breeze_farm", 4, "minecraft:breeze", "minecraft:breeze_rod", "minecraft:breeze_rod", "minecraft:wind_charge", "minecraft:wind_charge");
-        add("sdzjz:bonemeal_machine", 0, "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:bone_meal", "minecraft:moss_block");
-        add("sdzjz:moss_farm", 1, "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_block", "minecraft:moss_carpet");
-        add("sdzjz:stonecutter_machine", 2, "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone_bricks", "minecraft:stone");
-        addM("sdzjz:villager_breeder", 3, "minecraft:villager", "minecraft:bread", "minecraft:bread", "minecraft:bread", "minecraft:emerald");
-        addM("sdzjz:bone_farm", 4, "minecraft:skeleton", "minecraft:bone", "minecraft:bone", "minecraft:bone", "minecraft:arrow");
-        add("sdzjz:cactus_farm", 0, "minecraft:cactus", "minecraft:cactus", "minecraft:cactus", "minecraft:green_dye");
-        add("sdzjz:carpet_machine", 1, "minecraft:white_carpet", "minecraft:white_carpet", "minecraft:white_wool", "minecraft:white_wool");
-        add("sdzjz:charcoal_kiln", 2, "minecraft:charcoal", "minecraft:charcoal", "minecraft:charcoal", "minecraft:oak_log");
-        add("sdzjz:chorus_farm", 3, "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:chorus_fruit", "minecraft:popped_chorus_fruit");
-        add("sdzjz:cobble_maker", 4, "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:cobblestone", "minecraft:stone");
-        addM("sdzjz:drowned_tower", 0, "minecraft:drowned", "minecraft:copper_ingot", "minecraft:copper_ingot", "minecraft:prismarine_shard", "minecraft:rotten_flesh");
-        addM("sdzjz:flesh_farm", 1, "minecraft:zombie", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh", "minecraft:rotten_flesh");
-        add("sdzjz:glass_kiln", 2, "minecraft:glass", "minecraft:glass", "minecraft:sand", "minecraft:sand");
-        add("sdzjz:gold_smelter", 3, "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:raw_gold", "minecraft:gold_ingot");
-        addM("sdzjz:guardian_farm", 4, "minecraft:guardian", "minecraft:prismarine_shard", "minecraft:prismarine_shard", "minecraft:prismarine_crystals", "minecraft:prismarine_crystals");
-        addM("sdzjz:gunpowder_farm", 0, "minecraft:creeper", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:gunpowder", "minecraft:tnt");
-        addM("sdzjz:honey_farm", 1, "minecraft:bee", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honeycomb", "minecraft:honey_bottle");
-        add("sdzjz:ice_maker", 2, "minecraft:ice", "minecraft:ice", "minecraft:ice", "minecraft:snowball");
-        addM("sdzjz:iron_farm", 3, "minecraft:villager", "minecraft:poppy", "minecraft:poppy", "minecraft:iron_ingot", "minecraft:iron_ingot");
-        add("sdzjz:iron_smelter", 4, "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:iron_ingot");
-        add("sdzjz:kelp_farm", 0, "minecraft:kelp", "minecraft:kelp", "minecraft:kelp", "minecraft:dried_kelp");
-        addM("sdzjz:magma_farm", 1, "minecraft:magma_cube", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_cream", "minecraft:magma_block");
-        addM("sdzjz:mob_tower", 2, "minecraft:zombie", "minecraft:bone", "minecraft:gunpowder", "minecraft:string", "minecraft:arrow");
-        add("sdzjz:nether_tree_farm", 3, "minecraft:crimson_stem", "minecraft:crimson_stem", "minecraft:warped_stem", "minecraft:crimson_fungus");
-        add("sdzjz:nether_wart_farm", 4, "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:nether_wart", "minecraft:soul_sand");
-        add("sdzjz:obsidian_maker", 0, "minecraft:obsidian", "minecraft:obsidian", "minecraft:obsidian", "minecraft:crying_obsidian");
-        addM("sdzjz:pearl_farm", 1, "minecraft:enderman", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:ender_pearl", "minecraft:obsidian");
-        addM("sdzjz:piglin_barter", 2, "minecraft:piglin", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:gold_ingot", "minecraft:obsidian");
-        addM("sdzjz:pigman_tower", 3, "minecraft:zombified_piglin", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_nugget", "minecraft:gold_ingot");
-        addM("sdzjz:raid_tower", 4, "minecraft:pillager", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald", "minecraft:emerald");
-        add("sdzjz:rail_machine", 0, "minecraft:rail", "minecraft:rail", "minecraft:iron_ingot", "minecraft:stick");
-        add("sdzjz:sand_maker", 1, "minecraft:sand", "minecraft:sand", "minecraft:sand", "minecraft:gravel");
-        addM("sdzjz:shulker_farm", 2, "minecraft:shulker", "minecraft:shulker_shell", "minecraft:shulker_shell", "minecraft:purpur_block", "minecraft:purpur_block");
-        addM("sdzjz:slime_farm", 3, "minecraft:slime", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball", "minecraft:slime_ball");
-        add("sdzjz:sugarcane_farm", 4, "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:sugar_cane", "minecraft:paper");
-        add("sdzjz:super_smelter", 0, "minecraft:raw_iron", "minecraft:raw_iron", "minecraft:raw_gold", "minecraft:raw_gold");
-        addM("sdzjz:swamp_spawner", 1, "minecraft:bogged", "minecraft:rotten_flesh", "minecraft:bone", "minecraft:string", "minecraft:slime_ball");
-        add("sdzjz:tree_farm", 2, "minecraft:oak_log", "minecraft:oak_log", "minecraft:oak_sapling", "minecraft:apple");
-        addM("sdzjz:wire_brusher", 3, "minecraft:spider", "minecraft:string", "minecraft:string", "minecraft:string", "minecraft:cobweb");
-        addM("sdzjz:witch_tower", 4, "minecraft:witch", "minecraft:glowstone_dust", "minecraft:glowstone_dust", "minecraft:spider_eye", "minecraft:sugar");
-        addM("sdzjz:wither_skeleton_farm", 0, "minecraft:wither_skeleton", "minecraft:bone", "minecraft:coal", "minecraft:coal", "minecraft:soul_sand");
-        addM("sdzjz:chicken_farm", 1, "minecraft:chicken", "minecraft:feather", "minecraft:feather", "minecraft:egg", "minecraft:egg");
-        addM("sdzjz:sheep_farm", 2, "minecraft:sheep", "minecraft:white_wool", "minecraft:white_wool", "minecraft:mutton", "minecraft:mutton");
-        addM("sdzjz:cow_farm", 3, "minecraft:cow", "minecraft:beef", "minecraft:beef", "minecraft:leather", "minecraft:leather");
-        addM("sdzjz:pig_farm", 1, "minecraft:pig", "minecraft:porkchop", "minecraft:porkchop", "minecraft:carrot", "minecraft:carrot"); // m92
-        add("sdzjz:crop_farm", 4, "minecraft:wheat", "minecraft:carrot", "minecraft:potato", "minecraft:beetroot");
-        add("sdzjz:deep_mining_platform", 0, "minecraft:diamond", "minecraft:diamond", "minecraft:ancient_debris", "minecraft:ancient_debris"); // m102 引子模式:先亲手挖到样本
-        add("sdzjz:archaeology_station", 1, "minecraft:echo_shard", "minecraft:echo_shard", "minecraft:heart_of_the_sea", "minecraft:heart_of_the_sea"); // m109a 引子:远古城+藏宝图亲手跑
-        add("sdzjz:end_expedition_platform", 2, "minecraft:end_stone", "minecraft:end_stone", "minecraft:dragon_breath", "minecraft:dragon_breath"); // m109b 引子:先亲手打一次龙
-        add("sdzjz:trial_farm", 3, "minecraft:trial_key", "minecraft:trial_key", "minecraft:ominous_bottle", "minecraft:ominous_bottle"); // m109c 引子:试炼密室+亲手杀袭击队长
-        // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞 140+ 件的机器配方）
+        // 常用建材缩写（与文末 addSmall9 的变量名错开，勿撞）
+        String HOP = "minecraft:hopper", CHE = "minecraft:chest", WB = "minecraft:water_bucket",
+               LB = "minecraft:lava_bucket", COB = "minecraft:cobblestone", SST = "minecraft:smooth_stone",
+               PLK = "minecraft:oak_planks", TRAP = "minecraft:oak_trapdoor", GL = "minecraft:glass",
+               RSD = "minecraft:redstone", PIS = "minecraft:piston", OSV = "minecraft:observer",
+               TCH = "minecraft:torch", BED = "minecraft:white_bed", FUR = "minecraft:furnace",
+               BM = "minecraft:bone_meal", BOT = "minecraft:glass_bottle", DRT = "minecraft:dirt",
+               SND = "minecraft:sand", OBSI = "minecraft:obsidian", NBK = "minecraft:nether_bricks",
+               EST = "minecraft:end_stone";
+
+        bom("sdzjz:auto_crafter", "", "minecraft:crafter", 4, "minecraft:crafting_table", 2, HOP, 8, CHE, 4,
+                RSD, 12, "minecraft:comparator", 2, "minecraft:repeater", 2, "minecraft:iron_ingot", 8);
+        bom("sdzjz:brewing_tower", "", "minecraft:brewing_stand", 4, "minecraft:blaze_powder", 4,
+                "minecraft:nether_wart", 8, BOT, 12, HOP, 8, CHE, 2, "minecraft:comparator", 4, RSD, 12, SST, 8);
+        bom("sdzjz:enchant_factory", "", "minecraft:enchanting_table", 1, "minecraft:bookshelf", 15, // 15 书架=原版满级附魔台
+                "minecraft:book", 8, "minecraft:lapis_lazuli", 16, OBSI, 4, "minecraft:diamond", 2, HOP, 4, CHE, 2);
+        // 凋灵机：召唤材按原版仪式=灵魂沙4+凋骷头3；星×1 引子=先亲手打一次凋灵
+        bom("sdzjz:wither_farm", "", "minecraft:soul_sand", 4, "minecraft:wither_skeleton_skull", 3,
+                "minecraft:nether_star", 1, OBSI, 26, GL, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:g_misc_machine", "", "minecraft:cobweb", 4, "minecraft:spore_blossom", 2,
+                "minecraft:amethyst_block", 4, "minecraft:calcite", 8, "minecraft:moss_block", 4, GL, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:sculk_line", "", "minecraft:sculk_catalyst", 2, "minecraft:sculk_sensor", 4,
+                "minecraft:sculk_shrieker", 2, "minecraft:sculk", 16, "minecraft:white_wool", 8, // 羊毛=原版消音
+                "minecraft:deepslate_bricks", 16, HOP, 4, CHE, 2);
+        bom("sdzjz:villager_discount_machine", "", "minecraft:golden_apple", 4, "minecraft:fermented_spider_eye", 2, // 原版治愈仪式
+                BOT, 2, "minecraft:gunpowder", 2, "minecraft:iron_bars", 8, BED, 1, "minecraft:emerald", 8, HOP, 2, CHE, 1);
+        bom("sdzjz:villager_trader", "minecraft:villager", "minecraft:emerald_block", 4, CHE, 4, GL, 8,
+                PLK, 16, TRAP, 4, "minecraft:lectern", 1, "minecraft:barrel", 1); // 交易大厅
+        bom("sdzjz:grindstone_recycler", "", "minecraft:grindstone", 2, "minecraft:book", 4,
+                "minecraft:stone", 8, "minecraft:iron_ingot", 8, HOP, 4, CHE, 2);
+        bom("sdzjz:bamboo_farm", "", "minecraft:bamboo", 8, OSV, 8, PIS, 8, RSD, 8, SST, 24, HOP, 4, CHE, 2);
+        bom("sdzjz:blaze_farm", "minecraft:blaze", NBK, 24, GL, 8, "minecraft:iron_trapdoor", 4,
+                "minecraft:blaze_rod", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:ghast_tower", "minecraft:ghast", OBSI, 16, GL, 16, "minecraft:ghast_tear", 1, HOP, 4, CHE, 2);
+        bom("sdzjz:breeze_farm", "minecraft:breeze", "minecraft:tuff_bricks", 16, "minecraft:copper_block", 8,
+                "minecraft:copper_grate", 4, "minecraft:breeze_rod", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:bonemeal_machine", "", "minecraft:composter", 8, "minecraft:moss_block", 8, PLK, 16,
+                RSD, 8, BM, 4, HOP, 8, CHE, 2);
+        bom("sdzjz:moss_farm", "", "minecraft:moss_block", 4, BM, 16, PIS, 6, OSV, 4, SST, 16, RSD, 6, HOP, 4, CHE, 2);
+        bom("sdzjz:stonecutter_machine", "", "minecraft:stonecutter", 4, "minecraft:stone", 16, RSD, 4, HOP, 4, CHE, 2);
+        bom("sdzjz:villager_breeder", "minecraft:villager", BED, 3, "minecraft:carrot", 16, "minecraft:bread", 8, // 3床=原版繁殖门槛
+                PLK, 16, GL, 8, "minecraft:composter", 1, HOP, 2, CHE, 1);
+        bom("sdzjz:bone_farm", "minecraft:skeleton", COB, 32, WB, 2, TRAP, 4, "minecraft:bone", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:cactus_farm", "", "minecraft:cactus", 8, SND, 8, "minecraft:string", 8, GL, 8, SST, 16, HOP, 4, CHE, 2);
+        bom("sdzjz:carpet_machine", "", "minecraft:white_wool", 8, "minecraft:shears", 1, "minecraft:white_carpet", 4,
+                PLK, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:charcoal_kiln", "", FUR, 8, "minecraft:oak_log", 16, "minecraft:charcoal", 4, HOP, 8, CHE, 2);
+        bom("sdzjz:chorus_farm", "", "minecraft:chorus_flower", 4, EST, 24, GL, 8,
+                "minecraft:popped_chorus_fruit", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:cobble_maker", "", WB, 1, LB, 1, PIS, 2, OSV, 2, RSD, 4, SST, 8, HOP, 4, CHE, 2); // 全表最便宜：原版就俩桶
+        bom("sdzjz:drowned_tower", "minecraft:drowned", COB, 24, WB, 2, "minecraft:turtle_egg", 1,
+                "minecraft:copper_ingot", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:flesh_farm", "minecraft:zombie", COB, 24, WB, 2, TRAP, 4, "minecraft:rotten_flesh", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:glass_kiln", "", FUR, 8, SND, 16, "minecraft:charcoal", 8, HOP, 8, CHE, 2);
+        bom("sdzjz:gold_smelter", "", FUR, 8, "minecraft:raw_gold", 8, LB, 1, HOP, 8, CHE, 2);
+        bom("sdzjz:guardian_farm", "minecraft:guardian", "minecraft:sponge", 8, "minecraft:prismarine", 24, // 海绵=原版抽水神殿
+                "minecraft:sea_lantern", 2, WB, 2, HOP, 4, CHE, 2);
+        bom("sdzjz:gunpowder_farm", "minecraft:creeper", COB, 24, "minecraft:white_carpet", 8, TRAP, 8, // 地毯=原版防蜘蛛
+                "minecraft:gunpowder", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:honey_farm", "minecraft:bee", "minecraft:beehive", 4, "minecraft:campfire", 2, // 营火=原版安抚蜂群
+                "minecraft:dandelion", 8, BOT, 8, "minecraft:shears", 1, PLK, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:ice_maker", "", WB, 2, "minecraft:ice", 4, SST, 16, GL, 8, HOP, 4, CHE, 2);
+        // 刷铁机：照用户实拍进货单（单核刷铁机一箱料），村民+僵尸两只活的都要（m166 多生物首例）
+        bom("sdzjz:iron_farm", "minecraft:villager,minecraft:zombie", DRT, 26, PLK, 24, TRAP, 2, BED, 4,
+                "minecraft:oak_sign", 3, TCH, 8, GL, 1, "minecraft:oak_boat", 1, WB, 1, CHE, 2, HOP, 1,
+                "minecraft:campfire", 2);
+        bom("sdzjz:iron_smelter", "", FUR, 8, "minecraft:raw_iron", 8, LB, 1, HOP, 8, CHE, 2);
+        bom("sdzjz:kelp_farm", "", "minecraft:kelp", 8, WB, 2, PIS, 4, OSV, 4, GL, 16, RSD, 4, HOP, 4, CHE, 2);
+        bom("sdzjz:magma_farm", "minecraft:magma_cube", "minecraft:magma_block", 8, "minecraft:iron_bars", 8,
+                NBK, 12, "minecraft:magma_cream", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:mob_tower", "minecraft:zombie", COB, 48, WB, 4, TRAP, 8, TCH, 8, HOP, 4, CHE, 4); // 通用大黑塔=堆料最多
+        bom("sdzjz:nether_tree_farm", "", "minecraft:crimson_fungus", 2, "minecraft:warped_fungus", 2,
+                "minecraft:netherrack", 16, BM, 16, PIS, 2, HOP, 4, CHE, 2);
+        bom("sdzjz:nether_wart_farm", "", "minecraft:nether_wart", 8, "minecraft:soul_sand", 16, PIS, 4,
+                RSD, 6, HOP, 4, CHE, 2);
+        bom("sdzjz:obsidian_maker", "", LB, 4, WB, 1, "minecraft:pointed_dripstone", 2, SST, 12, PIS, 2,
+                RSD, 4, OBSI, 2, HOP, 4, CHE, 2);
+        // 小黑塔（用户点名）：末地石平台+命名牌末影螨+矿车诱饵+沿边活板门
+        bom("sdzjz:pearl_farm", "minecraft:enderman", EST, 32, "minecraft:name_tag", 1, "minecraft:minecart", 1,
+                "minecraft:rail", 2, TRAP, 8, "minecraft:ender_pearl", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:piglin_barter", "minecraft:piglin", OBSI, 10, "minecraft:gold_ingot", 16, // 黑曜石10=原版下界门最省砌法
+                "minecraft:flint_and_steel", 1, HOP, 4, CHE, 4);
+        bom("sdzjz:pigman_tower", "minecraft:zombified_piglin", "minecraft:turtle_egg", 4, OBSI, 16, // 龟蛋=原版仇恨诱饵
+                TRAP, 8, "minecraft:gold_nugget", 8, HOP, 4, CHE, 4);
+        bom("sdzjz:raid_tower", "minecraft:pillager", "minecraft:bell", 1, BED, 1, COB, 32, WB, 2, // 钟+床=一格假村庄
+                "minecraft:emerald", 4, HOP, 4, CHE, 4);
+        bom("sdzjz:rail_machine", "", "minecraft:iron_ingot", 16, "minecraft:stick", 8, "minecraft:rail", 4,
+                FUR, 2, HOP, 4, CHE, 2);
+        bom("sdzjz:sand_maker", "", "minecraft:tnt", 2, SND, 8, SST, 16, RSD, 4, HOP, 4, CHE, 2);
+        bom("sdzjz:shulker_farm", "minecraft:shulker", "minecraft:purpur_block", 24, "minecraft:end_rod", 4,
+                GL, 8, "minecraft:shulker_shell", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:slime_farm", "minecraft:slime", COB, 40, "minecraft:iron_block", 4, "minecraft:carved_pumpkin", 1, // 铁块4+南瓜=原版铁傀儡诱饵
+                TCH, 8, "minecraft:slime_ball", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:sugarcane_farm", "", "minecraft:sugar_cane", 8, SND, 8, WB, 2, OSV, 8, PIS, 8, RSD, 8,
+                SST, 12, HOP, 4, CHE, 2);
+        bom("sdzjz:super_smelter", "", FUR, 16, HOP, 16, CHE, 8, "minecraft:coal_block", 4); // 原版超级熔炉阵=炉与漏斗海
+        bom("sdzjz:swamp_spawner", "minecraft:bogged", "minecraft:mud", 16, TRAP, 4, WB, 1,
+                "minecraft:arrow", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:tree_farm", "", "minecraft:oak_sapling", 8, DRT, 16, BM, 16, "minecraft:apple", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:wire_brusher", "minecraft:spider", "minecraft:cobweb", 2, COB, 24, WB, 2,
+                "minecraft:string", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:witch_tower", "minecraft:witch", PLK, 24, "minecraft:cauldron", 1, TRAP, 4, WB, 2, // 锅=原版女巫小屋标配
+                BOT, 4, HOP, 4, CHE, 2);
+        bom("sdzjz:wither_skeleton_farm", "minecraft:wither_skeleton", NBK, 32, "minecraft:soul_sand", 4,
+                "minecraft:coal", 4, "minecraft:bone", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:chicken_farm", "minecraft:chicken", "minecraft:egg", 8, "minecraft:dispenser", 1, LB, 1, // 熔岩刀=原版全自动鸡场
+                GL, 8, SST, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:sheep_farm", "minecraft:sheep", "minecraft:dispenser", 4, "minecraft:shears", 4, // 发射器持剪=原版自动薅毛
+                "minecraft:grass_block", 8, GL, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:cow_farm", "minecraft:cow", "minecraft:wheat", 16, LB, 1, GL, 8, SST, 8,
+                "minecraft:leather", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:pig_farm", "minecraft:pig", "minecraft:carrot", 16, LB, 1, GL, 8, DRT, 8,
+                "minecraft:porkchop", 2, HOP, 4, CHE, 2); // m92
+        bom("sdzjz:crop_farm", "", DRT, 16, WB, 1, "minecraft:wheat_seeds", 8, "minecraft:carrot", 4,
+                "minecraft:potato", 4, "minecraft:composter", 1, HOP, 5, "minecraft:minecart", 1, CHE, 2); // 漏斗5+矿车=漏斗矿车收菜
+        bom("sdzjz:deep_mining_platform", "", "minecraft:diamond", 2, "minecraft:ancient_debris", 2, // 引子:先亲手挖到样本
+                "minecraft:tnt", 8, OBSI, 8, "minecraft:rail", 8, "minecraft:minecart", 1, TCH, 8, HOP, 4, CHE, 4);
+        bom("sdzjz:archaeology_station", "", "minecraft:brush", 2, "minecraft:echo_shard", 2, // 引子:远古城+藏宝图亲手跑
+                "minecraft:heart_of_the_sea", 1, SND, 16, "minecraft:terracotta", 8, HOP, 4, CHE, 4);
+        bom("sdzjz:end_expedition_platform", "", "minecraft:ender_eye", 12, "minecraft:dragon_breath", 2, // 眼12=原版找要塞；引子:先亲手打一次龙
+                EST, 16, OBSI, 10, BOT, 4, HOP, 4, CHE, 4);
+        bom("sdzjz:trial_farm", "", "minecraft:trial_key", 2, "minecraft:ominous_bottle", 1, // 引子:试炼密室+亲手杀袭击队长
+                "minecraft:copper_block", 8, "minecraft:copper_bulb", 4, "minecraft:tuff_bricks", 12, HOP, 4, CHE, 4);
+        // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞机器 BOM）
         addSmall("sdzjz:filter_node", "minecraft:hopper");
         addSmall("sdzjz:sensor_node", "minecraft:comparator");
         addSmall("sdzjz:switch_node", "minecraft:lever");
         addSmall("sdzjz:distributor_node", "minecraft:dropper");
         // m84a 缺口七机
-        add("sdzjz:amethyst_farm", 0, "minecraft:amethyst_shard", "minecraft:amethyst_shard", "minecraft:amethyst_block", "minecraft:amethyst_block");
-        add("sdzjz:clay_machine", 1, "minecraft:clay_ball", "minecraft:clay_ball", "minecraft:mud", "minecraft:mud");
-        add("sdzjz:dripstone_farm", 2, "minecraft:pointed_dripstone", "minecraft:pointed_dripstone", "minecraft:dripstone_block", "minecraft:dripstone_block");
-        addM("sdzjz:snow_machine", 3, "minecraft:snow_golem", "minecraft:snowball", "minecraft:snowball", "minecraft:snow_block", "minecraft:snow_block");
-        add("sdzjz:basalt_machine", 4, "minecraft:basalt", "minecraft:basalt", "minecraft:blue_ice", "minecraft:soul_soil");
-        add("sdzjz:fishing_machine", 0, "minecraft:fishing_rod", "minecraft:cod", "minecraft:salmon", "minecraft:string");
-        addM("sdzjz:disc_machine", 1, "minecraft:creeper", "minecraft:jukebox", "minecraft:note_block", "minecraft:gunpowder", "minecraft:bone");
+        bom("sdzjz:amethyst_farm", "", "minecraft:amethyst_shard", 4, "minecraft:amethyst_block", 4,
+                "minecraft:calcite", 8, "minecraft:smooth_basalt", 8, PIS, 4, OSV, 4, HOP, 4, CHE, 2);
+        bom("sdzjz:clay_machine", "", "minecraft:mud", 16, "minecraft:pointed_dripstone", 4, DRT, 8, WB, 1, // 泥+滴水石锥=原版泥转黏土
+                "minecraft:clay_ball", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:dripstone_farm", "", "minecraft:pointed_dripstone", 4, "minecraft:dripstone_block", 8,
+                WB, 1, LB, 1, SST, 16, HOP, 4, CHE, 2);
+        bom("sdzjz:snow_machine", "minecraft:snow_golem", "minecraft:carved_pumpkin", 1, "minecraft:snow_block", 2, // 南瓜+雪块2=原版堆雪傀儡
+                SST, 8, GL, 8, "minecraft:snowball", 4, HOP, 4, CHE, 2);
+        bom("sdzjz:basalt_machine", "", "minecraft:soul_soil", 4, "minecraft:blue_ice", 2, LB, 1, // 原版玄武岩三件套
+                PIS, 4, OSV, 4, SST, 8, "minecraft:basalt", 2, HOP, 4, CHE, 2);
+        bom("sdzjz:fishing_machine", "", "minecraft:fishing_rod", 1, WB, 2, TRAP, 2, "minecraft:note_block", 1,
+                "minecraft:string", 8, PLK, 8, HOP, 4, CHE, 2);
+        bom("sdzjz:disc_machine", "minecraft:creeper,minecraft:skeleton", "minecraft:jukebox", 1, // 骷髅射爬行者=原版唱片机制,俩都要抓
+                "minecraft:note_block", 1, COB, 16, TRAP, 4, HOP, 4, CHE, 2);
         addSmall("sdzjz:auto_feeder", "minecraft:bread"); // m80d 自动喂食器
-        // m108b 基础件全量进浏览器（m77 只修了逻辑节点；基础件只有原版数据包配方、无进度解锁→配方书不显示，
-        // 游戏内无处可查——用户"交易所做了吗我没看见"实锤）。图样/用量与原版配方文件逐字一致，不开新获取捷径；
-        // 多重集离线校验两两唯一（9 件小配方也不可能撞 130+ 件的机器配方）。
+        // m108b 基础件全量进浏览器。图样/用量与原版配方文件逐字一致，不开新获取捷径；
+        // 多重集离线校验两两唯一（9 件小配方也不可能撞机器 BOM）。
         String E="minecraft:emerald", I="minecraft:iron_ingot", P="minecraft:paper", B="minecraft:bread",
                G="minecraft:glass", GP="minecraft:glass_pane", EP="minecraft:ender_pearl", MM="sdzjz:core_module",
                R="minecraft:redstone", C="minecraft:copper_ingot", CH="minecraft:chest", IB="minecraft:iron_bars",
@@ -190,6 +226,31 @@ public final class SuperBenchRecipes {
         addSmall9("sdzjz:parallel_upgrade",  1, D,GB,D,  D,MM,D,   D,GB,D);
     }
 
+    /** m166 机器配方=原版建造清单：kv 为 (物品id, 数量) 交替；mobsCsv 逗号分隔（""=无生物）。
+     *  自动追加 4 枚核心模块与每生物一只抓物笼；笼子排清单首位（浏览器一眼可见）。 */
+    private static void bom(String result, String mobsCsv, Object... kv) {
+        List<String> mobs = mobsCsv.isEmpty() ? java.util.List.<String>of() : List.of(mobsCsv.split(","));
+        Map<String, Integer> ing = new java.util.LinkedHashMap<>();
+        if (!mobs.isEmpty()) ing.put(CAGE_ID, mobs.size());
+        for (int i = 0; i < kv.length; i += 2) ing.merge((String) kv[i], (Integer) kv[i + 1], Integer::sum);
+        ing.merge("sdzjz:core_module", 4, Integer::sum);
+        ALL.add(new Recipe(result, autoLayout(ing), ing, mobs, 1, tierOf(result)));
+    }
+
+    /** BOM 自动布局：按清单顺序逐行铺进 12×12（1 格 1 件），整体垂直居中、末行水平居中。 */
+    private static String[] autoLayout(Map<String, Integer> ing) {
+        List<String> seq = new ArrayList<>();
+        ing.forEach((id, c) -> { for (int i = 0; i < c; i++) seq.add(id); });
+        String[] layout = new String[SLOTS];
+        int rows = (seq.size() + GRID - 1) / GRID, r0 = Math.max(0, (GRID - rows) / 2), p = 0;
+        for (int r = 0; r < rows && p < seq.size(); r++) {
+            int rem = Math.min(GRID, seq.size() - p);
+            int off = (GRID - rem) / 2;
+            for (int c = 0; c < rem; c++) layout[(r0 + r) * GRID + off + c] = seq.get(p++);
+        }
+        return layout;
+    }
+
     /** m108b 通用小配方：显式 3×3 图样（行优先 9 格）居中进 12×12，count=单次产出。与原版配方同料同量。 */
     private static void addSmall9(String result, int count, String... nine) {
         String[] layout = new String[SLOTS];
@@ -202,11 +263,6 @@ public final class SuperBenchRecipes {
                 ing.merge(id, 1, Integer::sum);
             }
         ALL.add(new Recipe(result, layout, ing, "", count));
-    }
-
-    /** 标志物 4 种各放 2 枚，落在模板的 8 个 S 位上。 */
-    private static void add(String result, int tpl, String... sig) {
-        build(result, tpl, "", sig);
     }
 
     /** 小件（逻辑节点）：3×3 居中摆进 12×12——工作台浏览器里可查可一键填料，原版工作台配方同样保留。 */
@@ -222,41 +278,6 @@ public final class SuperBenchRecipes {
                 ing.merge(id, 1, Integer::sum);
             }
         ALL.add(new Recipe(result, layout, ing, ""));
-    }
-
-    /** 刷怪类机器：材料里含 1 个「装着 mob 的抓物笼子」——先去对应地方抓到它才合得出来。 */
-    private static void addM(String result, int tpl, String mob, String... sig) {
-        build(result, tpl, mob, sig);
-    }
-
-    private static void build(String result, int tpl, String mob, String[] sig) {
-        int tier = tierOf(result);
-        Map<Character, String> legend = tier == 1 ? LEGEND_T1 : tier == 3 ? LEGEND_T3 : LEGEND_T2;
-        String template = TEMPLATES[tpl];
-        String[] layout = new String[SLOTS];
-        Map<String, Integer> ing = new java.util.LinkedHashMap<>(); // 保留蓝图遇到顺序：材料清单显示稳定
-        int si = 0;
-        for (int i = 0; i < SLOTS; i++) {
-            char ch = template.charAt(i);
-            String id = null;
-            if (ch == 'S') id = sig[(si++) / 2];
-            else if (ch != '.') id = legend.get(ch);
-            layout[i] = id;
-            if (id != null) ing.merge(id, 1, Integer::sum);
-        }
-        if (!mob.isEmpty()) { // 用 1 格主料（本档 'I' 材质）的位置放笼子（多重集：主料-1、笼+1，全表唯一性不受影响）
-            String base = legend.get('I'); // m165：T1 主料是铜——硬编码铁锭会找不到格，笼子静默丢失、配方废掉
-            for (int i = 0; i < SLOTS; i++) {
-                if (base.equals(layout[i])) {
-                    layout[i] = CAGE_ID;
-                    ing.merge(base, -1, Integer::sum);
-                    if (ing.getOrDefault(base, 0) <= 0) ing.remove(base);
-                    ing.put(CAGE_ID, 1);
-                    break;
-                }
-            }
-        }
-        ALL.add(new Recipe(result, layout, ing, mob, 1, tier));
     }
 
     /** 网格多重集精确匹配到配方。 */

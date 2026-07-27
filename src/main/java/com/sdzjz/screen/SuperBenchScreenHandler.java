@@ -91,16 +91,19 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         }
     }
 
-    /** 刷怪类配方：网格里必须有一个「装着指定生物」的抓物笼子（空笼/装错生物都不行）。 */
+    /** 刷怪类配方：每种指定生物都要有一个「装着它」的抓物笼子（空笼/装错生物都不行；m166 支持多生物，如刷铁机=村民+僵尸）。 */
     private boolean mobOk(SuperBenchRecipes.Recipe r) {
         if (r == null) return false;
-        if (r.mob().isEmpty()) return true;
-        for (int i = 0; i < GRID_SLOTS; i++) {
-            ItemStack s = input.getStack(i);
-            if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                    && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) return true;
+        for (String mob : r.mobs()) {
+            boolean found = false;
+            for (int i = 0; i < GRID_SLOTS && !found; i++) {
+                ItemStack s = input.getStack(i);
+                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) found = true;
+            }
+            if (!found) return false;
         }
-        return false;
+        return true;
     }
 
     private void consumeIngredients() {
@@ -108,15 +111,17 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         if (r == null || !mobOk(r)) return;
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             int need = e.getValue();
-            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey()) && !r.mob().isEmpty()) {
-                // 笼子不消耗：生物「装进」机器，清 NBT 留一个空笼在网格里
-                for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
-                    ItemStack s = input.getStack(i);
-                    if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                            && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
-                        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
-                        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_NAME);
-                        need--;
+            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey()) && !r.mobs().isEmpty()) {
+                // 笼子不消耗：生物「装进」机器，清 NBT 留空笼在网格里（m166 多生物=每种清一个对应的笼）
+                for (String mob : r.mobs()) {
+                    for (int i = 0; i < GRID_SLOTS; i++) {
+                        ItemStack s = input.getStack(i);
+                        if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                                && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                            s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+                            s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_NAME);
+                            break;
+                        }
                     }
                 }
                 continue;
@@ -164,15 +169,15 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 input.setStack(i, ItemStack.EMPTY);
             }
         }
-        // 刷怪类：先从背包找「装着指定生物」的那个笼子（整个带 NBT 搬过来，不能造新的）
-        ItemStack cage = ItemStack.EMPTY;
-        if (!r.mob().isEmpty()) {
+        // 刷怪类：每种生物从背包找「装着它」的那个笼子（整个带 NBT 搬过来，不能造新的；m166 多生物逐只找）
+        java.util.List<ItemStack> cages = new java.util.ArrayList<>();
+        for (String mob : r.mobs()) {
             PlayerInventory pinv = player.getInventory();
             for (int i = 0; i < pinv.size(); i++) {
                 ItemStack s = pinv.getStack(i);
                 if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                        && r.mob().equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
-                    cage = s.copyWithCount(1); // 只搬 1 只（多重集精确匹配要求 ×1）
+                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                    cages.add(s.copyWithCount(1)); // 只搬 1 只（多重集精确匹配要求 每生物×1）
                     s.decrement(1);
                     if (s.isEmpty()) pinv.setStack(i, ItemStack.EMPTY);
                     break;
@@ -192,7 +197,7 @@ public class SuperBenchScreenHandler extends ScreenHandler {
             String want = layout[i];
             if (want == null) continue;
             if (SuperBenchRecipes.CAGE_ID.equals(want)) {
-                if (!cage.isEmpty()) { input.setStack(i, cage); cage = ItemStack.EMPTY; }
+                if (!cages.isEmpty()) input.setStack(i, cages.remove(0));
                 continue;
             }
             int have = pool.getOrDefault(want, 0);
@@ -201,39 +206,49 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 pool.put(want, have - 1);
             }
         }
-        if (!cage.isEmpty()) { if (!player.getInventory().insertStack(cage)) player.dropItem(cage, false); }
+        for (ItemStack c : cages) { if (!player.getInventory().insertStack(c)) player.dropItem(c, false); }
         input.markDirty();
         sendMissingSummary(player, r); // 填完统计缺什么，聊天栏直说，不再"点了没反应"
         return true;
     }
 
-    /** 填料后核对网格 vs 配方：缺什么、缺几个，发聊天消息；齐了发"就绪"。 */
+    /** 填料后核对网格 vs 配方：缺什么、缺几个，发聊天消息；齐了发"就绪"。m166 多生物逐只报缺。 */
     private void sendMissingSummary(PlayerEntity player, SuperBenchRecipes.Recipe r) {
         Map<String, Integer> grid = gridMultiset();
         java.util.List<String> missing = new java.util.ArrayList<>();
-        boolean cageMissing = false;
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             int lack = e.getValue() - grid.getOrDefault(e.getKey(), 0);
             if (lack <= 0) continue;
-            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) { cageMissing = true; continue; }
+            if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子按生物逐只报，见下
             Item it = Registries.ITEM.get(Identifier.of(e.getKey()));
             missing.add(it.getName().getString() + "×" + lack);
         }
-        if (!cageMissing && !r.mob().isEmpty() && !mobOk(r)) cageMissing = true; // 有笼但装错生物
-        if (missing.isEmpty() && !cageMissing) {
+        java.util.List<String> cageMiss = new java.util.ArrayList<>(); // 缺笼或装错生物的，报生物名
+        for (String mob : r.mobs()) {
+            boolean found = false;
+            for (int i = 0; i < GRID_SLOTS && !found; i++) {
+                ItemStack s = input.getStack(i);
+                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
+                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) found = true;
+            }
+            if (!found) {
+                String mn;
+                try { mn = net.minecraft.registry.Registries.ENTITY_TYPE
+                        .get(Identifier.of(mob)).getName().getString(); }
+                catch (Exception ex) { mn = mob; }
+                cageMiss.add(mn);
+            }
+        }
+        if (missing.isEmpty() && cageMiss.isEmpty()) {
             player.sendMessage(net.minecraft.text.Text.literal("材料齐全，取走结果即可")
                     .formatted(net.minecraft.util.Formatting.GREEN), false);
             return;
         }
         net.minecraft.text.MutableText msg = net.minecraft.text.Text.literal("还缺: ")
                 .formatted(net.minecraft.util.Formatting.RED);
-        if (cageMissing) {
-            String mn;
-            try { mn = net.minecraft.registry.Registries.ENTITY_TYPE
-                    .get(Identifier.of(r.mob())).getName().getString(); }
-            catch (Exception ex) { mn = r.mob(); }
-            msg.append(net.minecraft.text.Text.literal("装着[" + mn + "]的抓物笼子（去抓一只）"
-                    + (missing.isEmpty() ? "" : "、")));
+        if (!cageMiss.isEmpty()) {
+            msg.append(net.minecraft.text.Text.literal("装着[" + String.join("/", cageMiss)
+                    + "]的抓物笼子（每种一只，去抓）" + (missing.isEmpty() ? "" : "、")));
         }
         int shown = Math.min(missing.size(), 6);
         msg.append(net.minecraft.text.Text.literal(String.join("、", missing.subList(0, shown))
