@@ -36,7 +36,7 @@ public final class SuperBenchRecipes {
         "sdzjz:shulker_farm", "sdzjz:pearl_farm", "sdzjz:chorus_farm", "sdzjz:sculk_line",
         "sdzjz:deep_mining_platform", "sdzjz:archaeology_station", "sdzjz:end_expedition_platform",
         "sdzjz:trial_farm", "sdzjz:guardian_farm", "sdzjz:raid_tower", "sdzjz:villager_trader",
-        "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker"); // m168：百万刷石机=520万/h TNT复制工程，原版终局难度
+        "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker", "sdzjz:mega_iron_farm"); // m168/m169：百万刷石机/40核刷铁机=原版终局工程难度
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -131,6 +131,14 @@ public final class SuperBenchRecipes {
         bom("sdzjz:iron_farm", "minecraft:villager,minecraft:zombie", DRT, 26, PLK, 24, TRAP, 2, BED, 4,
                 "minecraft:oak_sign", 3, TCH, 8, GL, 1, "minecraft:oak_boat", 1, WB, 1, CHE, 2, HOP, 1,
                 "minecraft:campfire", 2);
+        // m169 40核刷铁机：对表用户 40 核蓝图（litematic 实测 11044 块：白桦栅栏门1856/白桦台阶1804+橡木280/
+        // 水源1924/玻璃1010/白桦楼梯968/闪长岩墙952/白桦栅栏680/床120张=3床×40核/村民实体120=3×40核/
+        // 火把229/岩浆60击杀舱/船10，÷≈100 取整，床÷10=12 撑核心身份）——119 件 18 种，村民+僵尸双笼照单核。
+        bom("sdzjz:mega_iron_farm", "minecraft:villager,minecraft:zombie",
+                "minecraft:birch_fence_gate", 18, "minecraft:birch_slab", 18, BED, 12, GL, 10,
+                "minecraft:birch_stairs", 10, "minecraft:diorite_wall", 10, "minecraft:birch_fence", 7,
+                WB, 6, "minecraft:birch_planks", 5, TRAP, 4, TCH, 3, OSV, 2, LB, 1,
+                "minecraft:oak_boat", 1, HOP, 4, CHE, 2);
         bom("sdzjz:iron_smelter", "", FUR, 8, "minecraft:raw_iron", 8, LB, 1, HOP, 8, CHE, 2);
         bom("sdzjz:kelp_farm", "", "minecraft:kelp", 8, WB, 2, PIS, 4, OSV, 4, GL, 16, RSD, 4, HOP, 4, CHE, 2);
         bom("sdzjz:magma_farm", "minecraft:magma_cube", "minecraft:magma_block", 8, "minecraft:iron_bars", 8,

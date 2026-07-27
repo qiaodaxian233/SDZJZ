@@ -143,6 +143,8 @@ public final class Machines {
     public static final MachineDef PEARL_FARM     = def("pearl_farm",     "minecraft:ender_pearl",  1, 30);
     public static final MachineDef SLIME_FARM     = def("slime_farm",     "minecraft:slime_ball",   1, 25);
     public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
+    /** m169 40核刷铁机：40/40t=单核×40=7.2万/h，对表用户 40 核蓝图（120村民/120床=3+3×40核，升级另乘）。 */
+    public static final MachineDef MEGA_IRON_FARM = def("mega_iron_farm", "minecraft:iron_ingot", 40, 40);
     public static final MachineDef TREE_FARM = defMulti("tree_farm", 30,
             drop("minecraft:oak_log", 1, 2), drop("minecraft:stick", 0, 2),
             drop("minecraft:apple", 0, 1, 0.15f), drop("minecraft:oak_sapling", 0, 1, 0.4f));

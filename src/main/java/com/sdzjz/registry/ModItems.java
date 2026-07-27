@@ -69,6 +69,7 @@ public class ModItems {
     public static final Item PEARL_FARM     = reg("pearl_farm",     new MachineItem(new Item.Settings(), Machines.PEARL_FARM));
     public static final Item SLIME_FARM     = reg("slime_farm",     new MachineItem(new Item.Settings(), Machines.SLIME_FARM));
     public static final Item IRON_FARM      = reg("iron_farm",      new MachineItem(new Item.Settings(), Machines.IRON_FARM));
+    public static final Item MEGA_IRON_FARM = reg("mega_iron_farm", new MachineItem(new Item.Settings(), Machines.MEGA_IRON_FARM)); // m169 40核刷铁机
     public static final Item TREE_FARM      = reg("tree_farm",      new MachineItem(new Item.Settings(), Machines.TREE_FARM));
     public static final Item SUGARCANE_FARM = reg("sugarcane_farm", new MachineItem(new Item.Settings(), Machines.SUGARCANE_FARM));
     public static final Item BAMBOO_FARM    = reg("bamboo_farm",    new MachineItem(new Item.Settings(), Machines.BAMBOO_FARM));
@@ -171,6 +172,7 @@ public class ModItems {
             entries.add(PEARL_FARM);
             entries.add(SLIME_FARM);
             entries.add(IRON_FARM);
+            entries.add(MEGA_IRON_FARM);
             entries.add(TREE_FARM);
             entries.add(SUGARCANE_FARM);
             entries.add(BAMBOO_FARM);
