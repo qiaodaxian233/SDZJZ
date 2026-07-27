@@ -36,7 +36,8 @@ public final class SuperBenchRecipes {
         "sdzjz:shulker_farm", "sdzjz:pearl_farm", "sdzjz:chorus_farm", "sdzjz:sculk_line",
         "sdzjz:deep_mining_platform", "sdzjz:archaeology_station", "sdzjz:end_expedition_platform",
         "sdzjz:trial_farm", "sdzjz:guardian_farm", "sdzjz:raid_tower", "sdzjz:villager_trader",
-        "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker", "sdzjz:mega_iron_farm"); // m168/m169：百万刷石机/40核刷铁机=原版终局工程难度
+        "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker", "sdzjz:mega_iron_farm",
+        "sdzjz:mega_slime_farm", "sdzjz:mega_piglin_barter", "sdzjz:mega_mob_tower"); // m168-m170：工程款全入Ⅲ档
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -144,6 +145,14 @@ public final class SuperBenchRecipes {
         bom("sdzjz:magma_farm", "minecraft:magma_cube", "minecraft:magma_block", 8, "minecraft:iron_bars", 8,
                 NBK, 12, "minecraft:magma_cream", 2, HOP, 4, CHE, 2);
         bom("sdzjz:mob_tower", "minecraft:zombie", COB, 48, WB, 4, TRAP, 8, TCH, 8, HOP, 4, CHE, 4); // 通用大黑塔=堆料最多
+        // m170 920万船吸刷怪塔：对表用户蓝图（litematic 实测 133507 块：平滑石台阶26494/黑曜石23678+
+        // 传送门20064格=门阵运怪/灵魂沙23618/白玻璃16089/云杉告示牌10032/发射器3344+船实体3345=船吸本体/
+        // 凋灵玫瑰674击杀/龟蛋150诱饵，÷≈1000 取整，打火石=点门仪式）——116 件 16 种。
+        bom("sdzjz:mega_mob_tower", "minecraft:zombie", "minecraft:smooth_stone_slab", 24, OBSI, 20,
+                "minecraft:soul_sand", 20, "minecraft:white_stained_glass", 14, "minecraft:spruce_sign", 8,
+                HOP, 4, CHE, 4, "minecraft:oak_leaves", 3, "minecraft:dispenser", 3, OSV, 3,
+                "minecraft:oak_boat", 3, "minecraft:stone_brick_stairs", 1, "minecraft:wither_rose", 1,
+                "minecraft:birch_trapdoor", 1, "minecraft:turtle_egg", 1, "minecraft:flint_and_steel", 1);
         bom("sdzjz:nether_tree_farm", "", "minecraft:crimson_fungus", 2, "minecraft:warped_fungus", 2,
                 "minecraft:netherrack", 16, BM, 16, PIS, 2, HOP, 4, CHE, 2);
         bom("sdzjz:nether_wart_farm", "", "minecraft:nether_wart", 8, "minecraft:soul_sand", 16, PIS, 4,
@@ -155,6 +164,13 @@ public final class SuperBenchRecipes {
                 "minecraft:rail", 2, TRAP, 8, "minecraft:ender_pearl", 2, HOP, 4, CHE, 2);
         bom("sdzjz:piglin_barter", "minecraft:piglin", OBSI, 10, "minecraft:gold_ingot", 16, // 黑曜石10=原版下界门最省砌法
                 "minecraft:flint_and_steel", 1, HOP, 4, CHE, 4);
+        // m170 140猪灵交易场：对表用户蓝图（litematic 实测 2972 块：白混凝土740/白玻璃450/漏斗235/
+        // 侦测器159/平滑石131/红石火把153/比较器62，÷≈30 取整，金块4=140猪灵的交易本钱标志件）——68 件 15 种。
+        bom("sdzjz:mega_piglin_barter", "minecraft:piglin", "minecraft:white_concrete", 12,
+                "minecraft:white_stained_glass", 8, HOP, 8, OSV, 5, SST, 4, CHE, 4, RSD, 4,
+                "minecraft:gold_block", 4, "minecraft:repeater", 3, "minecraft:dropper", 3,
+                "minecraft:redstone_torch", 3, "minecraft:comparator", 2, "minecraft:powered_rail", 2,
+                "minecraft:note_block", 1);
         bom("sdzjz:pigman_tower", "minecraft:zombified_piglin", "minecraft:turtle_egg", 4, OBSI, 16, // 龟蛋=原版仇恨诱饵
                 TRAP, 8, "minecraft:gold_nugget", 8, HOP, 4, CHE, 4);
         bom("sdzjz:raid_tower", "minecraft:pillager", "minecraft:bell", 1, BED, 1, COB, 32, WB, 2, // 钟+床=一格假村庄
@@ -166,6 +182,14 @@ public final class SuperBenchRecipes {
                 GL, 8, "minecraft:shulker_shell", 2, HOP, 4, CHE, 2);
         bom("sdzjz:slime_farm", "minecraft:slime", COB, 40, "minecraft:iron_block", 4, "minecraft:carved_pumpkin", 1, // 铁块4+南瓜=原版铁傀儡诱饵
                 TCH, 8, "minecraft:slime_ball", 2, HOP, 4, CHE, 2);
+        // m170 200万史莱姆农场：对表用户双维度蓝图 by tuzier（litematic 实测 5860 块：白玻璃2681/漏斗790/
+        // 投掷器400/动力铁轨248/侦测器220/合成器111打包/蓝冰108冰道/凋灵玫瑰36击杀/灵魂沙60，÷≈50 取整；
+        // 蓝图内 repeating_command_block×5 属放置辅助不入料）——82 件 17 种。
+        bom("sdzjz:mega_slime_farm", "minecraft:slime", "minecraft:white_stained_glass", 24, HOP, 16,
+                "minecraft:dropper", 8, "minecraft:powered_rail", 5, OSV, 4, CHE, 4, "minecraft:oak_leaves", 2,
+                "minecraft:repeater", 2, "minecraft:crafter", 2, "minecraft:blue_ice", 2,
+                "minecraft:white_concrete", 2, "minecraft:wither_rose", 2, "minecraft:composter", 1,
+                "minecraft:soul_sand", 1, "minecraft:note_block", 1, "minecraft:slime_block", 1);
         bom("sdzjz:sugarcane_farm", "", "minecraft:sugar_cane", 8, SND, 8, WB, 2, OSV, 8, PIS, 8, RSD, 8,
                 SST, 12, HOP, 4, CHE, 2);
         bom("sdzjz:super_smelter", "", FUR, 16, HOP, 16, CHE, 8, "minecraft:coal_block", 4); // 原版超级熔炉阵=炉与漏斗海

@@ -142,6 +142,8 @@ public final class Machines {
     public static final MachineDef FLESH_FARM     = def("flesh_farm",     "minecraft:rotten_flesh", 1, 20);
     public static final MachineDef PEARL_FARM     = def("pearl_farm",     "minecraft:ender_pearl",  1, 30);
     public static final MachineDef SLIME_FARM     = def("slime_farm",     "minecraft:slime_ball",   1, 25);
+    /** m170 200万史莱姆农场：695/25t≈200.2万/h，对表用户双维度蓝图（升级另乘）。 */
+    public static final MachineDef MEGA_SLIME_FARM = def("mega_slime_farm", "minecraft:slime_ball", 695, 25);
     public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
     /** m169 40核刷铁机：40/40t=单核×40=7.2万/h，对表用户 40 核蓝图（120村民/120床=3+3×40核，升级另乘）。 */
     public static final MachineDef MEGA_IRON_FARM = def("mega_iron_farm", "minecraft:iron_ingot", 40, 40);
@@ -185,6 +187,15 @@ public final class Machines {
             drop("minecraft:obsidian", 1, 1, 0.1f), drop("minecraft:soul_sand", 2, 4, 0.2f),
             drop("minecraft:magma_cream", 1, 1, 0.1f), drop("minecraft:leather", 1, 1, 0.15f));
 
+    /** m170 140猪灵交易场：吃 70金/30t=16.8万金/h（猪人塔喂），产出均值189件/周期≈45.4万件/h
+     *  对表用户"46万"蓝图；八项池与基础款同表、区间×70 换算成 chance=1 的均值等价区间（出货更平滑）。 */
+    public static final MachineDef MEGA_PIGLIN_BARTER = defConsume("mega_piglin_barter", 30,
+            java.util.List.of(in("minecraft:gold_ingot", 70)),
+            drop("minecraft:ender_pearl", 0, 21), drop("minecraft:string", 14, 42),
+            drop("minecraft:quartz", 21, 63), drop("minecraft:glowstone_dust", 21, 63),
+            drop("minecraft:obsidian", 0, 14), drop("minecraft:soul_sand", 21, 63),
+            drop("minecraft:magma_cream", 0, 14), drop("minecraft:leather", 0, 21));
+
     // ---- 追加机器(m22) ----
     public static final MachineDef CACTUS_FARM = def("cactus_farm", "minecraft:cactus", 2, 20);
     public static final MachineDef NETHER_WART_FARM = def("nether_wart_farm", "minecraft:nether_wart", 1, 25);
@@ -201,6 +212,8 @@ public final class Machines {
     public static final MachineDef RAIL_MACHINE = def("rail_machine", "minecraft:rail", 2, 20);
     public static final MachineDef CARPET_MACHINE = def("carpet_machine", "minecraft:white_carpet", 2, 20);
     public static final MachineDef MOB_TOWER = defMulti("mob_tower", 25, drop("minecraft:bone", 0, 2), drop("minecraft:gunpowder", 0, 1), drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:string", 0, 2), drop("minecraft:arrow", 0, 1));
+    /** m170 920万船吸刷怪塔：五联掉落=基础款×800，均值3200件/25t=128件/t≈921.6万件/h 对表蓝图。 */
+    public static final MachineDef MEGA_MOB_TOWER = defMulti("mega_mob_tower", 25, drop("minecraft:bone", 0, 1600), drop("minecraft:gunpowder", 0, 800), drop("minecraft:rotten_flesh", 0, 1600), drop("minecraft:string", 0, 1600), drop("minecraft:arrow", 0, 800));
     public static final MachineDef NETHER_TREE_FARM = defMulti("nether_tree_farm", 30, drop("minecraft:crimson_stem", 1, 2), drop("minecraft:warped_stem", 0, 1), drop("minecraft:nether_wart_block", 0, 1, 0.2f), drop("minecraft:shroomlight", 0, 1, 0.1f));
     public static final MachineDef CHORUS_FARM = def("chorus_farm", "minecraft:chorus_fruit", 1, 30);
     public static final MachineDef DROWNED_TOWER = defMulti("drowned_tower", 30, drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:copper_ingot", 0, 1, 0.5f), drop("minecraft:nautilus_shell", 0, 1, 0.03f), drop("minecraft:trident", 0, 1, 0.015f));

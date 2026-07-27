@@ -68,6 +68,7 @@ public class ModItems {
     public static final Item FLESH_FARM     = reg("flesh_farm",     new MachineItem(new Item.Settings(), Machines.FLESH_FARM));
     public static final Item PEARL_FARM     = reg("pearl_farm",     new MachineItem(new Item.Settings(), Machines.PEARL_FARM));
     public static final Item SLIME_FARM     = reg("slime_farm",     new MachineItem(new Item.Settings(), Machines.SLIME_FARM));
+    public static final Item MEGA_SLIME_FARM = reg("mega_slime_farm", new MachineItem(new Item.Settings(), Machines.MEGA_SLIME_FARM)); // m170
     public static final Item IRON_FARM      = reg("iron_farm",      new MachineItem(new Item.Settings(), Machines.IRON_FARM));
     public static final Item MEGA_IRON_FARM = reg("mega_iron_farm", new MachineItem(new Item.Settings(), Machines.MEGA_IRON_FARM)); // m169 40核刷铁机
     public static final Item TREE_FARM      = reg("tree_farm",      new MachineItem(new Item.Settings(), Machines.TREE_FARM));
@@ -84,6 +85,7 @@ public class ModItems {
     public static final Item RAID_TOWER     = reg("raid_tower",     new MachineItem(new Item.Settings(), Machines.RAID_TOWER));
     public static final Item PIGMAN_TOWER   = reg("pigman_tower",   new MachineItem(new Item.Settings(), Machines.PIGMAN_TOWER));
     public static final Item PIGLIN_BARTER  = reg("piglin_barter",  new MachineItem(new Item.Settings(), Machines.PIGLIN_BARTER));
+    public static final Item MEGA_PIGLIN_BARTER = reg("mega_piglin_barter", new MachineItem(new Item.Settings(), Machines.MEGA_PIGLIN_BARTER)); // m170
     public static final Item CACTUS_FARM = reg("cactus_farm", new MachineItem(new Item.Settings(), Machines.CACTUS_FARM));
     public static final Item NETHER_WART_FARM = reg("nether_wart_farm", new MachineItem(new Item.Settings(), Machines.NETHER_WART_FARM));
     public static final Item KELP_FARM = reg("kelp_farm", new MachineItem(new Item.Settings(), Machines.KELP_FARM));
@@ -97,6 +99,7 @@ public class ModItems {
     public static final Item RAIL_MACHINE = reg("rail_machine", new MachineItem(new Item.Settings(), Machines.RAIL_MACHINE));
     public static final Item CARPET_MACHINE = reg("carpet_machine", new MachineItem(new Item.Settings(), Machines.CARPET_MACHINE));
     public static final Item MOB_TOWER = reg("mob_tower", new MachineItem(new Item.Settings(), Machines.MOB_TOWER));
+    public static final Item MEGA_MOB_TOWER = reg("mega_mob_tower", new MachineItem(new Item.Settings(), Machines.MEGA_MOB_TOWER)); // m170
     public static final Item NETHER_TREE_FARM = reg("nether_tree_farm", new MachineItem(new Item.Settings(), Machines.NETHER_TREE_FARM));
     public static final Item CHORUS_FARM = reg("chorus_farm", new MachineItem(new Item.Settings(), Machines.CHORUS_FARM));
     public static final Item DROWNED_TOWER = reg("drowned_tower", new MachineItem(new Item.Settings(), Machines.DROWNED_TOWER));
@@ -171,6 +174,7 @@ public class ModItems {
             entries.add(FLESH_FARM);
             entries.add(PEARL_FARM);
             entries.add(SLIME_FARM);
+            entries.add(MEGA_SLIME_FARM);
             entries.add(IRON_FARM);
             entries.add(MEGA_IRON_FARM);
             entries.add(TREE_FARM);
@@ -187,6 +191,7 @@ public class ModItems {
             entries.add(RAID_TOWER);
             entries.add(PIGMAN_TOWER);
             entries.add(PIGLIN_BARTER);
+            entries.add(MEGA_PIGLIN_BARTER);
             entries.add(CACTUS_FARM);
             entries.add(NETHER_WART_FARM);
             entries.add(KELP_FARM);
@@ -200,6 +205,7 @@ public class ModItems {
             entries.add(RAIL_MACHINE);
             entries.add(CARPET_MACHINE);
             entries.add(MOB_TOWER);
+            entries.add(MEGA_MOB_TOWER);
             entries.add(NETHER_TREE_FARM);
             entries.add(CHORUS_FARM);
             entries.add(DROWNED_TOWER);
