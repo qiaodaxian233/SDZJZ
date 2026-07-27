@@ -37,7 +37,8 @@ public final class SuperBenchRecipes {
         "sdzjz:deep_mining_platform", "sdzjz:archaeology_station", "sdzjz:end_expedition_platform",
         "sdzjz:trial_farm", "sdzjz:guardian_farm", "sdzjz:raid_tower", "sdzjz:villager_trader",
         "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker", "sdzjz:mega_iron_farm",
-        "sdzjz:mega_slime_farm", "sdzjz:mega_piglin_barter", "sdzjz:mega_mob_tower"); // m168-m170：工程款全入Ⅲ档
+        "sdzjz:mega_slime_farm", "sdzjz:mega_piglin_barter", "sdzjz:mega_mob_tower",
+        "sdzjz:mega_witch_tower", "sdzjz:mega_guardian_farm"); // m168-m171：工程款全入Ⅲ档
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -123,6 +124,14 @@ public final class SuperBenchRecipes {
         bom("sdzjz:gold_smelter", "", FUR, 8, "minecraft:raw_gold", 8, LB, 1, HOP, 8, CHE, 2);
         bom("sdzjz:guardian_farm", "minecraft:guardian", "minecraft:sponge", 8, "minecraft:prismarine", 24, // 海绵=原版抽水神殿
                 "minecraft:sea_lantern", 2, WB, 2, HOP, 4, CHE, 2);
+        // m171 强力守卫者农场：对表用户 zip 三件套（电梯+击杀舱+仓储，litematic 合计 3909 块：玻璃880/
+        // 传送门230格+黑曜石188=门运/海晶砖系333/漏斗238/红石228/白混凝土242/侦测器114/蓝冰84/
+        // 船实体64=船收集/蛛网28缓降/气泡柱28电梯，÷≈12 取整；神殿排水不入原理图→海绵16=基础款×2 顶抽水税）
+        // ——90 件 15 种，守卫者笼照基础款。
+        bom("sdzjz:mega_guardian_farm", "minecraft:guardian", GL, 16, "minecraft:sponge", 16, OBSI, 10,
+                "minecraft:prismarine_bricks", 8, HOP, 8, RSD, 4, "minecraft:white_concrete", 4, CHE, 4,
+                OSV, 3, "minecraft:powered_rail", 3, "minecraft:dropper", 2, "minecraft:comparator", 2,
+                "minecraft:blue_ice", 2, "minecraft:oak_boat", 2, "minecraft:flint_and_steel", 1);
         bom("sdzjz:gunpowder_farm", "minecraft:creeper", COB, 24, "minecraft:white_carpet", 8, TRAP, 8, // 地毯=原版防蜘蛛
                 "minecraft:gunpowder", 4, HOP, 4, CHE, 2);
         bom("sdzjz:honey_farm", "minecraft:bee", "minecraft:beehive", 4, "minecraft:campfire", 2, // 营火=原版安抚蜂群
@@ -200,6 +209,14 @@ public final class SuperBenchRecipes {
                 "minecraft:string", 4, HOP, 4, CHE, 2);
         bom("sdzjz:witch_tower", "minecraft:witch", PLK, 24, "minecraft:cauldron", 1, TRAP, 4, WB, 2, // 锅=原版女巫小屋标配
                 BOT, 4, HOP, 4, CHE, 2);
+        // m171 沼泽刷怪塔：对表用户 v2 蓝图（litematic 实测 6013 块：平滑石台阶2746/平滑石1159铺台/
+        // 白玻璃528/石砖楼梯344/樱花活板门180/岩浆块124击杀层/灵魂营火22/矿车62收集车队/漏斗矿车2，
+        // ÷≈50 取整）——83 件 17 种，女巫笼照基础款、锅=女巫身份件。
+        bom("sdzjz:mega_witch_tower", "minecraft:witch", "minecraft:smooth_stone_slab", 24, SST, 12,
+                "minecraft:white_stained_glass", 8, "minecraft:stone_brick_stairs", 6, RSD, 4, HOP, 4,
+                "minecraft:cherry_trapdoor", 4, "minecraft:magma_block", 3, WB, 3, OSV, 2,
+                "minecraft:minecart", 2, CHE, 2, "minecraft:white_concrete", 1, "minecraft:soul_campfire", 1,
+                "minecraft:packed_ice", 1, "minecraft:cauldron", 1);
         bom("sdzjz:wither_skeleton_farm", "minecraft:wither_skeleton", NBK, 32, "minecraft:soul_sand", 4,
                 "minecraft:coal", 4, "minecraft:bone", 2, HOP, 4, CHE, 2);
         bom("sdzjz:chicken_farm", "minecraft:chicken", "minecraft:egg", 8, "minecraft:dispenser", 1, LB, 1, // 熔岩刀=原版全自动鸡场

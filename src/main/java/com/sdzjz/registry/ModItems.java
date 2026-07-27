@@ -79,7 +79,9 @@ public class ModItems {
     public static final Item OBSIDIAN_MAKER = reg("obsidian_maker", new MachineItem(new Item.Settings(), Machines.OBSIDIAN_MAKER));
     public static final Item SWAMP_SPAWNER  = reg("swamp_spawner",  new MachineItem(new Item.Settings(), Machines.SWAMP_SPAWNER));
     public static final Item WITCH_TOWER    = reg("witch_tower",    new MachineItem(new Item.Settings(), Machines.WITCH_TOWER));
+    public static final Item MEGA_WITCH_TOWER = reg("mega_witch_tower", new MachineItem(new Item.Settings(), Machines.MEGA_WITCH_TOWER)); // m171
     public static final Item GUARDIAN_FARM  = reg("guardian_farm",  new MachineItem(new Item.Settings(), Machines.GUARDIAN_FARM));
+    public static final Item MEGA_GUARDIAN_FARM = reg("mega_guardian_farm", new MachineItem(new Item.Settings(), Machines.MEGA_GUARDIAN_FARM)); // m171
     public static final Item MAGMA_FARM     = reg("magma_farm",     new MachineItem(new Item.Settings(), Machines.MAGMA_FARM));
     public static final Item SHULKER_FARM   = reg("shulker_farm",   new MachineItem(new Item.Settings(), Machines.SHULKER_FARM));
     public static final Item RAID_TOWER     = reg("raid_tower",     new MachineItem(new Item.Settings(), Machines.RAID_TOWER));
@@ -185,7 +187,9 @@ public class ModItems {
             entries.add(OBSIDIAN_MAKER);
             entries.add(SWAMP_SPAWNER);
             entries.add(WITCH_TOWER);
+            entries.add(MEGA_WITCH_TOWER);
             entries.add(GUARDIAN_FARM);
+            entries.add(MEGA_GUARDIAN_FARM);
             entries.add(MAGMA_FARM);
             entries.add(SHULKER_FARM);
             entries.add(RAID_TOWER);

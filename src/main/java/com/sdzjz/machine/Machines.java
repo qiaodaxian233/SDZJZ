@@ -166,10 +166,20 @@ public final class Machines {
             drop("minecraft:redstone", 0, 2), drop("minecraft:glowstone_dust", 0, 2), drop("minecraft:sugar", 0, 2),
             drop("minecraft:glass_bottle", 0, 1), drop("minecraft:gunpowder", 0, 1), drop("minecraft:stick", 0, 2),
             drop("minecraft:spider_eye", 0, 1));
+    /** m171 沼泽刷怪塔：七联女巫掉落=基础款×64，均值352件/25t≈101.4万件/h（蓝图无标称产能，
+     *  按台面规模取 ×64，要调报个倍数一行改）。 */
+    public static final MachineDef MEGA_WITCH_TOWER = defMulti("mega_witch_tower", 25,
+            drop("minecraft:redstone", 0, 128), drop("minecraft:glowstone_dust", 0, 128), drop("minecraft:sugar", 0, 128),
+            drop("minecraft:glass_bottle", 0, 64), drop("minecraft:gunpowder", 0, 64), drop("minecraft:stick", 0, 128),
+            drop("minecraft:spider_eye", 0, 64));
 
     public static final MachineDef GUARDIAN_FARM = defMulti("guardian_farm", 25,
             drop("minecraft:prismarine_shard", 0, 2), drop("minecraft:prismarine_crystals", 0, 1),
             drop("minecraft:cod", 0, 1));
+    /** m171 强力守卫者农场：三联掉落=基础款×16，均值32件/25t≈9.2万件/h（对表门运式守卫者农场量级）。 */
+    public static final MachineDef MEGA_GUARDIAN_FARM = defMulti("mega_guardian_farm", 25,
+            drop("minecraft:prismarine_shard", 0, 32), drop("minecraft:prismarine_crystals", 0, 16),
+            drop("minecraft:cod", 0, 16));
 
     public static final MachineDef MAGMA_FARM    = def("magma_farm",   "minecraft:magma_cream",   1, 25);
     public static final MachineDef SHULKER_FARM  = def("shulker_farm", "minecraft:shulker_shell", 1, 60);
