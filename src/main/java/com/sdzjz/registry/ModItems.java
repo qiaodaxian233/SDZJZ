@@ -62,6 +62,7 @@ public class ModItems {
     // 机器（MachineItem 携带 MachineDef）
     public static final Item WIRE_BRUSHER   = reg("wire_brusher",   new MachineItem(new Item.Settings(), Machines.WIRE_BRUSHER));
     public static final Item COBBLE_MAKER   = reg("cobble_maker",   new MachineItem(new Item.Settings(), Machines.COBBLE_MAKER));
+    public static final Item MEGA_COBBLE_MAKER = reg("mega_cobble_maker", new MachineItem(new Item.Settings(), Machines.MEGA_COBBLE_MAKER)); // m168 百万刷石机
     public static final Item BONE_FARM      = reg("bone_farm",      new MachineItem(new Item.Settings(), Machines.BONE_FARM));
     public static final Item GUNPOWDER_FARM = reg("gunpowder_farm", new MachineItem(new Item.Settings(), Machines.GUNPOWDER_FARM));
     public static final Item FLESH_FARM     = reg("flesh_farm",     new MachineItem(new Item.Settings(), Machines.FLESH_FARM));
@@ -163,6 +164,7 @@ public class ModItems {
             entries.add(AUTO_FEEDER);
             entries.add(WIRE_BRUSHER);
             entries.add(COBBLE_MAKER);
+            entries.add(MEGA_COBBLE_MAKER);
             entries.add(BONE_FARM);
             entries.add(GUNPOWDER_FARM);
             entries.add(FLESH_FARM);

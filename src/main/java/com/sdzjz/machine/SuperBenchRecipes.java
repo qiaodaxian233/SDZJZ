@@ -25,7 +25,7 @@ public final class SuperBenchRecipes {
     static final java.util.Set<String> TIER1 = java.util.Set.of(
         "sdzjz:bamboo_farm", "sdzjz:cactus_farm", "sdzjz:sugarcane_farm", "sdzjz:kelp_farm",
         "sdzjz:tree_farm", "sdzjz:crop_farm", "sdzjz:moss_farm", "sdzjz:bonemeal_machine",
-        "sdzjz:sand_maker", "sdzjz:ice_maker", "sdzjz:charcoal_kiln",
+        "sdzjz:cobble_maker", "sdzjz:sand_maker", "sdzjz:ice_maker", "sdzjz:charcoal_kiln",
         "sdzjz:glass_kiln", "sdzjz:stonecutter_machine", "sdzjz:carpet_machine", "sdzjz:rail_machine",
         "sdzjz:clay_machine", "sdzjz:fishing_machine", "sdzjz:mob_tower", "sdzjz:flesh_farm",
         "sdzjz:bone_farm", "sdzjz:gunpowder_farm", "sdzjz:wire_brusher", "sdzjz:chicken_farm",
@@ -36,7 +36,7 @@ public final class SuperBenchRecipes {
         "sdzjz:shulker_farm", "sdzjz:pearl_farm", "sdzjz:chorus_farm", "sdzjz:sculk_line",
         "sdzjz:deep_mining_platform", "sdzjz:archaeology_station", "sdzjz:end_expedition_platform",
         "sdzjz:trial_farm", "sdzjz:guardian_farm", "sdzjz:raid_tower", "sdzjz:villager_trader",
-        "sdzjz:enchant_factory", "sdzjz:cobble_maker"); // m167：对标 520万/h TNT复制工程=原版终局难度
+        "sdzjz:enchant_factory", "sdzjz:mega_cobble_maker"); // m168：百万刷石机=520万/h TNT复制工程，原版终局难度
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -106,11 +106,13 @@ public final class SuperBenchRecipes {
         bom("sdzjz:charcoal_kiln", "", FUR, 8, "minecraft:oak_log", 16, "minecraft:charcoal", 4, HOP, 8, CHE, 2);
         bom("sdzjz:chorus_farm", "", "minecraft:chorus_flower", 4, EST, 24, GL, 8,
                 "minecraft:popped_chorus_fruit", 2, HOP, 4, CHE, 2);
-        // m167 对表用户 520万/h 工程蓝图（litematic 实测 99587 块：活塞10069/侦测器7162/白玻璃17895/
-        // 黑曜石9261/圆石壳29334/岩浆源3936/水源3979/锁链2091/音符盒955/TNT复制引擎…，÷≈700 取整，
-        // 黏活塞/黏液/TNT 各留 1 当引擎标志件）——全表最重 118 件，配得上它替代的原版工程。
-        bom("sdzjz:cobble_maker", "", COB, 24, "minecraft:white_stained_glass", 18, PIS, 12, OBSI, 10,
-                OSV, 9, "minecraft:diorite_wall", 8, "minecraft:stone_brick_wall", 5, LB, 5, WB, 5,
+        bom("sdzjz:cobble_maker", "", WB, 1, LB, 1, PIS, 2, OSV, 2, RSD, 4, SST, 8, HOP, 4, CHE, 2); // m168 回归：入门款=原版就俩桶，全表最便宜
+        // m168 百万刷石机（m167 蓝图 BOM 移交给它）：对表用户 520万/h 工程蓝图（litematic 实测 99587 块：
+        // 活塞10069/侦测器7162/白玻璃17895/黑曜石9261/圆石壳29334/岩浆源3936/水源3979/锁链2091/音符盒955/
+        // TNT复制引擎…，÷≈700 取整，岩浆桶对齐"近四千桶"取 10(÷394)，黏活塞/黏液/TNT 各留 1 引擎标志件）
+        // ——全表最重 123 件，产能 722/10t≈520万/h 与配方难度同挡。
+        bom("sdzjz:mega_cobble_maker", "", COB, 24, "minecraft:white_stained_glass", 18, PIS, 12, OBSI, 10,
+                OSV, 9, "minecraft:diorite_wall", 8, "minecraft:stone_brick_wall", 5, LB, 10, WB, 5,
                 RSD, 4, "minecraft:chain", 3, "minecraft:note_block", 2, "minecraft:sticky_piston", 1,
                 "minecraft:slime_block", 1, "minecraft:tnt", 1, HOP, 4, CHE, 2);
         bom("sdzjz:drowned_tower", "minecraft:drowned", COB, 24, WB, 2, "minecraft:turtle_egg", 1,

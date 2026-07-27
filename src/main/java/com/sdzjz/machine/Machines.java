@@ -135,6 +135,8 @@ public final class Machines {
     // ---- 单产农场 ----
     public static final MachineDef WIRE_BRUSHER   = def("wire_brusher",   "minecraft:string",       1, 20);
     public static final MachineDef COBBLE_MAKER   = def("cobble_maker",   "minecraft:cobblestone",  1, 10);
+    /** m168 百万刷石机：722/10t=72.2/t≈520万/h，对表用户 520万刷石机 litematic 实测产能（升级另乘）。 */
+    public static final MachineDef MEGA_COBBLE_MAKER = def("mega_cobble_maker", "minecraft:cobblestone", 722, 10);
     public static final MachineDef BONE_FARM      = def("bone_farm",      "minecraft:bone",         1, 20);
     public static final MachineDef GUNPOWDER_FARM = def("gunpowder_farm", "minecraft:gunpowder",    1, 25);
     public static final MachineDef FLESH_FARM     = def("flesh_farm",     "minecraft:rotten_flesh", 1, 20);
