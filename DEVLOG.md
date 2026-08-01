@@ -2141,3 +2141,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   照通；③断线不烧（防误烧库存语义与基础款同）；④农业塔放画布点徽章选作物（多选≤8）产量
   ×32，与基础款同画布同作物不串产；⑤经验池：熔炉阵按实烧件数涨（×108 相应快），农业塔不涨
   （采集类照旧 0）；⑥两台工具提示各自正确（1728注明108组/周期）。
+
+## m173h 热修：m173 提交混入并行重复写入（推送前工作区去重未入库，远端版本编译必炸）
+- **真相**：m173 生成脚本被重复执行过一次，去重只做在当时的工作区、没跟着提交——推上去的
+  3e01f95 里 `Machines.java` 带四处双份（MEGA_CROP_FARM×2 / MEGA_SUPER_SMELTER×2 /
+  smelterFamily+smelterUnit+cropUnit 底部整套重复）=重复字段+重复方法，javac 直接拒绝；
+  提交信息里"javac 冒烟过"是对去重前版本做的，结论作废。教训：**冒烟必须打在 `git add` 之后的
+  暂存内容上，而不是打完再改**。
+- **修**：Machines.java 四处去重（保留注释更全的一份）；StructureCoreBlockEntity 删作物分支
+  残留未用 `unitCf`（与 cropUnit 同语义的早期插入残骸，合法但脏）；其余 m173 触点
+  （ModItems/双语言/配方/tooltip/Screen/模型/贴图）逐一核过均为单份不动。
+- **连带卫生**：javac 报错时自动倾倒的 `javac.时间戳.args` 参数文件已在仓库里攒了 65 个
+  （7/20 起，m173 又混入一个），全删并入 .gitignore（`javac.*.args`）。
+- **复验**：全树 `javac -encoding UTF-8`（无 Fabric 依赖=只余缺符号噪音）零结构错误；
+  docs/tools_m172_check.py 全绿（配方 108=机器 BOM 88+小件 20，多重集唯一/≤144件/≤18种/笼数）。
+- **m174 状态**：上一轮工作区里的"新线六连"（animal_farm/wither_rose_farm/wither_killer/
+  dragon_cannon/hoglin_farm/tunnel_borer）随沙箱重置丢失且未推送；其 BOM 依赖投影包
+  litematic 实测块数蒸馏，解析数据同丢，**需用户重传《无尽贪婪投影.zip》后按 m172 管线重做**，
+  不凭记忆编造"实测"数字。
