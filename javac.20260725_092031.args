@@ -1,7 +1,0 @@
--d
-/tmp/smokeI
-src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
-src/main/java/com/sdzjz/client/StructureCoreScreen.java
-src/main/java/com/sdzjz/item/ExtractorNodeItem.java
-src/main/java/com/sdzjz/registry/ModItems.java
-src/main/java/com/sdzjz/machine/Machines.java

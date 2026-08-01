@@ -154,9 +154,6 @@ public final class Machines {
             drop("minecraft:heavy_core", 1, 1, 0.19f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
-    /** m173 多种植物农村（全自动农场工程款）：同一 CropFarmItem 分支，产量×32（对表用户 15193 块
-     *  蓝图：耕地1968/瓜梗·南瓜梗各351/四作物各316/仙人掌81=多层农业塔）；作物选择照基础款点徽章。 */
-    public static final MachineDef MEGA_CROP_FARM = new MachineDef("mega_crop_farm", List.of(), 40, false, List.of());
     /** m173 多种植物农业塔（全自动农场工程款）：同一 CropFarmItem 分支，产量×32
      *  （对表用户"多种植物农村"蓝图：21×51×21 塔楼 15193 块，耕地1968格=四作物各316+瓜/南瓜茎
      *  各351+仙人掌81+苔藓1256，选作物玩法照基础款）。 */
@@ -288,22 +285,6 @@ public final class Machines {
     /** m173 万级熔炉阵（1728熔炉背包版工程款）：同一万能熔炉分支，capacity×108=每周期 6912 件
      *  （对表蓝图 1728 炉/基础款 16 炉；熔炼经验照旧 0.1/件——放大的是炉数不是单件经验）。 */
     public static final MachineDef MEGA_SUPER_SMELTER = defConsume("mega_super_smelter", 20, List.of(), drop("minecraft:iron_ingot", 1, 1));
-    /** m173 1728熔炉阵（万能熔炉工程款）：同一 tick 分支，容量×108（=1728炉/基础16炉），
-     *  对表用户"1728熔炉背包版"蓝图（20076 块：漏斗4760/动力轨3839/熔炉1728）。 */
-    public static final MachineDef MEGA_SUPER_SMELTER = defConsume("mega_super_smelter", 20, List.of(), drop("minecraft:iron_ingot", 1, 1));
-
-    /** m173 万能熔炉族判定：基础款+1728工程款共用 tick 分支/链式需求/二级界面/工具提示。 */
-    public static boolean smelterFamily(String id) {
-        return "super_smelter".equals(id) || "mega_super_smelter".equals(id);
-    }
-    /** m173 熔炉族单机容量倍数：工程款=×108（1728炉/基础16炉），其余 1。 */
-    public static long smelterUnit(String id) {
-        return "mega_super_smelter".equals(id) ? 108L : 1L;
-    }
-    /** m173 农业塔倍数：工程款=×32（对表"多种植物农村"蓝图 1968 耕地 ≈ 基础款一层×32），其余 1。 */
-    public static long cropUnit(String id) {
-        return "mega_crop_farm".equals(id) ? 32L : 1L;
-    }
 
     // ---- 追加机器(m48：恶魂塔/旋风人塔/骨粉机/苔藓机/切石机) ----
     public static final MachineDef GHAST_TOWER = defMulti("ghast_tower", 35,

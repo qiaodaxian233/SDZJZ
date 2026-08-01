@@ -1,8 +1,0 @@
--nowarn
--d
-/tmp/smoke
-src/main/java/com/sdzjz/block/CoreChunkLoading.java
-src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
-src/main/java/com/sdzjz/block/StructureCoreBlock.java
-src/main/java/com/sdzjz/config/SdzjzConfig.java
-src/main/java/com/sdzjz/Sdzjz.java

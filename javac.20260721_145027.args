@@ -1,6 +1,0 @@
--nowarn
--Xmaxerrs
-3000
--d
-/tmp/od
-@/tmp/all.txt

@@ -599,8 +599,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
                 int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
-                long unitCf = st.getItem() instanceof MachineItem miCf
-                        ? com.sdzjz.machine.Machines.cropUnit(miCf.def().id()) : 1L; // m173 农场族单机倍率
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedCf = !hasOut[i] && depositCf == null;  // m99 封顶只对"进内部缓存"生效

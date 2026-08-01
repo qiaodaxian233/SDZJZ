@@ -1,7 +1,0 @@
--d
-/tmp/smoke4
-src/main/java/com/sdzjz/block/TradeCenterBlockEntity.java
-src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
-src/main/java/com/sdzjz/item/VillagerDiscountMachineItem.java
-src/main/java/com/sdzjz/machine/Machines.java
-src/main/java/com/sdzjz/registry/ModItems.java

@@ -1,5 +1,0 @@
--d
-/tmp/smoke5
-src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java
-src/main/java/com/sdzjz/machine/TradePlanner.java
-src/main/java/com/sdzjz/item/VillagerTraderItem.java
