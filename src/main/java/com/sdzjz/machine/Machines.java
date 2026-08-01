@@ -129,6 +129,16 @@ public final class Machines {
             drop("minecraft:guster_pottery_sherd", 1, 1, 0.04f),
             drop("minecraft:scrape_pottery_sherd", 1, 1, 0.04f),
             drop("minecraft:heavy_core", 1, 1, 0.008f));
+    /** m172 试炼大厅农场（工程款）：七项=基础款×24（对表蓝图 trial_spawner×24；大厅+地狱部分两张
+     *  合账），均值14.1件/40t≈2.5万件/h；重锤核心 0.19/周期换算保稀有。 */
+    public static final MachineDef MEGA_TRIAL_FARM = defMulti("mega_trial_farm", 40,
+            drop("minecraft:trial_key", 3, 9),
+            drop("minecraft:ominous_trial_key", 0, 3),
+            drop("minecraft:ominous_bottle", 0, 7),
+            drop("minecraft:flow_pottery_sherd", 0, 2),
+            drop("minecraft:guster_pottery_sherd", 0, 2),
+            drop("minecraft:scrape_pottery_sherd", 0, 2),
+            drop("minecraft:heavy_core", 1, 1, 0.19f));
     /** 全自动农场：产出按所选作物（CropFarms 表），此处仅占位定义。 */
     public static final MachineDef CROP_FARM = new MachineDef("crop_farm", List.of(), 40, false, List.of());
 
@@ -147,6 +157,9 @@ public final class Machines {
     public static final MachineDef IRON_FARM      = def("iron_farm",      "minecraft:iron_ingot",   1, 40);
     /** m169 40核刷铁机：40/40t=单核×40=7.2万/h，对表用户 40 核蓝图（120村民/120床=3+3×40核，升级另乘）。 */
     public static final MachineDef MEGA_IRON_FARM = def("mega_iron_farm", "minecraft:iron_ingot", 40, 40);
+    /** m172 160核刷铁机：160/40t=单核×160=28.8万/h，对表用户 160 核蓝图（村民573/床495张≈3×160核+
+     *  繁殖余量，传送门运傀儡+凋灵玫瑰击杀；合成收集模块合账，见 DEVLOG m172）。 */
+    public static final MachineDef IRON_FARM_160 = def("iron_farm_160", "minecraft:iron_ingot", 160, 40);
     public static final MachineDef TREE_FARM = defMulti("tree_farm", 30,
             drop("minecraft:oak_log", 1, 2), drop("minecraft:stick", 0, 2),
             drop("minecraft:apple", 0, 1, 0.15f), drop("minecraft:oak_sapling", 0, 1, 0.4f));
@@ -185,9 +198,18 @@ public final class Machines {
     public static final MachineDef SHULKER_FARM  = def("shulker_farm", "minecraft:shulker_shell", 1, 60);
     public static final MachineDef RAID_TOWER = defMulti("raid_tower", 30,
             drop("minecraft:emerald", 0, 3), drop("minecraft:arrow", 0, 2), drop("minecraft:totem_of_undying", 1, 1, 0.1f));
+    /** m172 百万劫掠塔：三项掉落=基础款×160，均值416件/30t≈99.8万件/h 对表蓝图名"百万"（村民16
+     *  假村庄+劫掠兽入栏；图腾均值16/周期照 m170 换算 chance=1 区间出货平滑）。 */
+    public static final MachineDef MEGA_RAID_TOWER = defMulti("mega_raid_tower", 30,
+            drop("minecraft:emerald", 0, 480), drop("minecraft:arrow", 0, 320), drop("minecraft:totem_of_undying", 8, 24));
     public static final MachineDef PIGMAN_TOWER = defMulti("pigman_tower", 25,
             drop("minecraft:gold_nugget", 1, 3), drop("minecraft:rotten_flesh", 0, 1),
             drop("minecraft:gold_ingot", 0, 1, 0.05f), drop("minecraft:golden_sword", 0, 1, 0.05f));
+    /** m172 80万猪人塔：四项掉落=基础款×110，均值281件/25t≈80.9万件/h（对表用户"80w"蓝图，
+     *  传送门98208格门阵刷猪人；低概率项换算 chance=1 均值等价区间照 m170 出货平滑，要调报倍数一行改）。 */
+    public static final MachineDef MEGA_PIGMAN_TOWER = defMulti("mega_pigman_tower", 25,
+            drop("minecraft:gold_nugget", 110, 330), drop("minecraft:rotten_flesh", 0, 110),
+            drop("minecraft:gold_ingot", 0, 6), drop("minecraft:golden_sword", 0, 6));
 
     // ---- 消耗类（从连接的数据面板取料）----
     public static final MachineDef PIGLIN_BARTER = defConsume("piglin_barter", 30,
@@ -212,7 +234,16 @@ public final class Machines {
     public static final MachineDef KELP_FARM = def("kelp_farm", "minecraft:kelp", 2, 20);
     public static final MachineDef BLAZE_FARM = def("blaze_farm", "minecraft:blaze_rod", 1, 30);
     public static final MachineDef WITHER_SKELETON_FARM = defMulti("wither_skeleton_farm", 30, drop("minecraft:bone", 1, 2), drop("minecraft:coal", 0, 1, 0.5f), drop("minecraft:wither_skeleton_skull", 0, 1, 0.025f));
+    /** m172 凋零骷髅农场（工程款）：三项掉落=基础款×64，均值113件/30t≈27万件/h、凋骷头均值0.8/周期
+     *  （对表用户蓝图：凋灵玫瑰×2166铺土击杀层+铁傀儡×15仇恨+传送门运怪，×64 按玫瑰层规模取）。 */
+    public static final MachineDef MEGA_WITHER_SKELETON_FARM = defMulti("mega_wither_skeleton_farm", 30,
+            drop("minecraft:bone", 64, 128), drop("minecraft:coal", 0, 32),
+            drop("minecraft:wither_skeleton_skull", 1, 1, 0.8f));
     public static final MachineDef HONEY_FARM = defMulti("honey_farm", 40, drop("minecraft:honeycomb", 0, 1, 0.7f), drop("minecraft:honey_bottle", 0, 1, 0.5f));
+    /** m172 蜜脾农场（工程款）：两项=基础款×92（对表蓝图 92 组"侦测器+发射器持剪"采收单元），
+     *  均值55件/40t≈9.9万件/h，换算 chance=1 均值等价区间。 */
+    public static final MachineDef MEGA_HONEY_FARM = defMulti("mega_honey_farm", 40,
+            drop("minecraft:honeycomb", 16, 48), drop("minecraft:honey_bottle", 12, 34));
     public static final MachineDef IRON_SMELTER = defConsume("iron_smelter", 20, List.of(in("minecraft:raw_iron", 1)), drop("minecraft:iron_ingot", 1, 1));
     public static final MachineDef GOLD_SMELTER = defConsume("gold_smelter", 20, List.of(in("minecraft:raw_gold", 1)), drop("minecraft:gold_ingot", 1, 1));
     public static final MachineDef CHARCOAL_KILN = defConsume("charcoal_kiln", 20, List.of(in("minecraft:oak_log", 1)), drop("minecraft:charcoal", 1, 1));
@@ -227,6 +258,11 @@ public final class Machines {
     public static final MachineDef NETHER_TREE_FARM = defMulti("nether_tree_farm", 30, drop("minecraft:crimson_stem", 1, 2), drop("minecraft:warped_stem", 0, 1), drop("minecraft:nether_wart_block", 0, 1, 0.2f), drop("minecraft:shroomlight", 0, 1, 0.1f));
     public static final MachineDef CHORUS_FARM = def("chorus_farm", "minecraft:chorus_fruit", 1, 30);
     public static final MachineDef DROWNED_TOWER = defMulti("drowned_tower", 30, drop("minecraft:rotten_flesh", 0, 2), drop("minecraft:copper_ingot", 0, 1, 0.5f), drop("minecraft:nautilus_shell", 0, 1, 0.03f), drop("minecraft:trident", 0, 1, 0.015f));
+    /** m172 僵尸增援溺尸塔：四项掉落=基础款×32，均值40.7件/30t≈9.8万件/h（蓝图无标称产能按台面
+     *  规模取 ×32；增援种子是僵尸、进水才转溺尸——笼子照此要僵尸；三叉戟/鹦鹉螺按均值等价换算）。 */
+    public static final MachineDef MEGA_DROWNED_TOWER = defMulti("mega_drowned_tower", 30,
+            drop("minecraft:rotten_flesh", 0, 64), drop("minecraft:copper_ingot", 0, 16),
+            drop("minecraft:nautilus_shell", 0, 1, 0.96f), drop("minecraft:trident", 0, 1, 0.48f));
     /** 万能熔炉：运行时走 SmeltPlanner 原版熔炼表（接什么烧什么），此处 inputs/outputs 仅占位。 */
     public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 20, List.of(), drop("minecraft:iron_ingot", 1, 1));
 
@@ -242,6 +278,10 @@ public final class Machines {
     // ===== m84a 缺口七机（量产覆盖审计 #1~#8）=====
     public static final MachineDef AMETHYST_FARM = defMulti("amethyst_farm", 40,
             drop("minecraft:amethyst_shard", 1, 3));
+    /** m172 紫水晶农场（工程款）：碎片=基础款×128，均值256/40t≈46.1万/h（对表用户 72556 块巨构蓝图：
+     *  母岩907/晶簇1509/苔藓飞行机骨架31065，按母岩规模取 ×128，要调报倍数一行改）。 */
+    public static final MachineDef MEGA_AMETHYST_FARM = defMulti("mega_amethyst_farm", 40,
+            drop("minecraft:amethyst_shard", 128, 384));
     public static final MachineDef CLAY_MACHINE = defMulti("clay_machine", 30,
             drop("minecraft:clay_ball", 2, 4), drop("minecraft:mud", 0, 1, 0.3f));
     public static final MachineDef DRIPSTONE_FARM = defMulti("dripstone_farm", 40,
@@ -253,6 +293,14 @@ public final class Machines {
     public static final MachineDef FISHING_MACHINE = defMulti("fishing_machine", 60,
             drop("minecraft:cod", 1, 1), drop("minecraft:salmon", 0, 1, 0.4f),
             drop("minecraft:pufferfish", 0, 1, 0.15f), drop("minecraft:nautilus_shell", 0, 1, 0.03f),
+            drop("minecraft:name_tag", 0, 1, 0.01f), drop("minecraft:saddle", 0, 1, 0.01f));
+    /** m172 鳕鱼鲑鱼农场（水生刷怪工程款）：鱼类三项=钓鱼机×64 + 墨囊（蓝图有鱿鱼缸），
+     *  均值≈90件/60t≈10.8万件/h；宝藏项（鹦鹉螺/命名牌/鞍）保持基础款概率不放大——工程放大的是
+     *  刷鱼量不是钓鱼运气。 */
+    public static final MachineDef MEGA_FISHING_MACHINE = defMulti("mega_fishing_machine", 60,
+            drop("minecraft:cod", 32, 96), drop("minecraft:salmon", 0, 26),
+            drop("minecraft:pufferfish", 0, 10), drop("minecraft:ink_sac", 0, 16),
+            drop("minecraft:nautilus_shell", 0, 1, 0.03f),
             drop("minecraft:name_tag", 0, 1, 0.01f), drop("minecraft:saddle", 0, 1, 0.01f));
     public static final MachineDef DISC_MACHINE = defMulti("disc_machine", 200,
             drop("minecraft:music_disc_13", 0, 1, 0.15f), drop("minecraft:music_disc_cat", 0, 1, 0.15f),

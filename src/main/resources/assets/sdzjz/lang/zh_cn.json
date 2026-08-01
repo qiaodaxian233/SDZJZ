@@ -111,5 +111,14 @@
   "sdzjz.prof.butcher": "屠夫",
   "sdzjz.prof.fisherman": "渔夫",
   "item.sdzjz.trash_node": "垃圾桶节点",
-  "item.sdzjz.extractor_node": "抽取节点"
+  "item.sdzjz.extractor_node": "抽取节点",
+  "item.sdzjz.iron_farm_160": "160核刷铁机",
+  "item.sdzjz.mega_pigman_tower": "80万猪人塔",
+  "item.sdzjz.mega_drowned_tower": "僵尸增援溺尸塔",
+  "item.sdzjz.mega_wither_skeleton_farm": "凋零骷髅农场·工程款",
+  "item.sdzjz.mega_raid_tower": "百万劫掠塔",
+  "item.sdzjz.mega_honey_farm": "蜜脾农场",
+  "item.sdzjz.mega_amethyst_farm": "紫水晶农场·工程款",
+  "item.sdzjz.mega_fishing_machine": "鳕鱼鲑鱼农场",
+  "item.sdzjz.mega_trial_farm": "试炼大厅农场"
 }

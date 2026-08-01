@@ -111,5 +111,14 @@
   "sdzjz.prof.butcher": "Butcher",
   "sdzjz.prof.fisherman": "Fisherman",
   "item.sdzjz.trash_node": "Trash Node",
-  "item.sdzjz.extractor_node": "Extractor Node"
+  "item.sdzjz.extractor_node": "Extractor Node",
+  "item.sdzjz.iron_farm_160": "160-Core Iron Farm",
+  "item.sdzjz.mega_pigman_tower": "800K Pigman Tower",
+  "item.sdzjz.mega_drowned_tower": "Zombie Reinforcement Drowned Tower",
+  "item.sdzjz.mega_wither_skeleton_farm": "Mega Wither Skeleton Farm",
+  "item.sdzjz.mega_raid_tower": "Million Raid Tower",
+  "item.sdzjz.mega_honey_farm": "Honeycomb Factory Farm",
+  "item.sdzjz.mega_amethyst_farm": "Mega Amethyst Farm",
+  "item.sdzjz.mega_fishing_machine": "Cod & Salmon Farm",
+  "item.sdzjz.mega_trial_farm": "Trial Hall Farm"
 }
