@@ -23,6 +23,9 @@ public final class MachineXp {
         MACHINE.put("magma_farm", 2.0);
         MACHINE.put("guardian_farm", 10.0);
         MACHINE.put("wither_farm", 50.0); // m137 凋灵原版击杀经验
+        MACHINE.put("wither_killer", 50.0);  // m174 龙池杀凋机：同凋灵击杀经验
+        MACHINE.put("hoglin_farm", 5.0);     // m174 疣猪兽：照刷怪类
+        MACHINE.put("dragon_cannon", 500.0); // m174 屠龙炮：原版复活末影龙击杀经验（首杀12000为一次性，取循环值）
         MACHINE.put("blaze_farm", 10.0);
         MACHINE.put("breeze_farm", 10.0);
         // ---- 熔炼类（原版每件经验）----

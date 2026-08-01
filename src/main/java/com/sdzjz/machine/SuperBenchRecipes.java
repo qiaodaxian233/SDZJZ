@@ -29,7 +29,7 @@ public final class SuperBenchRecipes {
         "sdzjz:glass_kiln", "sdzjz:stonecutter_machine", "sdzjz:carpet_machine", "sdzjz:rail_machine",
         "sdzjz:clay_machine", "sdzjz:fishing_machine", "sdzjz:mob_tower", "sdzjz:flesh_farm",
         "sdzjz:bone_farm", "sdzjz:gunpowder_farm", "sdzjz:wire_brusher", "sdzjz:chicken_farm",
-        "sdzjz:sheep_farm", "sdzjz:cow_farm", "sdzjz:pig_farm", "sdzjz:honey_farm",
+        "sdzjz:sheep_farm", "sdzjz:cow_farm", "sdzjz:pig_farm", "sdzjz:animal_farm", "sdzjz:honey_farm",
         "sdzjz:iron_smelter", "sdzjz:gold_smelter", "sdzjz:super_smelter");
     static final java.util.Set<String> TIER3 = java.util.Set.of(
         "sdzjz:wither_farm", "sdzjz:wither_skeleton_farm", "sdzjz:ghast_tower", "sdzjz:breeze_farm",
@@ -42,7 +42,8 @@ public final class SuperBenchRecipes {
         "sdzjz:iron_farm_160", "sdzjz:mega_pigman_tower", "sdzjz:mega_drowned_tower",
         "sdzjz:mega_wither_skeleton_farm", "sdzjz:mega_raid_tower", "sdzjz:mega_honey_farm",
         "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm",
-        "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm"); // m168-m173：工程款全入Ⅲ档
+        "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm",
+        "sdzjz:wither_rose_farm", "sdzjz:wither_killer", "sdzjz:dragon_cannon"); // m168-m174：工程款与新线终局全入Ⅲ档
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -82,6 +83,13 @@ public final class SuperBenchRecipes {
         // 凋灵机：召唤材按原版仪式=灵魂沙4+凋骷头3；星×1 引子=先亲手打一次凋灵
         bom("sdzjz:wither_farm", "", "minecraft:soul_sand", 4, "minecraft:wither_skeleton_skull", 3,
                 "minecraft:nether_star", 1, OBSI, 26, GL, 8, HOP, 4, CHE, 2);
+        // m174 龙池杀凋机：对表用户 150 块蓝图（11×11×22：基岩41+末地传送门20=末地场地
+        // 自带不计料；玻璃17/灵魂沙13/活塞10/铁块8/发射器3放头/漏斗矿车1收账），÷1 近原样＝90件18种。
+        bom("sdzjz:wither_killer", "", GL, 17, "minecraft:soul_sand", 13, PIS, 10, RSD, 9,
+                "minecraft:iron_block", 8, OSV, 7, "minecraft:target", 3, CHE, 3,
+                "minecraft:cobblestone_wall", 3, "minecraft:dispenser", 3, HOP, 2, OBSI, 2,
+                "minecraft:iron_trapdoor", 2, "minecraft:heavy_weighted_pressure_plate", 1,
+                "minecraft:dropper", 1, "minecraft:sticky_piston", 1, "minecraft:hopper_minecart", 1);
         bom("sdzjz:g_misc_machine", "", "minecraft:cobweb", 4, "minecraft:spore_blossom", 2,
                 "minecraft:amethyst_block", 4, "minecraft:calcite", 8, "minecraft:moss_block", 4, GL, 8, HOP, 4, CHE, 2);
         bom("sdzjz:sculk_line", "", "minecraft:sculk_catalyst", 2, "minecraft:sculk_sensor", 4,
@@ -222,6 +230,11 @@ public final class SuperBenchRecipes {
                 "minecraft:comparator", 2, OSV, 2, "minecraft:repeater", 1, "minecraft:crafter", 1,
                 "minecraft:dropper", 1, "minecraft:packed_ice", 1, "minecraft:cyan_carpet", 1,
                 "minecraft:flint_and_steel", 1, CHE, 2);
+        // m174 疣猪兽农场：对表用户"疣猪兽农场-单人双层"蓝图（15×15×9，587 块：平滑石416/
+        // 火把48防僵尸化/诡异菌16=诱饵标志件/岩浆9击杀/箱8），÷≈8 蒸馏＝78件13种。
+        bom("sdzjz:hoglin_farm", "minecraft:hoglin", SST, 52, TCH, 6, GL, 3, DRT, 2,
+                TRAP, 2, "minecraft:warped_fungus", 2, "minecraft:oak_fence", 2, HOP, 1,
+                "minecraft:smooth_stone_slab", 1, LB, 1, CHE, 1);
         bom("sdzjz:raid_tower", "minecraft:pillager", "minecraft:bell", 1, BED, 1, COB, 32, WB, 2, // 钟+床=一格假村庄
                 "minecraft:emerald", 4, HOP, 4, CHE, 4);
         // m172 百万劫掠塔：对表用户蓝图（101×183×37，7594 块：白玻璃2118/平滑石1654/红石线321/
@@ -282,6 +295,14 @@ public final class SuperBenchRecipes {
                 "minecraft:wither_rose", 27, DRT, 27, "minecraft:smooth_stone_slab", 5,
                 "minecraft:cherry_trapdoor", 2, OBSI, 2, "minecraft:glass_pane", 1,
                 "minecraft:turtle_egg", 1, "minecraft:flint_and_steel", 1, HOP, 4, CHE, 2);
+        // m174 凋灵玫瑰农场：对表用户"26k凋灵玫瑰农场"蓝图（53×53×69，3632 块：末地石砖1562/
+        // 白玻璃1359/白地毯332/箱64/漏斗48/冰道30；实体=铁傀儡+凋灵+矿车），÷≈40 蒸馏；
+        // 灵魂沙4+凋骷头3=凋灵召唤料（与凋骷农场自咬合），铁傀儡笼=受害者。102件15种。
+        bom("sdzjz:wither_rose_farm", "minecraft:iron_golem",
+                "minecraft:end_stone_bricks", 39, "minecraft:white_stained_glass", 34,
+                "minecraft:white_carpet", 8, "minecraft:soul_sand", 4, "minecraft:wither_skeleton_skull", 3,
+                CHE, 2, HOP, 1, "minecraft:end_stone_brick_slab", 1, RSD, 1, "minecraft:packed_ice", 1,
+                COB, 1, WB, 1, "minecraft:minecart", 1);
         bom("sdzjz:chicken_farm", "minecraft:chicken", "minecraft:egg", 8, "minecraft:dispenser", 1, LB, 1, // 熔岩刀=原版全自动鸡场
                 GL, 8, SST, 8, HOP, 4, CHE, 2);
         bom("sdzjz:sheep_farm", "minecraft:sheep", "minecraft:dispenser", 4, "minecraft:shears", 4, // 发射器持剪=原版自动薅毛
@@ -290,6 +311,12 @@ public final class SuperBenchRecipes {
                 "minecraft:leather", 2, HOP, 4, CHE, 2);
         bom("sdzjz:pig_farm", "minecraft:pig", "minecraft:carrot", 16, LB, 1, GL, 8, DRT, 8,
                 "minecraft:porkchop", 2, HOP, 4, CHE, 2); // m92
+        // m174 动物农场：对表用户 326 块蓝图（7×12×13 微型舱：平滑石167/玻璃88/发射器6水流/
+        // 动力铁轨7/侦测器4；实体=兔21+猪13+牛6+羊5+鸡1 五物种→五笼），÷≈6 蒸馏＝63件14种。
+        bom("sdzjz:animal_farm", "minecraft:cow,minecraft:pig,minecraft:sheep,minecraft:chicken,minecraft:rabbit",
+                SST, 28, GL, 15, RSD, 2, "minecraft:powered_rail", 1, "minecraft:dispenser", 1,
+                WB, 1, "minecraft:oak_fence", 1, HOP, 1, TRAP, 1, OSV, 1,
+                "minecraft:comparator", 1, "minecraft:sticky_piston", 1);
         bom("sdzjz:crop_farm", "", DRT, 16, WB, 1, "minecraft:wheat_seeds", 8, "minecraft:carrot", 4,
                 "minecraft:potato", 4, "minecraft:composter", 1, HOP, 5, "minecraft:minecart", 1, CHE, 2); // 漏斗5+矿车=漏斗矿车收菜
         // m173 多种植物农业塔：对表用户"多种植物农村"蓝图（21×51×21 塔楼，15193 块：白玻璃3406/
@@ -302,10 +329,27 @@ public final class SuperBenchRecipes {
                 "minecraft:composter", 1, HOP, 4, CHE, 2);
         bom("sdzjz:deep_mining_platform", "", "minecraft:diamond", 2, "minecraft:ancient_debris", 2, // 引子:先亲手挖到样本
                 "minecraft:tnt", 8, OBSI, 8, "minecraft:rail", 8, "minecraft:minecart", 1, TCH, 8, HOP, 4, CHE, 4);
+        // m174 弱加载盾构机：对表 Dark牌2025版蓝图（86×86×11，269 块：平滑石71/侦测器33/
+        // 音符盒10=弱加载核心/诡异木牌12/黑曜石10；矿车2=蓝图点名手动摆放），÷≈3 蒸馏；
+        // TNT4=弹药本钱件（照猪灵交易场金块本钱先例）。87件18种。
+        bom("sdzjz:tunnel_borer", "", SST, 24, OSV, 11, RSD, 5, "minecraft:warped_sign", 4,
+                "minecraft:redstone_torch", 4, "minecraft:tnt", 4, "minecraft:sticky_piston", 3,
+                "minecraft:note_block", 3, "minecraft:repeater", 3, OBSI, 3, "minecraft:comparator", 3,
+                "minecraft:dropper", 2, "minecraft:powered_rail", 2, "minecraft:scaffolding", 2,
+                HOP, 2, "minecraft:iron_trapdoor", 2, "minecraft:minecart", 2);
         bom("sdzjz:archaeology_station", "", "minecraft:brush", 2, "minecraft:echo_shard", 2, // 引子:远古城+藏宝图亲手跑
                 "minecraft:heart_of_the_sea", 1, SND, 16, "minecraft:terracotta", 8, HOP, 4, CHE, 4);
         bom("sdzjz:end_expedition_platform", "", "minecraft:ender_eye", 12, "minecraft:dragon_breath", 2, // 眼12=原版找要塞；引子:先亲手打一次龙
                 EST, 16, OBSI, 10, BOT, 4, HOP, 4, CHE, 4);
+        // m174 屠龙炮：对表用户 10540 块蓝图（82×90×56：遮光玻璃2160/红石716/黑地毯705/
+        // 末地烛502/TNT320/标靶258/侦测器227；基岩2108=末地场地自带不计料；船1=标志件），
+        // ÷≈80 蒸馏＝98件18种打满。
+        bom("sdzjz:dragon_cannon", "", "minecraft:tinted_glass", 27, RSD, 9, "minecraft:black_carpet", 9,
+                "minecraft:smooth_quartz_slab", 7, "minecraft:end_rod", 6, "minecraft:repeater", 4,
+                "minecraft:tnt", 4, "minecraft:black_glazed_terracotta", 4, "minecraft:sticky_piston", 3,
+                "minecraft:target", 3, "minecraft:redstone_torch", 3, "minecraft:smooth_quartz_stairs", 3,
+                OSV, 3, "minecraft:birch_fence_gate", 3, PIS, 3, "minecraft:powered_rail", 2,
+                "minecraft:oak_boat", 1);
         bom("sdzjz:trial_farm", "", "minecraft:trial_key", 2, "minecraft:ominous_bottle", 1, // 引子:试炼密室+亲手杀袭击队长
                 "minecraft:copper_block", 8, "minecraft:copper_bulb", 4, "minecraft:tuff_bricks", 12, HOP, 4, CHE, 4);
         // m172 试炼大厅农场（工程款）：对表用户蓝图（97×63×131，21129 块：白玻璃9801/雪2360/

@@ -38,6 +38,7 @@ public class ModItems {
     public static final Item BREWING_TOWER = reg("brewing_tower", new com.sdzjz.item.BrewingTowerItem(new Item.Settings(), Machines.BREWING_TOWER));
     public static final Item ENCHANT_FACTORY = reg("enchant_factory", new com.sdzjz.item.EnchantFactoryItem(new Item.Settings(), Machines.ENCHANT_FACTORY));
     public static final Item WITHER_FARM = reg("wither_farm", new MachineItem(new Item.Settings(), Machines.WITHER_FARM));
+    public static final Item WITHER_KILLER = reg("wither_killer", new MachineItem(new Item.Settings(), Machines.WITHER_KILLER)); // m174 龙池杀凋机:付费快档下界之星
     public static final Item G_MISC_MACHINE = reg("g_misc_machine", new MachineItem(new Item.Settings(), Machines.G_MISC_MACHINE));
     public static final Item SCULK_LINE = reg("sculk_line", new MachineItem(new Item.Settings(), Machines.SCULK_LINE));
     public static final Item VILLAGER_DISCOUNT_MACHINE = reg("villager_discount_machine", new com.sdzjz.item.VillagerDiscountMachineItem(new Item.Settings(), Machines.VILLAGER_DISCOUNT_MACHINE));
@@ -53,11 +54,14 @@ public class ModItems {
     public static final Item SHEEP_FARM   = reg("sheep_farm",   new MachineItem(new Item.Settings(), Machines.SHEEP_FARM));
     public static final Item COW_FARM     = reg("cow_farm",     new MachineItem(new Item.Settings(), Machines.COW_FARM));
     public static final Item PIG_FARM      = reg("pig_farm",      new MachineItem(new Item.Settings(), Machines.PIG_FARM)); // m92
+    public static final Item ANIMAL_FARM = reg("animal_farm", new MachineItem(new Item.Settings(), Machines.ANIMAL_FARM)); // m174 五畜综合+兔子线
     public static final Item CROP_FARM    = reg("crop_farm",    new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.CROP_FARM));
     public static final Item MEGA_CROP_FARM = reg("mega_crop_farm", new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.MEGA_CROP_FARM)); // m173 农业塔
     public static final Item DEEP_MINING_PLATFORM = reg("deep_mining_platform", new MachineItem(new Item.Settings(), Machines.DEEP_MINING_PLATFORM)); // m102 引子:钻石x2+远古残骸x2
+    public static final Item TUNNEL_BORER = reg("tunnel_borer", new MachineItem(new Item.Settings(), Machines.TUNNEL_BORER)); // m174 盾构机吃TNT出地形
     public static final Item ARCHAEOLOGY_STATION = reg("archaeology_station", new MachineItem(new Item.Settings(), Machines.ARCHAEOLOGY_STATION)); // m109a 引子:回响碎片x2+海洋之心x2
     public static final Item END_EXPEDITION_PLATFORM = reg("end_expedition_platform", new MachineItem(new Item.Settings(), Machines.END_EXPEDITION_PLATFORM)); // m109b 引子:末地石x2+龙息x2
+    public static final Item DRAGON_CANNON = reg("dragon_cannon", new MachineItem(new Item.Settings(), Machines.DRAGON_CANNON)); // m174 屠龙炮:龙息+500xp/轮
     public static final Item TRIAL_FARM = reg("trial_farm", new MachineItem(new Item.Settings(), Machines.TRIAL_FARM)); // m109c 引子:试炼钥匙x2+不祥之瓶x2
     public static final Item MEGA_TRIAL_FARM = reg("mega_trial_farm", new MachineItem(new Item.Settings(), Machines.MEGA_TRIAL_FARM)); // m172 试炼大厅工程款
 
@@ -91,6 +95,7 @@ public class ModItems {
     public static final Item MEGA_RAID_TOWER = reg("mega_raid_tower", new MachineItem(new Item.Settings(), Machines.MEGA_RAID_TOWER)); // m172 百万劫掠塔
     public static final Item PIGMAN_TOWER   = reg("pigman_tower",   new MachineItem(new Item.Settings(), Machines.PIGMAN_TOWER));
     public static final Item MEGA_PIGMAN_TOWER = reg("mega_pigman_tower", new MachineItem(new Item.Settings(), Machines.MEGA_PIGMAN_TOWER)); // m172 80万猪人塔
+    public static final Item HOGLIN_FARM = reg("hoglin_farm", new MachineItem(new Item.Settings(), Machines.HOGLIN_FARM)); // m174 疣猪兽农场
     public static final Item PIGLIN_BARTER  = reg("piglin_barter",  new MachineItem(new Item.Settings(), Machines.PIGLIN_BARTER));
     public static final Item MEGA_PIGLIN_BARTER = reg("mega_piglin_barter", new MachineItem(new Item.Settings(), Machines.MEGA_PIGLIN_BARTER)); // m170
     public static final Item CACTUS_FARM = reg("cactus_farm", new MachineItem(new Item.Settings(), Machines.CACTUS_FARM));
@@ -99,6 +104,7 @@ public class ModItems {
     public static final Item BLAZE_FARM = reg("blaze_farm", new MachineItem(new Item.Settings(), Machines.BLAZE_FARM));
     public static final Item WITHER_SKELETON_FARM = reg("wither_skeleton_farm", new MachineItem(new Item.Settings(), Machines.WITHER_SKELETON_FARM));
     public static final Item MEGA_WITHER_SKELETON_FARM = reg("mega_wither_skeleton_farm", new MachineItem(new Item.Settings(), Machines.MEGA_WITHER_SKELETON_FARM)); // m172 凋骷工程款
+    public static final Item WITHER_ROSE_FARM = reg("wither_rose_farm", new MachineItem(new Item.Settings(), Machines.WITHER_ROSE_FARM)); // m174 凋灵玫瑰农场
     public static final Item HONEY_FARM = reg("honey_farm", new MachineItem(new Item.Settings(), Machines.HONEY_FARM));
     public static final Item MEGA_HONEY_FARM = reg("mega_honey_farm", new MachineItem(new Item.Settings(), Machines.MEGA_HONEY_FARM)); // m172 蜜脾农场
     public static final Item IRON_SMELTER = reg("iron_smelter", new MachineItem(new Item.Settings(), Machines.IRON_SMELTER));
@@ -151,6 +157,7 @@ public class ModItems {
             entries.add(BREWING_TOWER);
             entries.add(ENCHANT_FACTORY);
             entries.add(WITHER_FARM);
+            entries.add(WITHER_KILLER);
             entries.add(G_MISC_MACHINE);
             entries.add(SCULK_LINE);
             entries.add(VILLAGER_DISCOUNT_MACHINE);
@@ -166,11 +173,14 @@ public class ModItems {
             entries.add(SHEEP_FARM);
             entries.add(COW_FARM);
             entries.add(PIG_FARM);
+            entries.add(ANIMAL_FARM);
             entries.add(CROP_FARM);
             entries.add(MEGA_CROP_FARM);
             entries.add(DEEP_MINING_PLATFORM);
+            entries.add(TUNNEL_BORER);
             entries.add(ARCHAEOLOGY_STATION);
             entries.add(END_EXPEDITION_PLATFORM);
+            entries.add(DRAGON_CANNON);
             entries.add(TRIAL_FARM);
             entries.add(MEGA_TRIAL_FARM);
             entries.add(SPEED_UPGRADE);
@@ -210,6 +220,7 @@ public class ModItems {
             entries.add(MEGA_RAID_TOWER);
             entries.add(PIGMAN_TOWER);
             entries.add(MEGA_PIGMAN_TOWER);
+            entries.add(HOGLIN_FARM);
             entries.add(PIGLIN_BARTER);
             entries.add(MEGA_PIGLIN_BARTER);
             entries.add(CACTUS_FARM);
@@ -218,6 +229,7 @@ public class ModItems {
             entries.add(BLAZE_FARM);
             entries.add(WITHER_SKELETON_FARM);
             entries.add(MEGA_WITHER_SKELETON_FARM);
+            entries.add(WITHER_ROSE_FARM);
             entries.add(HONEY_FARM);
             entries.add(MEGA_HONEY_FARM);
             entries.add(IRON_SMELTER);

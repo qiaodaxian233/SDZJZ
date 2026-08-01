@@ -82,6 +82,16 @@ public final class Machines {
             drop("minecraft:beef", 1, 3), drop("minecraft:leather", 0, 2, 0.6f));
     public static final MachineDef PIG_FARM = defMulti("pig_farm", 30,
             drop("minecraft:porkchop", 1, 2)); // m92 用户点名补缺
+    /** m174 动物农场（无尽贪婪投影新线）：五畜综合繁殖击杀舱，对表用户 326 块蓝图
+     *  （7×12×13 微型舱：兔21/猪13/牛6/羊5/鸡1 五物种+发射器6水流循环）；兔子线全库首补
+     *  （兔肉/兔皮/兔子脚→跳跃药水链）。约 11.6件/30t ≈ 2.8万件/h。 */
+    public static final MachineDef ANIMAL_FARM = defMulti("animal_farm", 30,
+            drop("minecraft:beef", 1, 2), drop("minecraft:porkchop", 1, 2),
+            drop("minecraft:mutton", 1, 2), drop("minecraft:chicken", 1, 2),
+            drop("minecraft:white_wool", 1, 2), drop("minecraft:leather", 0, 2, 0.6f),
+            drop("minecraft:feather", 0, 2, 0.6f), drop("minecraft:egg", 0, 1, 0.5f),
+            drop("minecraft:rabbit", 0, 1, 0.7f), drop("minecraft:rabbit_hide", 0, 1, 0.5f),
+            drop("minecraft:rabbit_foot", 0, 1, 0.02f));
     /** m102 深层采掘平台（量产覆盖审计A/B组补缺）：加权多掉落——钻石慢、远古残骸更慢；
      * 残骸接万能熔炉即烧成下界合金碎片，合金锭链路就此打通。引子配方：钻石×2+远古残骸×2。 */
     public static final MachineDef DEEP_MINING_PLATFORM = defMulti("deep_mining_platform", 40,
@@ -97,6 +107,15 @@ public final class Machines {
     /** m109a 考古工作站（量产覆盖提案2）：20 种考古陶片各 0.04 随机出 + 回响碎片 + 唱片残片5 +
      * 三张稀有唱片；海洋之心/附魔金苹果极低概率。引子配方：回响碎片×2+海洋之心×2（远古城+藏宝图亲手跑）。
      * 1.21 新增的 Flow/Guster/Scrape 三陶片出处是试炼密室罐子，按出处归试炼农场（m109c），不在此表。 */
+    /** m174 弱加载盾构机（无尽贪婪投影新线）：TNT 连爆掘进,对表 Dark牌2025版蓝图（269 块,
+     *  86×86×11 音符盒弱加载环+矿车2手动摆放=蓝图点名）;同包 1.17版/巨型弱加载(10013块)/
+     *  未使用盾构机(1047块) 三张=同族版本档不单列。吃 TNT 1/20t 出地形方块
+     *  ≈52块/s≈18.8万块/h（燧石0.3走砂砾梗）。 */
+    public static final MachineDef TUNNEL_BORER = defConsume("tunnel_borer", 20,
+            List.of(in("minecraft:tnt", 1)),
+            drop("minecraft:cobblestone", 16, 24), drop("minecraft:cobbled_deepslate", 16, 24),
+            drop("minecraft:tuff", 4, 8), drop("minecraft:gravel", 2, 4),
+            drop("minecraft:dirt", 2, 4), drop("minecraft:flint", 0, 1, 0.3f));
     public static final MachineDef ARCHAEOLOGY_STATION = defMulti("archaeology_station", 40,
             drop("minecraft:angler_pottery_sherd", 1, 1, 0.04f),
             drop("minecraft:archer_pottery_sherd", 1, 1, 0.04f),
@@ -134,6 +153,13 @@ public final class Machines {
     /** m109c 试炼农场（量产覆盖提案4，重锤核心与试炼钥匙并入）：试炼/不祥钥匙、不祥之瓶（袭击队长掉）、
      * 1.21 三种试炼密室罐子陶片（Flow/Guster/Scrape 按出处归此表）、重锤核心 0.008 极低
      * （原版不祥宝库每玩家一次的物品，必须压到极稀）。引子配方：试炼钥匙×2+不祥之瓶×2。 */
+    /** m174 屠龙炮（无尽贪婪投影新线,终局工程）：末地复活龙循环击杀,对表用户 10540 块蓝图
+     *  （82×90×56:遮光玻璃2160/TNT320/标靶258/末地烛502;基岩2108=末地场地自带不计料;船1=标志件）。
+     *  吃 末影水晶4+玻璃瓶8/200t 出龙息8≈2880息/h;经验500/轮（原版复活龙击杀经验）
+     *  =18万xp/h 全库最强经验引擎——水晶链自咬合:恶魂塔泪+末影珍珠+玻璃。 */
+    public static final MachineDef DRAGON_CANNON = defConsume("dragon_cannon", 200,
+            List.of(in("minecraft:end_crystal", 4), in("minecraft:glass_bottle", 8)),
+            drop("minecraft:dragon_breath", 8, 8));
     public static final MachineDef TRIAL_FARM = defMulti("trial_farm", 40,
             drop("minecraft:trial_key", 1, 1, 0.25f),
             drop("minecraft:ominous_trial_key", 1, 1, 0.06f),
@@ -229,6 +255,11 @@ public final class Machines {
             drop("minecraft:gold_ingot", 0, 6), drop("minecraft:golden_sword", 0, 6));
 
     // ---- 消耗类（从连接的数据面板取料）----
+    /** m174 疣猪兽农场（无尽贪婪投影新线）：诡异菌诱捕双层击杀舱,对表用户"疣猪兽农场-单人双层"
+     *  蓝图（587 块,15×15×9:诡异菌16=诱饵标志件/火把48防僵尸化/岩浆9击杀）。
+     *  猪排2-4+皮革0.5/25t≈1万件/h;经验5/轮（疣猪兽原版击杀经验,照刷怪类）。 */
+    public static final MachineDef HOGLIN_FARM = defMulti("hoglin_farm", 25,
+            drop("minecraft:porkchop", 2, 4), drop("minecraft:leather", 0, 1, 0.5f));
     public static final MachineDef PIGLIN_BARTER = defConsume("piglin_barter", 30,
             java.util.List.of(in("minecraft:gold_ingot", 1)),
             drop("minecraft:ender_pearl", 1, 1, 0.15f), drop("minecraft:string", 1, 3, 0.2f),
@@ -256,6 +287,12 @@ public final class Machines {
     public static final MachineDef MEGA_WITHER_SKELETON_FARM = defMulti("mega_wither_skeleton_farm", 30,
             drop("minecraft:bone", 64, 128), drop("minecraft:coal", 0, 32),
             drop("minecraft:wither_skeleton_skull", 1, 1, 0.8f));
+    /** m174 凋灵玫瑰农场（无尽贪婪投影新线）：圈养凋灵击杀铁傀儡产玫瑰,对表用户"26k凋灵玫瑰
+     *  农场"蓝图（3632 块,53×53×69:末地石砖1562/白玻璃1359/箱64/漏斗48;实体=铁傀儡+凋灵+矿车）。
+     *  玫瑰 12-17/40t 均值14.5≈2.61万/h 对表"26k";凋灵召唤料=灵魂沙4+凋骷头3 进 BOM
+     *  与凋骷农场自咬合;铁傀儡原版0经验不入表。 */
+    public static final MachineDef WITHER_ROSE_FARM = defMulti("wither_rose_farm", 40,
+            drop("minecraft:wither_rose", 12, 17));
     public static final MachineDef HONEY_FARM = defMulti("honey_farm", 40, drop("minecraft:honeycomb", 0, 1, 0.7f), drop("minecraft:honey_bottle", 0, 1, 0.5f));
     /** m172 蜜脾农场（工程款）：两项=基础款×92（对表蓝图 92 组"侦测器+发射器持剪"采收单元），
      *  均值55件/40t≈9.9万件/h，换算 chance=1 均值等价区间。 */
@@ -280,6 +317,13 @@ public final class Machines {
     public static final MachineDef MEGA_DROWNED_TOWER = defMulti("mega_drowned_tower", 30,
             drop("minecraft:rotten_flesh", 0, 64), drop("minecraft:copper_ingot", 0, 16),
             drop("minecraft:nautilus_shell", 0, 1, 0.96f), drop("minecraft:trident", 0, 1, 0.48f));
+    /** m174 龙池杀凋机（无尽贪婪投影新线,终局工程）：末地传送门基岩位循环召唤+压杀凋灵,
+     *  对表用户 150 块蓝图（11×11×22:基岩41+末地传送门20=场地自带不计料;灵魂沙13/发射器3
+     *  放头/漏斗矿车1收账）。吃 灵魂沙4+凋骷头3/100t 出下界之星1=720星/h,比凋灵机(≈50s/星)
+     *  快10倍但照付召唤料——免费慢档与付费快档双轨;经验50/轮同凋灵机。 */
+    public static final MachineDef WITHER_KILLER = defConsume("wither_killer", 100,
+            List.of(in("minecraft:soul_sand", 4), in("minecraft:wither_skeleton_skull", 3)),
+            drop("minecraft:nether_star", 1, 1));
     /** 万能熔炉：运行时走 SmeltPlanner 原版熔炼表（接什么烧什么），此处 inputs/outputs 仅占位。 */
     public static final MachineDef SUPER_SMELTER = defConsume("super_smelter", 20, List.of(), drop("minecraft:iron_ingot", 1, 1));
     /** m173 万级熔炉阵（1728熔炉背包版工程款）：同一万能熔炉分支，capacity×108=每周期 6912 件

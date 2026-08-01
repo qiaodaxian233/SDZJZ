@@ -122,5 +122,11 @@
   "item.sdzjz.mega_fishing_machine": "Cod & Salmon Farm",
   "item.sdzjz.mega_trial_farm": "Trial Hall Farm",
   "item.sdzjz.mega_super_smelter": "1728-Furnace Array",
-  "item.sdzjz.mega_crop_farm": "Multi-Crop Farm Tower"
+  "item.sdzjz.mega_crop_farm": "Multi-Crop Farm Tower",
+  "item.sdzjz.animal_farm": "Animal Farm",
+  "item.sdzjz.wither_rose_farm": "Wither Rose Farm",
+  "item.sdzjz.wither_killer": "Dragon-Pool Wither Killer",
+  "item.sdzjz.dragon_cannon": "Dragon Slayer Cannon",
+  "item.sdzjz.hoglin_farm": "Hoglin Farm",
+  "item.sdzjz.tunnel_borer": "Lazy-Load Tunnel Borer"
 }

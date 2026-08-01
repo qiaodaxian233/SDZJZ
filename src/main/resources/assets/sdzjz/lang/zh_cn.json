@@ -122,5 +122,11 @@
   "item.sdzjz.mega_fishing_machine": "鳕鱼鲑鱼农场",
   "item.sdzjz.mega_trial_farm": "试炼大厅农场",
   "item.sdzjz.mega_super_smelter": "1728熔炉阵",
-  "item.sdzjz.mega_crop_farm": "多种植物农业塔"
+  "item.sdzjz.mega_crop_farm": "多种植物农业塔",
+  "item.sdzjz.animal_farm": "动物农场",
+  "item.sdzjz.wither_rose_farm": "凋灵玫瑰农场",
+  "item.sdzjz.wither_killer": "龙池杀凋机",
+  "item.sdzjz.dragon_cannon": "屠龙炮",
+  "item.sdzjz.hoglin_farm": "疣猪兽农场",
+  "item.sdzjz.tunnel_borer": "弱加载盾构机"
 }
