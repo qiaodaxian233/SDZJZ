@@ -1137,7 +1137,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
         }
         if (StructureCoreBlockEntity.machineFilterable(st)) // m149 二级界面：熔炉选烧什么/多产物机选产物
-            addMenu(st.getItem() instanceof com.sdzjz.item.MachineItem mif && "super_smelter".equals(mif.def().id())
+            addMenu(st.getItem() instanceof com.sdzjz.item.MachineItem mif && com.sdzjz.machine.Machines.smelterFamily(mif.def().id())
                             ? "选择烧什么…" : "选择产物…",
                     mi(net.minecraft.item.Items.FURNACE), 2, () -> openMachineFilterPicker(idx));
         if (StructureCoreBlockEntity.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
@@ -1784,7 +1784,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (!(stM.getItem() instanceof com.sdzjz.item.MachineItem mif)) return;
         List<Item> src = new ArrayList<>();
         LinkedHashSet<Item> set = new LinkedHashSet<>();
-        if ("super_smelter".equals(mif.def().id())) {
+        if (com.sdzjz.machine.Machines.smelterFamily(mif.def().id())) { // m173 熔炉族
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc.world != null)
                 for (var e : mc.world.getRecipeManager().listAllOfType(net.minecraft.recipe.RecipeType.SMELTING))

@@ -599,6 +599,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
                 int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
+                long unitCf = st.getItem() instanceof MachineItem miCf
+                        ? com.sdzjz.machine.Machines.cropUnit(miCf.def().id()) : 1L; // m173 农场族单机倍率
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedCf = !hasOut[i] && depositCf == null;  // m99 封顶只对"进内部缓存"生效
@@ -607,10 +609,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     java.util.List<MachineDef.Drop> cd = com.sdzjz.machine.CropFarms.get(crop);
                     if (cd != null) allDrops.addAll(cd);
                 }
+                long cropUnit = st.getItem() instanceof MachineItem miCf
+                        ? com.sdzjz.machine.Machines.cropUnit(miCf.def().id()) : 1L; // m173 农业塔×32
                 for (MachineDef.Drop d : allDrops) {
                     long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
                     if (sum <= 0) continue;
-                    long total = (long) running * sum;
+                    long total = (long) running * sum * cropUnit;
                     if (cappedCf) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
@@ -618,13 +622,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
                 }
-            } else if (st.getItem() instanceof MachineItem miu && "super_smelter".equals(miu.def().id())) {
+            } else if (st.getItem() instanceof MachineItem miu && com.sdzjz.machine.Machines.smelterFamily(miu.def().id())) { // m173 熔炉族
                 // 万能熔炉：接什么烧什么（原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料/存储网络。
                 int cycles = be.cyclesThisTick(i, miu.def().baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
                 int running = runningCount(st, parallelLv, tier); // m99 并发直接乘台数
                 com.sdzjz.machine.StorageAccess depositSm = hasOut[i] ? null : be.depositFor(world, i);
-                long capacity = (long) running * 64L * (1 + countLv) * cycles; // 每周期一组×并行×(1+数量)×本tick周期数
+                long capacity = (long) running * 64L * (1 + countLv) * cycles
+                        * com.sdzjz.machine.Machines.smelterUnit(miu.def().id()); // 每周期一组×并行×(1+数量)×周期数×熔炉族倍数(m173 工程款×108)
                 if (!hasOut[i] && depositSm == null) capacity = Math.min(capacity, 64L * OUTPUT_SLOTS); // 无存储时按缓存封顶防白扣
                 long done = 0;
                 if (hasIn[i]) {
@@ -1307,7 +1312,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m149 机器加工二级界面：哪些机器有"选加工范围"资格——万能熔炉(选烧什么)或多产物机(选出什么)。 */
     public static boolean machineFilterable(ItemStack s) {
         if (!(s.getItem() instanceof com.sdzjz.item.MachineItem mi)) return false;
-        return "super_smelter".equals(mi.def().id()) || mi.def().outputs().size() > 1;
+        return com.sdzjz.machine.Machines.smelterFamily(mi.def().id()) || mi.def().outputs().size() > 1; // m173 熔炉族
     }
 
     /** m149 机器加工过滤（复用 fl 名单，白名单语义）：空=全放行；非空=只加工选中项。
@@ -1870,7 +1875,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return planE != null && planE.needs().containsKey(id);
         } else if (st.getItem() instanceof MachineItem mi) {
             var def = mi.def();
-            if ("super_smelter".equals(def.id()))
+            if (com.sdzjz.machine.Machines.smelterFamily(def.id())) // m173 熔炉族
                 return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
                         && machineFilterAllows(st, id); // m149 滤掉的不收，留上游走默认路由
             if (def.consumesInputs()) {
@@ -2187,7 +2192,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return plan != null && plan.needs().containsKey(id);
         }
         if (st.getItem() instanceof MachineItem mi) {
-            if ("super_smelter".equals(mi.def().id()))
+            if (com.sdzjz.machine.Machines.smelterFamily(mi.def().id())) // m173 熔炉族
                 return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
                         && machineFilterAllows(st, id); // m149
             if (mi.def().consumesInputs()) {

@@ -41,7 +41,8 @@ public final class SuperBenchRecipes {
         "sdzjz:mega_witch_tower", "sdzjz:mega_guardian_farm",
         "sdzjz:iron_farm_160", "sdzjz:mega_pigman_tower", "sdzjz:mega_drowned_tower",
         "sdzjz:mega_wither_skeleton_farm", "sdzjz:mega_raid_tower", "sdzjz:mega_honey_farm",
-        "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm"); // m168-m172：工程款全入Ⅲ档
+        "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm",
+        "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm"); // m168-m173：工程款全入Ⅲ档
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -249,6 +250,14 @@ public final class SuperBenchRecipes {
         bom("sdzjz:sugarcane_farm", "", "minecraft:sugar_cane", 8, SND, 8, WB, 2, OSV, 8, PIS, 8, RSD, 8,
                 SST, 12, HOP, 4, CHE, 2);
         bom("sdzjz:super_smelter", "", FUR, 16, HOP, 16, CHE, 8, "minecraft:coal_block", 4); // 原版超级熔炉阵=炉与漏斗海
+        // m173 1728熔炉阵：对表用户"1728熔炉背包版"蓝图（54×28×63，20076 块：白玻璃5673/
+        // 漏斗4760=漏斗海/动力铁轨3839/熔炉1728/投掷器866/蓝冰130冰道/漏斗矿车9），÷≈200 蒸馏；
+        // 煤炭块4=燃料税照基础款。
+        bom("sdzjz:mega_super_smelter", "", "minecraft:white_stained_glass", 28, HOP, 24,
+                "minecraft:powered_rail", 19, FUR, 9, "minecraft:dropper", 4, WB, 3,
+                "minecraft:smooth_stone_slab", 3, "minecraft:oak_leaves", 1, "minecraft:white_concrete", 1,
+                "minecraft:redstone_block", 1, "minecraft:slime_block", 1, "minecraft:blue_ice", 1,
+                "minecraft:composter", 1, "minecraft:coal_block", 4, CHE, 2);
         bom("sdzjz:swamp_spawner", "minecraft:bogged", "minecraft:mud", 16, TRAP, 4, WB, 1,
                 "minecraft:arrow", 4, HOP, 4, CHE, 2);
         bom("sdzjz:tree_farm", "", "minecraft:oak_sapling", 8, DRT, 16, BM, 16, "minecraft:apple", 2, HOP, 4, CHE, 2);
@@ -283,6 +292,14 @@ public final class SuperBenchRecipes {
                 "minecraft:porkchop", 2, HOP, 4, CHE, 2); // m92
         bom("sdzjz:crop_farm", "", DRT, 16, WB, 1, "minecraft:wheat_seeds", 8, "minecraft:carrot", 4,
                 "minecraft:potato", 4, "minecraft:composter", 1, HOP, 5, "minecraft:minecart", 1, CHE, 2); // 漏斗5+矿车=漏斗矿车收菜
+        // m173 多种植物农业塔：对表用户"多种植物农村"蓝图（21×51×21 塔楼，15193 块：白玻璃3406/
+        // 玻璃3232/耕地1968格（耕地无物品形态→土）/苔藓1256/南瓜灯352照明/四作物各316+瓜南瓜茎
+        // 各351+仙人掌81），÷≈100 蒸馏；堆肥桶照基础款、南瓜灯3=塔楼照明梗。
+        bom("sdzjz:mega_crop_farm", "", "minecraft:white_stained_glass", 34, GL, 32, DRT, 20,
+                "minecraft:moss_block", 12, "minecraft:glowstone", 4, "minecraft:slime_block", 4,
+                SST, 4, "minecraft:jack_o_lantern", 3, "minecraft:oak_fence", 1, SND, 1,
+                "minecraft:cactus", 1, "minecraft:chain", 1, WB, 6, "minecraft:sticky_piston", 1,
+                "minecraft:composter", 1, HOP, 4, CHE, 2);
         bom("sdzjz:deep_mining_platform", "", "minecraft:diamond", 2, "minecraft:ancient_debris", 2, // 引子:先亲手挖到样本
                 "minecraft:tnt", 8, OBSI, 8, "minecraft:rail", 8, "minecraft:minecart", 1, TCH, 8, HOP, 4, CHE, 4);
         bom("sdzjz:archaeology_station", "", "minecraft:brush", 2, "minecraft:echo_shard", 2, // 引子:远古城+藏宝图亲手跑

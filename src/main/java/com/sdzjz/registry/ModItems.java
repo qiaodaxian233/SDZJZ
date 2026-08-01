@@ -54,6 +54,7 @@ public class ModItems {
     public static final Item COW_FARM     = reg("cow_farm",     new MachineItem(new Item.Settings(), Machines.COW_FARM));
     public static final Item PIG_FARM      = reg("pig_farm",      new MachineItem(new Item.Settings(), Machines.PIG_FARM)); // m92
     public static final Item CROP_FARM    = reg("crop_farm",    new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.CROP_FARM));
+    public static final Item MEGA_CROP_FARM = reg("mega_crop_farm", new com.sdzjz.item.CropFarmItem(new Item.Settings(), Machines.MEGA_CROP_FARM)); // m173 农业塔
     public static final Item DEEP_MINING_PLATFORM = reg("deep_mining_platform", new MachineItem(new Item.Settings(), Machines.DEEP_MINING_PLATFORM)); // m102 引子:钻石x2+远古残骸x2
     public static final Item ARCHAEOLOGY_STATION = reg("archaeology_station", new MachineItem(new Item.Settings(), Machines.ARCHAEOLOGY_STATION)); // m109a 引子:回响碎片x2+海洋之心x2
     public static final Item END_EXPEDITION_PLATFORM = reg("end_expedition_platform", new MachineItem(new Item.Settings(), Machines.END_EXPEDITION_PLATFORM)); // m109b 引子:末地石x2+龙息x2
@@ -113,6 +114,7 @@ public class ModItems {
     public static final Item DROWNED_TOWER = reg("drowned_tower", new MachineItem(new Item.Settings(), Machines.DROWNED_TOWER));
     public static final Item MEGA_DROWNED_TOWER = reg("mega_drowned_tower", new MachineItem(new Item.Settings(), Machines.MEGA_DROWNED_TOWER)); // m172 僵尸增援溺尸塔
     public static final Item SUPER_SMELTER = reg("super_smelter", new MachineItem(new Item.Settings(), Machines.SUPER_SMELTER));
+    public static final Item MEGA_SUPER_SMELTER = reg("mega_super_smelter", new MachineItem(new Item.Settings(), Machines.MEGA_SUPER_SMELTER)); // m173 1728熔炉阵
     public static final Item GHAST_TOWER = reg("ghast_tower", new MachineItem(new Item.Settings(), Machines.GHAST_TOWER));
     public static final Item BREEZE_FARM = reg("breeze_farm", new MachineItem(new Item.Settings(), Machines.BREEZE_FARM));
     public static final Item BONEMEAL_MACHINE = reg("bonemeal_machine", new MachineItem(new Item.Settings(), Machines.BONEMEAL_MACHINE));
@@ -165,6 +167,7 @@ public class ModItems {
             entries.add(COW_FARM);
             entries.add(PIG_FARM);
             entries.add(CROP_FARM);
+            entries.add(MEGA_CROP_FARM);
             entries.add(DEEP_MINING_PLATFORM);
             entries.add(ARCHAEOLOGY_STATION);
             entries.add(END_EXPEDITION_PLATFORM);
@@ -230,6 +233,7 @@ public class ModItems {
             entries.add(DROWNED_TOWER);
             entries.add(MEGA_DROWNED_TOWER);
             entries.add(SUPER_SMELTER);
+            entries.add(MEGA_SUPER_SMELTER);
             entries.add(GHAST_TOWER);
             entries.add(BREEZE_FARM);
             entries.add(BONEMEAL_MACHINE);

@@ -30,10 +30,13 @@ public class MachineItem extends Item {
         float sec = def.baseIntervalTicks() / 20f;
         tooltip.add(Text.literal("周期 " + (sec == (int) sec ? String.valueOf((int) sec) : String.format("%.1f", sec)) + " 秒")
                 .formatted(Formatting.GRAY));
-        if ("super_smelter".equals(def.id())) {
+        if (com.sdzjz.machine.Machines.smelterFamily(def.id())) { // m173 熔炉族共用提示
             tooltip.add(Text.literal("万能熔炼：接什么烧什么（原版熔炼配方全支持）").formatted(Formatting.GOLD));
             tooltip.add(Text.literal("须画布接线供料（机器入线/存储供料线），防误烧库存").formatted(Formatting.RED));
-            tooltip.add(Text.literal("每周期一组×并行×(1+数量升级)，产物入存储/连线").formatted(Formatting.AQUA));
+            if ("mega_super_smelter".equals(def.id()))
+                tooltip.add(Text.literal("1728熔炉阵：每周期108组×并行×(1+数量升级)").formatted(Formatting.AQUA));
+            else
+                tooltip.add(Text.literal("每周期一组×并行×(1+数量升级)，产物入存储/连线").formatted(Formatting.AQUA));
             return;
         }
         if (def.consumesInputs()) {
