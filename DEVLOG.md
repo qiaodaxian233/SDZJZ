@@ -2210,3 +2210,25 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （面板→过滤器→机器）应通（chainWants 通用分支）；⑤经验池：屠龙炮 500/轮、杀凋机 50/轮、
   疣猪兽 5/轮，动物农场/玫瑰/盾构不涨；⑥兔子脚→跳跃药水在酿造塔可选（精确条目照旧）；
   ⑦倍率或产能不满意报数一行改。
+
+## m175 CI 上线：GitHub Actions 三道闸（审查报告 P0 落地第一件——【待编译验证】欠账就此闭环）
+- **动机**：沙箱网络白名单到不了 maven.fabricmc.net，全库自 m112 起只能【待编译验证】；
+  GitHub 跑批机可达 Fabric maven——把编译验证搬到每次 push 自动跑。
+- **PAT 无 workflow 权限推不了 `.github/workflows/`（GitHub 硬规则），工作流暂存
+  `docs/ci/ci.yml`，两条启用路径任选**：①重发带 workflow 权限的 PAT，我一步挪到位；
+  ②GitHub 网页端 Add file → 建 `.github/workflows/ci.yml` 粘贴 docs/ci/ci.yml 内容即生效。
+- **ci.yml 两个 job**：
+  - offline-checks：`docs/tools_m172_check.py`（配方多重集唯一/≤144件/≤18种/笼数）+
+    新脚本 `docs/tools_ci_resources.py`；
+  - build：temurin JDK21 + gradle/actions/setup-gradle（缓存）+ `./gradlew build`，
+    产物 jar 上传 artifact 留 30 天——**每次推送出可下载的包**。
+- **`docs/tools_ci_resources.py` 全库资源审计（本地首跑全绿）**：① resources 全部 JSON 可解析
+  ×177；② 中英语言键集合一致 ×130；③ 每张物品模型 layer0 贴图实存 ×113；④ 每个物品注册
+  有模型+双语言 ×111；⑤ 每条配方结果 id 已注册（物品∪方块——首跑揪出的 6 个"未注册"
+  全是 ModBlocks 方块，脚本并集修正）；⑥ 贴图 PNG 头断言（方形+16 倍数边长）。
+- **展望（挂待办）**：GameTest+专用服冒烟（审查报告清单 6/7 项）待 CI 首跑通过后加；
+  Nightly/Alpha/Beta 发布通道同期。
+- 验证脚本：⓪先按上面任一路径启用工作流；①启用后 Actions 页两 job 应绿（build 首跑要拉全套依赖约 3-8 分钟）；
+  ②artifact 里 sdzjz-0.0.1.jar 应可下载、丢进 1.21.1+Fabric API 客户端能进创造栏；
+  ③若 build 红=真编译错误——**那就是 m112 以来第一次真编译**，报错贴回来即修；
+  ④故意改坏一个 lang 键推分支,offline-checks 应拦。

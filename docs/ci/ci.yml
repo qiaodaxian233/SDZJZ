@@ -1,0 +1,40 @@
+# m175 CI:每次推送/PR 三道闸——①离线配方校验 ②全库资源审计 ③真编译出包
+# 沙箱到不了 maven.fabricmc.net,历来只能【待编译验证】;GitHub 跑批机可达,就此闭环。
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  offline-checks:
+    name: 配方校验 + 资源审计
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配方校验(多重集唯一/上限/笼数)
+        run: python3 docs/tools_m172_check.py
+      - name: 资源审计(JSON/双语言键/模型贴图/注册闭环)
+        run: python3 docs/tools_ci_resources.py
+
+  build:
+    name: Gradle 编译出包
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 编译
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace --no-daemon
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdzjz-jar
+          path: build/libs/*.jar
+          retention-days: 30
