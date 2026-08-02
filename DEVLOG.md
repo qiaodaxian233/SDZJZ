@@ -2261,3 +2261,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   **优先建议本轮先验 m174 六台新线**（七条脚本见 m174 节——六台全新产线+经验引擎+双轨星，
   改动集中风险面清晰）。CI（m175）激活仍等 workflow 权限 PAT 或网页端手放，作者本地
   构建工具已覆盖编译验证主链路，CI 降级为"推送门禁"优先级。
+
+## m177 性能尺子：/sdzjz profile 三命令 + 核心全链路插桩（审查报告三"调试三件套"，P0 大件开工的第一步——先有基线再谈优化）
+- **新 `debug/CoreProfiler`（零协议零 NBT，纯内存服务器线程）**：每核心 100 tick 环形窗记
+  耗时（tick 包一层 try/finally 计时——原体改名 tickInner，早退路径也收得到）；计数窗
+  （reset 清）逐点数：路由（distribute/distributeEven 两口）、供料（supplyFor/depositFor
+  两口）、链查（chainWants 入口）、核心 NBT 同步（包数+**计数流真编码字节**——增量同步
+  改造前后在此对表收益）、m89 端点直发包（包数+条目数）。成本=每核心每 tick 两次
+  nanoTime+若干 long 自增，可忽略；prof 字段 transient 不入存档。
+- **新 `debug/SdzjzCommands`（OP2）**：`/sdzjz profile core`＝本维度活跃核心（5 秒判活）
+  按均耗排序逐行报 节点/边/运行态/tick均值峰值µs/路由·供料·链查每秒；`/sdzjz profile
+  network`＝全服同步账单（NBT 包数与 KB、端点包数与均条目、KB/s）；`/sdzjz profile reset`
+  清计数窗；`/sdzjz dumpgraph`＝就近 64 格核心整图转储进服务器日志（节点列表含暂停标记+
+  全部连线+prodPerMin），聊天给摘要。
+- **命令注册**：fabric-command-api-v2（Fabric API 自带），Sdzjz.onInitialize 首行挂。
+- **审查报告性能标准表就此可测**：100 节点<0.5ms、500 节点<2ms、10 核心<20% 预算——
+  下一步 m178 编译执行计划拿这把尺子前后对比。
+- 验证脚本：①放核心开机后 `/sdzjz profile core` 应出行（几 µs~几百 µs 量级）；②接仓库
+  拉料后 路由/供料/链查 速率应非零；③开画布时 `/sdzjz profile network` 端点包应 1包/2s
+  节奏涨、字节账随 syncToClient 涨；④`/sdzjz dumpgraph` 日志见整图、下标与画布对得上；
+  ⑤`/sdzjz profile reset` 后速率归零重计；⑥非 OP 无此命令；⑦挂 500 节点画布记一次基线
+  （表格在审查报告三），m178 改造后复测同表。

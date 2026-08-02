@@ -33,6 +33,7 @@ public class Sdzjz implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph
         SdzjzConfig.load();
         ModBlocks.init();
         ModBlockEntities.init();

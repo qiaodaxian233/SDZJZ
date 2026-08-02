@@ -61,6 +61,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
+    public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
     private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>(); // 遗留共享池（老档迁移+节点删除回收），消耗时兜底
     private final java.util.List<java.util.Map<String, Long>> nodeBufs = new java.util.ArrayList<>(); // 每节点输入缓存：连线按边精确路由
     private static final long BUF_CAP = 200000L;
@@ -142,6 +143,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ================= 运行时（通用：按 MachineDef 跑任意机器）=================
     public static void tick(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         if (world.isClient) return;
+        if (be.prof == null) be.prof = com.sdzjz.debug.CoreProfiler.register(world, pos); // m177
+        long t0 = System.nanoTime();
+        try {
+            tickInner(world, pos, state, be);
+        } finally {
+            com.sdzjz.debug.CoreProfiler.record(be.prof, be.machineNodes.size(), be.connections.size(), be.running, System.nanoTime() - t0);
+        }
+    }
+
+    private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         if (world.getTime() - be.lastEndpointScan >= 40) { // 端点扫描独立于开机状态：画布随时能看到接口
             be.lastEndpointScan = world.getTime();
             be.scanStorageEndpoints(world, pos);
@@ -164,6 +175,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         || !pos.equals(h.blockPos())) continue;
                 if (pk == null) pk = be.buildEndsPayload(pos);
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+                if (be.prof != null) { be.prof.endsPackets++; be.prof.endsEntries += pk.endPos().size(); } // m177
             }
         }
         // m133 强制加载：开机+配置开 → 钉住自身区块(FORCED,持久化,重启自恢复) + 每100t给端点区块续有期票；
@@ -1808,6 +1820,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 该机器的定向产出目标（机器→存储 连线；不可用则 null 走默认路由）。 */
     private com.sdzjz.machine.StorageAccess depositFor(World world, int machineIndex) {
+        if (prof != null) prof.storageResolves++; // m177
         return edgeStorage(world, machineIndex, 0);
     }
 
@@ -1835,6 +1848,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                java.util.Set<Integer> visited,
                                java.util.Map<Integer, java.util.List<Integer>> outT,
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
+        if (prof != null) prof.chainChecks++; // m177
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
         if (nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
@@ -1957,6 +1971,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public boolean chunkForceActive() { return chunkForceOn; }
 
     private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
+        if (prof != null) prof.storageResolves++; // m177
         return edgeStorage(world, machineIndex, 1);
     }
 
@@ -2112,6 +2127,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 均分分发（分配器）：在所有"吃得下"的目标间平分，余数轮转；装不下/没人要的走 定向存储/默认路由。 */
     private void distributeEven(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+        if (prof != null) prof.routes++; // m177
         if (targets != null && !targets.isEmpty()) {
             java.util.List<Integer> ok = new java.util.ArrayList<>();
             for (int t : targets)
@@ -2139,6 +2155,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */
     private void distribute(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+        if (prof != null) prof.routes++; // m177
         if (targets != null) {
             for (int pass = 0; pass < 2; pass++) { // m150 两轮：第一轮跳过垃圾桶，第二轮只喂垃圾桶——
                 for (int t : targets) {            // 垃圾桶永远是最后去处，与连线先后无关（不然想要的会被吞）
@@ -2264,8 +2281,27 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private void syncToClient() {
         if (world != null && !world.isClient) {
+            if (prof != null) { // m177 同步账单：包数+NBT 编码字节（增量同步改造前后在此对表）
+                prof.syncPackets++;
+                try { prof.syncBytes += com.sdzjz.debug.CoreProfiler.nbtSize(createNbt(world.getRegistryManager())); } catch (Exception ignored) {}
+            }
             world.updateListeners(pos, getCachedState(), getCachedState(), net.minecraft.block.Block.NOTIFY_ALL);
         }
+    }
+
+    /** m177 /sdzjz dumpgraph：整图转储（节点+连线+运行态），进服务器日志用。 */
+    public String debugDump() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("running=").append(running).append(" nodes=").append(machineNodes.size())
+          .append(" edges=").append(connections.size()).append(" prodPerMin=").append(prodPerMin).append('\n');
+        for (int i = 0; i < machineNodes.size(); i++) {
+            ItemStack st = machineNodes.get(i);
+            sb.append(String.format("  [%d] %s x%d%s%n", i,
+                    net.minecraft.registry.Registries.ITEM.getId(st.getItem()), st.getCount(),
+                    nodePaused(st) ? " (暂停)" : ""));
+        }
+        for (int[] c : connections) sb.append("  edge ").append(c[0]).append(" -> ").append(c[1]).append('\n');
+        return sb.toString();
     }
 
     private boolean pop(PlayerEntity player, int i) {
