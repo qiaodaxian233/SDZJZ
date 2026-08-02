@@ -44,10 +44,10 @@ public final class SdzjzCommands {
         }
         src.sendFeedback(() -> Text.literal("§b[sdzjz] 活跃核心 ×" + list.size() + "（按均耗排序，窗口=最近100tick）"), false);
         for (CoreProfiler.Stats s : list) {
-            String line = String.format("§f%s §7| 节点%d 边%d %s §7| tick §e均%.0fµs §6峰%.0fµs §7| 路由 %.1f/s 供料 %.1f/s 链查 %.1f/s",
+            String line = String.format("§f%s §7| 节点%d 边%d %s §7| tick §e均%.0fµs §6峰%.0fµs §7| 路由 %.1f/s 供料 %.1f/s 链查 %.1f/s §7编译%d",
                     s.pos.toShortString(), s.nodes, s.edges, s.running ? "§a运行" : "§8停机",
                     s.avgMicros(), s.maxMicros(),
-                    s.perSec(s.routes), s.perSec(s.storageResolves), s.perSec(s.chainChecks));
+                    s.perSec(s.routes), s.perSec(s.storageResolves), s.perSec(s.chainChecks), s.planCompiles);
             src.sendFeedback(() -> Text.literal(line), false);
         }
         return list.size();

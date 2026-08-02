@@ -27,6 +27,7 @@ public final class CoreProfiler {
         final long[] win = new long[100];   // 最近 100 tick 耗时(ns)环形窗
         int idx, filled;
         public long routes, storageResolves, chainChecks;      // 窗口计数（reset 清）
+        public long planCompiles;                               // m179 执行计划编译次数（稳态≈0）
         public long syncPackets, syncBytes;                     // 核心 NBT 同步
         public long endsPackets, endsEntries;                   // m89 端点/总线直发包
         public int nodes, edges;
@@ -50,7 +51,7 @@ public final class CoreProfiler {
             return sec < 0.05 ? 0 : counter / sec;
         }
         void resetWindow() {
-            routes = storageResolves = chainChecks = syncPackets = syncBytes = endsPackets = endsEntries = 0;
+            routes = storageResolves = chainChecks = syncPackets = syncBytes = endsPackets = endsEntries = planCompiles = 0;
             windowStartMs = System.currentTimeMillis();
         }
     }

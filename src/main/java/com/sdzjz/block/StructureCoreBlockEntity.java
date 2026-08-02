@@ -62,6 +62,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
     public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
+    // m179 编译执行计划：拓扑派生结构(hasOut/hasIn/outT)只在图变更时重建，普通 tick 直接复用缓存
+    // ——修订号失配才编译；长度兜底防漏 bump；派生列表运行期只读(已核)所以可跨 tick 共享。
+    private transient int topoRev = 1;
+    private transient int planRev = 0;
+    private transient boolean[] planHasOut, planHasIn;
+    private transient java.util.Map<Integer, java.util.List<Integer>> planOutT;
+    private void bumpTopo() { topoRev++; }
     private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>(); // 遗留共享池（老档迁移+节点删除回收），消耗时兜底
     private final java.util.List<java.util.Map<String, Long>> nodeBufs = new java.util.ArrayList<>(); // 每节点输入缓存：连线按边精确路由
     private static final long BUF_CAP = 200000L;
@@ -212,16 +219,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (nSize == 0) return;
 
         // 连线拓扑（按边精确路由）：产物只流向出线指向的目标节点缓存；有入线的消耗机吃自己的缓存
-        boolean[] hasOut = new boolean[nSize];
-        boolean[] hasIn = new boolean[nSize];
-        java.util.Map<Integer, java.util.List<Integer>> outT = new java.util.HashMap<>();
-        for (int[] c : be.connections()) {
-            if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) {
-                hasOut[c[0]] = true;
-                hasIn[c[1]] = true;
-                outT.computeIfAbsent(c[0], k -> new java.util.ArrayList<>()).add(c[1]);
+        // m179 编译执行计划：只在 topoRev 变更(或长度兜底失配)时重建，其余 tick 零分配直用缓存
+        if (be.planRev != be.topoRev || be.planHasOut == null || be.planHasOut.length != nSize) {
+            boolean[] cHasOut = new boolean[nSize];
+            boolean[] cHasIn = new boolean[nSize];
+            java.util.Map<Integer, java.util.List<Integer>> cOutT = new java.util.HashMap<>();
+            for (int[] c : be.connections()) {
+                if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) {
+                    cHasOut[c[0]] = true;
+                    cHasIn[c[1]] = true;
+                    cOutT.computeIfAbsent(c[0], k -> new java.util.ArrayList<>()).add(c[1]);
+                }
             }
+            be.planHasOut = cHasOut; be.planHasIn = cHasIn; be.planOutT = cOutT;
+            be.planRev = be.topoRev;
+            if (be.prof != null) be.prof.planCompiles++; // m179 尺子：编译次数（稳态应≈0增长）
         }
+        boolean[] hasOut = be.planHasOut;
+        boolean[] hasIn = be.planHasIn;
+        java.util.Map<Integer, java.util.List<Integer>> outT = be.planOutT;
 
         // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
         // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
@@ -1000,6 +1016,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             node.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         }
         machineNodes.add(node);
+        bumpTopo(); // m179
         nodeBuf(machineNodes.size() - 1); // 懒补齐：新节点空输入缓存
         held.decrement(1);
         markDirty();
@@ -1643,6 +1660,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private ItemStack detachNode(int index) {
         nodeBuf(machineNodes.size() - 1); // 先补齐对齐
         ItemStack s = machineNodes.remove(index);
+        bumpTopo(); // m179（本方法随后还重写 connections，一次 bump 覆盖）
         if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
         if (index < nodeStatus.size()) nodeStatus.remove(index);
         if (index < nodeReason.size()) nodeReason.remove(index); // m178
@@ -2290,9 +2308,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleConnection(int from, int to) {        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
         for (int i = 0; i < connections.size(); i++) {
             int[] c = connections.get(i);
-            if (c[0] == from && c[1] == to) { connections.remove(i); markDirty(); syncToClient(); return; }
+            if (c[0] == from && c[1] == to) { connections.remove(i); bumpTopo(); markDirty(); syncToClient(); return; } // m179
         }
         connections.add(new int[]{from, to});
+        bumpTopo(); // m179
         markDirty();
         syncToClient();
     }
@@ -2315,6 +2334,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(), s);
         }
         machineNodes.clear();
+        bumpTopo(); // m179
         nodeStatus.clear();
         nodeReason.clear(); // m178
     }
@@ -2767,6 +2787,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         super.readNbt(nbt, lookup);
         Inventories.readNbt(nbt, items, lookup);
         machineNodes.clear();
+        bumpTopo(); // m179
         NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < mn.size(); i++) {
             NbtCompound mc = mn.getCompound(i);
