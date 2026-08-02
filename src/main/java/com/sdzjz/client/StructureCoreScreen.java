@@ -686,6 +686,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return;
         }
         ctx.drawText(this.textRenderer, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
+        String why178 = be.nodeReason(i); // m178 阻塞原因：黄/红灯时常显在 y+38 行（徽章副行让位）
+        int stv178 = be.nodeStatus(i);
+        boolean showWhy = (stv178 == 2 || stv178 == 3) && !why178.isEmpty();
         boolean isCrop = st.getItem() instanceof com.sdzjz.item.CropFarmItem;
         boolean isBrew = st.getItem() instanceof com.sdzjz.item.BrewingTowerItem; // m131b
         boolean isEnch = st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem; // m132
@@ -698,10 +701,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             String t = StructureCoreBlockEntity.craftTarget(st);
             if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
                 ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(0)))), bx + 2, by + 2);
-                int nm = Math.min(3, cropsSel.size());
-                for (int k = 0; k < nm; k++)
-                    ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
-                ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
+                if (!showWhy) { // m178 阻塞时让位原因行
+                    int nm = Math.min(3, cropsSel.size());
+                    for (int k = 0; k < nm; k++)
+                        ctx.drawItem(new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
+                    ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
+                }
             } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = isBrew ? com.sdzjz.machine.BrewPlanner.targetStack(t)
                         : isEnch ? com.sdzjz.machine.EnchantPlanner.targetStack(MinecraftClient.getInstance().world, t)
@@ -718,12 +723,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
                 if (isTrade) tn = com.sdzjz.machine.TradePlanner.displayName(t).getString(); // m146 徽章=整条交易
                 tn = fitText(tn, NW - 50 - this.textRenderer.getWidth("→")); // m164a：硬切改省略号截断
-                ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字
+                if (!showWhy) ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字;m178 阻塞时让位
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : "设目标", x + 44, y + 38, SUB, false);
+                if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
+        if (showWhy) // m178 错误解释：从"猜"到"可诊断"——缺料红字/阻塞金字，转绿自动消失
+            ctx.drawText(this.textRenderer, fitText(why178, NW - 50), x + 44, y + 38, stv178 == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD, false);
     }
 
     /** 状态灯：核心停机=灰；1 绿呼吸=运行 2 黄=阻塞/关闸 3 红=缺料 其余=待机灰。 */

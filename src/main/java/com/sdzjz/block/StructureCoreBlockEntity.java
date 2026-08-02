@@ -308,13 +308,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int parallelLv = be.nodePar(st);
 
             // m115 过载保护：全线暂停（黄灯），流畅后自动恢复
-            if (be.lagPause) { be.stat(i, 2); continue; }
+            if (be.lagPause) { be.statR(i, 2, "服务器过载，自动暂停"); continue; }
             // m110b 单节点暂停：最先判——不产不耗不攒进度（m99 教训：early-continue 必须在累积之前）
-            if (StructureCoreBlockEntity.nodePaused(st)) { be.stat(i, 2); continue; }
+            if (StructureCoreBlockEntity.nodePaused(st)) { be.statR(i, 2, "已手动暂停"); continue; }
 
             // 传感器闸门：该节点全部出线目标都关闸 → 整台暂停（不白产、不绕道塞存储）
             if (hasOut[i] && be.allGatesClosed(world, outT.get(i))) {
-                be.stat(i, 2);
+                be.statR(i, 2, "下游闸门全关");
                 continue;
             }
 
@@ -470,7 +470,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingBuf(i, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
                         be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
                 } else {
@@ -482,10 +482,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         }
                         supply = src;
                     }
-                    if (supply == null) { be.stat(i, 3); continue; }
+                    if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingSup(supply, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
                         supply.withdraw(en.getKey(), (int) ((long) en.getValue() * crafts));
                 }
@@ -526,7 +526,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long fuelAvail = be.bufCountFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID);
                     crafts = Math.min(crafts, fuelAvail * ops / ((long) fuelNd * ops + steps));
                     while (crafts > 0 && (long) fuelNd * crafts + (crafts * steps + ops - 1) / ops > fuelAvail) crafts--; // ceil 兜底
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { String w178 = be.whyMissingBuf(i, plan.needs()); if (w178.startsWith("缺料（")) w178 = "缺料：烈焰粉（燃料）"; be.statR(i, 3, w178); continue; }
                     for (var en : plan.needs().entrySet())
                         be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
                     be.bufWithdrawFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID, (crafts * steps + ops - 1) / ops);
@@ -539,13 +539,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         }
                         supply = src;
                     }
-                    if (supply == null) { be.stat(i, 3); continue; }
+                    if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
                     long fuelAvail = supply.count(com.sdzjz.machine.BrewPlanner.FUEL_ID);
                     crafts = Math.min(crafts, fuelAvail * ops / ((long) fuelNd * ops + steps));
                     while (crafts > 0 && (long) fuelNd * crafts + (crafts * steps + ops - 1) / ops > fuelAvail) crafts--;
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { String w178 = be.whyMissingSup(supply, plan.needs()); if (w178.startsWith("缺料（")) w178 = "缺料：烈焰粉（燃料）"; be.statR(i, 3, w178); continue; }
                     for (var en : plan.needs().entrySet())
                         supply.withdraw(en.getKey(), (int) Math.min(Integer.MAX_VALUE, (long) en.getValue() * crafts));
                     supply.withdraw(com.sdzjz.machine.BrewPlanner.FUEL_ID, (int) Math.min(Integer.MAX_VALUE, (crafts * steps + ops - 1) / ops));
@@ -573,11 +573,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (depositEf == null)
                     crafts = Math.min(crafts, OUTPUT_SLOTS); // 附魔书 max=1，无存储时封顶防白扣
                 crafts = Math.min(crafts, (long) (be.xpPool / plan.xpCost())); // 经验闸：池里够几本合几本
-                if (crafts <= 0) { be.stat(i, 3); continue; } // 经验不足=缺料红灯（画布经验池可见）
+                if (crafts <= 0) { be.statR(i, 3, "经验池不足（本单需 " + plan.xpCost() + "，现 " + (long) be.xpPool + "）"); continue; }
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingBuf(i, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
                         be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
                 } else {
@@ -589,10 +589,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         }
                         supply = src;
                     }
-                    if (supply == null) { be.stat(i, 3); continue; }
+                    if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, supply.count(en.getKey()) / en.getValue());
-                    if (crafts <= 0) { be.stat(i, 3); continue; }
+                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingSup(supply, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
                         supply.withdraw(en.getKey(), (int) Math.min(Integer.MAX_VALUE, (long) en.getValue() * crafts));
                 }
@@ -664,7 +664,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
                     // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
-                    if (supply == null) { be.stat(i, 3); continue; }
+                    if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
                         if (done >= capacity) break;
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, en.getKey());
@@ -687,7 +687,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     produced = true;
                     be.stat(i, 1);
                 } else {
-                    be.stat(i, 3); // 本周期没料可烧
+                    be.statR(i, 3, "无可烧材料（上游/仓库没有可熔炼项）"); // 本周期没料可烧
                 }
             } else if (st.getItem() instanceof MachineItem gr && "grindstone_recycler".equals(gr.def().id())) {
                 // m139 砂轮祛魔（缺口#4 另一半收官）：扫源仓精确账本里的附魔书→磨成裸书回原仓+
@@ -703,7 +703,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
                     accG = src;
                 }
-                if (accG == null) { be.stat(i, 3); continue; } // 无网络=红灯（这台离了仓没意义）
+                if (accG == null) { be.statR(i, 3, "未接存储网络"); continue; } // 无网络=红灯（这台离了仓没意义）
                 java.util.List<StorageCoreBlockEntity> banks = new java.util.ArrayList<>();
                 if (accG instanceof StorageCoreBlockEntity c1) banks.add(c1);
                 else if (accG instanceof DataPanelBlockEntity pn)
@@ -781,14 +781,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (hasIn[i]) { // 连线喂料（刷线机直供）
                     attempts = Math.min(attempts, be.bufCountFor(i, t.inItem()) / need1);
                     if (t.in2Item() != null) attempts = Math.min(attempts, be.bufCountFor(i, t.in2Item()) / t.in2Count());
-                    if (attempts <= 0) { be.stat(i, 3); continue; }
+                    if (attempts <= 0) { be.statR(i, 3, "缺料（本周期成本料不足，对照徽章/工具提示）"); continue; }
                     be.bufWithdrawFor(i, t.inItem(), (long) need1 * attempts);
                     if (t.in2Item() != null) be.bufWithdrawFor(i, t.in2Item(), (long) t.in2Count() * attempts);
                 } else {
-                    if (accT == null) { be.stat(i, 3); continue; } // 没连仓也没喂料
+                    if (accT == null) { be.statR(i, 3, "未接存储/供料线"); continue; } // 没连仓也没喂料
                     attempts = Math.min(attempts, accT.count(t.inItem()) / need1);
                     if (t.in2Item() != null) attempts = Math.min(attempts, accT.count(t.in2Item()) / t.in2Count());
-                    if (attempts <= 0) { be.stat(i, 3); continue; }
+                    if (attempts <= 0) { be.statR(i, 3, "缺料（本周期成本料不足，对照徽章/工具提示）"); continue; }
                     accT.withdraw(t.inItem(), (int) Math.min(Integer.MAX_VALUE, (long) need1 * attempts));
                     if (t.in2Item() != null) accT.withdraw(t.in2Item(), (int) Math.min(Integer.MAX_VALUE, (long) t.in2Count() * attempts));
                 }
@@ -828,7 +828,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
                     accV = src;
                 }
-                if (accV == null) { be.stat(i, 3); continue; } // 无网络=红灯（苹果没处取）
+                if (accV == null) { be.statR(i, 3, "未接存储网络（取不到金苹果）"); continue; } // 无网络=红灯（苹果没处取）
                 java.util.List<StorageCoreBlockEntity> banksV = new java.util.ArrayList<>();
                 if (accV instanceof StorageCoreBlockEntity cv) banksV.add(cv);
                 else if (accV instanceof DataPanelBlockEntity pv)
@@ -859,7 +859,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (!any) break; // 本轮一个都没升成（全满级）
                 }
                 if (cured > 0) { be.prodTally(cured); produced = true; be.stat(i, 1); }
-                else be.stat(i, 3); // 有合同可升却取不到苹果=缺料红灯
+                else be.statR(i, 3, "缺料：附魔金苹果"); // 有合同可升却取不到苹果=缺料红灯
             } else if (st.getItem() instanceof MachineItem sk && sk.def().id().startsWith("sculk_")) {
                 // m138 幽匿三机：吃核心经验池产幽匿件（原版幽匿=经验具象化——催化体吸收死亡经验长
                 // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
@@ -873,7 +873,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 double xpPer = 20.0;
                 long attempts = (long) running * cycles;
                 attempts = Math.min(attempts, (long) (be.xpPool / xpPer)); // 经验闸
-                if (attempts <= 0) { be.stat(i, 3); continue; }
+                if (attempts <= 0) { be.statR(i, 3, "缺料（本周期成本料不足，对照徽章/工具提示）"); continue; }
                 be.xpPool -= xpPer * attempts;
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositSk = hasOut[i] ? null : be.depositFor(world, i);
@@ -901,7 +901,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         // 从内部缓存取料（连线喂料）。m99：料不够整批时按料量折算周期数，能跑几轮跑几轮
                         for (MachineDef.Input in : def.inputs())
                             doCycles = (int) Math.min(doCycles, be.bufCountFor(i, in.item()) / ((long) in.count() * running));
-                        if (doCycles <= 0) { be.stat(i, 3); continue; }
+                        if (doCycles <= 0) { be.statR(i, 3, be.whyMissingBufIn(i, def.inputs(), running)); continue; }
                         for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running * doCycles);
                     } else {
                         com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
@@ -912,10 +912,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             }
                             supply = src;
                         }
-                        if (supply == null) { be.stat(i, 3); continue; }
+                        if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                         for (MachineDef.Input in : def.inputs())
                             doCycles = (int) Math.min(doCycles, supply.count(in.item()) / ((long) in.count() * running));
-                        if (doCycles <= 0) { be.stat(i, 3); continue; }
+                        if (doCycles <= 0) { be.statR(i, 3, be.whyMissingSupIn(supply, def.inputs(), running)); continue; }
                         for (MachineDef.Input in : def.inputs()) supply.withdraw(in.item(), in.count() * running * doCycles);
                     }
                 }
@@ -1430,9 +1430,47 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     void stat(int i, int v) {
         while (nodeStatus.size() < machineNodes.size()) nodeStatus.add(0);
+        while (nodeReason.size() < machineNodes.size()) nodeReason.add(""); // m178
+        if (v == 1 && i >= 0 && i < nodeReason.size() && !nodeReason.get(i).isEmpty()) { nodeReason.set(i, ""); statusDirty = true; } // m178 转绿清因
         if (i < 0 || i >= nodeStatus.size() || nodeStatus.get(i) == v) return;
         nodeStatus.set(i, v);
         statusDirty = true;
+    }
+
+    // ===== m178 阻塞原因（错误解释）：与 nodeStatus 平行同步，卡面黄/红灯常显人话原因 =====
+    private final java.util.List<String> nodeReason = new java.util.ArrayList<>();
+    /** 设状态并附原因（原因变化也触发同步）。 */
+    void statR(int i, int v, String why) {
+        while (nodeReason.size() < machineNodes.size()) nodeReason.add("");
+        if (i >= 0 && i < nodeReason.size() && !nodeReason.get(i).equals(why)) { nodeReason.set(i, why); statusDirty = true; }
+        stat(i, v);
+    }
+    /** 画布读取阻塞原因（客户端）。 */
+    public String nodeReason(int i) { return i >= 0 && i < nodeReason.size() ? nodeReason.get(i) : ""; }
+    private static String itemName(String id) {
+        try { return new ItemStack(Registries.ITEM.get(Identifier.of(id))).getName().getString(); } catch (Exception e) { return id; }
+    }
+    /** 找配方需求里第一项不够的（缓存口径）。 */
+    private String whyMissingBuf(int node, java.util.Map<String, Integer> needs) {
+        for (var en : needs.entrySet()) { long have = bufCountFor(node, en.getKey());
+            if (have < en.getValue()) return "缺料：" + itemName(en.getKey()) + "（缓存 " + have + "/需 " + en.getValue() + "）"; }
+        return "缺料（缓存不足）";
+    }
+    /** 找配方需求里第一项不够的（仓口径）。 */
+    private String whyMissingSup(com.sdzjz.machine.StorageAccess sup, java.util.Map<String, Integer> needs) {
+        for (var en : needs.entrySet()) { long have = sup.count(en.getKey());
+            if (have < en.getValue()) return "缺料：" + itemName(en.getKey()) + "（仓 " + have + "/需 " + en.getValue() + "）"; }
+        return "缺料（仓不足）";
+    }
+    private String whyMissingBufIn(int node, java.util.List<MachineDef.Input> ins, int running) {
+        for (MachineDef.Input in : ins) { long have = bufCountFor(node, in.item()); long need = (long) in.count() * running;
+            if (have < need) return "缺料：" + itemName(in.item()) + "（缓存 " + have + "/需 " + need + "）"; }
+        return "缺料（缓存不足）";
+    }
+    private String whyMissingSupIn(com.sdzjz.machine.StorageAccess sup, java.util.List<MachineDef.Input> ins, int running) {
+        for (MachineDef.Input in : ins) { long have = sup.count(in.item()); long need = (long) in.count() * running;
+            if (have < need) return "缺料：" + itemName(in.item()) + "（仓 " + have + "/需 " + need + "）"; }
+        return "缺料（仓不足）";
     }
 
     /** 画布读取节点状态（客户端）。 */
@@ -1607,6 +1645,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         ItemStack s = machineNodes.remove(index);
         if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
         if (index < nodeStatus.size()) nodeStatus.remove(index);
+        if (index < nodeReason.size()) nodeReason.remove(index); // m178
         java.util.List<int[]> kept = new java.util.ArrayList<>();
         for (int[] c : connections) {
             if (c[0] == index || c[1] == index) continue; // 触及被删节点→断
@@ -2277,6 +2316,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         machineNodes.clear();
         nodeStatus.clear();
+        nodeReason.clear(); // m178
     }
 
     private void syncToClient() {
@@ -2686,6 +2726,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int[] nst = new int[machineNodes.size()];
         for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
         nbt.putIntArray("nodeStat", nst);
+        NbtList nwl = new NbtList(); // m178 阻塞原因（与 nodeStat 同序；转绿清空）
+        for (int i = 0; i < nst.length; i++) nwl.add(net.minecraft.nbt.NbtString.of(i < nodeReason.size() ? nodeReason.get(i) : ""));
+        nbt.put("nodeWhy", nwl);
         NbtList eps = new NbtList(); // 存储端点（同步给画布：连了几个显示几个）
         for (int i = 0; i < storageEndpoints.size(); i++) {
             NbtCompound c = new NbtCompound();
@@ -2767,6 +2810,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nodeStatus.clear();
         for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
+        nodeReason.clear(); // m178
+        NbtList nwl178 = nbt.getList("nodeWhy", NbtElement.STRING_TYPE);
+        for (int i = 0; i < nwl178.size(); i++) nodeReason.add(nwl178.getString(i));
         storageEndpoints.clear();
         storageEndpointDims.clear();
         NbtList eps = nbt.getList("storEnds", NbtElement.COMPOUND_TYPE);
