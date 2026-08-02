@@ -17,6 +17,8 @@ jobs:
         run: python3 docs/tools_m172_check.py
       - name: 资源审计(JSON/双语言键/模型贴图/注册闭环)
         run: python3 docs/tools_ci_resources.py
+      - name: 文档同步校验(README 机器数/机器清单 防漂移)
+        run: python3 docs/tools_docs_sync.py
 
   build:
     name: Gradle 编译出包
