@@ -18,6 +18,9 @@
     ],
     "client": [
       "com.sdzjz.SdzjzClient"
+    ],
+    "jei_mod_plugin": [
+      "com.sdzjz.compat.jei.SdzjzJeiPlugin"
     ]
   },
   "mixins": [

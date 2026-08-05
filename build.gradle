@@ -8,11 +8,25 @@ group = project.maven_group
 
 base { archivesName = project.archives_base_name }
 
+repositories {
+    // JEI 官方 maven（m205 看板#15）；content 过滤只放行 mezz.jei，防仓库串扰拖慢解析
+    maven {
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+        content { includeGroup "mezz.jei" }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // JEI API 仅编译期（m205）：modCompileOnly=Loom 远端映射到 Yarn 但不进运行时，
+    // 玩家不装 JEI 零影响；插件类由 jei_mod_plugin entrypoint 惰性加载。
+    modCompileOnly "mezz.jei:jei-${project.minecraft_version}-common-api:${project.jei_version}"
+    modCompileOnly "mezz.jei:jei-${project.minecraft_version}-fabric-api:${project.jei_version}"
 }
 
 processResources {

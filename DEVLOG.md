@@ -2754,3 +2754,35 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   断言无漂移。非新物品不触注册六件套，机器数不变 docs_sync 无涉。
 - **实机验证脚本**：创造栏/机器库四台图标应为新立绘（疣猪兽=下界砖热熔производ线、杀凋机=末地
   折跃池黑塔、玫瑰农场=米黄石灰岩凋零罩棚、动物农场=五道蓝水槽围栏）；盾构机/屠龙炮暂仍旧占位。
+
+## m205 JEI 转移插件（看板 #15，作者复报"存储面板还是无法使用 JEI"=拍板）
+- **现象/根因**：m201 已接原版工作台接口（EMI 直通、配方书协议通），但 JEI 的"+"填料按具体菜单类
+  逐个注册（VanillaPlugin 点名 CraftingMenu 等），第三方容器必须自带 JEI 插件——JEI 设计如此。
+- **机制核对（JEI@1.21.1 源码实拉，不臆测）**：
+  - **发现机制**：Fabric 侧**不走 @JeiPlugin 注解扫描**——FabricPluginFinder.getModPlugins() =
+    getEntrypointContainers("jei_mod_plugin", IModPlugin.class)，即 **fabric.mod.json entrypoint**；
+    entrypoint 惰性实例化 → 没装 JEI 本类永不加载 → **compileOnly 零运行时前置成立**。
+    @JeiPlugin 注解按 API javadoc 要求保留（NeoForge 侧靠它发现）。
+  - **注册签名**：IRecipeTransferRegistration 七参基本注册（containerClass/可空 menuType/recipeType/
+    配方槽起+数/库存槽起+数，@since 11.0.0 老 API 极稳）。
+  - **服务端搬运**（BasicRecipeTransferHandlerServer）：只做 canInsert/canTakeItems 校验 + setStack
+    直写 + sendContentUpdates——合成格裸 Slot、库存区玩家原槽全兼容；转移是 C2S 包服务端执行 →
+    **专用服务器需服务端也装 JEI**，单人天然可用。
+- **修法（一新类三改文件）**：
+  - 新 `compat/jei/SdzjzJeiPlugin`：注册 (DataPanelScreenHandler.class, DATA_PANEL,
+    RecipeTypes.CRAFTING, CRAFT0,9, INV0,36)；槽位全走 m201 handler 头部常量口径，零手写数字。
+  - **库存区只圈玩家背包+快捷栏 36 格**：展示区（DISP0..INV0）是仓储网络只读投影，JEI setStack
+    直写会撕账本，绝不能圈进——"+"取料只看背包；持续合成时 m106 网格模板化网络补料照旧。
+  - fabric.mod.json 加 "jei_mod_plugin" entrypoint；build.gradle 加 blamejared 仓库
+    （content 过滤只放行 mezz.jei 防串扰）+ 两条 modCompileOnly（common-api/fabric-api）；
+    gradle.properties 新增 jei_version=19.21.0.247（含解析失败自助换版注释）。
+- **教训**：查看器三家发现机制三个样（EMI=槽 instanceof 兜底 / JEI Fabric=entrypoint /
+  JEI NeoForge=注解扫描）——"接生态"每家单独核源码，一家的结论不许推给另一家。
+- **实机验证脚本**：①装 JEI（客户端；连服则服务端同装）"拉取并构建"进游戏；②开存储终端 → JEI 点
+  任意工作台配方应出现"+"；③背包备料点"+"→材料入 3×3、结果格出货，shift 点"+"=按最大组数填；
+  ④背包缺料"+"呈灰并高亮缺什么（JEI 自带）；⑤填料后取结果=扣料+网络补料照 m201 口径，
+  展示区/回收格零异动；⑥不装 JEI 启动一次确认零影响（entrypoint 惰性实锤）；⑦【待编译验证】盯点：
+  jei_version 若 blamejared 解析失败按 gradle.properties 注释换现存版本号；JEI API 的 Yarn 远端映射
+  （MenuType→ScreenHandlerType/ResourceLocation→Identifier）由 Loom modCompileOnly 自动完成；
+  冒烟语法错=0、新文件报错全为缺 JEI/MC 依赖噪音、自家类定向 grep=0、双棘轮 30/18 持平、
+  fabric.mod.json 过 json.load、docs_sync ✓94。
