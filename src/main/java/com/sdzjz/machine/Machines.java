@@ -159,7 +159,9 @@ public final class Machines {
      *  =18万xp/h 全库最强经验引擎——水晶链自咬合:恶魂塔泪+末影珍珠+玻璃。 */
     public static final MachineDef DRAGON_CANNON = defConsume("dragon_cannon", 200,
             List.of(in("minecraft:end_crystal", 4), in("minecraft:glass_bottle", 8)),
-            drop("minecraft:dragon_breath", 8, 8));
+            drop("minecraft:dragon_breath", 8, 8),
+            drop("minecraft:dragon_egg", 1, 1, 0.005f)); // m190 龙蛋（用户点名"屠龙炮不该掉龙蛋?"）:
+            // 原版仅首杀掉蛋、复活龙不掉——终局纪念品按 heavy_core 极稀待遇,200t 周期下≈1.8枚/h
     public static final MachineDef TRIAL_FARM = defMulti("trial_farm", 40,
             drop("minecraft:trial_key", 1, 1, 0.25f),
             drop("minecraft:ominous_trial_key", 1, 1, 0.06f),
