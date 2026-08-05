@@ -109,6 +109,17 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
         return new DataCableBlockEntity(pos, state);
     }
 
+    /** m225 服务端 ticker：抽取口主拍（未启用的线首判即返，成本≈空转；BlockWithEntity.validateTicker
+     *  是 protected 进不来，照其内部语义手写 type 校验+未检查转换）。 */
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends BlockEntity> net.minecraft.block.entity.BlockEntityTicker<T> getTicker(
+            net.minecraft.world.World world, BlockState state, net.minecraft.block.entity.BlockEntityType<T> type) {
+        if (world.isClient || type != com.sdzjz.registry.ModBlockEntities.DATA_CABLE_BE) return null;
+        return (net.minecraft.block.entity.BlockEntityTicker<T>)
+                (net.minecraft.block.entity.BlockEntityTicker<DataCableBlockEntity>) DataCableBlockEntity::tick;
+    }
+
     /** 三态判定：数据线→缆管；网络方块/容器→插头；其余→无。 */
     private static CableEnd endFor(WorldAccess world, BlockPos pos, BlockState state) {
         Block b = state.getBlock();

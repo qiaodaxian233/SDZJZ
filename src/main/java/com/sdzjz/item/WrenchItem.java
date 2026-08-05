@@ -31,6 +31,14 @@ public class WrenchItem extends Item {
         if (world.isClient) return ActionResult.SUCCESS;
         PlayerEntity player = ctx.getPlayer();
         int n = DataCableBlockEntity.adjacentStorages(world, pos).size();
+        if (player != null && player.isSneaking() // m225 潜行右键=快速开/关抽取口（右键=配置界面留 m226）
+                && world.getBlockEntity(pos) instanceof DataCableBlockEntity cable) {
+            cable.setExtractOn(!cable.extractOn());
+            player.sendMessage(cable.extractOn()
+                    ? Text.translatable("sdzjz.wrench.on", n)
+                    : Text.translatable("sdzjz.wrench.off"), true);
+            return ActionResult.SUCCESS;
+        }
         if (player != null) player.sendMessage(n > 0
                 ? Text.translatable("sdzjz.wrench.found", n)
                 : Text.translatable("sdzjz.wrench.none"), true);

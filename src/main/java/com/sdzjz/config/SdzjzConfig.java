@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 20; // m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 21; // m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -82,6 +82,9 @@ public class SdzjzConfig {
     public int canvasLayoutRows        = 5;    // 每列机器台数（满则换列，m149 竖排口径）
     public int canvasLayoutGapX        = 30;   // 列间隙（像素，画布世界坐标）
     public int canvasLayoutGapY        = 24;   // 行间隙（像素，画布世界坐标）
+    // m225 数据线抽取口（扳手启用；从相连存储核心账本抽物品塞进邻接的任意 Fabric Transfer API 存储）：
+    public int extractPortPeriodTicks  = 20;   // 抽取拍周期（tick；pos哈希移相多口错峰，m218c 口径）
+    public int extractPortBatch        = 256;  // 每拍每口最多搬运件数（跨类型共享预算）
     // m218 多核心性能（多个结构核心叠加时的服务端tick优化，两键独立可关便于线上二分定位）：
     public boolean coreTickStagger = true; // 错峰：ends包/区块票/拉料拍/端点扫描按核心pos哈希移相（逐核频率不变，只是不再挤同一tick）；false=旧同拍
     public boolean panelViewCache = true;  // 数据面板聚合视图revision缓存（账本没动不重建、同tick复用快照）；false=每调全量重建旧行为
@@ -143,6 +146,7 @@ public class SdzjzConfig {
         if (cfg.configVersion < 18) cfg.configVersion = 18; // m219 纯加键（canvasStatusOpen 状态区展开开关），缺键走字段初值
         if (cfg.configVersion < 19) cfg.configVersion = 19; // m220 纯加键（canvasBgDecor 装饰底图开关），缺键走字段初值
         if (cfg.configVersion < 20) cfg.configVersion = 20; // m221 纯加键（canvasLayoutRows/GapX/GapY 整理布局排布三键），缺键走字段初值
+        if (cfg.configVersion < 21) cfg.configVersion = 21; // m225 纯加键（extractPortPeriodTicks/Batch 抽取口两键），缺键走字段初值
 
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件

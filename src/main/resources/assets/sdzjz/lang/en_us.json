@@ -134,5 +134,7 @@
   "sdzjz.canvas.help": "Help",
   "item.sdzjz.wrench": "Network Wrench",
   "sdzjz.wrench.found": "Found %s attachable storage(s) next to this cable",
-  "sdzjz.wrench.none": "No attachable storage next to this cable (place a chest or any Fabric-transfer storage beside it)"
+  "sdzjz.wrench.none": "No attachable storage next to this cable (place a chest or any Fabric-transfer storage beside it)",
+  "sdzjz.wrench.on": "Extract port ON (%s adjacent storage(s); empty filter = extract everything)",
+  "sdzjz.wrench.off": "Extract port OFF"
 }

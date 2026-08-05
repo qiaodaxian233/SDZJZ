@@ -3178,3 +3178,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证脚本**：①超级工作台合成扳手（铁5红石3核心模块1）；②数据线旁放原版箱子：线伸插头，
   扳手右键报"找到 1 个"；③换 Tom's Simple Storage 的存储方块/Create 置物台再试：同样伸插头+计数；
   ④把线贴在存储核心旁：不计数（自家排除）；⑤旁边什么都没有：报"没有可对接的存储"。
+
+## m225 数据线抽取口引擎（作者点名"扳手右键连接线，抽取数据面板中的物品到指定箱子或存储里"的核心一半）
+- **落地**：DataCableBlockEntity 升级为抽取口（扳手**潜行右键**快速开/关；右键配置界面留 m226）：
+  - **主拍**：服务端 ticker（DataCableBlock 手写 getTicker——validateTicker 是 BlockWithEntity 的
+    protected 进不来，照其语义 type 校验+未检查转换）；未启用的线首判即返成本≈空转；启用后按
+    `extractPortPeriodTicks`(默认20t) 走 **pos 哈希移相**（m218c 口径，多口不挤同一全局 tick）。
+  - **货源**：数据线 BFS 相连的全部存储核心，**40t 位置缓存**（m218b 精确支路裸扫教训；只存 BlockPos
+    逐拍 loadedCoreAt 解引用，绝不缓存 BE 引用跨卸载）。
+  - **去向**：邻接任意 FTA 存储（m224 adjacentStorages），insert 走 `Transaction.openOuter()` 事务
+    （openOuter/commit/BlockApiLookup#find/supportsInsertion 四签名已拉 Fabric 1.21.1 官方源核名，
+    m224 挂的待编译验证就此清账）。
+  - **过滤语义**：≤9 条模板（m226 界面编辑，NBT 已持久化）——无组件模板=普通账本按 id 抽**裸物品**，
+    带组件模板=精确账本按模板连组件搬（附魔书/药水不混堆不变裸，m130 口径）；**空过滤=全部抽取**，
+    普通+精确全表按 rrCursor 游标轮转（跨拍公平，budget 用尽停拍下拍续）。
+  - **不落地铁律**：塞不下的余量原路回账本并置 opTargetsFull——两模式统一"目标满整拍收工"，
+    白名单余下模板/全表余下类型下拍再来。
+  - 每拍搬运封顶 `extractPortBatch`(默认256件，跨类型共享预算)。configVersion 20→21 纯加键。
+- **教训**：跨账本搬运的"塞不下"必须是**显式信号**不是返回值歧义——moved=0 既可能是"没货"也可能是
+  "目标满"，靠猜会把全表扫描空转到底；一个标志位换整拍确定性收工。
+- **断言**：语法冒烟 0；自家新符号（extractOn/extractSpec/extractAll/insertInto/opTargetsFull/
+  coresCache/setExtractOn/filterView/两配置键）作缺失符号 grep=0；lang JSON 过 load。
+- **待编译验证**：DataCableBlock#getTicker 泛型双转换写法（在树无 Block 直挂 ticker 先例，
+  BlockWithEntity.validateTicker 内部同构）；ItemStack#copyWithCount 大量在树先例无虞。
+- **实机验证脚本**：①数据线一端接存储核心、旁边贴箱子，扳手潜行右键：提示"抽取口已开启（旁接 1 个
+  存储）"；1 秒内网络里的物品开始批量进箱子（空过滤=全部）；②箱子塞满：不再丢地上，数据面板数目
+  不再下降（余量回账本）；③再潜行右键：关闭，搬运停止；④退出重进：开关状态保持（NBT）；⑤箱子换
+  Tom's Simple Storage/Create 置物台/Storage Drawers：同样能收货；⑥把口贴在存储核心旁开启：不搬
+  （自家排除）；⑦十个口同时开：F3 mspt 无同拍尖峰（移相）；⑧config 改 extractPortBatch=4096：
+  单拍搬运量明显变大。
