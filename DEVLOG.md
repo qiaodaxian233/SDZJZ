@@ -2826,3 +2826,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ⑤终端主题面板"恢复默认"/"紫晶"预设=墨色藏蓝版；⑥老存档首次进游戏 config 自动迁移三键
   （若曾手改过色则保留手改值），configVersion=13；⑦【待编译验证】盯点：全部在树旧 API +
   纯常量改动，withAlpha8 为 SciSkin 新静态方法定向 grep=0，冒烟=0。
+
+## m208 热修：JEI API 依赖换 intermediary 工件（作者贴回编译报错，四错同根）
+- **现象**：`compileJava` 四错——`找不到 net.minecraft.resources.ResourceLocation 的类文件`、
+  `getPluginUid 返回类型 Identifier 与 ResourceLocation 不兼容` 等。版本号解析是成功的
+  （走到编译了），锅不在 19.21.0.247。
+- **根因（JEI 构建脚本原文实锤，FabricApi/build.gradle.kts）**：`jei-*-common-api` 由 CommonApi
+  工程按 **Mojang 官方映射**直发——Yarn 工程的类路径上一出现它，IModPlugin 签名里就是官方名
+  ResourceLocation，必炸。JEI 给 Fabric/Yarn 消费者**另发**了 `jei-*-common-api-intermediary`
+  （FabricApi 工程用 RemapJarTask 转到 intermediary、manifest 带 `Fabric-Loom-Remap=true`，
+  Loom 见标即远端映射到 Yarn），且 fabric-api 的 POM 依赖的正是这个 intermediary 版。
+  m205 引依赖时只按"官方 README 双工件"惯性写了 common-api 裸名，没核发布口径——打脸自己
+  m205 刚写的教训"接生态每家单独核源码"，核了发现机制没核**发布机制**。
+- **修法**：build.gradle 一行换：`common-api` → `common-api-intermediary`（fabric-api 不动，
+  其 POM 本就指向 intermediary 版，显式声明只是免赖传递解析）。插件代码零改动。
+- **教训**：多加载器项目的 maven 里同名 API 常有"官方映射原味版"和"intermediary 转味版"两套，
+  **Yarn 工程引第三方 API 先看它的发布脚本**（publications 段），别只抄 README 坐标。
+- **实机验证脚本**：重跑"拉取并构建"应过 compileJava；后续照 DEVLOG m205 七步验证 JEI"+"。
