@@ -41,12 +41,28 @@ public class LinkerItem extends Item {
         if (be instanceof com.sdzjz.block.DataCableBlockEntity cable) { // m227：原扳手功能（m224~m226）
             if (player != null) {
                 cable.claimOwner(player); // m229 配置即认领：转化桌出售的 EMC 记到最后配置者账上
-                if (player.isSneaking()) { // 潜行右键=快速开/关抽取口
-                    int n = com.sdzjz.block.DataCableBlockEntity.scanAdjacent(world, pos).blockCount(); // m228 计邻块数
-                    cable.setExtractOn(!cable.extractOn());
-                    player.sendMessage(cable.extractOn()
-                            ? Text.translatable("sdzjz.extract_port.on", n)
-                            : Text.translatable("sdzjz.extract_port.off"), true);
+                if (player.isSneaking()) { // 潜行右键：手臂=断开该面连接；缆芯已断侧=恢复；缆芯=快速开/关
+                    double lx = ctx.getHitPos().x - pos.getX() - 0.5,
+                           ly = ctx.getHitPos().y - pos.getY() - 0.5,
+                           lz = ctx.getHitPos().z - pos.getZ() - 0.5;
+                    net.minecraft.util.math.Direction hitDir = net.minecraft.util.math.Direction.getFacing(lx, ly, lz);
+                    double mag = Math.abs(switch (hitDir.getAxis()) { case X -> lx; case Y -> ly; default -> lz; });
+                    if (mag > 0.14) { // m233 缆芯半宽 2/16=0.125，超过即点在手臂/插头上：断开该面
+                        cable.toggleFace(hitDir);
+                        com.sdzjz.block.DataCableBlock.refreshEnd(world, pos, hitDir);
+                        player.sendMessage(Text.translatable(cable.faceDisabled(hitDir)
+                                ? "sdzjz.extract_port.face_off" : "sdzjz.extract_port.face_on", hitDir.getName()), true);
+                    } else if (cable.faceDisabled(ctx.getSide())) { // m233 点缆芯的已断开侧=恢复该面
+                        cable.toggleFace(ctx.getSide());
+                        com.sdzjz.block.DataCableBlock.refreshEnd(world, pos, ctx.getSide());
+                        player.sendMessage(Text.translatable("sdzjz.extract_port.face_on", ctx.getSide().getName()), true);
+                    } else { // 缆芯=快速开/关抽取口（m225 原样）
+                        int n = com.sdzjz.block.DataCableBlockEntity.scanAdjacent(world, pos).blockCount(); // m228 计邻块数
+                        cable.setExtractOn(!cable.extractOn());
+                        player.sendMessage(cable.extractOn()
+                                ? Text.translatable("sdzjz.extract_port.on", n)
+                                : Text.translatable("sdzjz.extract_port.off"), true);
+                    }
                 } else { // 右键=抽取口配置界面
                     player.openHandledScreen(cable);
                 }

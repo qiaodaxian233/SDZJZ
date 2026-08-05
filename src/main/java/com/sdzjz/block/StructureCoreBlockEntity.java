@@ -1789,6 +1789,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 BlockEntity nbe = world.getBlockEntity(np);
                 if (nbe instanceof StorageCoreBlockEntity && found.size() < ENDPOINT_CAP) {
@@ -2588,6 +2589,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 BlockEntity be = world.getBlockEntity(np);
                 if (be instanceof StorageCoreBlockEntity panel) return panel;
@@ -2609,6 +2611,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 var block = world.getBlockState(np).getBlock();
                 if (block instanceof WirelessNodeBlock) return true;
@@ -2647,6 +2650,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 var block = world.getBlockState(np).getBlock();
                 if (block instanceof SatelliteNodeBlock) return true;
@@ -2696,6 +2700,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 if (np.equals(target)) return true;
                 if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
@@ -2743,6 +2748,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos cur = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = cur.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, cur, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 BlockEntity be = world.getBlockEntity(np);
                 if (be instanceof StorageCoreBlockEntity panel) return panel;

@@ -329,6 +329,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             BlockPos p = q.poll();
             for (Direction d : Direction.values()) {
                 BlockPos np = p.offset(d);
+                if (DataCableBlockEntity.linkBlocked(world, p, d, np)) continue; // m233 按面断开：此边不通（先于 seen）
                 if (!seen.add(np)) continue;
                 BlockEntity be = world.getBlockEntity(np);
                 if (be instanceof StorageCoreBlockEntity core) { out.add(core); q.add(np); }

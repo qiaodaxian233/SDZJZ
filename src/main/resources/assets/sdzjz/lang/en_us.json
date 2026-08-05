@@ -145,5 +145,7 @@
   "sdzjz.extract_port.upgrades": "Upgrades",
   "sdzjz.extract_port.stats": "Every %s t, up to %s",
   "sdzjz.extract_port.mode_out": "Mode: Export → adjacent (click to switch)",
-  "sdzjz.extract_port.mode_in": "Mode: Import ← adjacent (click to switch)"
+  "sdzjz.extract_port.mode_in": "Mode: Import ← adjacent (click to switch)",
+  "sdzjz.extract_port.face_off": "Disconnected %s side (sneak-click core on that side to restore)",
+  "sdzjz.extract_port.face_on": "Reconnected %s side"
 }

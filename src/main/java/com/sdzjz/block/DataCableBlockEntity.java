@@ -38,6 +38,7 @@ public class DataCableBlockEntity extends BlockEntity
     /** m230 升级槽（0=速度 1=数量 2=并发；级数=槽内件数，配置界面装取）。 */
     public final net.minecraft.inventory.SimpleInventory upgrades = new net.minecraft.inventory.SimpleInventory(3);
     private boolean pullMode = false; // m231 方向：false=送出(仓→机器/卖桌) true=回收(机器→仓)；单向无环
+    private int offFaces = 0;         // m233 按面断开位掩码（bit=Direction.getId()；链接器潜行右键手臂切）
     private net.minecraft.server.network.ServerPlayerEntity opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
@@ -71,6 +72,23 @@ public class DataCableBlockEntity extends BlockEntity
     public java.util.UUID owner() { return owner; }
     public boolean pullMode() { return pullMode; }
     public void setPullMode(boolean pull) { pullMode = pull; markDirty(); } // m231
+
+    // ===== m233 按面断开 =====
+    public boolean faceDisabled(Direction d) { return (offFaces & (1 << d.getId())) != 0; }
+    public void toggleFace(Direction d) {
+        offFaces ^= (1 << d.getId());
+        coresScanTick = Long.MIN_VALUE; // 拓扑变了，相连核心缓存立即作废（40t 缓存别撑到下一窗）
+        markDirty();
+    }
+
+    /** m233 网络通行判定：cur→np 这条边是否被数据线按面断开（任一端是数据线且该面被禁=不通）。
+     *  全部走线（BFS/贴邻）统一插闸用；**必须在 seen 标记之前调用**——先标 seen 再判断会把
+     *  经其他路径可达的节点一并堵死。 */
+    public static boolean linkBlocked(net.minecraft.world.BlockView world, BlockPos cur, Direction d, BlockPos np) {
+        if (world.getBlockEntity(cur) instanceof DataCableBlockEntity c && c.faceDisabled(d)) return true;
+        if (world.getBlockEntity(np) instanceof DataCableBlockEntity c2 && c2.faceDisabled(d.getOpposite())) return true;
+        return false;
+    }
     /** 过滤模板视图（m226 界面读写；写入方自行 markDirty）。 */
     public List<ItemStack> filterView() { return filter; }
 
@@ -103,7 +121,9 @@ public class DataCableBlockEntity extends BlockEntity
         int blocks = 0;
         boolean sellTable = false;
         if (world == null || world.isClient) return new Adjacency(targets, 0, false);
+        DataCableBlockEntity self = world.getBlockEntity(pos) instanceof DataCableBlockEntity c ? c : null;
         for (Direction d : Direction.values()) {
+            if (self != null && self.faceDisabled(d)) continue; // m233 断开面不对接（送出/回收/卖桌/计数四口径同断）
             BlockPos np = pos.offset(d);
             BlockEntity be = world.getBlockEntity(np);
             if (be != null && be.getClass().getName().startsWith("com.sdzjz")) continue; // 自家网络方块不作抽取目标
@@ -282,6 +302,7 @@ public class DataCableBlockEntity extends BlockEntity
         nbt.putBoolean("extractOn", extractOn);
         if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
         nbt.putBoolean("pullMode", pullMode); // m231 方向
+        if (offFaces != 0) nbt.putInt("offFaces", offFaces); // m233
         for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
             if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).encode(lookup));
         NbtList fl = new NbtList(); // 过滤模板持久化（精确账本 m130 同款 encode）
@@ -295,6 +316,7 @@ public class DataCableBlockEntity extends BlockEntity
         extractOn = nbt.getBoolean("extractOn");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
         pullMode = nbt.getBoolean("pullMode"); // m231
+        offFaces = nbt.getInt("offFaces"); // m233
         for (int i = 0; i < 3; i++) { // m230
             upgrades.setStack(i, nbt.contains("up" + i)
                     ? ItemStack.fromNbt(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);

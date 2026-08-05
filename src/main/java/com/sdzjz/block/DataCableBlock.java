@@ -82,7 +82,7 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
         BlockState s = getDefaultState();
         for (Direction d : Direction.values()) {
             BlockPos np = ctx.getBlockPos().offset(d);
-            s = s.with(END_PROPS.get(d), endFor(ctx.getWorld(), np, ctx.getWorld().getBlockState(np)));
+            s = s.with(END_PROPS.get(d), endFor(ctx.getWorld(), ctx.getBlockPos(), d, np, ctx.getWorld().getBlockState(np)));
         }
         return s;
     }
@@ -90,7 +90,18 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
     @Override
     protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighborState,
                                                    WorldAccess world, BlockPos pos, BlockPos neighborPos) {
-        return state.with(END_PROPS.get(direction), endFor(world, neighborPos, neighborState));
+        // m233 端点判定含 BE 断开掩码，而掩码只在服务端（BE 数据不向客户端同步）——客户端本地重算会
+        // 拿 0 掩码把断开面的手臂算回来造成鬼影，形状一律听服务端方块状态同步
+        if (world.isClient()) return state;
+        return state.with(END_PROPS.get(direction), endFor(world, pos, direction, neighborPos, neighborState));
+    }
+
+    /** m233 单面端点重算（链接器切断开掩码后调用；flags=3 触发邻居形状更新，对面缆管同步收放）。 */
+    public static void refreshEnd(net.minecraft.world.World world, BlockPos pos, Direction d) {
+        BlockState st = world.getBlockState(pos);
+        if (!(st.getBlock() instanceof DataCableBlock)) return;
+        BlockPos np = pos.offset(d);
+        world.setBlockState(pos, st.with(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
     }
 
     @Override
@@ -120,10 +131,14 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
                 (net.minecraft.block.entity.BlockEntityTicker<DataCableBlockEntity>) DataCableBlockEntity::tick;
     }
 
-    /** 三态判定：数据线→缆管；网络方块/容器→插头；其余→无。 */
-    private static CableEnd endFor(WorldAccess world, BlockPos pos, BlockState state) {
+    /** 三态判定：数据线→缆管；网络方块/容器→插头；其余→无。m233：任一端按面断开→无。 */
+    private static CableEnd endFor(WorldAccess world, BlockPos cablePos, Direction d, BlockPos pos, BlockState state) {
+        if (world.getBlockEntity(cablePos) instanceof DataCableBlockEntity self && self.faceDisabled(d))
+            return CableEnd.NONE; // m233 本端断开（放置期 BE 未建=掩码 0，天然直通）
         Block b = state.getBlock();
-        if (b instanceof DataCableBlock) return CableEnd.CABLE;
+        if (b instanceof DataCableBlock)
+            return (world.getBlockEntity(pos) instanceof DataCableBlockEntity oc && oc.faceDisabled(d.getOpposite()))
+                    ? CableEnd.NONE : CableEnd.CABLE; // m233 对端断开=这边也不伸（视觉与 BFS 口径一致）
         if (b == ModBlocks.STRUCTURE_CORE || b == ModBlocks.STORAGE_CORE || b == ModBlocks.DATA_PANEL
                 || b == ModBlocks.WIRELESS_NODE || b == ModBlocks.SATELLITE_NODE || b == ModBlocks.TRADE_CENTER) return CableEnd.PLUG;
         if (world.getBlockEntity(pos) instanceof Inventory) return CableEnd.PLUG;
