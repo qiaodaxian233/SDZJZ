@@ -48,6 +48,8 @@ public final class SciSkin {
     public static final int GRID_MINOR = 0x1A26456A; // 画布细网格线
     public static final int GRID_MAJOR = 0x2E3A6E96; // 画布主网格线（每4格一根）
     public static final int VIGNETTE   = 0x55000000; // 画布四缘暗角强度
+    public static final int GROUP_FRM  = 0xC83C8FBF; // m192 画布分组框边/标题带基色（半透青蓝，垫在连线卡片之下）
+    public static final int GROUP_FILL = 0x14224E70; // m192 画布分组框面（极淡，透出网格不压内容）
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
     public static final net.minecraft.util.Identifier SLOT_TEX =

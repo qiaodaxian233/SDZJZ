@@ -128,6 +128,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int linkFrom = -1;                        // 机器输出口起点
     private long linkStor = Long.MIN_VALUE;           // 存储供料口起点
 
+    // ===== m192 画布分组：Shift框选 + 组框（数据/协议见 m191；配置 canvasGroupsEnabled 总开关）=====
+    private final java.util.LinkedHashSet<Integer> selected = new java.util.LinkedHashSet<>(); // 选中节点下标（客户端瞬态）
+    private boolean boxSelecting = false;
+    private double boxX0, boxY0, boxX1, boxY1;        // 框选矩形（世界坐标）
+    private int dragGid = -1;                         // 拖动中的组
+    private double dragGidWx, dragGidWy;              // 组拖动起点（世界坐标）
+    private int dragGidDx = 0, dragGidDy = 0;         // 已应用整数位移（松手随包发出）
+    private final java.util.HashMap<Integer, int[]> dragGidSnap = new java.util.HashMap<>(); // 成员坐标快照：快照+增量绝对写，中途被服务端全量同步覆盖也自愈
+    private int renameGid = -1;                       // 重命名中的组（>=0 = 小窗开着）
+    private TextFieldWidget renameField;
+    private static final int GPAD = 10, GBAND = 16;   // 组框内边距 / 标题带高（世界单位）
+
     // 右键菜单
     private boolean menuOpen = false;
     private int menuX, menuY;
@@ -224,6 +236,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
         this.pickerField.setChangedListener(t -> refilterPicker());
         this.pickerField.setText(keep);
+        String keepG = renameField != null ? renameField.getText() : ""; // m192 组重命名输入框（照 pickerField 在树写法）
+        this.renameField = new TextFieldWidget(this.textRenderer, 0, 0, 184, 14, Text.empty()); // 占位仅narration不上屏，empty保literal棘轮
+        this.renameField.setMaxLength(24);
+        this.renameField.setText(keepG);
     }
 
     @Override
@@ -409,6 +425,31 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
         ctx.enableScissor(0, 24, workRight(), this.height - 78); // m159 画布剪刀：drawItem自带z偏移(~150)
         // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
+        // m192 组框（最底层：存储线/机器线/卡片全画其上）——世界坐标独立一次变换
+        if (groupsOn()) {
+            java.util.LinkedHashMap<Integer, java.util.List<Integer>> gmR = groupMembers(be);
+            if (!gmR.isEmpty()) {
+                MatrixStack mg = ctx.getMatrices();
+                mg.push();
+                mg.translate(panX, panY, 0);
+                mg.scale((float) zoom, (float) zoom, 1);
+                for (var ge : gmR.entrySet()) {
+                    int[] r = groupRect(be, nodes, ge.getValue());
+                    int fc = dragGid == ge.getKey() ? CYAN : SciSkin.GROUP_FRM; // 拖动中框提亮
+                    ctx.fill(r[0], r[1] + GBAND, r[2], r[3], SciSkin.GROUP_FILL);
+                    SciSkin.hGrad(ctx, r[0], r[1], r[2], r[1] + GBAND,
+                            SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.50f), SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.08f));
+                    ctx.fill(r[0], r[1], r[2], r[1] + 1, fc);
+                    ctx.fill(r[0], r[3] - 1, r[2], r[3], fc);
+                    ctx.fill(r[0], r[1], r[0] + 1, r[3], fc);
+                    ctx.fill(r[2] - 1, r[1], r[2], r[3], fc);
+                    ctx.fill(r[0], r[1] + GBAND - 1, r[2], r[1] + GBAND, SciSkin.withAlpha(fc, 0.45f));
+                    ctx.drawText(this.textRenderer, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
+                            + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
+                }
+                mg.pop();
+            }
+        }
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
         // m184 机器端左右缘按几何就近选（卡口在机器哪一侧就从哪缘出入），端口语义（卡底左收料/右供料）不变。
@@ -469,6 +510,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.fill(nx + NW - 43, ny + NH - 15, nx + NW - 3, ny + NH - 3, 0xE0121A28); // m164a 角标垫底，不再与目标行叠字
                 ctx.drawText(this.textRenderer, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
             }
+        }
+        if (groupsOn() && !selected.isEmpty()) { // m192 选中高亮（青描边；服务端删点后失效下标顺手清）
+            selected.removeIf(i -> i >= nodes.size());
+            for (int i : selected) {
+                int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                ctx.fill(nx - 3, ny - 3, nx + NW + 3, ny - 2, CYAN);
+                ctx.fill(nx - 3, ny + NH + 2, nx + NW + 3, ny + NH + 3, CYAN);
+                ctx.fill(nx - 3, ny - 3, nx - 2, ny + NH + 3, CYAN);
+                ctx.fill(nx + NW + 2, ny - 3, nx + NW + 3, ny + NH + 3, CYAN);
+            }
+        }
+        if (boxSelecting) { // m192 框选矩形（淡面+亮边）
+            int bx1 = (int) Math.min(boxX0, boxX1), by1 = (int) Math.min(boxY0, boxY1);
+            int bx2 = (int) Math.max(boxX0, boxX1), by2 = (int) Math.max(boxY0, boxY1);
+            ctx.fill(bx1, by1, bx2, by2, SciSkin.withAlpha(CYAN, 0.10f));
+            ctx.fill(bx1, by1, bx2, by1 + 1, CYAN);
+            ctx.fill(bx1, by2 - 1, bx2, by2, CYAN);
+            ctx.fill(bx1, by1, bx1 + 1, by2, CYAN);
+            ctx.fill(bx2 - 1, by1, bx2, by2, CYAN);
         }
         m.pop();
 
@@ -1106,7 +1166,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             libScroll -= (int) Math.signum(verticalAmount);
             return true;
         }
-        if (pickerNode >= 0 || menuOpen) return true;
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0) return true;
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             zoomToward(verticalAmount > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪
@@ -1149,6 +1209,92 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static ItemStack mi(net.minecraft.item.Item it) { return new ItemStack(it); }
 
     /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
+    // ===== m192 画布分组：几何与操作 =====
+    private boolean groupsOn() { return com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled; }
+
+    /** gid → 成员下标（只收 SCBE 元数据在册且 ≥2 台的组；归属读 NodeTags.nodeGroup，m180 新代码直用不走垫片）。 */
+    private java.util.LinkedHashMap<Integer, java.util.List<Integer>> groupMembers(StructureCoreBlockEntity be) {
+        java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm = new java.util.LinkedHashMap<>();
+        List<ItemStack> nodes = be.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            int g = com.sdzjz.node.NodeTags.nodeGroup(nodes.get(i));
+            if (g >= 0 && be.groupsView().containsKey(g)) gm.computeIfAbsent(g, k -> new ArrayList<>()).add(i);
+        }
+        gm.values().removeIf(l -> l.size() < 2);
+        return gm;
+    }
+
+    /** 组框矩形（世界坐标）：成员卡包围盒（卡体+升级格行，与悬停判定同口径）外扩 GPAD，
+     *  顶上再抬一条 GBAND 标题带。返回 {x1,y1,x2,y2}，标题带=y1..y1+GBAND。 */
+    private int[] groupRect(StructureCoreBlockEntity be, List<ItemStack> nodes, java.util.List<Integer> members) {
+        int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = Integer.MIN_VALUE, y2 = Integer.MIN_VALUE;
+        for (int i : members) {
+            if (i >= nodes.size()) continue;
+            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+            x1 = Math.min(x1, nx); y1 = Math.min(y1, ny);
+            x2 = Math.max(x2, nx + NW); y2 = Math.max(y2, ny + NH + 26);
+        }
+        return new int[]{x1 - GPAD, y1 - GPAD - GBAND, x2 + GPAD, y2 + GPAD};
+    }
+
+    /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
+    private void createGroupFromSelection() {
+        StructureCoreBlockEntity be = be();
+        BlockPos p = this.handler.blockPos();
+        if (be == null || p == null) return;
+        List<Integer> ms = new ArrayList<>();
+        for (int i : selected) if (i >= 0 && i < be.nodes().size()) ms.add(i);
+        if (ms.size() < 2) return;
+        ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", ms));
+        selected.clear();
+    }
+
+    /** 组菜单（右键标题带）：重命名 / 解散（解散纯视觉，机器与连线不动）。 */
+    private void openGroupMenu(int gid, int atX, int atY) {
+        StructureCoreBlockEntity be = be();
+        BlockPos p = this.handler.blockPos();
+        if (be == null || p == null) return;
+        clearMenu();
+        menuTitle = be.groupsView().getOrDefault(gid, "组" + gid);
+        addMenu("重命名组…", mi(net.minecraft.item.Items.NAME_TAG), () -> openRename(gid));
+        addMenu("解散该组", mi(net.minecraft.item.Items.SHEARS), 1,
+                () -> ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
+        addMenu("取消", null, 2, () -> {});
+        openMenu(atX, atY);
+    }
+
+    private void openRename(int gid) {
+        StructureCoreBlockEntity be = be();
+        if (be == null) return;
+        renameGid = gid;
+        renameField.setText(be.groupsView().getOrDefault(gid, ""));
+        this.setFocused(renameField);
+        renameField.setFocused(true);
+    }
+
+    private void closeRename() {
+        renameGid = -1;
+        renameField.setFocused(false);
+    }
+
+    private void confirmRename() {
+        BlockPos p = this.handler.blockPos();
+        String nm = renameField.getText().trim();
+        if (p != null && renameGid >= 0 && !nm.isEmpty())
+            ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, renameGid, nm, java.util.List.of()));
+        closeRename();
+    }
+
+    /** 重命名小窗（照 renderPicker 的 pickerField 写法：每帧摆位再渲染）。 */
+    private void renderRename(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int w = 200, h = 58, px = (this.width - w) / 2, py = (this.height - h) / 2;
+        SciSkin.drawCard(ctx, px, py, w, h, SciSkin.FRAME);
+        ctx.drawText(this.textRenderer, "重命名组（回车确认·Esc取消）", px + 8, py + 7, SciSkin.TXT_HI, false);
+        renameField.setX(px + 8);
+        renameField.setY(py + 26);
+        renameField.render(ctx, mouseX, mouseY, delta);
+    }
+
     private void openNodeMenu(int idx, int atX, int atY) {
         StructureCoreBlockEntity be = be();
         if (be == null || idx < 0 || idx >= be.nodes().size()) return;
@@ -1353,6 +1499,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (renameGid >= 0) { // m192 重命名小窗 modal：窗内点进字段，窗外点=关
+            int rw = 200, rh = 58, rpx = (this.width - rw) / 2, rpy = (this.height - rh) / 2;
+            if (renameField.mouseClicked(mouseX, mouseY, button)) return true;
+            if (mouseX < rpx || mouseX > rpx + rw || mouseY < rpy || mouseY > rpy + rh) closeRename();
+            return true;
+        }
         // m93 总线大小滑块抓取
         int trxC = busTrackX();
         if (button == 0 && mouseX >= trxC - 3 && mouseX <= trxC + BUS_TRACK_W + 3 && mouseY >= 26 && mouseY <= 40) {
@@ -1545,9 +1697,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
+                    // m192 右键组标题带 → 组菜单（重命名/解散）；卡片先判所以盖在带上的卡不误触
+                    if (groupsOn()) for (var ge : groupMembers(be).entrySet()) {
+                        int[] r = groupRect(be, nodes, ge.getValue());
+                        if (wx >= r[0] && wx <= r[2] && wy >= r[1] && wy <= r[1] + GBAND) {
+                            openGroupMenu(ge.getKey(), (int) mouseX, (int) mouseY);
+                            return true;
+                        }
+                    }
                     // 右键空白 → 画布菜单
                     clearMenu();
                     menuTitle = "画布"; // m148
+                    if (groupsOn() && selected.size() >= 2) // m192 框选后从这里成组（另有 G 键快捷）
+                        addMenu("打组所选(" + selected.size() + "台)", mi(net.minecraft.item.Items.LEAD), this::createGroupFromSelection);
+                    if (groupsOn() && !selected.isEmpty())
+                        addMenu("清除选择", mi(net.minecraft.item.Items.GLASS_PANE), selected::clear);
                     addMenu("整理布局", mi(net.minecraft.item.Items.COMPASS), this::autoLayout);
                     addMenu("重置视角", mi(net.minecraft.item.Items.SPYGLASS), () -> setViewInstant(0, 0, 1.0));
                     addMenu("取消", null, 2, () -> {});
@@ -1626,9 +1790,30 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) {
+                            if (groupsOn() && hasShiftDown()) { // m192 Shift+点卡=切换选中（升级格的Shift批量在前已判，不冲突）
+                                if (!selected.remove(Integer.valueOf(i))) selected.add(i);
+                                return true;
+                            }
                             dragIndex = i; dragStor = Long.MIN_VALUE; dragOffX = wx - nx; dragOffY = wy - ny; return true;
                         }
                     }
+                    // m192 组框标题带：左键=整组拖动（成员坐标快照，拖动时快照+增量绝对写，松手一包发增量）
+                    if (groupsOn()) for (var ge : groupMembers(be).entrySet()) {
+                        int[] r = groupRect(be, nodes, ge.getValue());
+                        if (wx >= r[0] && wx <= r[2] && wy >= r[1] && wy <= r[1] + GBAND) {
+                            dragGid = ge.getKey(); dragGidWx = wx; dragGidWy = wy; dragGidDx = 0; dragGidDy = 0;
+                            dragGidSnap.clear();
+                            for (int i : ge.getValue()) if (i < nodes.size())
+                                dragGidSnap.put(i, new int[]{wnx(be, nodes, i), wny(be, nodes, i)});
+                            return true;
+                        }
+                    }
+                    if (groupsOn() && hasShiftDown()) { // m192 Shift+拖空白=框选加选（普通左拖=平移，行为不变）
+                        boxSelecting = true;
+                        boxX0 = boxX1 = wx; boxY0 = boxY1 = wy;
+                        return true;
+                    }
+                    selected.clear(); // m192 左键点空白=清选（不吞事件，随后拖动=平移照旧）
                 }
             }
         }
@@ -1639,7 +1824,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
-        if (pickerNode >= 0 || menuOpen) return true;
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0) return true;
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
@@ -1650,6 +1835,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             }
             return true;
         }
+        if (button == 0 && dragGid >= 0) { // m192 组拖动：每帧快照+增量绝对写，中途被全量同步覆盖下一帧自愈
+            StructureCoreBlockEntity be = be();
+            if (be != null) {
+                dragGidDx = (int) (wmx(mouseX) - dragGidWx);
+                dragGidDy = (int) (wmy(mouseY) - dragGidWy);
+                for (var en : dragGidSnap.entrySet())
+                    if (en.getKey() < be.nodes().size())
+                        be.setNodePos(en.getKey(), en.getValue()[0] + dragGidDx, en.getValue()[1] + dragGidDy);
+            }
+            return true;
+        }
+        if (boxSelecting) { boxX1 = wmx(mouseX); boxY1 = wmy(mouseY); return true; } // m192 框选拉框
         if (button == 0 && mouseY > 34) {
             zoomAnim = false; zoomTarget = zoom; // m186 手动平移终止缩放动效防隔帧抢写
             panX += deltaX;
@@ -1720,6 +1917,28 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             dragIndex = -1;
             return true;
         }
+        if (button == 0 && dragGid >= 0) { // m192 组拖动松手：一包发总增量（服务端批量改+单次同步，防N连发全量同步）
+            BlockPos p = this.handler.blockPos();
+            if (p != null && (dragGidDx != 0 || dragGidDy != 0))
+                ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupMovePayload(p, dragGid, dragGidDx, dragGidDy));
+            dragGid = -1;
+            dragGidSnap.clear();
+            return true;
+        }
+        if (button == 0 && boxSelecting) { // m192 框选收口：矩形∩卡体=加选（Shift起手天然是加选语义）
+            boxSelecting = false;
+            StructureCoreBlockEntity be = be();
+            if (be != null) {
+                double bx1 = Math.min(boxX0, boxX1), by1 = Math.min(boxY0, boxY1);
+                double bx2 = Math.max(boxX0, boxX1), by2 = Math.max(boxY0, boxY1);
+                List<ItemStack> nodes = be.nodes();
+                for (int i = 0; i < nodes.size(); i++) {
+                    int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                    if (nx < bx2 && nx + NW > bx1 && ny < by2 && ny + NH > by1) selected.add(i);
+                }
+            }
+            return true;
+        }
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -1728,6 +1947,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         super.render(ctx, mouseX, mouseY, delta);
         if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
         if (menuOpen) renderMenu(ctx, mouseX, mouseY);
+        if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
     }
 
     // ================= 自动合成机目标选择器 =================
@@ -2131,10 +2351,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (renameGid >= 0) { // m192 重命名窗：回车确认 / Esc取消，其余进输入框
+            if (keyCode == 257 || keyCode == 335) { confirmRename(); return true; }
+            if (keyCode == 256) { closeRename(); return true; }
+            renameField.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
         if (menuOpen && keyCode == 256) { clearMenu(); return true; }
         if (pickerNode >= 0) {
             if (keyCode == 256) { closePicker(); return true; }
             pickerField.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !menuOpen) { // m192 G=打组所选（无输入框聚焦时才到这）
+            createGroupFromSelection();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -2142,6 +2372,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (renameGid >= 0) return renameField.charTyped(chr, modifiers); // m192
         if (pickerNode >= 0) return pickerField.charTyped(chr, modifiers);
         return super.charTyped(chr, modifiers);
     }
