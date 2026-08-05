@@ -277,17 +277,38 @@ public final class SciSkin {
         vGrad(ctx, x1, y + 1, x2, y + 4, withAlpha(termAccent(), 0.20f), withAlpha(termAccent(), 0f));
     }
 
-    /** m203 画布网格随主题强调色联动（原 GRID_MINOR/MAJOR 定青退役于画布，别处未用）。 */
-    public static int termGridMinor() { return withAlpha(termAccent(), 0.10f); }
-    public static int termGridMajor() { return withAlpha(termAccent(), 0.19f); }
+    // ===== m217 画布背景四项（配置覆盖，空/非法=跟随主题；CfgColor fb=0 作"未设"哨兵——parseHex
+    // 成功必带 FF alpha 永不为 0，failed/空串落 0 即回主题色，串比缓存逐帧零开销）=====
+    private static final CfgColor C_BG = new CfgColor(0), C_GRID = new CfgColor(0);
+    /** 画布工作区底色：配置 canvasBgColor 覆盖，空=主题墨色。 */
+    public static int canvasBg() {
+        int v = C_BG.get(com.sdzjz.config.SdzjzConfig.get().canvasBgColor);
+        return v == 0 ? termInk() : v;
+    }
+    /** 画布网格基色（不带 alpha 语义）：配置 canvasGridColor 覆盖，空=主题强调色。设置面板样片同源。 */
+    public static int canvasGridBase() {
+        int v = C_GRID.get(com.sdzjz.config.SdzjzConfig.get().canvasGridColor);
+        return v == 0 ? termAccent() : v;
+    }
+    private static float gridStrength() { // 0~3 钳位（withAlpha 内部再钳 alpha≤1，浓度 3 时细线 30%/主线 57%）
+        return (float) Math.max(0.0, Math.min(3.0, com.sdzjz.config.SdzjzConfig.get().canvasGridStrength));
+    }
 
-    /** m187 画布暗角：四缘向中心渐隐压景深，角部自然叠深；带宽随区域自适应。 */
+    /** m203 画布网格随主题强调色联动（原 GRID_MINOR/MAJOR 定青退役于画布，别处未用）；m217 接色覆盖+浓度。 */
+    public static int termGridMinor() { return withAlpha(canvasGridBase(), 0.10f * gridStrength()); }
+    public static int termGridMajor() { return withAlpha(canvasGridBase(), 0.19f * gridStrength()); }
+
+    /** m187 画布暗角：四缘向中心渐隐压景深，角部自然叠深；带宽随区域自适应。
+     *  m217 强度可调（0~2 倍率走 withAlpha8 精确置字节——withAlpha 钳 1.0 乘不上去）；0≈关直接省四次渐变。 */
     public static void vignette(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+        double s = Math.max(0.0, Math.min(2.0, com.sdzjz.config.SdzjzConfig.get().canvasVignetteStrength));
+        if (s < 0.01) return;
+        int v = withAlpha8(VIGNETTE, Math.min(255, (int) Math.round(((VIGNETTE >>> 24) & 0xFF) * s)));
         int bh = Math.max(24, (y2 - y1) / 6), bw = Math.max(28, (x2 - x1) / 8);
-        vGrad(ctx, x1, y1, x2, y1 + bh, VIGNETTE, withAlpha(VIGNETTE, 0f));
-        vGrad(ctx, x1, y2 - bh, x2, y2, withAlpha(VIGNETTE, 0f), VIGNETTE);
-        hGrad(ctx, x1, y1, x1 + bw, y2, VIGNETTE, withAlpha(VIGNETTE, 0f));
-        hGrad(ctx, x2 - bw, y1, x2, y2, withAlpha(VIGNETTE, 0f), VIGNETTE);
+        vGrad(ctx, x1, y1, x2, y1 + bh, v, withAlpha(v, 0f));
+        vGrad(ctx, x1, y2 - bh, x2, y2, withAlpha(v, 0f), v);
+        hGrad(ctx, x1, y1, x1 + bw, y2, v, withAlpha(v, 0f));
+        hGrad(ctx, x2 - bw, y1, x2, y2, withAlpha(v, 0f), v);
     }
 
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */

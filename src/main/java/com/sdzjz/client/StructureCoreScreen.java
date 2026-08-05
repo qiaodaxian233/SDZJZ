@@ -168,7 +168,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // ===== m199 画布设置面板（游戏内可调画布客户端项；modal 照 renameField 在树写法）=====
     private boolean settingsOpen = false;
     private TextFieldWidget wireOutField, wireInField;   // 出/进线颜色 RRGGBB：live 写配置实例即时预览，关窗落盘
-    private static final int SETT_W = 236, SETT_H = 236, SETT_ROW = 24; // m211 +24：第7行主题预设
+    private TextFieldWidget bgField, gridColField;       // m217 背景色/网格色 RRGGBB：空=跟随主题；live 写实例即时预览
+    private static final int SETT_W = 236, SETT_H = 332, SETT_ROW = 24; // m211 +24：第7行主题预设；m217 +96：背景四行（6~9），预设/恢复默认下移至10/11行位
 
     // m110a 小地图（纯客户端零协议）
     private boolean mapOpen = false;
@@ -269,6 +270,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.wireInField.setMaxLength(7);
         this.wireInField.setText(keepI == null ? "" : keepI);
         this.wireInField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireInColor = t.trim());
+        String keepB = bgField != null ? bgField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasBgColor; // m217 背景色/网格色框（wire 同款：live 写实例即时预览，落盘在关窗）
+        this.bgField = new TextFieldWidget(this.textRenderer, 0, 0, 58, 14, Text.empty());
+        this.bgField.setMaxLength(7);
+        this.bgField.setText(keepB == null ? "" : keepB);
+        this.bgField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasBgColor = t.trim());
+        String keepGc = gridColField != null ? gridColField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasGridColor;
+        this.gridColField = new TextFieldWidget(this.textRenderer, 0, 0, 58, 14, Text.empty());
+        this.gridColField.setMaxLength(7);
+        this.gridColField.setText(keepGc == null ? "" : keepGc);
+        this.gridColField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasGridColor = t.trim());
     }
 
     @Override
@@ -420,7 +431,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
-        ctx.fill(0, 0, this.width, this.height, SciSkin.termInk()); // m203 全屏底随主题（默认墨色≈旧深底）
+        ctx.fill(0, 0, this.width, this.height, SciSkin.canvasBg()); // m203 全屏底随主题；m217 配置可覆盖（空=跟随主题墨色）
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
         SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
@@ -1420,6 +1431,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (renameGid >= 0) closeRename();
         wireOutField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor); // 开窗对齐配置现值（可能被恢复默认/改文件动过）
         wireInField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireInColor);
+        bgField.setText(com.sdzjz.config.SdzjzConfig.get().canvasBgColor);       // m217
+        gridColField.setText(com.sdzjz.config.SdzjzConfig.get().canvasGridColor);
         settingsOpen = true;
     }
 
@@ -1427,11 +1440,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         settingsOpen = false;
         wireOutField.setFocused(false);
         wireInField.setFocused(false);
+        bgField.setFocused(false);   // m217
+        gridColField.setFocused(false);
         com.sdzjz.config.SdzjzConfig.save(); // 关窗落盘（开关/步进即点即存，颜色打字只写实例，这里兜底）
     }
 
     /** 面板左上角 {px, py}（居中；行区 py+24 起每行 SETT_ROW，几何被 renderSettings/settingsClick 共用，改必同改）。 */
-    private int[] settPos() { return new int[]{(this.width - SETT_W) / 2, (this.height - SETT_H) / 2}; }
+    private int[] settPos() { return new int[]{(this.width - SETT_W) / 2, Math.max(2, (this.height - SETT_H) / 2)}; } // m217 变高后钳顶：极小视口宁可底部出屏也保头部可达
 
     /** RRGGBB 合法性（允许带#，1~6 位十六进制）；只作红线提示，非法值渲染层自会回退默认（m198 parseHex）。 */
     private static boolean hexOk(String s) {
@@ -1450,9 +1465,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.getMatrices().translate(0, 0, 400); // m202 抬z：卡内物品图标画在带深度的高z，z0后画填充会被穿透（终端实锤同病）
         SciSkin.drawCard(ctx, px, py, SETT_W, SETT_H, SciSkin.FRAME);
         ctx.drawText(this.textRenderer, "画布设置", px + 8, py + 7, SciSkin.TXT_HI, false);
-        String[] labels = {"缩放平滑动效", "连线宽度随缩放", "线宽封顶倍率", "出线颜色 RRGGBB", "进线颜色 RRGGBB", "跨组连线归并 ×N"};
-        boolean[] tog = {c.canvasSmoothZoom, c.canvasWireScaleWithZoom, false, false, false, c.canvasGroupBundleWires};
-        for (int r = 0; r < 6; r++) {
+        String[] labels = {"缩放平滑动效", "连线宽度随缩放", "线宽封顶倍率", "出线颜色 RRGGBB", "进线颜色 RRGGBB", "跨组连线归并 ×N",
+                "背景色(空=随主题)", "网格色(空=随主题)", "网格浓度", "暗角强度"}; // m217 背景四行
+        boolean[] tog = {c.canvasSmoothZoom, c.canvasWireScaleWithZoom, false, false, false, c.canvasGroupBundleWires, false, false, false, false};
+        for (int r = 0; r < 10; r++) {
             int ry = py + 24 + r * SETT_ROW;
             ctx.drawText(this.textRenderer, labels[r], px + 10, ry + 3, SciSkin.TXT, false);
             if (r == 0 || r == 1 || r == 5) { // 开关药丸（开=运行绿族，关=离线灰）
@@ -1464,23 +1480,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 String tx = on ? "开" : "关";
                 ctx.drawText(this.textRenderer, tx, bx + 23 - this.textRenderer.getWidth(tx) / 2, ry + 3,
                         on ? SciSkin.ON : SciSkin.OFF_GRAY, false);
-            } else if (r == 2) { // 步进器 [−] ×N.N [+]（照传感器阈值钮，屏幕坐标版）
+            } else if (r == 2 || r == 8 || r == 9) { // 步进器 [−] 值 [+]（照传感器阈值钮，屏幕坐标版）
                 stBox(ctx, px + SETT_W - 80, ry, "−", mouseX, mouseY);
                 stBox(ctx, px + SETT_W - 24, ry, "+", mouseX, mouseY);
-                String v = "×" + (Math.round(Math.max(0.2, c.canvasWireMaxScale) * 10) / 10.0); // double 拼串恒小数点，免 Locale 逗号坑
+                String v = r == 2 ? "×" + (Math.round(Math.max(0.2, c.canvasWireMaxScale) * 10) / 10.0) // double 拼串恒小数点，免 Locale 逗号坑
+                         : r == 8 ? Math.round(Math.max(0, Math.min(3, c.canvasGridStrength)) * 100) + "%"
+                                  : Math.round(Math.max(0, Math.min(2, c.canvasVignetteStrength)) * 100) + "%";
                 ctx.drawText(this.textRenderer, v, px + SETT_W - 42 - this.textRenderer.getWidth(v) / 2, ry + 3, SciSkin.TXT_HI, false);
-            } else { // 颜色行：输入框 + 生效色样片（样片直读 wireOut/wireIn=非法自动显回退色，另给红下划线提示）
-                TextFieldWidget f = r == 3 ? wireOutField : wireInField;
+            } else { // 颜色行：输入框 + 生效色样片（样片直读生效色=非法/空自动显回退色，红下划线只提示"非空且非法"——背景/网格行空=跟随主题属合法）
+                TextFieldWidget f = r == 3 ? wireOutField : r == 4 ? wireInField : r == 6 ? bgField : gridColField;
                 f.setX(px + SETT_W - 96);
                 f.setY(ry);
                 f.render(ctx, mouseX, mouseY, delta);
-                int sw = r == 3 ? SciSkin.wireOut() : SciSkin.wireIn();
+                int sw = r == 3 ? SciSkin.wireOut() : r == 4 ? SciSkin.wireIn() : r == 6 ? SciSkin.canvasBg() : SciSkin.canvasGridBase();
                 ctx.fill(px + SETT_W - 25, ry - 1, px + SETT_W - 9, ry + 15, SciSkin.CELL_FRM);
                 ctx.fill(px + SETT_W - 24, ry, px + SETT_W - 10, ry + 14, sw);
-                if (!hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
+                boolean emptyOk = (r == 6 || r == 7) && f.getText().isBlank();
+                if (!emptyOk && !hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
             }
         }
-        int ry6 = py + 24 + 6 * SETT_ROW; // m211 主题预设行：5 套一键全局换肤（画布/终端同一套7色配置，数据源=SciSkin.TERM_PRESETS 唯一家）
+        int ry6 = py + 24 + 10 * SETT_ROW; // m211 主题预设行：5 套一键换肤（m214 只写画布7键；m217 下移至10行位）
         ctx.drawText(this.textRenderer, "主题预设", px + 10, ry6 + 3, SciSkin.TXT, false);
         int hovPk = -1;
         for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
@@ -1492,7 +1511,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(bx + 3, ry6 + 3, bx + 17, ry6 + 11, SciSkin.hex(SciSkin.TERM_PRESETS[k][2], SciSkin.termAccent())); // 心=预设强调
         }
         if (hovPk >= 0) ctx.drawText(this.textRenderer, SciSkin.TERM_PRESET_NAMES[hovPk], px + 62, ry6 + 3, SciSkin.TXT_HI, false);
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 7 * SETT_ROW + 2; // 恢复默认（只回本面板六项；m211 下移一行）
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 11 * SETT_ROW + 2; // 恢复默认（回本面板十项；m217 下移至11行位）
         boolean rh = mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16;
         ctx.fill(rx - 1, rby - 1, rx + 65, rby + 17, rh ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
@@ -1514,13 +1533,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private boolean settingsClick(double mouseX, double mouseY, int button) {
         int px = settPos()[0], py = settPos()[1];
         if (mouseX < px || mouseX > px + SETT_W || mouseY < py || mouseY > py + SETT_H) { closeSettings(); return true; } // 窗外点=关
-        if (wireOutField.mouseClicked(mouseX, mouseY, button)) { wireOutField.setFocused(true); wireInField.setFocused(false); return true; } // m202 非children输入框必须显式聚焦
-        if (wireInField.mouseClicked(mouseX, mouseY, button)) { wireInField.setFocused(true); wireOutField.setFocused(false); return true; }
-        wireOutField.setFocused(false);
-        wireInField.setFocused(false);
+        TextFieldWidget[] setFs = {wireOutField, wireInField, bgField, gridColField}; // m217 四框互斥聚焦（m202 非children输入框必须显式聚焦）
+        for (TextFieldWidget f : setFs)
+            if (f.mouseClicked(mouseX, mouseY, button)) {
+                for (TextFieldWidget o : setFs) o.setFocused(o == f);
+                return true;
+            }
+        for (TextFieldWidget f : setFs) f.setFocused(false);
         if (button != 0) return true;
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
-        for (int r = 0; r < 6; r++) {
+        for (int r = 0; r < 10; r++) { // m217 6→10 行
             int ry = py + 24 + r * SETT_ROW;
             if (mouseY < ry || mouseY > ry + 14) continue;
             if ((r == 0 || r == 1 || r == 5) && mouseX >= px + SETT_W - 56 && mouseX <= px + SETT_W - 10) {
@@ -1530,18 +1552,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 com.sdzjz.config.SdzjzConfig.save();
                 return true;
             }
-            if (r == 2) {
+            if (r == 2 || r == 8 || r == 9) {
                 int d = 0;
                 if (mouseX >= px + SETT_W - 80 && mouseX <= px + SETT_W - 66) d = -1;
                 else if (mouseX >= px + SETT_W - 24 && mouseX <= px + SETT_W - 10) d = 1;
-                if (d != 0) { // 步进0.2，clamp 0.2~8.0，×5/5 防浮点漂移
-                    c.canvasWireMaxScale = Math.round(Math.max(0.2, Math.min(8.0, c.canvasWireMaxScale + d * 0.2)) * 5) / 5.0;
+                if (d != 0) { // 步进0.2，clamp 各行口径，×5/5 防浮点漂移
+                    if (r == 2)      c.canvasWireMaxScale     = Math.round(Math.max(0.2, Math.min(8.0, c.canvasWireMaxScale     + d * 0.2)) * 5) / 5.0;
+                    else if (r == 8) c.canvasGridStrength     = Math.round(Math.max(0.0, Math.min(3.0, c.canvasGridStrength     + d * 0.2)) * 5) / 5.0;
+                    else             c.canvasVignetteStrength = Math.round(Math.max(0.0, Math.min(2.0, c.canvasVignetteStrength + d * 0.2)) * 5) / 5.0;
                     com.sdzjz.config.SdzjzConfig.save();
                     return true;
                 }
             }
         }
-        int ry6 = py + 24 + 6 * SETT_ROW; // m211 主题预设点击（几何与 renderSettings 同一套，改必同改）
+        int ry6 = py + 24 + 10 * SETT_ROW; // m211 主题预设点击（几何与 renderSettings 同一套，改必同改；m217 10行位）
         if (mouseY >= ry6 - 1 && mouseY <= ry6 + 15) {
             for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
                 int bx = px + SETT_W - 126 + k * 24;
@@ -1554,7 +1578,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
             }
         }
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 7 * SETT_ROW + 2;
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 11 * SETT_ROW + 2; // m217 11行位
         if (mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16) { // 恢复默认：new 实例取字段默认，零硬编码重复
             com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
             c.canvasSmoothZoom = d.canvasSmoothZoom;
@@ -1563,6 +1587,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             c.canvasGroupBundleWires = d.canvasGroupBundleWires;
             wireOutField.setText(d.canvasWireOutColor); // setText 触发 listener 回写配置串
             wireInField.setText(d.canvasWireInColor);
+            bgField.setText(d.canvasBgColor);       // m217 背景四项一并回默认
+            gridColField.setText(d.canvasGridColor);
+            c.canvasGridStrength = d.canvasGridStrength;
+            c.canvasVignetteStrength = d.canvasVignetteStrength;
             com.sdzjz.config.SdzjzConfig.save();
         }
         return true;
@@ -2669,6 +2697,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (keyCode == 256) { closeSettings(); return true; }
             wireOutField.keyPressed(keyCode, scanCode, modifiers);
             wireInField.keyPressed(keyCode, scanCode, modifiers);
+            bgField.keyPressed(keyCode, scanCode, modifiers);      // m217
+            gridColField.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
         if (renameGid >= 0) { // m192 重命名窗：回车确认 / Esc取消，其余进输入框
@@ -2692,7 +2722,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
-        if (settingsOpen) { wireOutField.charTyped(chr, modifiers); wireInField.charTyped(chr, modifiers); return true; } // m199
+        if (settingsOpen) { wireOutField.charTyped(chr, modifiers); wireInField.charTyped(chr, modifiers); bgField.charTyped(chr, modifiers); gridColField.charTyped(chr, modifiers); return true; } // m199/m217
         if (renameGid >= 0) return renameField.charTyped(chr, modifiers); // m192
         if (pickerNode >= 0) return pickerField.charTyped(chr, modifiers);
         return super.charTyped(chr, modifiers);
