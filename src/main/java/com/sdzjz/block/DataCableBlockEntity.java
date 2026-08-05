@@ -34,6 +34,8 @@ public class DataCableBlockEntity extends BlockEntity
     private boolean opTargetsFull = false;                     // 本拍"目标已塞满"标志（extractSpec 置位，两模式统一收工）
     private long coresScanTick = Long.MIN_VALUE;               // 相连核心 40t 缓存（m108c 同款语义）
     private List<BlockPos> coresCache = List.of();
+    private java.util.UUID owner = null;                       // m229 端口所有者（EMC 记谁账上；配置即认领）
+    private net.minecraft.server.network.ServerPlayerEntity opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_CABLE_BE, pos, state);
@@ -41,6 +43,11 @@ public class DataCableBlockEntity extends BlockEntity
 
     public boolean extractOn() { return extractOn; }
     public void setExtractOn(boolean on) { extractOn = on; markDirty(); }
+    /** m229 认领所有者：谁配置这个口（开界面/潜行开关），转化桌出售的 EMC 就记谁账上。 */
+    public void claimOwner(net.minecraft.entity.player.PlayerEntity p) {
+        if (p != null && !p.getUuid().equals(owner)) { owner = p.getUuid(); markDirty(); }
+    }
+    public java.util.UUID owner() { return owner; }
     /** 过滤模板视图（m226 界面读写；写入方自行 markDirty）。 */
     public List<ItemStack> filterView() { return filter; }
 
@@ -71,11 +78,15 @@ public class DataCableBlockEntity extends BlockEntity
     public static Adjacency scanAdjacent(World world, BlockPos pos) {
         List<Storage<ItemVariant>> targets = new ArrayList<>();
         int blocks = 0;
-        if (world == null || world.isClient) return new Adjacency(targets, 0);
+        boolean sellTable = false;
+        if (world == null || world.isClient) return new Adjacency(targets, 0, false);
         for (Direction d : Direction.values()) {
             BlockPos np = pos.offset(d);
             BlockEntity be = world.getBlockEntity(np);
             if (be != null && be.getClass().getName().startsWith("com.sdzjz")) continue; // 自家网络方块不作抽取目标
+            if (com.sdzjz.compat.ProjectEFCompat.isTransmutationTable(world.getBlockState(np))) {
+                sellTable = true; blocks++; continue; // m229 转化桌：无 BE 无 FTA，走 EMC 出售通道，计一个对接
+            }
             int before = targets.size();
             collectView(targets, world, np, d.getOpposite()); // 贴线面优先（多目标分发顺位保持旧口径）
             for (Direction q : Direction.values())
@@ -83,7 +94,7 @@ public class DataCableBlockEntity extends BlockEntity
             if (targets.size() == before) collectView(targets, world, np, null); // 部分模组只登记无侧访问
             if (targets.size() > before) blocks++;
         }
-        return new Adjacency(targets, blocks);
+        return new Adjacency(targets, blocks, sellTable);
     }
 
     private static void collectView(List<Storage<ItemVariant>> out, World world, BlockPos np, Direction side) {
@@ -93,16 +104,20 @@ public class DataCableBlockEntity extends BlockEntity
         out.add(st);
     }
 
-    /** 邻接扫描结果：插入视图序列 + 可对接邻块数。 */
-    public record Adjacency(List<Storage<ItemVariant>> targets, int blockCount) {}
+    /** 邻接扫描结果：插入视图序列 + 可对接邻块数 + 是否贴着 ProjectEF 转化桌（m229 EMC 出售通道）。 */
+    public record Adjacency(List<Storage<ItemVariant>> targets, int blockCount, boolean sellTable) {}
 
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
     public static void tick(World world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
         if (world.isClient || !be.extractOn) return;
         int period = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
         if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
-        List<Storage<ItemVariant>> targets = scanAdjacent(world, pos).targets();
-        if (targets.isEmpty()) return;
+        Adjacency adj = scanAdjacent(world, pos);
+        List<Storage<ItemVariant>> targets = adj.targets();
+        be.opSeller = null; // m229 本拍卖手：贴桌+已认领+所有者在线（离线提供者不可变，写=白写，不卖留货）
+        if (adj.sellTable() && be.owner != null && world.getServer() != null)
+            be.opSeller = world.getServer().getPlayerManager().getPlayer(be.owner);
+        if (targets.isEmpty() && be.opSeller == null) return;
         List<StorageCoreBlockEntity> cores = be.cores(world, pos);
         if (cores.isEmpty()) return;
         long budget = Math.max(1, SdzjzConfig.get().extractPortBatch);
@@ -147,8 +162,9 @@ public class DataCableBlockEntity extends BlockEntity
                 int take = exact ? core.withdrawExact(tpl, ask) : core.withdraw(id, ask);
                 if (take <= 0) break;
                 long ins = insertInto(targets, v, take);
-                if (ins < take) { // 目标满：余量回账本（绝不落地），置位统一收工标志
-                    opTargetsFull = true;
+                if (ins < take) { // 目标满：余量回账本（绝不落地）；无卖手才置整拍收工标志——
+                    // m229 有转化桌时"满"只是箱子满（EMC 无限），该物品无价卖不掉就跳去下一模板
+                    if (opSeller == null) opTargetsFull = true;
                     ItemStack back = exact ? tpl.copyWithCount((int) (take - ins)) : new ItemStack(tpl.getItem(), (int) (take - ins));
                     if (exact) core.depositExact(back); else core.deposit(back);
                     return moved + ins;
@@ -196,6 +212,14 @@ public class DataCableBlockEntity extends BlockEntity
                 done += ins;
             }
         }
+        if (done < amount && opSeller != null) { // m229 余量卖给转化桌：FTA 目标优先=箱子先装，溢出才卖
+            long unit = com.sdzjz.compat.ProjectEFCompat.unitValue(v.toStack());
+            if (unit > 0) {
+                long n = Math.min(amount - done, Long.MAX_VALUE / 2 / unit); // 天价物×大批量防溢出
+                if (n > 0 && com.sdzjz.compat.ProjectEFCompat.credit(opSeller, unit * n))
+                    done += n; // 物品湮灭为 EMC（卖出=转化桌语义，非丢弃）
+            }
+        }
         return done;
     }
 
@@ -203,6 +227,7 @@ public class DataCableBlockEntity extends BlockEntity
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
+        if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
         NbtList fl = new NbtList(); // 过滤模板持久化（精确账本 m130 同款 encode）
         for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.encode(lookup));
         nbt.put("filter", fl);
@@ -212,6 +237,7 @@ public class DataCableBlockEntity extends BlockEntity
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
+        owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
         filter.clear();
         NbtList fl = nbt.getList("filter", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < fl.size(); i++) {

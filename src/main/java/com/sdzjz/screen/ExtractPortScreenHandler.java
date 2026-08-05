@@ -44,14 +44,20 @@ public class ExtractPortScreenHandler extends ScreenHandler {
             List<ItemStack> f = be.filterView();
             for (int i = 0; i < FILTER && i < f.size(); i++) ghost.setStack(i, f.get(i).copyWithCount(1));
         }
-        this.props = (be != null && server) ? new PropertyDelegate() { // 服务端实读 BE；每 tick 6 次邻接探测仅在开屏期间（m107a 面板同量级）
+        this.props = (be != null && server) ? new PropertyDelegate() { // 服务端实读 BE；邻接探测仅在开屏期间（m107a 面板同量级）
             @Override public int get(int index) {
                 if (index == 0) return be.extractOn() ? 1 : 0;
-                return DataCableBlockEntity.scanAdjacent(be.getWorld(), be.getPos()).blockCount(); // m228 计邻块数
+                DataCableBlockEntity.Adjacency adj = DataCableBlockEntity.scanAdjacent(be.getWorld(), be.getPos());
+                if (index == 1) return adj.blockCount(); // m228 计邻块数
+                if (!adj.sellTable()) return 0; // m229 出售状态：0=无桌
+                boolean ready = com.sdzjz.compat.ProjectEFCompat.available() && be.owner() != null
+                        && be.getWorld().getServer() != null
+                        && be.getWorld().getServer().getPlayerManager().getPlayer(be.owner()) != null;
+                return ready ? 1 : 2;   // 1=出售中 2=桌在但未就绪（未认领/所有者离线/API 不可用）
             }
             @Override public void set(int index, int value) {}
-            @Override public int size() { return 2; }
-        } : new ArrayPropertyDelegate(2);
+            @Override public int size() { return 3; }
+        } : new ArrayPropertyDelegate(3);
         addProperties(props);
 
         // 幽灵过滤槽（0..8）：真栈进不来也拿不走——原版 SWAP/QUICK_CRAFT/PICKUP_ALL 路径全被这两钩子挡死
@@ -78,6 +84,8 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     // 供客户端 Screen 读的状态
     public boolean extractOn()   { return props.get(0) != 0; }
     public int adjacentCount()   { return props.get(1); }
+    /** m229 转化桌出售状态：0=无桌 1=出售中 2=桌在但未就绪。 */
+    public int sellState()       { return props.get(2); }
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType type, PlayerEntity player) {

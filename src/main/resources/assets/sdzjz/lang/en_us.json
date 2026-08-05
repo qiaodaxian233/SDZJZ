@@ -139,5 +139,7 @@
   "sdzjz.extract_port.none": "No adjacent storage to dock",
   "sdzjz.extract_port.hint": "Click item in = set template; empty = extract all",
   "sdzjz.extract_port.on": "Extract port ON (%s adjacent storage(s); empty filter = extract everything)",
-  "sdzjz.extract_port.off": "Extract port OFF"
+  "sdzjz.extract_port.off": "Extract port OFF",
+  "sdzjz.extract_port.selling": " · Selling to table",
+  "sdzjz.extract_port.sell_blocked": " · Table not ready"
 }

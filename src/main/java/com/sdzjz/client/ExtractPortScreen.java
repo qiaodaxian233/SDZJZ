@@ -51,7 +51,11 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         String adj = n > 0
                 ? Text.translatable("sdzjz.extract_port.adjacent", n).getString()
                 : Text.translatable("sdzjz.extract_port.none").getString();
-        ctx.drawText(this.textRenderer, adj, x + 8, y + 44, n > 0 ? SUB : SciSkin.RED_SOFT, false);
+        int sell = this.handler.sellState(); // m229 转化桌出售状态后缀
+        if (sell == 1) adj += Text.translatable("sdzjz.extract_port.selling").getString();
+        else if (sell == 2) adj += Text.translatable("sdzjz.extract_port.sell_blocked").getString();
+        ctx.drawText(this.textRenderer, adj, x + 8, y + 44,
+                n > 0 ? (sell == 1 ? SciSkin.GOLD : SUB) : SciSkin.RED_SOFT, false);
 
         // 幽灵过滤槽底（槽坐标与 Handler 同：8+i*18, 58）
         for (int i = 0; i < ExtractPortScreenHandler.FILTER; i++) cell(ctx, x + 8 + i * 18, y + 58);

@@ -127,6 +127,7 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
         if (b == ModBlocks.STRUCTURE_CORE || b == ModBlocks.STORAGE_CORE || b == ModBlocks.DATA_PANEL
                 || b == ModBlocks.WIRELESS_NODE || b == ModBlocks.SATELLITE_NODE || b == ModBlocks.TRADE_CENTER) return CableEnd.PLUG;
         if (world.getBlockEntity(pos) instanceof Inventory) return CableEnd.PLUG;
+        if (com.sdzjz.compat.ProjectEFCompat.isTransmutationTable(state)) return CableEnd.PLUG; // m229 转化桌（纯 id 判无反射，双端安全）
         // m224 任意暴露 Fabric Transfer API 的存储也伸插头（Create 置物台/AE2 接口这类不实现 Inventory 的
         // 全吃）；只在服务端权威世界查（客户端注册表可能缺第三方登记，方块状态由服务端同步），
         // 世界生成期的 ChunkRegion 不是 World 直接跳过。

@@ -3284,3 +3284,38 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   计数走起）；②线插压缩机顶面：同样能喂（回归）；③目标换原版熔炉、线插侧面：可燃物进燃料槽、
   可烧物不从侧面进（熔炉侧面=燃料槽，符合原版侧向语义）、顶面视图接住待烧物；④箱子/Create 置物台
   回归照旧；⑤界面"旁接存储"计数=邻块数（一台侧向机器算 1 不算 6）。
+
+## m229 ProjectEF 转化桌软兼容——贴桌即卖（作者点名"检测到连接到转化桌，现在连接不上，支持一键卖物品到转化桌"）
+- **现象/根因**：拉了 ProjectEF 源码（github.com/wchiway/ProjectEF，mc1.21.1 分支）——转化桌
+  projecte:transmutation_table 是 **纯 GUI 方块没有 BlockEntity**，EMC 全记在玩家身上
+  （IKnowledgeProvider，per-player），根本没有物品栏可对接——"连接不上"是它的设计而非探测 bug，
+  FTA 标准口对它永远无解，只能走它的 API 做定向软兼容。
+- **修法**：
+  - **compat/ProjectEFCompat**（全反射零编译依赖，"前置仅 Fabric API"铁律不破）：
+    isModLoaded("projecte") 门控 + 一次性 bootstrap 缓存 Method（IEMCProxy.INSTANCE.getValue /
+    ITransmutationProxy.INSTANCE.getKnowledgeProviderFor / getEmc / setEmc / syncEmc，五签名均对
+    mc1.21.1 分支源码核实）；方法名是 ProjectE API 自有名不过混淆映射，MC 类参数用运行时 Class 查
+    （intermediary 下与对方 Mojmap 产物同类）；任一步失败=整体降级不卖绝不半残。桌判定按注册 id
+    比对**无需反射**，双端安全。
+  - **所有者语义**（EMC 记谁账上）：DataCableBlockEntity 加 owner UUID（NBT 持久化）；链接器在数据线上
+    的任意操作（开界面/潜行开关）即认领 claimOwner——"谁配置这个口，卖的钱归谁"。API 文档明言离线
+    UUID 的提供者不可变（写=白写），故**只在所有者在线时卖**，离线整拍留货不动。
+  - **出售通道**：scanAdjacent 增 sellTable（转化桌计入"旁接"数）；insertInto 尾挂 EMC 出售——
+    **FTA 目标优先**（箱子先装，溢出才卖，避免"本想存被卖光"）；无价物品（unitValue=0）照旧回账本；
+    天价物×大批量做 Long.MAX/2 防溢乘钳。有卖手时"目标满"不再整拍收工（EMC 无限，箱满只是箱满，
+    换下一模板继续）——m225 的 opTargetsFull 置位改成 opSeller==null 条件位。
+  - **可见性**（m99"静默无效"教训）：配置屏属性扩三位（[2]=出售状态），邻接行加后缀——
+    "· 转化桌出售中"（金字）/"· 转化桌未就绪"（未认领/所有者离线/API 不可用）；数据线对转化桌伸插头
+    （endFor 纯 id 判）。lang 双语两键。零新配置。
+- **教训**：①"连不上"要先分清是探测 bug 还是对方**根本没有可连的东西**——无 BE 的纯 GUI 方块再怎么
+  修探测都连不上，出路只能是对方 API；②会**销毁物品**的通道（卖出=湮灭）必须显式让位于存储通道
+  （FTA 优先）+可见状态行，默认行为绝不能是"悄悄卖光"。
+- **断言**：语法冒烟 0；ProjectEFCompat/claimOwner/sellTable/opSeller/unitValue/credit/sellState/
+  putUuid/containsUuid/toStack 作缺失符号 grep=0；双语 lang 各 143 键过 load；docs_sync ✓94。
+- **待编译验证**：反射链本身编译无忧（纯 java.lang.reflect）；运行时兼容依赖 ProjectEF mc1.21.1 分支
+  API 不改名（改了=静默降级不卖，界面显"未就绪"，不炸）。
+- **实机验证脚本**（需装 ProjectEF）：①数据线贴转化桌：伸插头、界面"旁接存储"计入且显"· 转化桌未就绪"；
+  ②链接器潜行右键该线（认领+开启）：状态变"· 转化桌出售中"（金字），仓里有 EMC 价的物品开始消失、
+  开转化桌看 EMC 数字实时涨（syncEmc）；③登记"圆石"模板：只卖圆石；④旁边同时贴一个箱子：物品先进
+  箱子、箱满溢出部分才卖；⑤仓里放无 EMC 价的模组物品：不卖不丢，留在账本；⑥所有者下线（双人测）：
+  出售暂停物品不动，重新上线自动恢复；⑦卸掉 ProjectEF：一切照旧无报错，桌不再被识别。

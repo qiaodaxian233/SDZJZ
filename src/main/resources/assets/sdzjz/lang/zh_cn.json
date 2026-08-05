@@ -139,5 +139,7 @@
   "sdzjz.extract_port.none": "旁边没有可对接的存储",
   "sdzjz.extract_port.hint": "放入物品登记模板 · 空=全部抽取",
   "sdzjz.extract_port.on": "抽取口已开启（旁接 %s 个存储；空过滤=全部抽取）",
-  "sdzjz.extract_port.off": "抽取口已关闭"
+  "sdzjz.extract_port.off": "抽取口已关闭",
+  "sdzjz.extract_port.selling": " · 转化桌出售中",
+  "sdzjz.extract_port.sell_blocked": " · 转化桌未就绪"
 }

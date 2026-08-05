@@ -40,6 +40,7 @@ public class LinkerItem extends Item {
 
         if (be instanceof com.sdzjz.block.DataCableBlockEntity cable) { // m227：原扳手功能（m224~m226）
             if (player != null) {
+                cable.claimOwner(player); // m229 配置即认领：转化桌出售的 EMC 记到最后配置者账上
                 if (player.isSneaking()) { // 潜行右键=快速开/关抽取口
                     int n = com.sdzjz.block.DataCableBlockEntity.scanAdjacent(world, pos).blockCount(); // m228 计邻块数
                     cable.setExtractOn(!cable.extractOn());
