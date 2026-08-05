@@ -1009,6 +1009,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                           float x2, float y2, float tx2, float ty2, int color, float pxScale) {
         float dist = (float) Math.hypot(x2 - x1, y2 - y1);
         if (dist < 2f) return;
+        // m197 有效除数：屏幕线宽=基准×min(pxScale,封顶)。开关关=旧行为(除pxScale=屏幕恒宽)；
+        // 屏幕坐标层调用传 pxScale=1 且封顶≥1 时 pd=1 完全不受影响。
+        com.sdzjz.config.SdzjzConfig wcfg = com.sdzjz.config.SdzjzConfig.get();
+        float wcap = (float) Math.max(0.2, wcfg.canvasWireMaxScale);
+        float pd = wcfg.canvasWireScaleWithZoom ? pxScale / Math.min(pxScale, wcap) : pxScale;
         float d = Math.max(36f, Math.min(150f, dist * 0.42f)); // 控制柄长度：近不打结、远不拉直
         float c1x = x1 + tx1 * d, c1y = y1 + ty1 * d;
         float c2x = x2 - tx2 * d, c2y = y2 - ty2 * d;
@@ -1038,18 +1043,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int[] col = new int[n];
 
         // 第一层：投影（右下偏移的暗缎带，把线从网格上抬起来）
-        float shOff = 1.4f / pxScale;
-        java.util.Arrays.fill(w, 1.2f / pxScale);
+        float shOff = 1.4f / pd;
+        java.util.Arrays.fill(w, 1.2f / pd);
         java.util.Arrays.fill(col, 0x3A000000);
-        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.8f / pxScale, col, shOff, shOff * 1.2f);
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.8f / pd, col, shOff, shOff * 1.2f);
 
         // 第二层：软光晕（宽羽化低透明，脉冲过处微微透亮）
         for (int i = 0; i < n; i++) {
             float p = pulseAt(cum[i], time, seed);
-            w[i] = 2.1f / pxScale;
+            w[i] = 2.1f / pd;
             col[i] = ((int) (0x24 + 0x2C * p) << 24) | rgb;
         }
-        ribbon(vc, mat, px, py, nx, ny, cum, w, 3.4f / pxScale, col, 0, 0);
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 3.4f / pd, col, 0, 0);
 
         // 第三层：亮核（沿线亮度坡升暗示方向；脉冲提亮向白并微胀线身）
         for (int i = 0; i < n; i++) {
@@ -1057,13 +1062,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             float p = pulseAt(cum[i], time, seed);
             int cc = towardWhite(mulRgb(rgb, 0.82f + 0.23f * t), p * 0.75f);
             col[i] = (Math.min(0xFF, 0xD8 + (int) (0x27 * p)) << 24) | cc;
-            w[i] = (0.9f + 0.5f * p) / pxScale;
+            w[i] = (0.9f + 0.5f * p) / pd;
         }
-        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.0f / pxScale, col, 0, 0);
+        ribbon(vc, mat, px, py, nx, ny, cum, w, 1.0f / pd, col, 0, 0);
 
         // 端口圆点：线的起讫落在发光接点上，不再凭空断在卡片边缘
-        portDot(vc, mat, x1, y1, rgb, pxScale);
-        portDot(vc, mat, x2, y2, rgb, pxScale);
+        portDot(vc, mat, x1, y1, rgb, pd);
+        portDot(vc, mat, x2, y2, rgb, pd);
     }
 
     /** 彗星脉冲强度 0..1：等距脉冲沿弧长顺流（速度110px/s 间距88px），头缘陡尾缘缓。 */
