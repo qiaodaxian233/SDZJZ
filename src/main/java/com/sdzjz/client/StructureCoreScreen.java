@@ -287,9 +287,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return t + "…";
     }
 
+    /** m185 缩放钳位统一出口：范围走配置（默认 5%~800%），下限兜底 0.01 防除零；配置写反自动纠序。 */
+    private double clampZoom(double z) {
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        double lo = Math.max(0.01, Math.min(c.canvasZoomMin, c.canvasZoomMax));
+        double hi = Math.max(lo, Math.max(c.canvasZoomMin, c.canvasZoomMax));
+        return Math.max(lo, Math.min(hi, z));
+    }
+
     /** m86 视图控制：围绕工作区中心缩放。 */
     private void zoomBy(double f) {
-        double nz = Math.max(0.4, Math.min(2.5, zoom * f));
+        double nz = clampZoom(zoom * f);
         double cx = workRight() / 2.0, cy = this.height / 2.0;
         panX = cx - (cx - panX) * (nz / zoom);
         panY = cy - (cy - panY) * (nz / zoom);
@@ -310,7 +318,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int top = 118, bottom = this.height - 86, left = 12, right = workRight() - 12;
         double zw = (right - left) / (double) Math.max(1, maxX - minX);
         double zh = (bottom - top) / (double) Math.max(1, maxY - minY);
-        zoom = Math.max(0.4, Math.min(2.5, Math.min(zw, zh)));
+        zoom = clampZoom(Math.min(zw, zh)); // m185 范围走配置
         panX = left + ((right - left) - (maxX - minX) * zoom) / 2 - minX * zoom;
         panY = top + ((bottom - top) - (maxY - minY) * zoom) / 2 - minY * zoom;
     }
@@ -1053,7 +1061,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             double old = zoom;
-            zoom = Math.max(0.4, Math.min(2.5, zoom * (verticalAmount > 0 ? 1.1 : 0.9)));
+            zoom = clampZoom(zoom * (verticalAmount > 0 ? 1.1 : 0.9)); // m185 范围走配置
             double wx = (mouseX - panX) / old, wy = (mouseY - panY) / old;
             panX = mouseX - wx * zoom;
             panY = mouseY - wy * zoom;
