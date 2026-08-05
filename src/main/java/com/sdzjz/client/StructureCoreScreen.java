@@ -46,7 +46,6 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private static final int BACKDROP = SciSkin.BACKDROP;
     private static final Identifier FRAME = Identifier.of("sdzjz", "textures/gui/structure_core_canvas.png");
-    private static final int GRID     = 0x22284A6B;
     private static final int TXT      = SciSkin.TXT;
     private static final int SUB      = SciSkin.SUB;
     private static final int ON       = SciSkin.ON;
@@ -368,12 +367,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
-        ctx.fill(0, 0, workRight(), 22, 0xEE0A121F);  // m120 顶条底带（与底栏同语言）
-        ctx.fill(0, 22, workRight(), 23, CYAN);
+        SciSkin.panelBand(ctx, 0, 0, workRight(), 22); // m188 顶条渐变底带（m120 平面填充退役）
+        SciSkin.glowLineH(ctx, 0, workRight(), 22, CYAN); // m188 轨道线加霓虹晕
+        // m188 网格双色制：细线打底 + 每4格一根主线；相位按世界格序号（floorMod）定，平移不跳档
         int step = 32;
-        int ox = ((int) panX) % step, oy = ((int) panY) % step;
-        for (int x = ox; x < this.width; x += step) ctx.fill(x, 34, x + 1, this.height, GRID);
-        for (int y = 34 + oy; y < this.height; y += step) ctx.fill(0, y, this.width, y + 1, GRID);
+        int gi0 = (int) Math.floor(-panX / step), gi1 = (int) Math.floor((this.width - panX) / step);
+        for (int gi = gi0; gi <= gi1; gi++) {
+            int gsx = (int) Math.floor(panX + gi * (double) step);
+            ctx.fill(gsx, 34, gsx + 1, this.height,
+                    Math.floorMod(gi, 4) == 0 ? SciSkin.GRID_MAJOR : SciSkin.GRID_MINOR);
+        }
+        int gj0 = (int) Math.floor((34 - panY) / step), gj1 = (int) Math.floor((this.height - panY) / step);
+        for (int gj = gj0; gj <= gj1; gj++) {
+            int gsy = (int) Math.floor(panY + gj * (double) step);
+            if (gsy >= 34) ctx.fill(0, gsy, this.width, gsy + 1,
+                    Math.floorMod(gj, 4) == 0 ? SciSkin.GRID_MAJOR : SciSkin.GRID_MINOR);
+        }
+        SciSkin.vignette(ctx, 0, 23, workRight(), this.height - 78); // m188 四缘暗角压景深（卡片/连线画在其上不受影响）
 
         StructureCoreBlockEntity be = be();
         if (be == null) return;
@@ -467,7 +477,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
             int bot = busVisible() ? 44 + rows * (bh() + 12) + 2 : 44;
             ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
-            ctx.fill(8, bot - 2, workRight() - 8, bot, 0xFF2E6E8E); // 总线底轨
+            SciSkin.glowLineH(ctx, 8, workRight() - 8, bot - 2, 0xFF2E6E8E); // m188 总线底轨霓虹化（沿用原轨道色）
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
             // 收起/展开开关（右上角小块）
             int tx = workRight() - 34;
@@ -996,8 +1006,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.getMatrices().push();
         ctx.getMatrices().translate(-this.x, -this.y, 0);
         // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
-        ctx.fill(0, 0, workRight(), 20, 0xEE0A121F);
-        ctx.fill(0, 19, workRight(), 20, CYAN);
+        SciSkin.panelBand(ctx, 0, 0, workRight(), 19); // m188 标题条渐变底带（与顶条同语言）
+        SciSkin.glowLineH(ctx, 0, workRight(), 19, CYAN);
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
         ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
         String zp = Math.round(zoom * 100) + "%"; // m86 顶条缩放读数（−/＋按钮之间）
@@ -1005,8 +1015,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
         // 底部背板：按钮 + 状态 + 提示 一体
         // m87：底栏加高到 78，状态改画在按钮下方整行——之前固定 x=498 起画，GUI 缩放大时直接怼进 JEI（用户截图实锤）
-        ctx.fill(0, this.height - 78, workRight(), this.height, 0xEE0A121F);
-        ctx.fill(0, this.height - 78, workRight(), this.height - 77, CYAN);
+        SciSkin.panelBand(ctx, 0, this.height - 78, workRight(), this.height); // m188 底栏渐变底带
+        SciSkin.glowLineH(ctx, 0, workRight(), this.height - 78, CYAN); // m188 轨道线霓虹晕（微溢上沿=刻意受光）
         boolean run = this.handler.isRunning();
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
