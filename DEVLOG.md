@@ -2380,3 +2380,18 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   GUI 视口 <496：末位按钮上折一行、可点、文字不出框；③320 视口：底行三钮+上折行两钮，全部在屏内可点；
   ④resize 往复拉伸：init 重摆无残影无重叠；⑤【待编译验证】盯点：SciButton 继承链 setX/setY
   （ClickableWidget，树内 pickerField 同名先例），语法冒烟+定向 grep 新符号错误=0 已过。
+
+## m183 文档双入仓：新对话对接文档 + GUI 审计尺（docs/tools_gui_audit.py）
+- **对接文档.md（仓库根，与 HANDOVER 并排）**：给新对话/新 AI 的"只含不变规则"版交接
+  ——项目定义、开工三步、工作流铁律（含冒烟盲区定向 grep 法）、DEVLOG 血泪坑清单提炼、
+  关键文件地图、开场白模板。与 HANDOVER 分工：本文档=贴给会话的不变规则，HANDOVER=活状态+待办池。
+- **docs/tools_gui_audit.py（照 tools_docs_sync 惯例，机检 GUI 纪律）**：①资源契约七件
+  （含此前脚本漏掉的 structure_core_gui.png）；②SciSkin 调色板纪律——解析 SciSkin 常量为唯一
+  合法色集，屏幕内脱离调色板的 ARGB 字面量点名（灰阶与带透明度的调色板色不误报）；③固定坐标按钮
+  对 320 视口**算术判溢出**（ERROR 级，m182 就是它抓的）；④本地化三查：zh/en 键对称、
+  代码引用的 sdzjz 命名空间 translatable 键必须存在（动态拼接前缀与 vanilla 键跳过）、
+  literal/translatable 计数分屏内/屏外报账（棘轮口径：不许涨）。有 ERROR 退出码 1，可直接进 CI 三道闸。
+- **当前基线（棘轮起点，2026-08）**：脱调色板色 45 / 屏内 literal 18 / 屏外 literal 116 / ERROR 0。
+- 验证脚本：①`python3 docs/tools_gui_audit.py .` 应零 ERROR 退出 0；②故意把某屏一个 SciSkin 色
+  改成新色值 → off-palette 计数 +1；③故意删 en_us.json 一个键 → 键对称 ERROR；④CI 启用后把它
+  加进 offline-checks 与 docs_sync 并排。
