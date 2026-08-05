@@ -357,6 +357,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
+        // m184 机器端左右缘按几何就近选（卡口在机器哪一侧就从哪缘出入），端口语义（卡底左收料/右供料）不变。
         if (busVisible()) for (long[] e : be.storageEdgesView()) {
             int mi = (int) e[0];
             if (mi >= nodes.size()) continue;
@@ -364,14 +365,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             float mys = (float) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
+            float mcx = (float) (panX + (wnx(be, nodes, mi) + NW / 2.0) * zoom); // m184 机器中心屏幕x：选缘看几何
             boolean lit = !hovAny || mi == hovN || e[1] == hovEnd; // m164b 悬停聚焦
-            if (e[2] == 0) { // 机器→存储（产出）：机器右缘水平出线 → 垂直向上接入卡底左收料口
-                float mxs = (float) (panX + (wnx(be, nodes, mi) + NW) * zoom);
-                drawWire(ctx, mxs, mys, 1, 0, sx + 14, sy + bh() + 2, 0, -1,
+            if (e[2] == 0) { // 机器→存储（产出）：机器近侧缘水平出线 → 垂直向上接入卡底左收料口（m184 选缘看几何，卡口在哪侧就走哪缘，反向不再绕背后大圈）
+                boolean er = sx + 14 >= mcx; // 收料口在机器右侧→右缘出线，否则左缘出线
+                float mxs = (float) (panX + (wnx(be, nodes, mi) + (er ? NW : 0)) * zoom);
+                drawWire(ctx, mxs, mys, er ? 1 : -1, 0, sx + 14, sy + bh() + 2, 0, -1,
                         lit ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), 1f);
-            } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器左缘
-                float mxi = (float) (panX + wnx(be, nodes, mi) * zoom);
-                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, 1, 0,
+            } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器近侧缘（m184 同上）
+                boolean fr = sx + bw() - 14 >= mcx; // 供料口在机器右侧→从右缘进（行进方向向左），否则左缘进
+                float mxi = (float) (panX + (wnx(be, nodes, mi) + (fr ? NW : 0)) * zoom);
+                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, fr ? -1 : 1, 0,
                         lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
             }
         }
@@ -384,16 +388,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）
         for (int[] c : be.connections()) {
             if (c[0] < nodes.size() && c[1] < nodes.size()) {
-                int ax = wnx(be, nodes, c[0]) + NW, ay = wny(be, nodes, c[0]) + NH / 2;
-                int bx = wnx(be, nodes, c[1]),      by = wny(be, nodes, c[1]) + NH / 2;
+                int ax0 = wnx(be, nodes, c[0]), ay = wny(be, nodes, c[0]) + NH / 2;
+                int bx0 = wnx(be, nodes, c[1]), by = wny(be, nodes, c[1]) + NH / 2;
+                boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
+                int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
                 boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
-                drawWire(ctx, ax, ay, 1, 0, bx, by, 1, 0,
+                drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
                         lit2 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
             }
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
-            int ax = wnx(be, nodes, linkFrom) + NW, ay = wny(be, nodes, linkFrom) + NH / 2;
-            drawWireFree(ctx, ax, ay, 1, 0, (float) wmx(mouseX), (float) wmy(mouseY), 0xFF88E0FF, (float) zoom);
+            int nx0 = wnx(be, nodes, linkFrom);
+            boolean lr = wmx(mouseX) >= nx0 + NW / 2.0; // m184 预览线同看几何：鼠标在节点左侧就从左缘出
+            int ax = nx0 + (lr ? NW : 0), ay = wny(be, nodes, linkFrom) + NH / 2;
+            drawWireFree(ctx, ax, ay, lr ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), 0xFF88E0FF, (float) zoom);
         }
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
