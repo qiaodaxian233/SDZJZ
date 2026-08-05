@@ -16,8 +16,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * 数据链接器：右键数据面板记录目标 → 右键结构核心把核心绑定到该面板（绑定优先于自动路由）。
- * 多个核心绑到同一面板 = 面板聚合多核心产出。潜行右键核心 = 解绑。
+ * 数据链接器：右键存储核心记录目标 → 右键结构核心把核心绑定到该目标（绑定优先于自动路由）。
+ * 多个核心绑到同一目标 = 聚合多核心产出。潜行右键核心 = 解绑。
+ * m227 起兼任网络扳手（原 m224 扳手退役并入本工具）：右键数据线=抽取口配置界面（9 幽灵过滤槽+启停钮），
+ * 潜行右键数据线=快速开/关抽取口。数据线分支与绑定分支目标方块不同，零冲突。
  */
 public class LinkerItem extends Item {
 
@@ -35,6 +37,21 @@ public class LinkerItem extends Item {
         PlayerEntity player = ctx.getPlayer();
         ItemStack stack = ctx.getStack();
         BlockEntity be = world.getBlockEntity(pos);
+
+        if (be instanceof com.sdzjz.block.DataCableBlockEntity cable) { // m227：原扳手功能（m224~m226）
+            if (player != null) {
+                if (player.isSneaking()) { // 潜行右键=快速开/关抽取口
+                    int n = com.sdzjz.block.DataCableBlockEntity.adjacentStorages(world, pos).size();
+                    cable.setExtractOn(!cable.extractOn());
+                    player.sendMessage(cable.extractOn()
+                            ? Text.translatable("sdzjz.extract_port.on", n)
+                            : Text.translatable("sdzjz.extract_port.off"), true);
+                } else { // 右键=抽取口配置界面
+                    player.openHandledScreen(cable);
+                }
+            }
+            return ActionResult.SUCCESS;
+        }
 
         if (be instanceof StorageCoreBlockEntity) {
             NbtCompound nbt = new NbtCompound();

@@ -132,13 +132,12 @@
   "sdzjz.canvas.settings": "Settings",
   "sdzjz.canvas.status": "Status",
   "sdzjz.canvas.help": "Help",
-  "item.sdzjz.wrench": "Network Wrench",
-  "sdzjz.wrench.on": "Extract port ON (%s adjacent storage(s); empty filter = extract everything)",
-  "sdzjz.wrench.off": "Extract port OFF",
   "sdzjz.extract_port.title": "Extract Port",
   "sdzjz.extract_port.running": "Extracting: ON (click to stop)",
   "sdzjz.extract_port.stopped": "Extracting: OFF (click to start)",
   "sdzjz.extract_port.adjacent": "Adjacent storages: %s",
   "sdzjz.extract_port.none": "No adjacent storage to dock",
-  "sdzjz.extract_port.hint": "Click item in = set template; empty = extract all"
+  "sdzjz.extract_port.hint": "Click item in = set template; empty = extract all",
+  "sdzjz.extract_port.on": "Extract port ON (%s adjacent storage(s); empty filter = extract everything)",
+  "sdzjz.extract_port.off": "Extract port OFF"
 }

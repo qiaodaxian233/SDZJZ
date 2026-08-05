@@ -132,13 +132,12 @@
   "sdzjz.canvas.settings": "设置",
   "sdzjz.canvas.status": "状态",
   "sdzjz.canvas.help": "帮助",
-  "item.sdzjz.wrench": "网络扳手",
-  "sdzjz.wrench.on": "抽取口已开启（旁接 %s 个存储；空过滤=全部抽取）",
-  "sdzjz.wrench.off": "抽取口已关闭",
   "sdzjz.extract_port.title": "抽取口配置",
   "sdzjz.extract_port.running": "抽取：运行中（点击停止）",
   "sdzjz.extract_port.stopped": "抽取：已停止（点击启动）",
   "sdzjz.extract_port.adjacent": "旁接存储：%s 个",
   "sdzjz.extract_port.none": "旁边没有可对接的存储",
-  "sdzjz.extract_port.hint": "放入物品登记模板 · 空=全部抽取"
+  "sdzjz.extract_port.hint": "放入物品登记模板 · 空=全部抽取",
+  "sdzjz.extract_port.on": "抽取口已开启（旁接 %s 个存储；空过滤=全部抽取）",
+  "sdzjz.extract_port.off": "抽取口已关闭"
 }
