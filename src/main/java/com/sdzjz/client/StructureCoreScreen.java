@@ -72,14 +72,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int libScroll = 0;
     private boolean busCollapsed = false; // m91：总线收起（拉线时自动展开）
     private boolean busVisible() { return !busCollapsed || linking; }
-    private static float busScale = 1f;   // m93：总线大小滑块（0.8~1.25，跨开屏保留）
+    private static float busScale = -1f;   // m93：总线大小滑块；m215 起持久化到配置（-1=未从配置装载哨兵，init 装载）
     private boolean busScaleDrag = false;
+    private static final float BUS_MIN = 0.55f, BUS_MAX = 1.25f; // m215 下限 0.8→0.55（作者点名"太大"，允许拖更小）
     private int bw() { return Math.round(SW * busScale); }
     private int bh() { return Math.round(SH * busScale); }
+
+    // ===== m215 上下 chrome 紧凑化（配置开关，改后重开画布生效；所有底栏/总线纵向几何只许走这三口，不许再散写 78/44/12）=====
+    private static boolean compactChrome() { return com.sdzjz.config.SdzjzConfig.get().canvasCompactChrome; }
+    /** 底部横带上缘 y（旧版=height-78，紧凑=height-56）：画布剪刀/暗角/小地图/机器库底缘全部以此为准。 */
+    private int botTop() { return this.height - (compactChrome() ? 56 : 78); }
+    /** 总线卡片首行 y（旧 44，紧凑 42=收起态带底同值）。 */
+    private int busCardTop() { return compactChrome() ? 42 : 44; }
+    /** 总线卡片行距（旧 bh+12，紧凑 bh+8）。 */
+    private int busRowStep() { return bh() + (compactChrome() ? 8 : 12); }
     private int busTrackX() { return workRight() - 152; }
     private static final int BUS_TRACK_W = 104;
     private void busScaleFromMouse(double mx) {
-        busScale = (float) Math.max(0.8, Math.min(1.25, 0.8 + (mx - busTrackX()) / BUS_TRACK_W * 0.45));
+        busScale = (float) Math.max(BUS_MIN, Math.min(BUS_MAX, BUS_MIN + (mx - busTrackX()) / BUS_TRACK_W * (BUS_MAX - BUS_MIN)));
     }
 
     // ===== m89：端点直发包缓存（BE 同步链实机不生效的最终修复）=====
@@ -213,20 +223,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // m182 底栏五钮防溢出：常规宽度坐标与旧版逐像素一致(8/104/200/300/396)；右缘越过安全边距的按钮
         // （320 GUI 视口下"整理布局/重置视角"右缘 392/488 > 312）折行到状态条(height-78)上方流式摆放，
         // setX/setY 走 pickerField 同款在树先例。历史坐标单调递增 → 放得下的必是前缀，折行只会发生在尾部。
+        if (busScale < 0) busScale = (float) Math.max(BUS_MIN, Math.min(BUS_MAX, com.sdzjz.config.SdzjzConfig.get().canvasBusScale)); // m215 首次从配置装载
         int[] bbX = {8, 104, 200, 300, 396};
         int[] bbW = {90, 90, 96, 92, 92};
+        int bbH = compactChrome() ? 16 : 20; // m215 紧凑钮高
         TermButton[] bb = { // m203 画布横幅按钮换终端主题控件
-                new TermButton(0, 0, bbW[0], 20, Text.literal("▶ 开机"), b -> click(0), true), // m203 主紫
-                new TermButton(0, 0, bbW[1], 20, Text.literal("■ 停止"), b -> click(1)),
-                new TermButton(0, 0, bbW[2], 20, Text.literal("★ 领取经验"), b -> click(2)),
-                new TermButton(0, 0, bbW[3], 20, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
-                new TermButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
+                new TermButton(0, 0, bbW[0], bbH, Text.literal("▶ 开机"), b -> click(0), true), // m203 主紫
+                new TermButton(0, 0, bbW[1], bbH, Text.literal("■ 停止"), b -> click(1)),
+                new TermButton(0, 0, bbW[2], bbH, Text.literal("★ 领取经验"), b -> click(2)),
+                new TermButton(0, 0, bbW[3], bbH, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
+                new TermButton(0, 0, bbW[4], bbH, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
         };
-        int bbLim = this.width - 8, bbFx = 8, bbFy = this.height - 102; // 折行首行=状态条上方 4px（与画布剪刀 height-78 不撞）
+        int bbLim = this.width - 8, bbFx = 8, bbFy = botTop() - bbH - 4; // 折行首行=带上方 4px（与画布剪刀 botTop 不撞）
         for (int i = 0; i < bb.length; i++) {
-            if (bbX[i] + bbW[i] <= bbLim) { bb[i].setX(bbX[i]); bb[i].setY(this.height - 74); }
+            if (bbX[i] + bbW[i] <= bbLim) { bb[i].setX(bbX[i]); bb[i].setY(botTop() + 4); }
             else {
-                if (bbFx + bbW[i] > bbLim && bbFx > 8) { bbFx = 8; bbFy -= 24; }
+                if (bbFx + bbW[i] > bbLim && bbFx > 8) { bbFx = 8; bbFy -= bbH + 4; }
                 bb[i].setX(bbFx); bb[i].setY(bbFy); bbFx += bbW[i] + 6;
             }
             this.addDrawableChild(bb[i]);
@@ -403,7 +415,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
     private int busCols() { return Math.max(1, (workRight() - 24) / (bw() + 14)); }
     private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (bw() + 14); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return 44 + (j / busCols()) * (bh() + 12); }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) { return busCardTop() + (j / busCols()) * busRowStep(); }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -414,8 +426,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
         // m210 底栏浅带迁到背景层：HandledScreen 帧序=背景→按钮→前景，m203 的不透明浅带留在前景层
         // 把底部五钮整排糊死（作者实机截图实锤）；机器区剪刀(24~height-78)挡着，前置安全。
-        SciSkin.termBand(ctx, 0, this.height - 78, workRight(), this.height);
-        SciSkin.termBandLine(ctx, 0, workRight(), this.height - 78);
+        SciSkin.termBand(ctx, 0, botTop(), workRight(), this.height);
+        SciSkin.termBandLine(ctx, 0, workRight(), botTop());
         // m188 网格双色制：细线打底 + 每4格一根主线；相位按世界格序号（floorMod）定，平移不跳档
         int step = 32;
         int gi0 = (int) Math.floor(-panX / step), gi1 = (int) Math.floor((this.width - panX) / step);
@@ -430,7 +442,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (gsy >= 34) ctx.fill(0, gsy, this.width, gsy + 1,
                     Math.floorMod(gj, 4) == 0 ? SciSkin.termGridMajor() : SciSkin.termGridMinor());
         }
-        SciSkin.vignette(ctx, 0, 23, workRight(), this.height - 78); // m188 四缘暗角压景深（卡片/连线画在其上不受影响）
+        SciSkin.vignette(ctx, 0, 23, workRight(), botTop()); // m188 四缘暗角压景深（卡片/连线画在其上不受影响）
 
         StructureCoreBlockEntity be = be();
         if (be == null) return;
@@ -454,7 +466,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         boolean hovAny = hovN >= 0 || hovEnd != Long.MIN_VALUE;
 
-        ctx.enableScissor(0, 24, workRight(), this.height - 78); // m159 画布剪刀：drawItem自带z偏移(~150)
+        ctx.enableScissor(0, 24, workRight(), botTop()); // m159 画布剪刀：drawItem自带z偏移(~150)
         // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
         // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）
         java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
@@ -633,7 +645,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
         {
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
-            int bot = busVisible() ? 44 + rows * (bh() + 12) + 2 : 44;
+            int bot = busVisible() ? busCardTop() + rows * busRowStep() + 2 : 44; // 收起=只留头部行（内容底缘41），两模式同高
             SciSkin.termBand(ctx, 8, 24, workRight() - 8, bot); // m203 总线带换浅色主题（旧半透深底字面量退役）
             SciSkin.termBandLine(ctx, 8, workRight() - 8, bot - 2); // m203 底轨随主题（旧轨道色字面量退役）
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SciSkin.termInk(), false); // m203 浅带写墨字
@@ -647,10 +659,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int trx = busTrackX();
             ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SciSkin.termSub(), false);
             ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, SciSkin.termBaseDeep()); // m203 滑轨浅井+紫钮（照设计稿）
-            int knx = trx + Math.round((busScale - 0.8f) / 0.45f * (BUS_TRACK_W - 6));
+            int knx = trx + Math.round((busScale - BUS_MIN) / (BUS_MAX - BUS_MIN) * (BUS_TRACK_W - 6));
             ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? SciSkin.termAccentDeep() : SciSkin.termAccent());
             if (busVisible() && ends.isEmpty())
-                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SciSkin.termSub(), false);
+                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, busCardTop() + 4, SciSkin.termSub(), false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
             java.util.List<String> bi = busIdsOf(be);
@@ -680,7 +692,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     // ================= m110a 小地图 =================
     private int mapX() { return workRight() - MAP_W - 8; }
-    private int mapY() { return this.height - 84 - MAP_H; }
+    private int mapY() { return botTop() - 6 - MAP_H; }
     private boolean inMap(double mx, double my) {
         return mapOpen && mx >= mapX() && mx <= mapX() + MAP_W && my >= mapY() && my <= mapY() + MAP_H;
     }
@@ -689,7 +701,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double[] mapGeom(StructureCoreBlockEntity be) {
         List<ItemStack> nodes = be.nodes();
         double minX = (0 - panX) / zoom, minY = (34 - panY) / zoom;
-        double maxX = (workRight() - panX) / zoom, maxY = ((this.height - 78) - panY) / zoom;
+        double maxX = (workRight() - panX) / zoom, maxY = (botTop() - panY) / zoom;
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
             minX = Math.min(minX, nx); minY = Math.min(minY, ny);
@@ -724,7 +736,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int vx1 = mx + 5 + (int) (((0 - panX) / zoom - g[0]) * g[2]);
         int vy1 = my + 5 + (int) (((34 - panY) / zoom - g[1]) * g[2]);
         int vx2 = mx + 5 + (int) (((workRight() - panX) / zoom - g[0]) * g[2]);
-        int vy2 = my + 5 + (int) ((((this.height - 78) - panY) / zoom - g[1]) * g[2]);
+        int vy2 = my + 5 + (int) (((botTop() - panY) / zoom - g[1]) * g[2]);
         vx1 = Math.max(mx + 1, vx1); vy1 = Math.max(my + 1, vy1);
         vx2 = Math.min(mx + MAP_W - 1, vx2); vy2 = Math.min(my + MAP_H - 1, vy2);
         int vc = 0xCCFFFFFF;
@@ -739,7 +751,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         double wx = mapGeomDrag[0] + (mouseX - mapX() - 5) / mapGeomDrag[2];
         double wy = mapGeomDrag[1] + (mouseY - mapY() - 5) / mapGeomDrag[2];
         panX = workRight() / 2.0 - wx * zoom;
-        panY = (34 + this.height - 78) / 2.0 - wy * zoom;
+        panY = (34 + botTop()) / 2.0 - wy * zoom;
     }
 
     private static int endpointIndex(List<long[]> ends, long pl) {
@@ -1191,23 +1203,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
         }
         int maxW = workRight() - 16;
-        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, this.height - 48, run ? ON : SciSkin.termSub(), false);
+        int sy1 = this.height - (compactChrome() ? 32 : 48), sy2 = this.height - (compactChrome() ? 22 : 36), sy3 = this.height - (compactChrome() ? 11 : 12); // m215
+        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, sy1, run ? ON : SciSkin.termSub(), false);
         ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
                 + "  机器 " + this.handler.machineCount()
                 + "  存储 " + stor + " · 面板 " + term
                 + "  缓存 " + fmtNum(this.handler.buffered())
-                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, this.height - 48, SciSkin.termInk(), false); // m203
+                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, sy1, SciSkin.termInk(), false); // m203
         ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
-                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, this.height - 36, SciSkin.termSub(), false);
-        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, this.height - 12, SciSkin.termSub(), false);
+                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, sy2, SciSkin.termSub(), false);
+        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, sy3, SciSkin.termSub(), false);
 
 
         // ===== m88：机器库侧栏（概念图左栏——列背包里的机器，点击放入画布）=====
         if (libOpen) {
-            int lx = 8, ly = 24, lw = 160, lb = this.height - 84;
+            int lx = 8, ly = 24, lw = 160, lb = botTop() - 6;
             ctx.fill(lx, ly, lx + lw, lb, 0xE0081120);
             ctx.fill(lx, ly, lx + lw, ly + 14, 0xFF10253A);
             ctx.drawText(this.textRenderer, "机器库（背包）", lx + 6, ly + 3, TXT, false);
@@ -1264,7 +1277,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= this.height - 84) { // m88 机器库滚动
+        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= botTop() - 6) { // m88 机器库滚动
             libScroll -= (int) Math.signum(verticalAmount);
             return true;
         }
@@ -1806,10 +1819,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return true;
         }
         // m88 机器库侧栏：点击行=放 1 台进画布；面板区吞掉其余点击
-        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= this.height - 84) {
+        if (libOpen && mouseX >= 8 && mouseX <= 168 && mouseY >= 24 && mouseY <= botTop() - 6) {
             if (button == 0) {
                 List<ItemStack> lib = libItems();
-                int ly = 24, lb = this.height - 84, rowH = 20;
+                int ly = 24, lb = botTop() - 6, rowH = 20;
                 int visible = Math.max(1, (lb - ly - 30) / rowH);
                 int r = (int) ((mouseY - (ly + 16)) / rowH);
                 if (mouseY >= ly + 16 && r >= 0 && r < visible && r + libScroll < lib.size()) {
@@ -2145,6 +2158,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (busScaleDrag) { // m215 松手一次性落盘（拖动中不写文件）
+            com.sdzjz.config.SdzjzConfig.get().canvasBusScale = busScale;
+            com.sdzjz.config.SdzjzConfig.save();
+        }
         busScaleDrag = false; // m93
         if (mapDragging) { mapDragging = false; mapGeomDrag = null; } // m110a
         if (button == 0 && linking) {

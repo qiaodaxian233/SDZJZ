@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 14; // m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 15; // m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -69,6 +69,10 @@ public class SdzjzConfig {
     public String canvasFrame      = "444B5A"; // 画布边框色
     public String canvasHi         = "0E1118"; // 画布高亮（暗夜口径=暗压光：紫钮上的字用暗色）
 
+    // ===== 画布上下栏紧凑化（m215 作者点名"上下的界面太大"）=====
+    public boolean canvasCompactChrome = true; // 紧凑模式：底栏78→56(钮20→16/三行字收紧)、总线行距12→8；false=旧版尺寸（改后重开画布生效）
+    public double canvasBusScale = 0.75;       // 总线卡尺寸倍率持久化（0.55~1.25，画布"尺寸"滑块同款；m93 原为会话内静态不落盘）
+
     // ---- 单例 + 读写 ----
     private static SdzjzConfig INSTANCE;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -118,6 +122,8 @@ public class SdzjzConfig {
             }
             cfg.configVersion = 14;
         }
+        if (cfg.configVersion < 15) cfg.configVersion = 15; // m215 纯加键（canvasCompactChrome/canvasBusScale），Gson 缺键走字段初值，无值迁移
+
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件
     }
