@@ -96,6 +96,7 @@ public final class SciSkin {
     // 画布默认=暗夜预设（作者点名）；渲染单线程，boolean 静态位即可，不上 ThreadLocal。
     private static boolean canvasScope = false;
     public static void scopeCanvas(boolean on) { canvasScope = on; }
+    public static boolean scopedCanvas() { return canvasScope; } // m239 事件路径取色前保存/恢复用
     private static final CfgColor C_BASE = new CfgColor(0xFF262C38), C_DEEP = new CfgColor(0xFF161B24), // 暗夜整行
             C_ACC = new CfgColor(0xFF8B7CF6), C_ACCD = new CfgColor(0xFFB0A6FF),
             C_INK = new CfgColor(0xFFE7EAF3), C_FRM = new CfgColor(0xFF444B5A), C_HI = new CfgColor(0xFF0E1118);

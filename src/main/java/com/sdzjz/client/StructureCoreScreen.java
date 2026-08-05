@@ -201,11 +201,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private TextFieldWidget bgField, gridColField;       // m217 背景色/网格色 RRGGBB：空=跟随主题；live 写实例即时预览
     private TermButton[] bottomBtns;                      // m219 底部五钮存引用："状态"钮切换后就地重摆（botTop 变高矮）
     private boolean helpOpen = false;                     // m219 帮助卡（操作提示行迁入，modal 同吞穿透口径）
-    private static final int SETT_W = 236, SETT_H = 394, SETT_ROW = 24; // m211 +24：第7行主题预设；m217 +96：背景四行（6~9）；m223 +62：RGB 滑杆调节区（预设/恢复默认再下移）
+    private static final int SETT_W = 236, SETT_H = 334, SETT_ROW = 20; // m239 紧凑化：行距 24→20/滑杆内距 17→14/间距收紧，394→334（作者视口出屏）
     // m223 颜色行 RGB 滑杆调节区（作者点名照终端主题编辑器"图六那样，不能让我自己输入"；渲染/点击几何共用以下常量，改必同改）
-    private static final int SETT_SL_Y = 24 + 10 * SETT_ROW + 2;  // 调节区头行 y 偏移（=266）
-    private static final int SETT_PRESET_Y = SETT_SL_Y + 70;      // 主题预设行 y 偏移（=336，m217 的 10 行位退役）
-    private static final int SETT_RESET_Y = SETT_PRESET_Y + 26;   // 恢复默认钮 y 偏移（=362，m217 的 11 行位退役）
+    private static final int SETT_SL_Y = 24 + 10 * SETT_ROW + 2;  // 调节区头行 y 偏移（=226）
+    private static final int SETT_SL_SP = 14;                     // m239 滑杆内距收口常量（渲染/点击同源，原硬编码 17 两处）
+    private static final int SETT_PRESET_Y = SETT_SL_Y + 14 + 3 * SETT_SL_SP + 10; // 主题预设行 y 偏移（=292）
+    private static final int SETT_RESET_Y = SETT_PRESET_Y + 22;   // 恢复默认钮 y 偏移（=314；钮 16 高+4 底距=334 收口）
     private static final int SETT_SL_X = 32, SETT_SL_W = 146;     // 滑轨 x 偏移/宽（照 m202 终端滑杆工艺）
     private static final String[] SETT_COLOR_NAMES = {"出线颜色", "进线颜色", "背景色", "网格色"}; // 调节目标名（序=setFs 序）
     private int settColSel = 2;   // m223 调节目标：0出线 1进线 2背景 3网格（默认背景色，作者截图点名的行）
@@ -1493,7 +1494,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     /** 调节下标→输入框（序=setFs 序：出线/进线/背景/网格）。 */
     private TextFieldWidget settColorField(int sel) { return sel == 0 ? wireOutField : sel == 1 ? wireInField : sel == 2 ? bgField : gridColField; }
     /** 调节下标→当前生效色（非法/空自动回退主题/默认，滑杆起点即所见色）。 */
-    private static int settColorVal(int sel) { return sel == 0 ? SciSkin.wireOut() : sel == 1 ? SciSkin.wireIn() : sel == 2 ? SciSkin.canvasBg() : SciSkin.canvasGridBase(); }
+    /** m239 根因修复：scopeCanvas 只在 render 帧内开（m214 try/finally），而滑杆写值走 mouse 事件路径——
+     *  作用域是关的，canvasBg() 空值回退落到**终端主题**浅墨（紫晶≈E7EAF3）：点一下滑杆起点就是白、
+     *  当场写进背景色="白色阴魂不散/清了又回来"。取色收口函数自己保证画布作用域（保存/恢复，
+     *  渲染期已 true 不破坏）。 */
+    private static int settColorVal(int sel) {
+        boolean prev = SciSkin.scopedCanvas();
+        SciSkin.scopeCanvas(true);
+        try { return sel == 0 ? SciSkin.wireOut() : sel == 1 ? SciSkin.wireIn() : sel == 2 ? SciSkin.canvasBg() : SciSkin.canvasGridBase(); }
+        finally { SciSkin.scopeCanvas(prev); }
+    }
     /** m223 按鼠标位写所选色某通道（照 m202 thApplySlider：改串→setText 触发 listener→配置→SciSkin 缓存重解析=即时预览）。 */
     private void settApplySlider(double mx) {
         int px = settPos()[0];
@@ -1564,7 +1574,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         String[] chn = {"R", "G", "B"};
         for (int ch = 0; ch < 3; ch++) {
             int v = (cvSel >> (16 - ch * 8)) & 0xFF;
-            int sy = sy0 + 14 + ch * 17;
+            int sy = sy0 + 14 + ch * SETT_SL_SP; // m239 内距收口
             ctx.drawText(this.textRenderer, chn[ch], px + 14, sy + 1, SciSkin.SUB, false);
             ctx.fill(px + SETT_SL_X - 1, sy - 1, px + SETT_SL_X + SETT_SL_W + 1, sy + 11, SciSkin.CELL_FRM); // 轨
             ctx.fill(px + SETT_SL_X, sy, px + SETT_SL_X + SETT_SL_W, sy + 10, SciSkin.CELL);
@@ -1666,7 +1676,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int sy0 = py + SETT_SL_Y + 14; // m223 滑杆命中（三轨，几何与 renderSettings 同一套）：点轨=起拖并立即写值
         if (mouseX >= px + SETT_SL_X - 2 && mouseX <= px + SETT_SL_X + SETT_SL_W + 2) {
             for (int ch = 0; ch < 3; ch++) {
-                int sy = sy0 + ch * 17;
+                int sy = sy0 + ch * SETT_SL_SP; // m239 内距收口
                 if (mouseY >= sy - 2 && mouseY <= sy + 12) { settSlDrag = ch; settApplySlider(mouseX); return true; }
             }
         }
