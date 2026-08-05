@@ -27,8 +27,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class CraftPlanner {
     private CraftPlanner() {}
 
-    /** needs: 每次合成消耗（物品id→数量）；resultCount: 单次产量；remainders: 每次合成返还（桶等容器）。 */
-    public record Plan(Map<String, Integer> needs, int resultCount, Map<String, Integer> remainders) {}
+    /** needs: 每次合成消耗（物品id→数量）；resultCount: 单次产量；remainders: 每次合成返还（桶等容器）；
+     *  recipeId: 配方注册 id（m235 手选配方按它定位；needs 为 LinkedHashMap 保配方格序，菜单摘要稳定）。 */
+    public record Plan(Map<String, Integer> needs, int resultCount, Map<String, Integer> remainders, String recipeId) {}
 
     private static final Map<String, java.util.List<Plan>> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, java.util.Set<String>> WANTS = new ConcurrentHashMap<>();
@@ -77,8 +78,8 @@ public final class CraftPlanner {
             }
             if (out == null || out.isEmpty() || out.getItem() != target) continue;
 
-            Map<String, Integer> needs = new HashMap<>();
-            Map<String, Integer> remainders = new HashMap<>();
+            Map<String, Integer> needs = new java.util.LinkedHashMap<>();
+            Map<String, Integer> remainders = new java.util.LinkedHashMap<>();
             boolean ok = true;
             for (Ingredient ing : r.getIngredients()) {
                 if (ing.isEmpty()) continue;
@@ -90,7 +91,7 @@ public final class CraftPlanner {
                 if (rem != null) remainders.merge(Registries.ITEM.getId(rem).toString(), 1, Integer::sum);
             }
             if (!ok || needs.isEmpty()) continue; // 无固定材料的特殊配方不支持
-            found.add(Map.entry(entry.id(), new Plan(needs, out.getCount(), remainders)));
+            found.add(Map.entry(entry.id(), new Plan(needs, out.getCount(), remainders, entry.id().toString())));
         }
         found.sort(java.util.Comparator
                 .comparingInt((Map.Entry<Identifier, Plan> e) -> "minecraft".equals(e.getKey().getNamespace()) ? 0 : 1)

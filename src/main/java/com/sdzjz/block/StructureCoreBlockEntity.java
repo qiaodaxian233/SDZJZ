@@ -488,6 +488,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (cycles <= 0) continue;
                 java.util.List<CraftPlanner.Plan> planC = CraftPlanner.plans(world, target); // m234 全候选（原版排前）
                 if (planC.isEmpty()) continue; // 无合成配方
+                CraftPlanner.Plan chosen = null; // m235 手选配方（空/失效=自动；缺料按手选那条报）
+                String chosenR = craftRecipe(st);
+                if (!chosenR.isEmpty()) for (CraftPlanner.Plan pp : planC) if (pp.recipeId().equals(chosenR)) { chosen = pp; break; }
                 int running = runningCount(st, parallelLv, tier);   // m99 并发直接乘台数
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 提前解析：封顶只对"进内部缓存"生效
@@ -495,7 +498,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 CraftPlanner.Plan plan; // m234 拿到库存视图后再定案（谁的料齐用谁；都不齐回退首候选按原版材料报缺料）
                 if (hasIn[i]) {
                     final int fi = i;
-                    plan = CraftPlanner.pick(planC, k -> be.bufCountFor(fi, k));
+                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, k -> be.bufCountFor(fi, k)); // m235
                     if (!hasOut[i] && depositAc == null)
                         crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 只在无存储时封顶（剑/图腾等max=1时防白扣）
                     for (var en : plan.needs().entrySet())
@@ -514,7 +517,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     }
                     if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     final com.sdzjz.machine.StorageAccess sup = supply;
-                    plan = CraftPlanner.pick(planC, k -> sup.count(k));
+                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, k -> sup.count(k)); // m235
                     if (!hasOut[i] && depositAc == null)
                         crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 同上
                     for (var en : plan.needs().entrySet())
@@ -1173,6 +1176,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static java.util.List<String> cropList(ItemStack s) { return com.sdzjz.node.NodeTags.cropList(s); }
 
     public static String craftTarget(ItemStack s) { return com.sdzjz.node.NodeTags.craftTarget(s); }
+    public static String craftRecipe(ItemStack s) { return com.sdzjz.node.NodeTags.craftRecipe(s); } // m235
 
     // ===== 画布逻辑节点：过滤器 / 数量传感器 =====
     static NbtCompound nbtOf(ItemStack s) { return com.sdzjz.node.NodeTags.nbtOf(s); }
@@ -1336,6 +1340,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleFilterEntry(int index, String id) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
+        if ("#cr".equals(id) && s.getItem() instanceof AutoCrafterItem) { // m235 配方换挡复用此收包口（#xr 同款哨兵工艺）：
+            // 自动(-1)→候选0→候选1→…→回自动；候选序=CraftPlanner.plans 原版排前+id字典序，双端同源循环稳定
+            String tgt = craftTarget(s);
+            java.util.List<CraftPlanner.Plan> ps = tgt.isEmpty() ? java.util.List.of() : CraftPlanner.plans(world, tgt);
+            NbtCompound nc = nbtOf(s);
+            String cur = nc.contains("cr") ? nc.getString("cr") : "";
+            int at = -1;
+            for (int k = 0; k < ps.size(); k++) if (ps.get(k).recipeId().equals(cur)) { at = k; break; }
+            int nxt = at + 1;
+            if (nxt >= ps.size()) nc.remove("cr"); else nc.putString("cr", ps.get(nxt).recipeId());
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nc));
+            markDirty();
+            syncToClient();
+            return;
+        }
         if ("#xr".equals(id) && isExtractor(s)) { // m159 抽取量换挡复用此收包口；m163a 扩至五挡（用户点名"还是太少"）
             NbtCompound nx = nbtOf(s);
             long cur = extractorRate(s);
@@ -1486,6 +1505,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             n.remove("ct");
         } else {
             n.putString("ct", id);
+            n.remove("cr"); // m235 换目标即回"自动"（旧手选配方不属于新目标）
         }
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         markDirty();
@@ -1982,7 +2002,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else if (st.getItem() instanceof AutoCrafterItem) {
             java.util.Set<String> needs = crafterNeeds.computeIfAbsent(i, k -> {
                 String tgt = craftTarget(st);
-                return tgt.isEmpty() ? java.util.Set.of() : CraftPlanner.wants(world, tgt); // m234 全候选并集：任一配方用得上的都想要
+                if (tgt.isEmpty()) return java.util.Set.of();
+                String cr = craftRecipe(st); // m235 手选=只要那条的料；自动=全候选并集（m234）
+                if (!cr.isEmpty()) for (var pp : CraftPlanner.plans(world, tgt))
+                    if (pp.recipeId().equals(cr)) return pp.needs().keySet();
+                return CraftPlanner.wants(world, tgt);
             });
             return needs.contains(id);
         } else if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) {
@@ -2304,6 +2328,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (st.getItem() instanceof AutoCrafterItem) {
             String tgt = craftTarget(st);
             if (tgt.isEmpty()) return false;
+            String cr = craftRecipe(st); // m235 手选=只收那条的料
+            if (!cr.isEmpty()) for (var pp : CraftPlanner.plans(world, tgt))
+                if (pp.recipeId().equals(cr)) return pp.needs().containsKey(id);
             return CraftPlanner.wants(world, tgt).contains(id); // m234 全候选并集
         }
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) { // m131b：吃酿造链材料+燃料

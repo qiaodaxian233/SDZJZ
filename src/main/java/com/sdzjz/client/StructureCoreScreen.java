@@ -1727,6 +1727,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
     }
 
+    /** m235 配方摘要：按配方格序取前两种材料"N×名+N×名+…"。 */
+    private static String planLabel(com.sdzjz.machine.CraftPlanner.Plan pl) {
+        StringBuilder b = new StringBuilder();
+        int k = 0;
+        for (var en : pl.needs().entrySet()) {
+            if (k++ == 2) { b.append("+…"); break; }
+            if (b.length() > 0) b.append('+');
+            b.append(en.getValue()).append('×')
+             .append(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey()))).getName().getString());
+        }
+        return b.toString();
+    }
+
     private void openNodeMenu(int idx, int atX, int atY) {
         StructureCoreBlockEntity be = be();
         if (be == null || idx < 0 || idx >= be.nodes().size()) return;
@@ -1753,8 +1766,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
         }
         addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 2, () -> clearLinksOfMachine(idx));
-        if (st.getItem() instanceof AutoCrafterItem)
+        if (st.getItem() instanceof AutoCrafterItem) {
             addMenu("选择合成目标", mi(net.minecraft.item.Items.CRAFTING_TABLE), 2, () -> openPicker(idx));
+            String tgtR = StructureCoreBlockEntity.craftTarget(st); // m235 多配方目标可手选配方（单配方不显示不添乱）
+            if (!tgtR.isEmpty() && this.client != null && this.client.world != null) {
+                java.util.List<com.sdzjz.machine.CraftPlanner.Plan> psR =
+                        com.sdzjz.machine.CraftPlanner.plans(this.client.world, tgtR);
+                if (psR.size() > 1) {
+                    String curR = StructureCoreBlockEntity.craftRecipe(st);
+                    String lbl = "配方: 自动(按库存)";
+                    for (var pp : psR) if (pp.recipeId().equals(curR)) { lbl = "配方: " + planLabel(pp); break; }
+                    addMenu(lbl + " → 换", mi(net.minecraft.item.Items.KNOWLEDGE_BOOK),
+                            () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#cr")); });
+                }
+            }
+        }
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem)
             addMenu("选择目标药水", mi(net.minecraft.item.Items.BREWING_STAND), 2, () -> openPotionPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)

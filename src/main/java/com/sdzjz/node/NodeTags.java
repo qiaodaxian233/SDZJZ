@@ -36,6 +36,12 @@ public final class NodeTags {
         return n.contains("ct") ? n.getString("ct") : "";
     }
 
+    /** m235 合成机手选配方 id（空=自动按库存挑，m234）。 */
+    public static String craftRecipe(ItemStack s) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        return n.contains("cr") ? n.getString("cr") : "";
+    }
+
     public static NbtCompound nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
         return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
     }
