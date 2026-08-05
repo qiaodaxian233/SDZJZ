@@ -164,7 +164,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.lastEndpointScan = world.getTime();
             be.scanStorageEndpoints(world, pos);
         }
-        if (world.getTime() % 200 == 0) be.syncToClient(); // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）
+        // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）。m181 瘦身两刀：
+        // ① pos 哈希错峰——多核心不再同一全局 tick 齐发全量包；② 无人看画布不发——事件同步(23处 syncToClient)照旧，
+        // 开画布首帧鲜度由 createMenu 即时强刷保证，观众在场后 ≤10s 内兜底节奏恢复，最坏陈旧窗与旧行为等长。
+        if (Math.floorMod(world.getTime() + pos.hashCode(), 200) == 0 && be.hasCanvasViewer(world)) be.syncToClient();
         // m115 过载保护：平均 tick >45ms 全线自动暂停（<40ms 恢复，滞回防抖）；>60ms 清理本核心喷出的掉落物
         if (be.ticks % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw115) {
             float ms = sw115.getServer().getAverageTickTime();
@@ -2289,6 +2292,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         nodeReason.clear(); // m178
     }
 
+    /** m181 是否有玩家正开着本核心的画布（判定复用 m89 端点直发同款：currentScreenHandler 指向本 pos）。 */
+    private boolean hasCanvasViewer(World world) {
+        if (!(world instanceof net.minecraft.server.world.ServerWorld sw)) return false;
+        for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+            if (sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h
+                    && pos.equals(h.blockPos())) return true;
+        }
+        return false;
+    }
+
     private void syncToClient() {
         if (world != null && !world.isClient) {
             if (prof != null) { // m177 同步账单：包数+NBT 编码字节（增量同步改造前后在此对表）
@@ -2837,6 +2850,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     @Nullable
     @Override
     public ScreenHandler createMenu(int syncId, PlayerInventory inv, PlayerEntity player) {
+        syncToClient(); // m181 开画布即时强刷：兜底改为"有人看才发"后，开屏首帧鲜度由这里兜住（服务端调用，客户端侧 syncToClient 自判跳过）
         return new StructureCoreScreenHandler(syncId, inv, this);
     }
 
