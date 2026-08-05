@@ -188,11 +188,27 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             double[] v = VIEW.get(p);
             panX = v[0]; panY = v[1]; zoom = v[2];
         }
-        this.addDrawableChild(new SciButton(8, this.height - 74, 90, 20, Text.literal("▶ 开机"), b -> click(0)));
-        this.addDrawableChild(new SciButton(104, this.height - 74, 90, 20, Text.literal("■ 停止"), b -> click(1)));
-        this.addDrawableChild(new SciButton(200, this.height - 74, 96, 20, Text.literal("★ 领取经验"), b -> click(2)));
-        this.addDrawableChild(new SciButton(300, this.height - 74, 92, 20, Text.literal("整理布局"), b -> autoLayout())); // m85 概念图底栏
-        this.addDrawableChild(new SciButton(396, this.height - 74, 92, 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; }));
+        // m182 底栏五钮防溢出：常规宽度坐标与旧版逐像素一致(8/104/200/300/396)；右缘越过安全边距的按钮
+        // （320 GUI 视口下"整理布局/重置视角"右缘 392/488 > 312）折行到状态条(height-78)上方流式摆放，
+        // setX/setY 走 pickerField 同款在树先例。历史坐标单调递增 → 放得下的必是前缀，折行只会发生在尾部。
+        int[] bbX = {8, 104, 200, 300, 396};
+        int[] bbW = {90, 90, 96, 92, 92};
+        SciButton[] bb = {
+                new SciButton(0, 0, bbW[0], 20, Text.literal("▶ 开机"), b -> click(0)),
+                new SciButton(0, 0, bbW[1], 20, Text.literal("■ 停止"), b -> click(1)),
+                new SciButton(0, 0, bbW[2], 20, Text.literal("★ 领取经验"), b -> click(2)),
+                new SciButton(0, 0, bbW[3], 20, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
+                new SciButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; })
+        };
+        int bbLim = this.width - 8, bbFx = 8, bbFy = this.height - 102; // 折行首行=状态条上方 4px（与画布剪刀 height-78 不撞）
+        for (int i = 0; i < bb.length; i++) {
+            if (bbX[i] + bbW[i] <= bbLim) { bb[i].setX(bbX[i]); bb[i].setY(this.height - 74); }
+            else {
+                if (bbFx + bbW[i] > bbLim && bbFx > 8) { bbFx = 8; bbFy -= 24; }
+                bb[i].setX(bbFx); bb[i].setY(bbFy); bbFx += bbW[i] + 6;
+            }
+            this.addDrawableChild(bb[i]);
+        }
         this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
         this.addDrawableChild(new SciButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
         int wr2 = this.width - 8; // m121 视图控制随全屏右移
