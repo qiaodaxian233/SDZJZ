@@ -3207,3 +3207,39 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   Tom's Simple Storage/Create 置物台/Storage Drawers：同样能收货；⑥把口贴在存储核心旁开启：不搬
   （自家排除）；⑦十个口同时开：F3 mspt 无同拍尖峰（移相）；⑧config 改 extractPortBatch=4096：
   单拍搬运量明显变大。
+
+## m226 抽取口配置界面（作者点名"扳手右键连接线…可以选择抽取什么"的收口一半）
+- **落地**：扳手**右键**数据线=打开「抽取口配置」屏（潜行右键快速开关 m225 口径不变）：
+  - **开屏链路**照数据面板同款三方法：DataCableBlockEntity 挂 ExtendedScreenHandlerFactory<BlockPos>
+    （getDisplayName/createMenu/getScreenOpeningData），WrenchItem 非潜行分支 openHandledScreen；
+    ExtractPortScreenHandler 注册 ExtendedScreenHandlerType+BlockPos.PACKET_CODEC，客户端
+    HandledScreens.register 五屏成列。
+  - **9 幽灵过滤槽**（=m225 过滤模板上限）：光标有物品点槽=登记模板（count 恒 1、**光标一件不少**），
+    空光标点槽=清除；背包物品 shift 点=登记进第一个空槽（物品原地不动、重复模板不占格，AE2 手感）；
+    过滤槽 shift/Q=清除。幽灵槽 canInsert/canTakeItems 双 false 把原版 SWAP/QUICK_CRAFT/PICKUP_ALL
+    路径全挡死；CLONE 显式无操作（防创造中键把模板凭空复制成真栈）。
+  - **服务端权威**（守则"onSlotClick/quickMove 双端执行"口径）：幽灵层是 handler 私有 SimpleInventory
+    （开屏由服务端灌入 BE 过滤，槽内容走原版槽同步零新协议）；落盘只在服务端做——setFilter 重建
+    BE.filterView()+markDirty，落盘压空位重开左对齐属预期；双人同开同口=各自幽灵层后写胜，与原版容器同级。
+  - **状态同步**：PropertyDelegate 两位 [0]=开关 [1]=邻接可对接存储数（服务端实读 BE，六向探测仅开屏
+    期间每 tick 一轮，m107a 面板同量级）；启停钮走 onButtonClick id=0（与潜行右键同一开关）。
+  - **界面**（科技风自绘零贴图，SciSkin 常量零新色）：标题+启停钮（状态灯 ON 绿/离线灰）+邻接计数
+    （0 台柔和红提醒）+一排 9 格+提示行"放入物品登记模板 · 空=全部抽取"+背包；四屏同款角标格；
+    启停钮几何收口常量 BTN_X/Y/W/H 渲染点击同源（m215/m223 教训）。
+  - lang：新增 sdzjz.extract_port.* 六键双语；扳手右键改开界面后 sdzjz.wrench.found/none 报告键退役
+    （邻接计数在界面里常显），on/off 键保留给潜行开关。零新配置。
+- **教训**：幽灵槽这类"只登记不搬运"的槽，光把自定义分支写进 onSlotClick 不够——原版还有
+  SWAP/CLONE/QUICK_CRAFT/PICKUP_ALL 四条旁路都能摸到槽，必须 canInsert/canTakeItems 双 false 兜底
+  +CLONE 显式吞掉，否则创造模式中键就能把模板复制成真物品。
+- **断言**：语法冒烟 0（javac 全库，仅缺 MC 依赖噪音）；自家新符号（ExtractPortScreenHandler/
+  ExtractPortScreen/EXTRACT_PORT/setFilter/adjacentCount/getScreenOpeningData）作缺失符号 grep=0；
+  双语 lang 各 142 键 JSON 过 load、退役键残留 grep=0；docs_sync ✓94。
+- **待编译验证**：ScreenHandler#onSlotClick(int,int,SlotActionType,PlayerEntity) 覆写签名（在树无覆写
+  先例，已拉 yarn 1.21.1 mapping 核对 method_7593）；Slot#canTakeItems(PlayerEntity) 匿名覆写同上
+  （method_7674 已核）。
+- **实机验证脚本**：①扳手右键数据线：开"抽取口配置"屏，启停钮显当前开关、旁接存储计数正确（贴一个
+  箱子=1）；②手持物品点过滤槽：槽内出现模板、手上一件不少；空手点=清除；③背包 shift 点物品：登记进
+  第一个空格、物品原地不动，再 shift 同物品=不重复占格；④过滤槽 shift 或 Q：清除；⑤创造模式中键点
+  过滤槽：不产生真物品；⑥登记"铁锭"后开启：箱子只进铁锭；清空全部模板：回全部抽取；⑦点启停钮=潜行
+  右键同一开关（界面开的潜行能关）；⑧关屏重开：模板保持（左对齐属预期）、退出重进存档同样保持；
+  ⑨拿附魔书登记（带组件模板）：只搬该附魔书不混堆不变裸（m225 精确通道）。

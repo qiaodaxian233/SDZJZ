@@ -2,6 +2,7 @@ package com.sdzjz.registry;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.screen.DataPanelScreenHandler;
+import com.sdzjz.screen.ExtractPortScreenHandler;
 import com.sdzjz.screen.TradeCenterScreenHandler;
 import com.sdzjz.screen.StructureCoreScreenHandler;
 import com.sdzjz.screen.SuperBenchScreenHandler;
@@ -29,6 +30,10 @@ public class ModScreenHandlers {
     public static final ScreenHandlerType<TradeCenterScreenHandler> TRADE_CENTER =
             Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("trade_center"),
                     new ExtendedScreenHandlerType<>(TradeCenterScreenHandler::new, BlockPos.PACKET_CODEC));
+
+    public static final ScreenHandlerType<ExtractPortScreenHandler> EXTRACT_PORT = // m226 数据线抽取口配置
+            Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("extract_port"),
+                    new ExtendedScreenHandlerType<>(ExtractPortScreenHandler::new, BlockPos.PACKET_CODEC));
 
     public static void init() {}
 }

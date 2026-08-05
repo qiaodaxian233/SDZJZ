@@ -30,18 +30,17 @@ public class WrenchItem extends Item {
         if (!(world.getBlockState(pos).getBlock() instanceof DataCableBlock)) return ActionResult.PASS;
         if (world.isClient) return ActionResult.SUCCESS;
         PlayerEntity player = ctx.getPlayer();
-        int n = DataCableBlockEntity.adjacentStorages(world, pos).size();
-        if (player != null && player.isSneaking() // m225 潜行右键=快速开/关抽取口（右键=配置界面留 m226）
-                && world.getBlockEntity(pos) instanceof DataCableBlockEntity cable) {
-            cable.setExtractOn(!cable.extractOn());
-            player.sendMessage(cable.extractOn()
-                    ? Text.translatable("sdzjz.wrench.on", n)
-                    : Text.translatable("sdzjz.wrench.off"), true);
-            return ActionResult.SUCCESS;
+        if (player != null && world.getBlockEntity(pos) instanceof DataCableBlockEntity cable) {
+            if (player.isSneaking()) { // m225 潜行右键=快速开/关抽取口
+                int n = DataCableBlockEntity.adjacentStorages(world, pos).size();
+                cable.setExtractOn(!cable.extractOn());
+                player.sendMessage(cable.extractOn()
+                        ? Text.translatable("sdzjz.wrench.on", n)
+                        : Text.translatable("sdzjz.wrench.off"), true);
+            } else { // m226 右键=抽取口配置界面（9 幽灵过滤槽+启停钮；邻接存储计数在界面里常显）
+                player.openHandledScreen(cable);
+            }
         }
-        if (player != null) player.sendMessage(n > 0
-                ? Text.translatable("sdzjz.wrench.found", n)
-                : Text.translatable("sdzjz.wrench.none"), true);
         return ActionResult.SUCCESS;
     }
 }

@@ -22,8 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** 数据线方块实体：能量脉冲动画的渲染载体（BER 挂点）；m225 起兼作「抽取口」——扳手启用后，
- *  周期性把相连存储核心账本里的物品（按过滤，空=全部）塞进邻接的任意 Fabric Transfer API 存储。 */
-public class DataCableBlockEntity extends BlockEntity {
+ *  周期性把相连存储核心账本里的物品（按过滤，空=全部）塞进邻接的任意 Fabric Transfer API 存储。
+ *  m226：兼作抽取口配置屏的开屏工厂（扳手右键 openHandledScreen，数据面板同款三方法）。 */
+public class DataCableBlockEntity extends BlockEntity
+        implements net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos> {
 
     // ===== m225 抽取口状态（NBT 持久化；过滤模板由 m226 配置界面编辑）=====
     private boolean extractOn = false;
@@ -41,6 +43,23 @@ public class DataCableBlockEntity extends BlockEntity {
     public void setExtractOn(boolean on) { extractOn = on; markDirty(); }
     /** 过滤模板视图（m226 界面读写；写入方自行 markDirty）。 */
     public List<ItemStack> filterView() { return filter; }
+
+    // ===== m226 抽取口配置屏开屏工厂（数据面板同款三方法）=====
+    @Override
+    public net.minecraft.text.Text getDisplayName() {
+        return net.minecraft.text.Text.translatable("sdzjz.extract_port.title");
+    }
+
+    @Override
+    public net.minecraft.screen.ScreenHandler createMenu(int syncId, net.minecraft.entity.player.PlayerInventory inv,
+                                                         net.minecraft.entity.player.PlayerEntity player) {
+        return new com.sdzjz.screen.ExtractPortScreenHandler(syncId, inv, this);
+    }
+
+    @Override
+    public BlockPos getScreenOpeningData(net.minecraft.server.network.ServerPlayerEntity player) {
+        return this.pos;
+    }
 
     /** m224 邻接可抽取存储探测：任意暴露 Fabric Transfer API 的容器都算（原版箱子有 Fabric 内建适配；
      *  Tom's Simple Storage / AE2 / Storage Drawers / Create 等一切 Fabric 物流模组即插即用——走标准
