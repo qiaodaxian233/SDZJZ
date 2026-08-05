@@ -201,7 +201,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private TextFieldWidget bgField, gridColField;       // m217 背景色/网格色 RRGGBB：空=跟随主题；live 写实例即时预览
     private TermButton[] bottomBtns;                      // m219 底部五钮存引用："状态"钮切换后就地重摆（botTop 变高矮）
     private boolean helpOpen = false;                     // m219 帮助卡（操作提示行迁入，modal 同吞穿透口径）
-    private static final int SETT_W = 236, SETT_H = 332, SETT_ROW = 24; // m211 +24：第7行主题预设；m217 +96：背景四行（6~9），预设/恢复默认下移至10/11行位
+    private static final int SETT_W = 236, SETT_H = 394, SETT_ROW = 24; // m211 +24：第7行主题预设；m217 +96：背景四行（6~9）；m223 +62：RGB 滑杆调节区（预设/恢复默认再下移）
+    // m223 颜色行 RGB 滑杆调节区（作者点名照终端主题编辑器"图六那样，不能让我自己输入"；渲染/点击几何共用以下常量，改必同改）
+    private static final int SETT_SL_Y = 24 + 10 * SETT_ROW + 2;  // 调节区头行 y 偏移（=266）
+    private static final int SETT_PRESET_Y = SETT_SL_Y + 70;      // 主题预设行 y 偏移（=336，m217 的 10 行位退役）
+    private static final int SETT_RESET_Y = SETT_PRESET_Y + 26;   // 恢复默认钮 y 偏移（=362，m217 的 11 行位退役）
+    private static final int SETT_SL_X = 32, SETT_SL_W = 146;     // 滑轨 x 偏移/宽（照 m202 终端滑杆工艺）
+    private static final String[] SETT_COLOR_NAMES = {"出线颜色", "进线颜色", "背景色", "网格色"}; // 调节目标名（序=setFs 序）
+    private int settColSel = 2;   // m223 调节目标：0出线 1进线 2背景 3网格（默认背景色，作者截图点名的行）
+    private int settSlDrag = -1;  // m223 拖动中的通道 0R/1G/2B；-1=没拖
 
     // m110a 小地图（纯客户端零协议）
     private boolean mapOpen = false;
@@ -1468,6 +1476,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private void closeSettings() {
         settingsOpen = false;
+        settSlDrag = -1; // m223 兜底：拖着滑杆按 Esc 关窗不留残拖
         wireOutField.setFocused(false);
         wireInField.setFocused(false);
         bgField.setFocused(false);   // m217
@@ -1477,6 +1486,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     /** 面板左上角 {px, py}（居中；行区 py+24 起每行 SETT_ROW，几何被 renderSettings/settingsClick 共用，改必同改）。 */
     private int[] settPos() { return new int[]{(this.width - SETT_W) / 2, Math.max(2, (this.height - SETT_H) / 2)}; } // m217 变高后钳顶：极小视口宁可底部出屏也保头部可达
+
+    // ===== m223 颜色行↔调节目标公共表（渲染与点击同源，改必同改）=====
+    /** 面板行号→调节下标（3出线/4进线/6背景/7网格；其余 -1）。 */
+    private static int settSelOfRow(int r) { return r == 3 ? 0 : r == 4 ? 1 : r == 6 ? 2 : r == 7 ? 3 : -1; }
+    /** 调节下标→输入框（序=setFs 序：出线/进线/背景/网格）。 */
+    private TextFieldWidget settColorField(int sel) { return sel == 0 ? wireOutField : sel == 1 ? wireInField : sel == 2 ? bgField : gridColField; }
+    /** 调节下标→当前生效色（非法/空自动回退主题/默认，滑杆起点即所见色）。 */
+    private static int settColorVal(int sel) { return sel == 0 ? SciSkin.wireOut() : sel == 1 ? SciSkin.wireIn() : sel == 2 ? SciSkin.canvasBg() : SciSkin.canvasGridBase(); }
+    /** m223 按鼠标位写所选色某通道（照 m202 thApplySlider：改串→setText 触发 listener→配置→SciSkin 缓存重解析=即时预览）。 */
+    private void settApplySlider(double mx) {
+        int px = settPos()[0];
+        int v = (int) Math.round(Math.max(0, Math.min(1, (mx - (px + SETT_SL_X)) / (double) (SETT_SL_W - 4))) * 255);
+        int cv = settColorVal(settColSel);
+        int r = (cv >> 16) & 0xFF, g = (cv >> 8) & 0xFF, b = cv & 0xFF;
+        if (settSlDrag == 0) r = v; else if (settSlDrag == 1) g = v; else b = v;
+        settColorField(settColSel).setText(String.format("%02X%02X%02X", r, g, b));
+    }
 
     /** RRGGBB 合法性（允许带#，1~6 位十六进制）；只作红线提示，非法值渲染层自会回退默认（m198 parseHex）。 */
     private static boolean hexOk(String s) {
@@ -1518,18 +1544,37 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                                   : Math.round(Math.max(0, Math.min(2, c.canvasVignetteStrength)) * 100) + "%";
                 ctx.drawText(this.textRenderer, v, px + SETT_W - 42 - this.textRenderer.getWidth(v) / 2, ry + 3, SciSkin.TXT_HI, false);
             } else { // 颜色行：输入框 + 生效色样片（样片直读生效色=非法/空自动显回退色，红下划线只提示"非空且非法"——背景/网格行空=跟随主题属合法）
-                TextFieldWidget f = r == 3 ? wireOutField : r == 4 ? wireInField : r == 6 ? bgField : gridColField;
+                int sel = settSelOfRow(r); // m223 点行/点样片可选中，下方滑杆调它
+                TextFieldWidget f = settColorField(sel);
                 f.setX(px + SETT_W - 96);
                 f.setY(ry);
                 f.render(ctx, mouseX, mouseY, delta);
-                int sw = r == 3 ? SciSkin.wireOut() : r == 4 ? SciSkin.wireIn() : r == 6 ? SciSkin.canvasBg() : SciSkin.canvasGridBase();
-                ctx.fill(px + SETT_W - 25, ry - 1, px + SETT_W - 9, ry + 15, SciSkin.CELL_FRM);
+                int sw = settColorVal(sel);
+                ctx.fill(px + SETT_W - 25, ry - 1, px + SETT_W - 9, ry + 15,
+                        sel == settColSel ? SciSkin.ACCENT : SciSkin.CELL_FRM); // m223 选中环（照 m202 终端选中环工艺）
                 ctx.fill(px + SETT_W - 24, ry, px + SETT_W - 10, ry + 14, sw);
                 boolean emptyOk = (r == 6 || r == 7) && f.getText().isBlank();
                 if (!emptyOk && !hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
             }
         }
-        int ry6 = py + 24 + 10 * SETT_ROW; // m211 主题预设行：5 套一键换肤（m214 只写画布7键；m217 下移至10行位）
+        // ===== m223 RGB 滑杆调节区（照 m202 终端主题编辑器工艺；拖滑杆写十六进制串→listener→配置→即时预览）=====
+        int sy0 = py + SETT_SL_Y;
+        ctx.drawText(this.textRenderer, "调节: " + SETT_COLOR_NAMES[settColSel] + "（点色行切换）", px + 10, sy0, SciSkin.TXT, false);
+        int cvSel = settColorVal(settColSel);
+        String[] chn = {"R", "G", "B"};
+        for (int ch = 0; ch < 3; ch++) {
+            int v = (cvSel >> (16 - ch * 8)) & 0xFF;
+            int sy = sy0 + 14 + ch * 17;
+            ctx.drawText(this.textRenderer, chn[ch], px + 14, sy + 1, SciSkin.SUB, false);
+            ctx.fill(px + SETT_SL_X - 1, sy - 1, px + SETT_SL_X + SETT_SL_W + 1, sy + 11, SciSkin.CELL_FRM); // 轨
+            ctx.fill(px + SETT_SL_X, sy, px + SETT_SL_X + SETT_SL_W, sy + 10, SciSkin.CELL);
+            int kx = px + SETT_SL_X + (int) Math.round(v / 255.0 * (SETT_SL_W - 4));
+            ctx.fill(px + SETT_SL_X, sy, kx + 2, sy + 10, SciSkin.withAlpha(SciSkin.ACCENT, 0.55f)); // 已填段
+            ctx.fill(kx, sy - 1, kx + 4, sy + 11, settSlDrag == ch ? SciSkin.TXT_MAX : SciSkin.ACCENT); // 滑钮
+            ctx.fill(kx + 1, sy, kx + 3, sy + 10, SciSkin.TXT_MAX);
+            ctx.drawText(this.textRenderer, String.valueOf(v), px + SETT_SL_X + SETT_SL_W + 8, sy + 1, SciSkin.TXT_HI, false);
+        }
+        int ry6 = py + SETT_PRESET_Y; // m211 主题预设行：5 套一键换肤（m214 只写画布7键；m223 下移至常量位）
         ctx.drawText(this.textRenderer, "主题预设", px + 10, ry6 + 3, SciSkin.TXT, false);
         int hovPk = -1;
         for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
@@ -1541,7 +1586,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(bx + 3, ry6 + 3, bx + 17, ry6 + 11, SciSkin.hex(SciSkin.TERM_PRESETS[k][2], SciSkin.termAccent())); // 心=预设强调
         }
         if (hovPk >= 0) ctx.drawText(this.textRenderer, SciSkin.TERM_PRESET_NAMES[hovPk], px + 62, ry6 + 3, SciSkin.TXT_HI, false);
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 11 * SETT_ROW + 2; // 恢复默认（回本面板十项；m217 下移至11行位）
+        int rx = px + (SETT_W - 64) / 2, rby = py + SETT_RESET_Y; // 恢复默认（回本面板十项；m223 下移至常量位）
         boolean rh = mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16;
         ctx.fill(rx - 1, rby - 1, rx + 65, rby + 17, rh ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
@@ -1584,9 +1629,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int px = settPos()[0], py = settPos()[1];
         if (mouseX < px || mouseX > px + SETT_W || mouseY < py || mouseY > py + SETT_H) { closeSettings(); return true; } // 窗外点=关
         TextFieldWidget[] setFs = {wireOutField, wireInField, bgField, gridColField}; // m217 四框互斥聚焦（m202 非children输入框必须显式聚焦）
-        for (TextFieldWidget f : setFs)
-            if (f.mouseClicked(mouseX, mouseY, button)) {
-                for (TextFieldWidget o : setFs) o.setFocused(o == f);
+        for (int i = 0; i < setFs.length; i++)
+            if (setFs[i].mouseClicked(mouseX, mouseY, button)) {
+                for (TextFieldWidget o : setFs) o.setFocused(o == setFs[i]);
+                settColSel = i; // m223 点进哪个色框，滑杆就调哪个（setFs 序=调节下标序）
                 return true;
             }
         for (TextFieldWidget f : setFs) f.setFocused(false);
@@ -1614,8 +1660,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     return true;
                 }
             }
+            int selR = settSelOfRow(r); // m223 点色行（标签区/样片区，输入框命中已在前面处理）=选中该色为调节目标
+            if (selR >= 0 && (mouseX <= px + SETT_W - 98 || mouseX >= px + SETT_W - 26)) { settColSel = selR; return true; }
         }
-        int ry6 = py + 24 + 10 * SETT_ROW; // m211 主题预设点击（几何与 renderSettings 同一套，改必同改；m217 10行位）
+        int sy0 = py + SETT_SL_Y + 14; // m223 滑杆命中（三轨，几何与 renderSettings 同一套）：点轨=起拖并立即写值
+        if (mouseX >= px + SETT_SL_X - 2 && mouseX <= px + SETT_SL_X + SETT_SL_W + 2) {
+            for (int ch = 0; ch < 3; ch++) {
+                int sy = sy0 + ch * 17;
+                if (mouseY >= sy - 2 && mouseY <= sy + 12) { settSlDrag = ch; settApplySlider(mouseX); return true; }
+            }
+        }
+        int ry6 = py + SETT_PRESET_Y; // m211 主题预设点击（几何与 renderSettings 同一套，改必同改；m223 常量位）
         if (mouseY >= ry6 - 1 && mouseY <= ry6 + 15) {
             for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
                 int bx = px + SETT_W - 126 + k * 24;
@@ -1628,7 +1683,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
             }
         }
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 11 * SETT_ROW + 2; // m217 11行位
+        int rx = px + (SETT_W - 64) / 2, rby = py + SETT_RESET_Y; // m223 常量位
         if (mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16) { // 恢复默认：new 实例取字段默认，零硬编码重复
             com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
             c.canvasSmoothZoom = d.canvasSmoothZoom;
@@ -2205,6 +2260,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (settingsOpen && settSlDrag >= 0) { settApplySlider(mouseX); return true; } // m223 设置面板 RGB 滑杆拖动（必须先于下方 settingsOpen 吞穿透）
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
         if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
@@ -2241,6 +2297,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (settSlDrag >= 0) { settSlDrag = -1; return true; } // m223 设置面板 RGB 滑杆收拖（拖动中 setText 只写实例，落盘由 closeSettings 兜底——m199 颜色框同口径）
         if (busScaleDrag) { // m215 松手一次性落盘（拖动中不写文件）
             com.sdzjz.config.SdzjzConfig.get().canvasBusScale = busScale;
             com.sdzjz.config.SdzjzConfig.save();
