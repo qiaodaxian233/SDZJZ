@@ -634,11 +634,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (allEp.get(k)[1] != 6 && (allEp.get(k)[1] == 5) == (kind == 5)) no++;
             title = (kind == 5 ? "数据面板" : "存储") + no;
         }
-        ctx.drawText(this.textRenderer, title, txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
         String tag = KIND[Math.min(kind, 6)];
         int tagC = iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON;
         int tw = this.textRenderer.getWidth(tag);
-        int tgx = txI + this.textRenderer.getWidth(title) + 6;
+        // m189 标题行自动适配（用户截图：药丸/长标题出框）：药丸右贴卡缘位置恒定，
+        // 标题按剩余宽截断加省略号——副行 m164a 已治过，这行是漏网的（tgx 原先跟着标题漂无钳位）。
+        int tgx = Math.max(txI + 12, x + bw() - tw - 7);
+        ctx.drawText(this.textRenderer, fitText(title, tgx - 6 - txI), txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
         ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 14, SciSkin.mix(tagC, 0xFF0A1626, 0.8f)); // m150b 类型药丸
         ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 5, SciSkin.withAlpha(tagC, 0.55f));
         ctx.fill(tgx - 3, y + 13, tgx + tw + 3, y + 14, SciSkin.withAlpha(tagC, 0.55f));
