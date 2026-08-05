@@ -156,6 +156,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private String pickerTitleOverride = null;                     // m149 机器加工过滤的窗题
     private static final int MENU_W = 136, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带
 
+    // ===== m199 画布设置面板（游戏内可调画布客户端项；modal 照 renameField 在树写法）=====
+    private boolean settingsOpen = false;
+    private TextFieldWidget wireOutField, wireInField;   // 出/进线颜色 RRGGBB：live 写配置实例即时预览，关窗落盘
+    private static final int SETT_W = 236, SETT_H = 212, SETT_ROW = 24;
+
     // m110a 小地图（纯客户端零协议）
     private boolean mapOpen = false;
     private boolean mapDragging = false;
@@ -229,6 +234,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
         this.addDrawableChild(new SciButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
+        this.addDrawableChild(new SciButton(244, 2, 44, 16, Text.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
+                b -> { if (settingsOpen) closeSettings(); else openSettings(); }));
         int wr2 = this.width - 8; // m121 视图控制随全屏右移
         this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
@@ -241,6 +248,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         this.renameField = new TextFieldWidget(this.textRenderer, 0, 0, 184, 14, Text.empty()); // 占位仅narration不上屏，empty保literal棘轮
         this.renameField.setMaxLength(24);
         this.renameField.setText(keepG);
+        String keepO = wireOutField != null ? wireOutField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor; // m199 颜色框：重排保留输入，首建取配置现值
+        this.wireOutField = new TextFieldWidget(this.textRenderer, 0, 0, 58, 14, Text.empty()); // 占位仅narration，empty保literal棘轮（m192 教训）
+        this.wireOutField.setMaxLength(7);
+        this.wireOutField.setText(keepO == null ? "" : keepO);
+        this.wireOutField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor = t.trim()); // live 写实例=连线即时预览（SciSkin 串比缓存自动重解析）；落盘在关窗
+        String keepI = wireInField != null ? wireInField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasWireInColor;
+        this.wireInField = new TextFieldWidget(this.textRenderer, 0, 0, 58, 14, Text.empty());
+        this.wireInField.setMaxLength(7);
+        this.wireInField.setText(keepI == null ? "" : keepI);
+        this.wireInField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireInColor = t.trim());
     }
 
     @Override
@@ -248,6 +265,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (zoomAnim) { zoom = zoomTarget; panX = zoomAnchorSx - zoomAnchorWx * zoom; panY = zoomAnchorSy - zoomAnchorWy * zoom; zoomAnim = false; } // m186 结算未完动效再存视图
         BlockPos p = this.handler.blockPos();
         if (p != null) VIEW.put(p, new double[]{panX, panY, zoom});
+        if (settingsOpen) com.sdzjz.config.SdzjzConfig.save(); // m199 设置窗开着直接关屏也把颜色改动落盘
         super.removed();
     }
 
@@ -1246,7 +1264,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             libScroll -= (int) Math.signum(verticalAmount);
             return true;
         }
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0) return true;
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen) return true; // m199 设置窗并入
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             zoomToward(verticalAmount > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪
@@ -1373,6 +1391,133 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         renameField.setX(px + 8);
         renameField.setY(py + 26);
         renameField.render(ctx, mouseX, mouseY, delta);
+    }
+
+    // ===== m199 画布设置面板（六项画布客户端配置 + 恢复默认；机器数值项仍走 config/sdzjz.json）=====
+    private void openSettings() {
+        if (menuOpen) clearMenu();
+        if (pickerNode >= 0) closePicker();
+        if (renameGid >= 0) closeRename();
+        wireOutField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor); // 开窗对齐配置现值（可能被恢复默认/改文件动过）
+        wireInField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireInColor);
+        settingsOpen = true;
+    }
+
+    private void closeSettings() {
+        settingsOpen = false;
+        wireOutField.setFocused(false);
+        wireInField.setFocused(false);
+        com.sdzjz.config.SdzjzConfig.save(); // 关窗落盘（开关/步进即点即存，颜色打字只写实例，这里兜底）
+    }
+
+    /** 面板左上角 {px, py}（居中；行区 py+24 起每行 SETT_ROW，几何被 renderSettings/settingsClick 共用，改必同改）。 */
+    private int[] settPos() { return new int[]{(this.width - SETT_W) / 2, (this.height - SETT_H) / 2}; }
+
+    /** RRGGBB 合法性（允许带#，1~6 位十六进制）；只作红线提示，非法值渲染层自会回退默认（m198 parseHex）。 */
+    private static boolean hexOk(String s) {
+        if (s == null) return false;
+        String t = s.trim().replace("#", "");
+        if (t.isEmpty() || t.length() > 6) return false;
+        for (int i = 0; i < t.length(); i++) if (Character.digit(t.charAt(i), 16) < 0) return false;
+        return true;
+    }
+
+    /** 设置面板渲染（照 renderRename：每帧摆位再渲染）。 */
+    private void renderSettings(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int px = settPos()[0], py = settPos()[1];
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        SciSkin.drawCard(ctx, px, py, SETT_W, SETT_H, SciSkin.FRAME);
+        ctx.drawText(this.textRenderer, "画布设置", px + 8, py + 7, SciSkin.TXT_HI, false);
+        String[] labels = {"缩放平滑动效", "连线宽度随缩放", "线宽封顶倍率", "出线颜色 RRGGBB", "进线颜色 RRGGBB", "跨组连线归并 ×N"};
+        boolean[] tog = {c.canvasSmoothZoom, c.canvasWireScaleWithZoom, false, false, false, c.canvasGroupBundleWires};
+        for (int r = 0; r < 6; r++) {
+            int ry = py + 24 + r * SETT_ROW;
+            ctx.drawText(this.textRenderer, labels[r], px + 10, ry + 3, SciSkin.TXT, false);
+            if (r == 0 || r == 1 || r == 5) { // 开关药丸（开=运行绿族，关=离线灰）
+                boolean on = tog[r];
+                int bx = px + SETT_W - 56;
+                boolean hov = mouseX >= bx && mouseX <= bx + 46 && mouseY >= ry && mouseY <= ry + 14;
+                ctx.fill(bx - 1, ry - 1, bx + 47, ry + 15, on ? SciSkin.ON : SciSkin.CELL_FRM);
+                ctx.fill(bx, ry, bx + 46, ry + 14, on ? SciSkin.ON_DARK : (hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE));
+                String tx = on ? "开" : "关";
+                ctx.drawText(this.textRenderer, tx, bx + 23 - this.textRenderer.getWidth(tx) / 2, ry + 3,
+                        on ? SciSkin.ON : SciSkin.OFF_GRAY, false);
+            } else if (r == 2) { // 步进器 [−] ×N.N [+]（照传感器阈值钮，屏幕坐标版）
+                stBox(ctx, px + SETT_W - 80, ry, "−", mouseX, mouseY);
+                stBox(ctx, px + SETT_W - 24, ry, "+", mouseX, mouseY);
+                String v = "×" + (Math.round(Math.max(0.2, c.canvasWireMaxScale) * 10) / 10.0); // double 拼串恒小数点，免 Locale 逗号坑
+                ctx.drawText(this.textRenderer, v, px + SETT_W - 42 - this.textRenderer.getWidth(v) / 2, ry + 3, SciSkin.TXT_HI, false);
+            } else { // 颜色行：输入框 + 生效色样片（样片直读 wireOut/wireIn=非法自动显回退色，另给红下划线提示）
+                TextFieldWidget f = r == 3 ? wireOutField : wireInField;
+                f.setX(px + SETT_W - 96);
+                f.setY(ry);
+                f.render(ctx, mouseX, mouseY, delta);
+                int sw = r == 3 ? SciSkin.wireOut() : SciSkin.wireIn();
+                ctx.fill(px + SETT_W - 25, ry - 1, px + SETT_W - 9, ry + 15, SciSkin.CELL_FRM);
+                ctx.fill(px + SETT_W - 24, ry, px + SETT_W - 10, ry + 14, sw);
+                if (!hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
+            }
+        }
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 6 * SETT_ROW + 2; // 恢复默认（只回本面板六项）
+        boolean rh = mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16;
+        ctx.fill(rx - 1, rby - 1, rx + 65, rby + 17, rh ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
+        ctx.drawText(this.textRenderer, "恢复默认", rx + 32 - this.textRenderer.getWidth("恢复默认") / 2, rby + 4,
+                rh ? SciSkin.TXT_MAX : SciSkin.TXT, false);
+        ctx.drawText(this.textRenderer, "即改即存 config/sdzjz.json · Esc/点窗外=关", px + 8, py + SETT_H - 13, SciSkin.SUB, false);
+    }
+
+    /** m199 步进小方钮（纯 fill 不依赖字形）。 */
+    private void stBox(DrawContext ctx, int bx, int by, String s, int mouseX, int mouseY) {
+        boolean hov = mouseX >= bx && mouseX <= bx + 14 && mouseY >= by && mouseY <= by + 14;
+        ctx.fill(bx - 1, by - 1, bx + 15, by + 15, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.fill(bx, by, bx + 14, by + 14, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
+        ctx.drawText(this.textRenderer, s, bx + 7 - this.textRenderer.getWidth(s) / 2, by + 3, hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
+    }
+
+    /** m199 设置面板点击派发（几何与 renderSettings 同一套）。恒返回 true=modal 吞穿透（m103 教训）。 */
+    private boolean settingsClick(double mouseX, double mouseY, int button) {
+        int px = settPos()[0], py = settPos()[1];
+        if (mouseX < px || mouseX > px + SETT_W || mouseY < py || mouseY > py + SETT_H) { closeSettings(); return true; } // 窗外点=关
+        if (wireOutField.mouseClicked(mouseX, mouseY, button)) { wireInField.setFocused(false); return true; }
+        if (wireInField.mouseClicked(mouseX, mouseY, button)) { wireOutField.setFocused(false); return true; }
+        wireOutField.setFocused(false);
+        wireInField.setFocused(false);
+        if (button != 0) return true;
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        for (int r = 0; r < 6; r++) {
+            int ry = py + 24 + r * SETT_ROW;
+            if (mouseY < ry || mouseY > ry + 14) continue;
+            if ((r == 0 || r == 1 || r == 5) && mouseX >= px + SETT_W - 56 && mouseX <= px + SETT_W - 10) {
+                if (r == 0) c.canvasSmoothZoom = !c.canvasSmoothZoom;
+                else if (r == 1) c.canvasWireScaleWithZoom = !c.canvasWireScaleWithZoom;
+                else c.canvasGroupBundleWires = !c.canvasGroupBundleWires;
+                com.sdzjz.config.SdzjzConfig.save();
+                return true;
+            }
+            if (r == 2) {
+                int d = 0;
+                if (mouseX >= px + SETT_W - 80 && mouseX <= px + SETT_W - 66) d = -1;
+                else if (mouseX >= px + SETT_W - 24 && mouseX <= px + SETT_W - 10) d = 1;
+                if (d != 0) { // 步进0.2，clamp 0.2~8.0，×5/5 防浮点漂移
+                    c.canvasWireMaxScale = Math.round(Math.max(0.2, Math.min(8.0, c.canvasWireMaxScale + d * 0.2)) * 5) / 5.0;
+                    com.sdzjz.config.SdzjzConfig.save();
+                    return true;
+                }
+            }
+        }
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 6 * SETT_ROW + 2;
+        if (mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16) { // 恢复默认：new 实例取字段默认，零硬编码重复
+            com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
+            c.canvasSmoothZoom = d.canvasSmoothZoom;
+            c.canvasWireScaleWithZoom = d.canvasWireScaleWithZoom;
+            c.canvasWireMaxScale = d.canvasWireMaxScale;
+            c.canvasGroupBundleWires = d.canvasGroupBundleWires;
+            wireOutField.setText(d.canvasWireOutColor); // setText 触发 listener 回写配置串
+            wireInField.setText(d.canvasWireInColor);
+            com.sdzjz.config.SdzjzConfig.save();
+        }
+        return true;
     }
 
     // ===== m193 连线归并 =====
@@ -1605,6 +1750,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (settingsOpen) return settingsClick(mouseX, mouseY, button); // m199 设置面板 modal 最先判
         if (renameGid >= 0) { // m192 重命名小窗 modal：窗内点进字段，窗外点=关
             int rw = 200, rh = 58, rpx = (this.width - rw) / 2, rpy = (this.height - rh) / 2;
             if (renameField.mouseClicked(mouseX, mouseY, button)) return true;
@@ -1930,7 +2076,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0) return true;
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen) return true; // m199 设置窗并入
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
@@ -2058,6 +2204,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
         if (menuOpen) renderMenu(ctx, mouseX, mouseY);
         if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
+        if (settingsOpen) renderSettings(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（与重命名互斥，openSettings 已清场）
     }
 
     // ================= 自动合成机目标选择器 =================
@@ -2461,6 +2608,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (settingsOpen) { // m199 设置窗：Esc=关；其余喂两个颜色框（未聚焦的 TextFieldWidget 自不吃）
+            if (keyCode == 256) { closeSettings(); return true; }
+            wireOutField.keyPressed(keyCode, scanCode, modifiers);
+            wireInField.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
         if (renameGid >= 0) { // m192 重命名窗：回车确认 / Esc取消，其余进输入框
             if (keyCode == 257 || keyCode == 335) { confirmRename(); return true; }
             if (keyCode == 256) { closeRename(); return true; }
@@ -2482,6 +2635,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (settingsOpen) { wireOutField.charTyped(chr, modifiers); wireInField.charTyped(chr, modifiers); return true; } // m199
         if (renameGid >= 0) return renameField.charTyped(chr, modifiers); // m192
         if (pickerNode >= 0) return pickerField.charTyped(chr, modifiers);
         return super.charTyped(chr, modifiers);
