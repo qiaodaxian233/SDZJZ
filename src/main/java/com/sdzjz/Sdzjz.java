@@ -80,6 +80,31 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSwitchPayload.ID, com.sdzjz.net.NodeSwitchPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupPayload.ID, com.sdzjz.net.NodeGroupPayload.CODEC); // m191 画布打组
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupMovePayload.ID, com.sdzjz.net.NodeGroupMovePayload.CODEC); // m191 组整体位移
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeGroupPayload.ID, (payload, context) -> { // m191：一包三义按字段组合分派（建组/重命名/解散）
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!SdzjzConfig.get().canvasGroupsEnabled) return;               // 总开关把门
+                if (payload.name().length() > 64 || payload.members().size() > 512) return; // 伪造包尺寸熔断（正常组远小于此）
+                if (!viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    if (payload.gid() < 0) core.createGroup(payload.members(), payload.name());
+                    else if (!payload.name().isEmpty()) core.renameGroup(payload.gid(), payload.name());
+                    else core.dissolveGroup(payload.gid());
+                }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeGroupMovePayload.ID, (payload, context) -> {
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!SdzjzConfig.get().canvasGroupsEnabled) return;
+                if (!viewingCore(p, payload.pos())) return;
+                if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
+                    core.moveGroup(payload.gid(), payload.dx(), payload.dy());
+                }
+            });
+        });
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSwitchPayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {

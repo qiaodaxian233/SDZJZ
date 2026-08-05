@@ -72,6 +72,12 @@ public final class NodeTags {
 
     public static boolean nodePaused(ItemStack s) { return nbtOf(s).getBoolean("np"); }
 
+    /** m191 画布分组：节点所属组 id（存节点栈 NBT "gp"，随栈走天然免下标重映射；无组=-1）。 */
+    public static int nodeGroup(ItemStack s) {
+        NbtCompound n = nbtOf(s);
+        return n.contains("gp") ? n.getInt("gp") : -1;
+    }
+
     public static boolean filterBlacklist(ItemStack s) { return nbtOf(s).getBoolean("fb"); }
 
     public static java.util.List<String> filterList(ItemStack s) {

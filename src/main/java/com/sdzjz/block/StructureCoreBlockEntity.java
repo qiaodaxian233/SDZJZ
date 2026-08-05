@@ -61,6 +61,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final DefaultedList<ItemStack> items = DefaultedList.ofSize(SIZE, ItemStack.EMPTY);
     private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
+    private final java.util.LinkedHashMap<Integer, String> groupNames = new java.util.LinkedHashMap<>(); // m191 画布分组 id→名（成员归属存各节点栈 NBT "gp"，随栈走免下标重映射）
     public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
     // m179 编译执行计划：拓扑派生结构(hasOut/hasIn/outT)只在图变更时重建，普通 tick 直接复用缓存
     // ——修订号失配才编译；长度兜底防漏 bump；派生列表运行期只读(已核)所以可跨 tick 共享。
@@ -1631,6 +1632,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (e[0] == index) { storageEdges.remove(i); storageEdgeDims.remove(i); }
             else if (e[0] > index) e[0]--;
         }
+        sweepGroups(); // m191 组标记随被摘的栈自然离场（returnNodeClean 会剥画布 NBT）；这里只清剩<2台的组
         return s;
     }
 
@@ -1676,6 +1678,85 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 画布连线读取（客户端渲染）。 */
     public java.util.List<int[]> connections() { return connections; }
+
+    // ===== m191 画布分组：成员归属在节点栈 NBT "gp"（随栈走，detachNode 的下标移位天然无关），
+    // 这里只管 id→名元数据 + 组操作；配置 canvasGroupsEnabled 总开关在接收器侧把门。 =====
+    /** 分组元数据读取（客户端渲染组框标题用）。 */
+    public java.util.Map<Integer, String> groupsView() { return groupNames; }
+
+    /** 建组：≥2 个合法下标才成组；成员先脱旧组再入新组（一台机器只能在一个组）。name 空=自动"组N"。 */
+    public void createGroup(java.util.List<Integer> members, String name) {
+        java.util.LinkedHashSet<Integer> ms = new java.util.LinkedHashSet<>();
+        for (int i : members) if (i >= 0 && i < machineNodes.size()) ms.add(i);
+        if (ms.size() < 2) return;
+        int gid = 1;
+        for (int k : groupNames.keySet()) gid = Math.max(gid, k + 1);
+        String nm = name == null ? "" : name.trim();
+        if (nm.length() > 24) nm = nm.substring(0, 24);
+        groupNames.put(gid, nm.isEmpty() ? "组" + gid : nm);
+        for (int i : ms) setNodeGroupTag(machineNodes.get(i), gid);
+        sweepGroups(); // 成员被挖走的旧组可能只剩0/1台，顺手清
+        markDirty();
+        syncToClient();
+    }
+
+    /** 解散组：成员脱组标记 + 元数据删除。机器/连线原样不动（分组纯视觉，不碰拓扑）。 */
+    public void dissolveGroup(int gid) {
+        if (groupNames.remove(gid) == null) return;
+        for (ItemStack s : machineNodes) if (com.sdzjz.node.NodeTags.nodeGroup(s) == gid) setNodeGroupTag(s, -1);
+        markDirty();
+        syncToClient();
+    }
+
+    /** 重命名组（长度钳 24，空名不接受）。 */
+    public void renameGroup(int gid, String name) {
+        String nm = name == null ? "" : name.trim();
+        if (nm.isEmpty() || !groupNames.containsKey(gid)) return;
+        if (nm.length() > 24) nm = nm.substring(0, 24);
+        groupNames.put(gid, nm);
+        markDirty();
+        syncToClient();
+    }
+
+    /** 组整体位移：全成员坐标加同一增量，改完只同步一次（防 m128F3 式 N 连发全量同步）。 */
+    public void moveGroup(int gid, int dx, int dy) {
+        if (!groupNames.containsKey(gid)) return;
+        dx = Math.max(-100000, Math.min(100000, dx)); // 防伪造包把整组甩进天文坐标
+        dy = Math.max(-100000, Math.min(100000, dy));
+        boolean any = false;
+        for (ItemStack s : machineNodes) {
+            if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
+            NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+            n.putInt("nx", (n.contains("nx") ? n.getInt("nx") : 0) + dx);
+            n.putInt("ny", (n.contains("ny") ? n.getInt("ny") : 0) + dy);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+            any = true;
+        }
+        if (!any) return;
+        markDirty();
+        syncToClient();
+    }
+
+    /** 写/清节点栈上的组标记（gid<0=清除）。 */
+    private void setNodeGroupTag(ItemStack s, int gid) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        if (gid < 0) n.remove("gp"); else n.putInt("gp", gid);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+    }
+
+    /** 组一致性清扫：成员<2 的组解散（1 台不成组）+ 无元数据的孤儿 gp 标记剥除。detachNode 与组操作后调用。 */
+    private void sweepGroups() {
+        java.util.HashMap<Integer, Integer> cnt = new java.util.HashMap<>();
+        for (ItemStack s : machineNodes) {
+            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
+            if (g >= 0) cnt.merge(g, 1, Integer::sum);
+        }
+        groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
+        for (ItemStack s : machineNodes) {
+            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
+            if (g >= 0 && !groupNames.containsKey(g)) setNodeGroupTag(s, -1);
+        }
+    }
 
     // ===== 存储/终端接口节点：扫描 + 定向连线 =====
     /** 扫描本核心可达的存储核心/数据终端端点（绑定>有线>无线>卫星，封顶8个），变化才同步。 */
@@ -2681,6 +2762,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         int[] flat = new int[connections.size() * 2];
         for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
         nbt.putIntArray("connections", flat);
+        NbtCompound grp = new NbtCompound(); // m191 分组元数据 id→名（成员归属在各节点栈里随 machineNodes 落盘）
+        for (var ge : groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
+        nbt.put("groups", grp);
         NbtCompound buf = new NbtCompound();
         for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
         nbt.put("internalBuffer", buf);
@@ -2761,6 +2845,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         connections.clear();
         int[] flat = nbt.getIntArray("connections");
         for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
+        NbtCompound grp = nbt.getCompound("groups");
+        for (String k : grp.getKeys()) {
+            try { groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
+        }
         internalBuffer.clear();
         NbtCompound buf = nbt.getCompound("internalBuffer");
         for (String k : buf.getKeys()) internalBuffer.put(k, buf.getLong(k));

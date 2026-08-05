@@ -2506,3 +2506,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   非新物品不触注册六件套。
 - 验证脚本：①屠龙炮挂机 1h±：龙蛋期望 1~2 枚（泊松波动正常）；②龙息 8/周期照旧；
   ③精确存储通道无关（龙蛋无组件，普通 id 记账）；④【待编译验证】盯点：纯数据行，冒烟=0。
+
+## m191 画布机器打组·第一刀（数据+协议+持久化）：成员标记随栈走，服务端五方法+两包落地（用户点名"机器可以打组…只需要两条线"）
+- **设计取舍（为什么不用"组存成员下标表"）**：节点身份=machineNodes 下标，detachNode 删点时全部
+  下标左移——组若存下标表就得跟 connections 一样再养一套重映射（m128F1 的坑再挖一遍）。改成
+  **组归属存在节点栈 NBT "gp"**（照 nx/ny/np 惯例）：栈走标记走，删点零重映射；取出时
+  returnNodeClean 剥画布 NBT 自然脱组，insertMachine copy 不带 gp 天然干净。SCBE 只养一张
+  id→名的 LinkedHashMap（NBT "groups"，坏键跳过防脏档），成员<2 的组由 sweepGroups 顺势解散。
+- **修法**：① NodeTags.nodeGroup(s)（新代码直用，不走 SCBE 垫片，照 m180 charter）；
+  ② SCBE 五方法：createGroup（≥2 合法下标成组、自动"组N"、成员先脱旧组）/dissolveGroup
+  （纯视觉解组，机器连线拓扑零动）/renameGroup（钳24字）/moveGroup（全成员同增量**一次 sync**，
+  防 m128F3 式 N 连发全量同步瞬卡；增量钳 ±100000 防伪造包甩飞）/sweepGroups（挂 detachNode 尾）；
+  ③ 两包：NodeGroupPayload（一包三义：gid=-1建组/名非空重命名/其余解散；members 走
+  PacketCodecs.collection 照 CanvasEndsPayload 在树先例，tuple 四元无上限之虞）+
+  NodeGroupMovePayload（组位移增量）；接收器照 viewingCore 门 + 名长64/成员512 尺寸熔断；
+  ④ 配置 canvasGroupsEnabled=true 总开关（configVersion 7→8），关=服务端拒收组操作。
+- **边界声明**：本刀纯服务端，客户端无入口无渲染（m192 框选+组框、m193 连线归并分刀上）——
+  分组是**视觉/操作层**概念，不进拓扑不碰 tick，机器组合.md 的物流语义零变化。
+- 验证脚本：本刀无 UI 入口，实机验证并入 m192 一起跑（建组→F3+存档重载→组名还在；
+  取出组内机器→剩1台组自动解散）；【待编译验证】盯点：payload 双注册+双接收器、
+  DataComponentTypes/NbtComponent 全 SCBE 在树写法、委托链定向 grep=0、冒烟=0。
