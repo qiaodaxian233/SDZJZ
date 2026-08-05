@@ -158,7 +158,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // ===== m199 画布设置面板（游戏内可调画布客户端项；modal 照 renameField 在树写法）=====
     private boolean settingsOpen = false;
     private TextFieldWidget wireOutField, wireInField;   // 出/进线颜色 RRGGBB：live 写配置实例即时预览，关窗落盘
-    private static final int SETT_W = 236, SETT_H = 212, SETT_ROW = 24;
+    private static final int SETT_W = 236, SETT_H = 236, SETT_ROW = 24; // m211 +24：第7行主题预设
 
     // m110a 小地图（纯客户端零协议）
     private boolean mapOpen = false;
@@ -1467,7 +1467,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (!hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
             }
         }
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 6 * SETT_ROW + 2; // 恢复默认（只回本面板六项）
+        int ry6 = py + 24 + 6 * SETT_ROW; // m211 主题预设行：5 套一键全局换肤（画布/终端同一套7色配置，数据源=SciSkin.TERM_PRESETS 唯一家）
+        ctx.drawText(this.textRenderer, "主题预设", px + 10, ry6 + 3, SciSkin.TXT, false);
+        int hovPk = -1;
+        for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
+            int bx = px + SETT_W - 126 + k * 24;
+            boolean hv = mouseX >= bx && mouseX <= bx + 20 && mouseY >= ry6 - 1 && mouseY <= ry6 + 15;
+            if (hv) hovPk = k;
+            ctx.fill(bx - 1, ry6 - 1, bx + 21, ry6 + 15, hv ? SciSkin.BTN_FRM_HOV : SciSkin.CELL_FRM);
+            ctx.fill(bx, ry6, bx + 20, ry6 + 14, SciSkin.hex(SciSkin.TERM_PRESETS[k][0], SciSkin.termBase()));   // 底=预设主色（照终端样片工艺）
+            ctx.fill(bx + 3, ry6 + 3, bx + 17, ry6 + 11, SciSkin.hex(SciSkin.TERM_PRESETS[k][2], SciSkin.termAccent())); // 心=预设强调
+        }
+        if (hovPk >= 0) ctx.drawText(this.textRenderer, SciSkin.TERM_PRESET_NAMES[hovPk], px + 62, ry6 + 3, SciSkin.TXT_HI, false);
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 7 * SETT_ROW + 2; // 恢复默认（只回本面板六项；m211 下移一行）
         boolean rh = mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16;
         ctx.fill(rx - 1, rby - 1, rx + 65, rby + 17, rh ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
@@ -1516,7 +1528,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
             }
         }
-        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 6 * SETT_ROW + 2;
+        int ry6 = py + 24 + 6 * SETT_ROW; // m211 主题预设点击（几何与 renderSettings 同一套，改必同改）
+        if (mouseY >= ry6 - 1 && mouseY <= ry6 + 15) {
+            for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
+                int bx = px + SETT_W - 126 + k * 24;
+                if (mouseX >= bx && mouseX <= bx + 20) { // 整套 7 色写配置：SciSkin 串比缓存自动重解析=全屏即时换肤
+                    String[] pk = SciSkin.TERM_PRESETS[k];
+                    c.termBase = pk[0]; c.termBaseDeep = pk[1]; c.termAccent = pk[2]; c.termAccentDeep = pk[3];
+                    c.termInk = pk[4]; c.termFrame = pk[5]; c.termHi = pk[6];
+                    com.sdzjz.config.SdzjzConfig.save();
+                    return true;
+                }
+            }
+        }
+        int rx = px + (SETT_W - 64) / 2, rby = py + 24 + 7 * SETT_ROW + 2;
         if (mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16) { // 恢复默认：new 实例取字段默认，零硬编码重复
             com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
             c.canvasSmoothZoom = d.canvasSmoothZoom;
