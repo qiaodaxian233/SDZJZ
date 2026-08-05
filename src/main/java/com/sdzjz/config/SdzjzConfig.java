@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 13; // m207 画布新配色默认迁移（线紫/绿+墨藏蓝）；m200 存储终端主题7色；m198 连线进/出分色；…m193 分组连线归并开关；m197 连线宽度随缩放+封顶
+    public int configVersion = 14; // m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -60,6 +60,15 @@ public class SdzjzConfig {
     public String termFrame      = "3A3F4B"; // 边框色
     public String termHi         = "FFFFFF"; // 高亮（浅面提亮/紫钮与暗钮上的文字）
 
+    // ===== 结构核心画布主题（m214 与终端分家：各一套7色互不影响；默认=暗夜预设，作者点名）=====
+    public String canvasBase       = "262C38"; // 画布主色（横幅/卡面深灰蓝）
+    public String canvasBaseDeep   = "161B24"; // 画布主色深（槽底/滑轨/凹陷面）
+    public String canvasAccent     = "8B7CF6"; // 画布强调紫（主按钮/聚焦边/网格/选中）
+    public String canvasAccentDeep = "B0A6FF"; // 画布强调深端（暗系里反向提亮，照暗夜预设口径）
+    public String canvasInk        = "E7EAF3"; // 画布墨色（暗面上文字→亮字；兼全屏底反相用法见 SciSkin）
+    public String canvasFrame      = "444B5A"; // 画布边框色
+    public String canvasHi         = "0E1118"; // 画布高亮（暗夜口径=暗压光：紫钮上的字用暗色）
+
     // ---- 单例 + 读写 ----
     private static SdzjzConfig INSTANCE;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -86,6 +95,28 @@ public class SdzjzConfig {
             if ("33D07A".equals(cfg.canvasWireInColor))  cfg.canvasWireInColor  = "6FB57A";
             if ("1E2128".equals(cfg.termInk))            cfg.termInk            = "181C2B";
             cfg.configVersion = 13;
+        }
+        if (cfg.configVersion < 14) { // m214 v14 主题分家：canvas* 7 新键缺省即暗夜（Gson 缺键走字段初值，无需搬迁）；
+            // 旧共用时代若终端 7 键恰好整套等于某个非紫晶预设行（=当年为救画布点的全局换肤），回默认紫晶；
+            // 逐色手调过的组合（对不上任何整行）一律不动。字面量=SciSkin.TERM_PRESETS 后四行留档（common 侧不能引 client 类）。
+            String[][] presets = {
+                    {"262C38", "161B24", "8B7CF6", "B0A6FF", "E7EAF3", "444B5A", "0E1118"}, // 暗夜
+                    {"E2EEF0", "A9C3C9", "2FA8C2", "1E7E93", "13282D", "39555C", "FFFFFF"}, // 海雾
+                    {"F4E7EC", "D3AFBE", "E06C9F", "B84D7F", "32161F", "5C3A47", "FFFFFF"}, // 樱粉
+                    {"E6EFE6", "AECBB0", "4CAF6E", "337E4E", "15271A", "3C5943", "FFFFFF"}, // 松绿
+            };
+            for (String[] p : presets) {
+                if (p[0].equals(cfg.termBase) && p[1].equals(cfg.termBaseDeep) && p[2].equals(cfg.termAccent)
+                        && p[3].equals(cfg.termAccentDeep) && p[4].equals(cfg.termInk)
+                        && p[5].equals(cfg.termFrame) && p[6].equals(cfg.termHi)) {
+                    SdzjzConfig def = new SdzjzConfig(); // 取字段默认，零硬编码重复
+                    cfg.termBase = def.termBase; cfg.termBaseDeep = def.termBaseDeep;
+                    cfg.termAccent = def.termAccent; cfg.termAccentDeep = def.termAccentDeep;
+                    cfg.termInk = def.termInk; cfg.termFrame = def.termFrame; cfg.termHi = def.termHi;
+                    break;
+                }
+            }
+            cfg.configVersion = 14;
         }
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件

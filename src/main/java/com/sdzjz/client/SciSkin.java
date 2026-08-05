@@ -90,13 +90,23 @@ public final class SciSkin {
             T_ACC = new CfgColor(TERM_ACCENT_DEF), T_ACCD = new CfgColor(TERM_ACCENT_DEEP_DEF),
             T_INK = new CfgColor(TERM_INK_DEF), T_FRM = new CfgColor(TERM_FRAME_DEF), T_HI = new CfgColor(TERM_HI_DEF);
 
-    public static int termBase()       { return T_BASE.get(com.sdzjz.config.SdzjzConfig.get().termBase); }
-    public static int termBaseDeep()   { return T_DEEP.get(com.sdzjz.config.SdzjzConfig.get().termBaseDeep); }
-    public static int termAccent()     { return T_ACC.get(com.sdzjz.config.SdzjzConfig.get().termAccent); }
-    public static int termAccentDeep() { return T_ACCD.get(com.sdzjz.config.SdzjzConfig.get().termAccentDeep); }
-    public static int termInk()        { return T_INK.get(com.sdzjz.config.SdzjzConfig.get().termInk); }
-    public static int termFrame()      { return T_FRM.get(com.sdzjz.config.SdzjzConfig.get().termFrame); }
-    public static int termHi()         { return T_HI.get(com.sdzjz.config.SdzjzConfig.get().termHi); }
+    // ===== m214 主题分家：画布(结构核心)与终端(数据面板)各一套 7 色 =====
+    // scopeCanvas 由 StructureCoreScreen.render 帧首开/帧尾关（try/finally），期间 term*() 全族改读 canvas* 配置——
+    // termBand/termBtn/termSlot/termSub/termGrid* 与 TermButton 全部经由这七个口取色，画布族渲染代码零改动自动跟对家。
+    // 画布默认=暗夜预设（作者点名）；渲染单线程，boolean 静态位即可，不上 ThreadLocal。
+    private static boolean canvasScope = false;
+    public static void scopeCanvas(boolean on) { canvasScope = on; }
+    private static final CfgColor C_BASE = new CfgColor(0xFF262C38), C_DEEP = new CfgColor(0xFF161B24), // 暗夜整行
+            C_ACC = new CfgColor(0xFF8B7CF6), C_ACCD = new CfgColor(0xFFB0A6FF),
+            C_INK = new CfgColor(0xFFE7EAF3), C_FRM = new CfgColor(0xFF444B5A), C_HI = new CfgColor(0xFF0E1118);
+
+    public static int termBase()       { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_BASE.get(c.canvasBase) : T_BASE.get(c.termBase); }
+    public static int termBaseDeep()   { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_DEEP.get(c.canvasBaseDeep) : T_DEEP.get(c.termBaseDeep); }
+    public static int termAccent()     { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_ACC.get(c.canvasAccent) : T_ACC.get(c.termAccent); }
+    public static int termAccentDeep() { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_ACCD.get(c.canvasAccentDeep) : T_ACCD.get(c.termAccentDeep); }
+    public static int termInk()        { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_INK.get(c.canvasInk) : T_INK.get(c.termInk); }
+    public static int termFrame()      { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_FRM.get(c.canvasFrame) : T_FRM.get(c.termFrame); }
+    public static int termHi()         { com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); return canvasScope ? C_HI.get(c.canvasHi) : T_HI.get(c.termHi); }
     /** 终端次级文字（墨→主色 35% 提灰，随主题联动）。 */
     public static int termSub()        { return mix(termInk(), termBase(), 0.35f); }
 

@@ -1532,10 +1532,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (mouseY >= ry6 - 1 && mouseY <= ry6 + 15) {
             for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
                 int bx = px + SETT_W - 126 + k * 24;
-                if (mouseX >= bx && mouseX <= bx + 20) { // 整套 7 色写配置：SciSkin 串比缓存自动重解析=全屏即时换肤
+                if (mouseX >= bx && mouseX <= bx + 20) { // m214 分家：这行只写画布 7 键，终端主题在数据面板里自己选
                     String[] pk = SciSkin.TERM_PRESETS[k];
-                    c.termBase = pk[0]; c.termBaseDeep = pk[1]; c.termAccent = pk[2]; c.termAccentDeep = pk[3];
-                    c.termInk = pk[4]; c.termFrame = pk[5]; c.termHi = pk[6];
+                    c.canvasBase = pk[0]; c.canvasBaseDeep = pk[1]; c.canvasAccent = pk[2]; c.canvasAccentDeep = pk[3];
+                    c.canvasInk = pk[4]; c.canvasFrame = pk[5]; c.canvasHi = pk[6];
                     com.sdzjz.config.SdzjzConfig.save();
                     return true;
                 }
@@ -2235,11 +2235,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
-        if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
-        if (menuOpen) renderMenu(ctx, mouseX, mouseY);
-        if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
-        if (settingsOpen) renderSettings(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（与重命名互斥，openSettings 已清场）
+        SciSkin.scopeCanvas(true); // m214 主题分家：本帧 term*() 全族改读画布 7 色（默认暗夜），finally 必关防漏染别屏
+        try {
+            super.render(ctx, mouseX, mouseY, delta);
+            if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
+            if (menuOpen) renderMenu(ctx, mouseX, mouseY);
+            if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
+            if (settingsOpen) renderSettings(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（与重命名互斥，openSettings 已清场）
+        } finally {
+            SciSkin.scopeCanvas(false);
+        }
     }
 
     // ================= 自动合成机目标选择器 =================
