@@ -100,6 +100,19 @@ public final class SciSkin {
     /** 终端次级文字（墨→主色 35% 提灰，随主题联动）。 */
     public static int termSub()        { return mix(termInk(), termBase(), 0.35f); }
 
+    /** m202 十六进制解析公共出口（parseHex 公开壳：屏内画预设片/滑块换算用，保持屏内零色字面量）。 */
+    public static int hex(String s, int fallback) { return parseHex(s, fallback); }
+
+    // m202 终端主题预设（配色数据唯一家；列序=配置字段序：base/baseDeep/accent/accentDeep/ink/frame/hi）
+    public static final String[] TERM_PRESET_NAMES = {"紫晶", "暗夜", "海雾", "樱粉", "松绿"};
+    public static final String[][] TERM_PRESETS = {
+            {"E6E8EF", "AEB4C7", "8B7CF6", "6D5CE0", "1E2128", "3A3F4B", "FFFFFF"}, // 紫晶=设计稿默认
+            {"262C38", "161B24", "8B7CF6", "B0A6FF", "E7EAF3", "444B5A", "0E1118"}, // 暗夜（墨色兼文字→亮，高亮→暗压光）
+            {"E2EEF0", "A9C3C9", "2FA8C2", "1E7E93", "13282D", "39555C", "FFFFFF"}, // 海雾
+            {"F4E7EC", "D3AFBE", "E06C9F", "B84D7F", "32161F", "5C3A47", "FFFFFF"}, // 樱粉
+            {"E6EFE6", "AECBB0", "4CAF6E", "337E4E", "15271A", "3C5943", "FFFFFF"}, // 松绿
+    };
+
     /** m200 终端浅色卡片：软投影 + 1px 圆角外框(角内收) + 近白提亮面 + 顶部受光渐隐 + 底压边——设计稿"圆角细边+质感"。 */
     public static void termPanel(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h) {
         softShadow(ctx, x, y, w, h);

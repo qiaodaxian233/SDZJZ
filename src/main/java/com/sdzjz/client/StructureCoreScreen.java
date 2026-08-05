@@ -1386,11 +1386,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     /** 重命名小窗（照 renderPicker 的 pickerField 写法：每帧摆位再渲染）。 */
     private void renderRename(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int w = 200, h = 58, px = (this.width - w) / 2, py = (this.height - h) / 2;
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0, 0, 400); // m202 同病同修：抬z防卡内物品穿透
         SciSkin.drawCard(ctx, px, py, w, h, SciSkin.FRAME);
         ctx.drawText(this.textRenderer, "重命名组（回车确认·Esc取消）", px + 8, py + 7, SciSkin.TXT_HI, false);
         renameField.setX(px + 8);
         renameField.setY(py + 26);
         renameField.render(ctx, mouseX, mouseY, delta);
+        ctx.getMatrices().pop();
     }
 
     // ===== m199 画布设置面板（六项画布客户端配置 + 恢复默认；机器数值项仍走 config/sdzjz.json）=====
@@ -1426,6 +1429,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void renderSettings(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int px = settPos()[0], py = settPos()[1];
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0, 0, 400); // m202 抬z：卡内物品图标画在带深度的高z，z0后画填充会被穿透（终端实锤同病）
         SciSkin.drawCard(ctx, px, py, SETT_W, SETT_H, SciSkin.FRAME);
         ctx.drawText(this.textRenderer, "画布设置", px + 8, py + 7, SciSkin.TXT_HI, false);
         String[] labels = {"缩放平滑动效", "连线宽度随缩放", "线宽封顶倍率", "出线颜色 RRGGBB", "进线颜色 RRGGBB", "跨组连线归并 ×N"};
@@ -1465,6 +1470,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "恢复默认", rx + 32 - this.textRenderer.getWidth("恢复默认") / 2, rby + 4,
                 rh ? SciSkin.TXT_MAX : SciSkin.TXT, false);
         ctx.drawText(this.textRenderer, "即改即存 config/sdzjz.json · Esc/点窗外=关", px + 8, py + SETT_H - 13, SciSkin.SUB, false);
+        ctx.getMatrices().pop();
     }
 
     /** m199 步进小方钮（纯 fill 不依赖字形）。 */
@@ -1479,8 +1485,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private boolean settingsClick(double mouseX, double mouseY, int button) {
         int px = settPos()[0], py = settPos()[1];
         if (mouseX < px || mouseX > px + SETT_W || mouseY < py || mouseY > py + SETT_H) { closeSettings(); return true; } // 窗外点=关
-        if (wireOutField.mouseClicked(mouseX, mouseY, button)) { wireInField.setFocused(false); return true; }
-        if (wireInField.mouseClicked(mouseX, mouseY, button)) { wireOutField.setFocused(false); return true; }
+        if (wireOutField.mouseClicked(mouseX, mouseY, button)) { wireOutField.setFocused(true); wireInField.setFocused(false); return true; } // m202 非children输入框必须显式聚焦
+        if (wireInField.mouseClicked(mouseX, mouseY, button)) { wireInField.setFocused(true); wireOutField.setFocused(false); return true; }
         wireOutField.setFocused(false);
         wireInField.setFocused(false);
         if (button != 0) return true;

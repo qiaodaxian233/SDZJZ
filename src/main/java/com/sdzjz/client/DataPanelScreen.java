@@ -23,8 +23,12 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     // ===== m200 主题调色面板（modal，照 m199 画布设置面板刀法）=====
     private boolean themeOpen = false;
     private TextFieldWidget[] themeF;
+    private int thSel = 0;      // m202 当前所选色（滑块作用对象）
+    private int thDragCh = -1;  // m202 拖拽中的滑块通道（0/1/2=R/G/B，-1=无）
     private static final String[] THEME_LABELS = {"主色", "主色深", "强调紫", "强调深", "墨色", "边框", "高亮"};
-    private static final int TH_W = 170, TH_H = 204, TH_ROW = 20;
+    private static final int TH_W = 308, TH_H = 190, TH_ROW = 18;
+    private static final int TH_RX = 180;                 // 右列（滑块/预设/恢复默认）相对 x
+    private static final int SL_X = 192, SL_W = 86;       // 滑块轨道相对 x / 宽
 
     public DataPanelScreen(DataPanelScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
@@ -340,13 +344,17 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
-        if (themeOpen) return true; // m200
+        if (themeOpen) { // m202 滑块拖拽实时换肤
+            if (thDragCh >= 0) thApplySlider(mx);
+            return true;
+        }
         if (sbDrag) { sbUpdate(my); return true; }
         return super.mouseDragged(mx, my, button, dx, dy);
     }
 
     @Override
     public boolean mouseReleased(double mx, double my, int button) {
+        if (themeOpen) { thDragCh = -1; return true; } // m202 松手停拖
         if (sbDrag) { sbDrag = false; return true; }
         return super.mouseReleased(mx, my, button);
     }
@@ -395,43 +403,130 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     private int[] thPos() { return new int[]{(this.width - TH_W) / 2, (this.height - TH_H) / 2}; }
 
-    /** 主题面板渲染：面板自身就用 termPanel/termBtn 画——调色时面板同步换肤，所见即所得。 */
+    /** 主题面板渲染：面板自身就用 termPanel/termBtn 画——调色时面板同步换肤，所见即所得。
+     *  m202：整体抬 z=400（槽内物品/数量角标画在 z100~200 带深度测试，z0 后画的填充会被剔除=物品穿透，
+     *  作者截图实锤）；布局改双列——左 7 色行（点行选中），右 所选色 RGB 滑块 + 预设 + 恢复默认。 */
     private void renderTheme(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int px = thPos()[0], py = thPos()[1];
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0, 0, 400); // 与原版 tooltip 同层且后画=盖顶
         SciSkin.termPanel(ctx, px, py, TH_W, TH_H);
         ctx.drawText(this.textRenderer, "终端主题（RRGGBB）", px + 8, py + 7, SciSkin.termInk(), false);
         for (int i = 0; i < 7; i++) {
             int ry = py + 22 + i * TH_ROW;
-            ctx.drawText(this.textRenderer, THEME_LABELS[i], px + 8, ry + 3, SciSkin.termSub(), false);
-            ctx.fill(px + 68, ry - 1, px + 126, ry + 14, SciSkin.termBaseDeep()); // 输入井
-            ctx.fill(px + 68, ry - 1, px + 126, ry, SciSkin.withAlpha(SciSkin.termInk(), 0.28f));
-            themeF[i].setX(px + 71);
+            ctx.drawText(this.textRenderer, THEME_LABELS[i], px + 8, ry + 3,
+                    i == thSel ? SciSkin.termAccentDeep() : SciSkin.termSub(), false);
+            ctx.fill(px + 62, ry - 1, px + 120, ry + 14, SciSkin.termBaseDeep()); // 输入井
+            ctx.fill(px + 62, ry - 1, px + 120, ry, SciSkin.withAlpha(SciSkin.termInk(), 0.28f));
+            themeF[i].setEditableColor(SciSkin.termInk()); // 浅井写墨字，随主题联动
+            themeF[i].setX(px + 65);
             themeF[i].setY(ry + 2);
             themeF[i].render(ctx, mouseX, mouseY, delta);
-            ctx.fill(px + 131, ry - 2, px + 149, ry + 15, SciSkin.termFrame()); // 样片=实际生效色（非法自动显回退）
-            ctx.fill(px + 132, ry - 1, px + 148, ry + 14, themeColor(i));
-            if (!hexOk(themeF[i].getText())) ctx.fill(px + 68, ry + 14, px + 126, ry + 15, SciSkin.RED);
+            if (i == thSel) ctx.fill(px + 124, ry - 3, px + 144, ry + 14, SciSkin.termAccent()); // 选中环
+            ctx.fill(px + 125, ry - 2, px + 143, ry + 13, SciSkin.termFrame());
+            ctx.fill(px + 126, ry - 1, px + 142, ry + 12, themeColor(i)); // 样片=实际生效色（非法自动显回退）
+            if (!hexOk(themeF[i].getText())) ctx.fill(px + 62, ry + 14, px + 120, ry + 15, SciSkin.RED);
         }
-        int rx = px + (TH_W - 64) / 2, rby = py + 22 + 7 * TH_ROW + 3;
-        SciSkin.termBtn(ctx, this.textRenderer, rx, rby, 64, 16, "恢复默认",
-                mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16, true);
-        ctx.drawText(this.textRenderer, "打字实时换肤 · Esc/点窗外=关", px + 8, py + TH_H - 13, SciSkin.termSub(), false);
+        // ===== 右列：所选色 RGB 滑块 =====
+        ctx.drawText(this.textRenderer, "调节: " + THEME_LABELS[thSel], px + TH_RX, py + 22, SciSkin.termInk(), false);
+        int c = themeColor(thSel);
+        String[] chn = {"R", "G", "B"};
+        for (int ch = 0; ch < 3; ch++) {
+            int v = (c >> (16 - ch * 8)) & 0xFF;
+            int sy = py + 36 + ch * 18;
+            ctx.drawText(this.textRenderer, chn[ch], px + TH_RX, sy + 1, SciSkin.termSub(), false);
+            ctx.fill(px + SL_X - 1, sy - 1, px + SL_X + SL_W + 1, sy + 11, SciSkin.termFrame()); // 轨
+            ctx.fill(px + SL_X, sy, px + SL_X + SL_W, sy + 10, SciSkin.termBaseDeep());
+            int kx = px + SL_X + (int) Math.round(v / 255.0 * (SL_W - 4));
+            ctx.fill(px + SL_X, sy, kx + 2, sy + 10, SciSkin.withAlpha(SciSkin.termAccent(), 0.55f)); // 已填段
+            ctx.fill(kx, sy - 1, kx + 4, sy + 11, SciSkin.termAccentDeep()); // 滑钮
+            ctx.fill(kx + 1, sy, kx + 3, sy + 10, SciSkin.termHi());
+            String vs = String.valueOf(v);
+            ctx.drawText(this.textRenderer, vs, px + SL_X + SL_W + 6, sy + 1, SciSkin.termInk(), false);
+        }
+        // ===== 右列：预设 =====
+        int hovP = hoveredPreset(mouseX, mouseY);
+        ctx.drawText(this.textRenderer, "预设" + (hovP >= 0 ? ": " + SciSkin.TERM_PRESET_NAMES[hovP] : ""),
+                px + TH_RX, py + 94, SciSkin.termSub(), false);
+        for (int k = 0; k < SciSkin.TERM_PRESETS.length; k++) {
+            int cx = px + TH_RX + k * 24, cy = py + 106;
+            ctx.fill(cx - 1, cy - 1, cx + 21, cy + 15, hovP == k ? SciSkin.termAccentDeep() : SciSkin.termFrame());
+            ctx.fill(cx, cy, cx + 20, cy + 14, SciSkin.hex(SciSkin.TERM_PRESETS[k][0], SciSkin.termBase())); // 底=预设主色
+            ctx.fill(cx + 3, cy + 3, cx + 17, cy + 11, SciSkin.hex(SciSkin.TERM_PRESETS[k][2], SciSkin.termAccent())); // 心=预设强调
+        }
+        SciSkin.termBtn(ctx, this.textRenderer, px + TH_RX, py + 130, 120, 16, "恢复默认",
+                mouseX >= px + TH_RX && mouseX <= px + TH_RX + 120 && mouseY >= py + 130 && mouseY <= py + 146, true);
+        ctx.drawText(this.textRenderer, "打字/拖滑块实时换肤 · Esc/点窗外=关", px + 8, py + TH_H - 13, SciSkin.termSub(), false);
+        ctx.getMatrices().pop();
     }
 
-    /** 主题面板点击派发（几何与 renderTheme 同一套）。恒返回 true=modal 吞穿透。 */
+    /** m202 预设片悬停命中（渲染/点击同一套几何）。 */
+    private int hoveredPreset(double mx, double my) {
+        int px = thPos()[0], py = thPos()[1];
+        if (my < py + 106 || my > py + 120) return -1;
+        for (int k = 0; k < SciSkin.TERM_PRESETS.length; k++) {
+            int cx = px + TH_RX + k * 24;
+            if (mx >= cx && mx <= cx + 20) return k;
+        }
+        return -1;
+    }
+
+    /** m202 滑块通道命中（-1=未命中）。 */
+    private int hitSlider(double mx, double my) {
+        int px = thPos()[0], py = thPos()[1];
+        if (mx < px + SL_X - 2 || mx > px + SL_X + SL_W + 2) return -1;
+        for (int ch = 0; ch < 3; ch++) {
+            int sy = py + 36 + ch * 18;
+            if (my >= sy - 2 && my <= sy + 12) return ch;
+        }
+        return -1;
+    }
+
+    /** m202 按鼠标位写所选色的某通道：改十六进制串→setText 触发监听→配置→SciSkin 缓存重解析=实时换肤。 */
+    private void thApplySlider(double mx) {
+        int px = thPos()[0];
+        int v = (int) Math.round(Math.max(0, Math.min(1, (mx - (px + SL_X)) / (double) (SL_W - 4))) * 255);
+        int c = themeColor(thSel);
+        int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+        if (thDragCh == 0) r = v; else if (thDragCh == 1) g = v; else b = v;
+        themeF[thSel].setText(String.format("%02X%02X%02X", r, g, b));
+    }
+
+    /** 主题面板点击派发（几何与 renderTheme 同一套）。恒返回 true=modal 吞穿透。
+     *  m202 聚焦修复：非 children 的 TextFieldWidget 点击不会自聚焦（原版聚焦由 ParentElement 派发，
+     *  手搓 modal 没这条链）——命中后必须显式 setFocused(true)，"颜色改不了"根因即此。 */
     private boolean themeClick(double mx, double my, int button) {
         int px = thPos()[0], py = thPos()[1];
         if (mx < px || mx > px + TH_W || my < py || my > py + TH_H) { closeTheme(); return true; } // 窗外点=关
         for (int i = 0; i < 7; i++) {
             if (themeF[i].mouseClicked(mx, my, button)) {
-                for (int j = 0; j < 7; j++) if (j != i) themeF[j].setFocused(false);
+                for (int j = 0; j < 7; j++) themeF[j].setFocused(j == i); // 显式聚焦（先 mouseClicked 定光标位）
+                thSel = i; // 编辑哪行，滑块就跟哪行
                 return true;
             }
         }
         for (TextFieldWidget f : themeF) f.setFocused(false);
         if (button != 0) return true;
-        int rx = px + (TH_W - 64) / 2, rby = py + 22 + 7 * TH_ROW + 3;
-        if (mx >= rx && mx <= rx + 64 && my >= rby && my <= rby + 16) { // 恢复默认（new 实例取字段默认，零硬编码重复）
+        for (int i = 0; i < 7; i++) { // 点行（标签/样片区）=选中该色
+            int ry = py + 22 + i * TH_ROW;
+            if (my >= ry - 3 && my <= ry + 15 && ((mx >= px + 6 && mx <= px + 60) || (mx >= px + 122 && mx <= px + 146))) {
+                thSel = i;
+                return true;
+            }
+        }
+        int ch = hitSlider(mx, my); // 点滑块轨=起拖并立即写值
+        if (ch >= 0) {
+            thDragCh = ch;
+            thApplySlider(mx);
+            return true;
+        }
+        int pk = hoveredPreset(mx, my); // 预设片：整套七色一键应用
+        if (pk >= 0) {
+            for (int i = 0; i < 7; i++) themeF[i].setText(SciSkin.TERM_PRESETS[pk][i]);
+            com.sdzjz.config.SdzjzConfig.save();
+            return true;
+        }
+        if (mx >= px + TH_RX && mx <= px + TH_RX + 120 && my >= py + 130 && my <= py + 146) { // 恢复默认
             com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
             for (int i = 0; i < 7; i++) themeF[i].setText(themeGet(d, i)); // setText 触发 listener 回写配置
             com.sdzjz.config.SdzjzConfig.save();
@@ -465,7 +560,9 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
-        if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行（m200 换终端主题皮：墨底浮层+主题钮）
+        if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行（m200 换终端主题皮；m202 抬 z=400 防槽物品穿透）
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate(0, 0, 400);
             int w = QTY.length * 26 + 6;
             ctx.fill(qtyX - 5, qtyY - 17, qtyX + w + 1, qtyY + 41, SciSkin.termFrame());
             ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 40, SciSkin.withAlpha(SciSkin.termInk(), 0.96f));
@@ -480,6 +577,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 boolean hov = mouseX >= bx && mouseX <= bx + 30 && mouseY >= by && mouseY <= by + 16;
                 SciSkin.termBtn(ctx, this.textRenderer, bx, by, 30, 16, QTY2[j], hov, hov);
             }
+            ctx.getMatrices().pop();
         }
         if (themeOpen) renderTheme(ctx, mouseX, mouseY, delta); // m200 主题面板压最上层（tooltip 之后）
     }

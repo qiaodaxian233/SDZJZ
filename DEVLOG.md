@@ -2699,3 +2699,26 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   常量名（映射文件无 FIELD 行，按全生态惯例写）、onInputSlotFillFinish 泛型形参（备选：裸 RecipeEntry）、
   createRecipeInput 若为接口 default 则覆写合法/若抽象则本就必需、匿名 CraftingResultSlot 子类
   tryTakeStackRange 可见性；冒烟=0 新符号定向=0。
+
+## m202 主题面板三修：物品穿透叠加 / 颜色框敲不动 / 预设配色+RGB 滑块（作者截图点名）
+- **现象①叠加**：主题面板开着，存储格物品和数量角标直接印在面板文字/输入框上（截图实锤）。
+  **根因**：HandledScreen 槽内物品画在 z≈100~200、数量角标咱自己 translate 到 z=200，均带深度测试；
+  主题面板是 super.render 之后画的 z=0 填充——后画但 z 低，被深度剔除=物品穿透。
+  **修法**：renderTheme 整体 push/translate(0,0,400)/pop（与原版 tooltip 同层且后画=盖顶）；
+  数量浮层同病同抬；画布侧 m199 设置面板与 m192 重命名小窗预防性同修（卡内 drawItem 同为带深度高 z）。
+- **现象②颜色改不了**：点输入框光标闪不出来、打字没反应。
+  **根因**：原版聚焦链在 ParentElement.mouseClicked（命中 child 才 setFocused）——手搓 modal 的
+  TextFieldWidget 不是 children，mouseClicked 只定光标位**不会自聚焦**；而 TextFieldWidget 的
+  keyPressed/charTyped 都要 isFocused 才吃字。renameField/pickerField 靠开窗时显式 setFocused
+  把这坑掩盖了，m199/m201 的点击聚焦路径全军覆没。
+  **修法**：命中即显式 `setFocused(true)`（他框置 false）；画布 m199 两框同修。
+  **教训**：凡不入 children 的手搓控件，聚焦/导航/narration 原版一概不管——点击聚焦必须自己焊。
+- **新增③**：主题面板改双列（308×190）：左 7 色行（点标签/样片=选中，选中环高亮；编辑框同步选中）；
+  右列=所选色 **R/G/B 三滑块**（点轨即写+拖拽实时，改的是十六进制串→setText→监听→配置→SciSkin
+  缓存重解析，颜色单一真源不分叉）+ **5 套预设一键整套应用**（紫晶=默认/暗夜/海雾/樱粉/松绿，
+  配色数据进 SciSkin 唯一家，屏内经新公共出口 SciSkin.hex 画片，零色字面量）+ 恢复默认迁右列。
+- **实机验证脚本**：① 开主题面板：存储格物品不再穿透（重点回归②数量浮层同验）；② 点任一颜色框：
+  光标闪、能打字、实时换肤；③ 点"墨色"行标签→右列标题变"调节: 墨色"，拖 R 滑块→全屏底色实时变；
+  ④ 点"暗夜"预设→整窗变暗色系、7 框文本齐换；⑤ 恢复默认回紫晶；⑥ 画布"设置"面板两个颜色框
+  能打字（同修验证）、组重命名窗不被机器卡图标穿透；⑦【待编译验证】盯点：全部为在树旧 API
+  （matrices push/translate/pop 画布 m148 起大量在树；String.format("%02X") 纯 JDK），冒烟=0。
