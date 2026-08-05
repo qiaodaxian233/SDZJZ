@@ -61,30 +61,47 @@ public class DataCableBlockEntity extends BlockEntity
         return this.pos;
     }
 
-    /** m224 邻接可抽取存储探测：任意暴露 Fabric Transfer API 的容器都算（原版箱子有 Fabric 内建适配；
-     *  Tom's Simple Storage / AE2 / Storage Drawers / Create 等一切 Fabric 物流模组即插即用——走标准
-     *  API 不做逐模组集成，即多版本兼容口径）。自家网络方块一律排除：存储核心自身就暴露 FTA（m161c），
-     *  抽给它=左手倒右手；结构核心实现 Inventory 会被 Fabric 兜底适配捞到，同样排除。 */
-    public static List<Storage<ItemVariant>> adjacentStorages(World world, BlockPos pos) {
-        List<Storage<ItemVariant>> out = new ArrayList<>();
-        if (world == null || world.isClient) return out;
+    /** m224 邻接可抽取存储探测（走 Fabric Transfer API 标准口不做逐模组集成）→ m228 升级「六面视图」：
+     *  贴线面只是查询视角之一——侧向机器（AvaritiaNeo 中子态素压缩机等）往往只在顶面暴露输入槽、
+     *  其余面全是输出槽，线插侧面时旧逻辑拿到的唯一视图 insert 恒 0（实机反馈"插头接上了却导不进"）。
+     *  现按 贴线面→其余五面 逐视角收集：单实例注册的模组按身份去重只收一次；侧向包装每面一实例、
+     *  各按其面规则放行/拒绝——语义=六面各贴一只漏斗，线插哪面都能喂到收料面。六面全无才试无侧注册。
+     *  自家网络方块排除口径不变（存储核心=左手倒右手 m161c；结构核心 Inventory 会被 Fabric 兜底捞到）。
+     *  blockCount=有可对接视图的邻块数（界面"旁接存储"口径）。 */
+    public static Adjacency scanAdjacent(World world, BlockPos pos) {
+        List<Storage<ItemVariant>> targets = new ArrayList<>();
+        int blocks = 0;
+        if (world == null || world.isClient) return new Adjacency(targets, 0);
         for (Direction d : Direction.values()) {
             BlockPos np = pos.offset(d);
             BlockEntity be = world.getBlockEntity(np);
             if (be != null && be.getClass().getName().startsWith("com.sdzjz")) continue; // 自家网络方块不作抽取目标
-            Storage<ItemVariant> st = ItemStorage.SIDED.find(world, np, d.getOpposite()); // 先按贴线面查
-            if (st == null) st = ItemStorage.SIDED.find(world, np, null);                 // 部分模组只登记无侧访问
-            if (st != null && st.supportsInsertion()) out.add(st);
+            int before = targets.size();
+            collectView(targets, world, np, d.getOpposite()); // 贴线面优先（多目标分发顺位保持旧口径）
+            for (Direction q : Direction.values())
+                if (q != d.getOpposite()) collectView(targets, world, np, q);
+            if (targets.size() == before) collectView(targets, world, np, null); // 部分模组只登记无侧访问
+            if (targets.size() > before) blocks++;
         }
-        return out;
+        return new Adjacency(targets, blocks);
     }
+
+    private static void collectView(List<Storage<ItemVariant>> out, World world, BlockPos np, Direction side) {
+        Storage<ItemVariant> st = ItemStorage.SIDED.find(world, np, side);
+        if (st == null || !st.supportsInsertion()) return;
+        for (Storage<ItemVariant> s : out) if (s == st) return; // 身份去重：全面同实例注册的只收一次
+        out.add(st);
+    }
+
+    /** 邻接扫描结果：插入视图序列 + 可对接邻块数。 */
+    public record Adjacency(List<Storage<ItemVariant>> targets, int blockCount) {}
 
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
     public static void tick(World world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
         if (world.isClient || !be.extractOn) return;
         int period = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
         if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
-        List<Storage<ItemVariant>> targets = adjacentStorages(world, pos);
+        List<Storage<ItemVariant>> targets = scanAdjacent(world, pos).targets();
         if (targets.isEmpty()) return;
         List<StorageCoreBlockEntity> cores = be.cores(world, pos);
         if (cores.isEmpty()) return;

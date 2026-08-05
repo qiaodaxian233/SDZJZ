@@ -47,7 +47,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
         this.props = (be != null && server) ? new PropertyDelegate() { // 服务端实读 BE；每 tick 6 次邻接探测仅在开屏期间（m107a 面板同量级）
             @Override public int get(int index) {
                 if (index == 0) return be.extractOn() ? 1 : 0;
-                return DataCableBlockEntity.adjacentStorages(be.getWorld(), be.getPos()).size();
+                return DataCableBlockEntity.scanAdjacent(be.getWorld(), be.getPos()).blockCount(); // m228 计邻块数
             }
             @Override public void set(int index, int value) {}
             @Override public int size() { return 2; }

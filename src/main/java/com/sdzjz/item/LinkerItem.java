@@ -41,7 +41,7 @@ public class LinkerItem extends Item {
         if (be instanceof com.sdzjz.block.DataCableBlockEntity cable) { // m227：原扳手功能（m224~m226）
             if (player != null) {
                 if (player.isSneaking()) { // 潜行右键=快速开/关抽取口
-                    int n = com.sdzjz.block.DataCableBlockEntity.adjacentStorages(world, pos).size();
+                    int n = com.sdzjz.block.DataCableBlockEntity.scanAdjacent(world, pos).blockCount(); // m228 计邻块数
                     cable.setExtractOn(!cable.extractOn());
                     player.sendMessage(cable.extractOn()
                             ? Text.translatable("sdzjz.extract_port.on", n)
