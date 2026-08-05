@@ -37,6 +37,7 @@ public class DataCableBlockEntity extends BlockEntity
     private java.util.UUID owner = null;                       // m229 端口所有者（EMC 记谁账上；配置即认领）
     /** m230 升级槽（0=速度 1=数量 2=并发；级数=槽内件数，配置界面装取）。 */
     public final net.minecraft.inventory.SimpleInventory upgrades = new net.minecraft.inventory.SimpleInventory(3);
+    private boolean pullMode = false; // m231 方向：false=送出(仓→机器/卖桌) true=回收(机器→仓)；单向无环
     private net.minecraft.server.network.ServerPlayerEntity opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
@@ -68,6 +69,8 @@ public class DataCableBlockEntity extends BlockEntity
         if (p != null && !p.getUuid().equals(owner)) { owner = p.getUuid(); markDirty(); }
     }
     public java.util.UUID owner() { return owner; }
+    public boolean pullMode() { return pullMode; }
+    public void setPullMode(boolean pull) { pullMode = pull; markDirty(); } // m231
     /** 过滤模板视图（m226 界面读写；写入方自行 markDirty）。 */
     public List<ItemStack> filterView() { return filter; }
 
@@ -119,7 +122,7 @@ public class DataCableBlockEntity extends BlockEntity
 
     private static void collectView(List<Storage<ItemVariant>> out, World world, BlockPos np, Direction side) {
         Storage<ItemVariant> st = ItemStorage.SIDED.find(world, np, side);
-        if (st == null || !st.supportsInsertion()) return;
+        if (st == null || (!st.supportsInsertion() && !st.supportsExtraction())) return; // m231 双向收：送出用可插视图、回收用可取视图
         for (Storage<ItemVariant> s : out) if (s == st) return; // 身份去重：全面同实例注册的只收一次
         out.add(st);
     }
@@ -135,12 +138,13 @@ public class DataCableBlockEntity extends BlockEntity
         Adjacency adj = scanAdjacent(world, pos);
         List<Storage<ItemVariant>> targets = adj.targets();
         be.opSeller = null; // m229 本拍卖手：贴桌+已认领+所有者在线（离线提供者不可变，写=白写，不卖留货）
-        if (adj.sellTable() && be.owner != null && world.getServer() != null)
+        if (!be.pullMode && adj.sellTable() && be.owner != null && world.getServer() != null)
             be.opSeller = world.getServer().getPlayerManager().getPlayer(be.owner);
         if (targets.isEmpty() && be.opSeller == null) return;
         List<StorageCoreBlockEntity> cores = be.cores(world, pos);
         if (cores.isEmpty()) return;
         long budget = be.effBudget(); // m230 升级生效
+        if (be.pullMode) { be.doPull(cores, targets, budget); return; } // m231 回收：机器→仓（卖桌不参与）
         be.opTargetsFull = false;
         List<ItemStack> want = new ArrayList<>();
         for (ItemStack f : be.filter) if (!f.isEmpty()) want.add(f);
@@ -222,6 +226,35 @@ public class DataCableBlockEntity extends BlockEntity
         }
     }
 
+    /** m231 回收拍：从邻接机器的可取视图抽货进相连存储核心（FTA 出口 m161c 双账本，附魔书/药水
+     *  连组件正确入精确账本）。StorageUtil.move 只搬"取得出且存得进"的量——仓容不足余量留在机器里
+     *  绝不落地；过滤同 m225 语义（无组件模板=只收裸物品，带组件=连组件精确匹配，空=全收）。 */
+    private void doPull(List<StorageCoreBlockEntity> cores, List<Storage<ItemVariant>> sources, long budget) {
+        for (Storage<ItemVariant> src : sources) {
+            if (budget <= 0) break;
+            if (!src.supportsExtraction()) continue;
+            for (StorageCoreBlockEntity core : cores) {
+                if (budget <= 0) break;
+                budget -= net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil.move(
+                        src, core.fabricStorage(), this::pullWants, budget, null);
+            }
+        }
+    }
+
+    private boolean pullWants(ItemVariant v) {
+        boolean any = false;
+        ItemStack vs = null;
+        for (ItemStack tpl : filter) {
+            if (tpl.isEmpty()) continue;
+            any = true;
+            if (vs == null) vs = v.toStack();
+            if (tpl.getComponentChanges().isEmpty()) { // 无组件模板=只收该 id 的裸物品（m225 口径）
+                if (vs.isOf(tpl.getItem()) && vs.getComponentChanges().isEmpty()) return true;
+            } else if (ItemStack.areItemsAndComponentsEqual(vs, tpl)) return true; // 精确模板连组件匹配
+        }
+        return !any; // 空过滤=全收
+    }
+
     private long insertInto(List<Storage<ItemVariant>> targets, ItemVariant v, long amount) {
         long done = 0;
         for (Storage<ItemVariant> t : targets) {
@@ -248,6 +281,7 @@ public class DataCableBlockEntity extends BlockEntity
         super.writeNbt(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
         if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
+        nbt.putBoolean("pullMode", pullMode); // m231 方向
         for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
             if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).encode(lookup));
         NbtList fl = new NbtList(); // 过滤模板持久化（精确账本 m130 同款 encode）
@@ -260,6 +294,7 @@ public class DataCableBlockEntity extends BlockEntity
         super.readNbt(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
+        pullMode = nbt.getBoolean("pullMode"); // m231
         for (int i = 0; i < 3; i++) { // m230
             upgrades.setStack(i, nbt.contains("up" + i)
                     ? ItemStack.fromNbt(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);

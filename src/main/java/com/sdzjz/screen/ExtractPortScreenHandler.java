@@ -27,7 +27,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     public static final int FILTER = 9; // 过滤槽数 = DataCableBlockEntity 过滤模板上限（m225 ≤9 条口径）
     public static final int UPG = 3;    // m230 升级槽数（速度/数量/并发）
     // 几何收口常量（渲染与槽位同源，m215/m223 教训）：过滤行/升级行/背包首行 y 与升级行 x
-    public static final int FILTER_Y = 58, UPG_X = 44, UPG_Y = 96, PINV_Y = 120;
+    public static final int FILTER_Y = 80, UPG_X = 44, UPG_Y = 118, PINV_Y = 142; // m231 模式钮行整体下移 22
 
     private final DataCableBlockEntity be;
     private final SimpleInventory ghost = new SimpleInventory(FILTER); // 幽灵模板显示层（真数据在 BE.filter）
@@ -53,18 +53,19 @@ public class ExtractPortScreenHandler extends ScreenHandler {
                 DataCableBlockEntity.Adjacency adj = DataCableBlockEntity.scanAdjacent(be.getWorld(), be.getPos());
                 if (index == 1) return adj.blockCount(); // m228 计邻块数
                 if (index == 2) {
-                    if (!adj.sellTable()) return 0; // m229 出售状态：0=无桌
+                    if (be.pullMode() || !adj.sellTable()) return 0; // m229 出售状态：0=无桌（m231 回收模式桌不参与）
                     boolean ready = com.sdzjz.compat.ProjectEFCompat.available() && be.owner() != null
                             && be.getWorld().getServer() != null
                             && be.getWorld().getServer().getPlayerManager().getPlayer(be.owner()) != null;
                     return ready ? 1 : 2;   // 1=出售中 2=桌在但未就绪（未认领/所有者离线/API 不可用）
                 }
                 if (index == 3) return be.effPeriod(); // m230 生效周期（升级实时反映）
-                return (int) Math.min(Integer.MAX_VALUE, be.effBudget()); // m230 生效批量
+                if (index == 4) return (int) Math.min(Integer.MAX_VALUE, be.effBudget()); // m230 生效批量
+                return be.pullMode() ? 1 : 0; // m231 方向
             }
             @Override public void set(int index, int value) {}
-            @Override public int size() { return 5; }
-        } : new ArrayPropertyDelegate(5);
+            @Override public int size() { return 6; }
+        } : new ArrayPropertyDelegate(6);
         addProperties(props);
 
         // 幽灵过滤槽（0..8）：真栈进不来也拿不走——原版 SWAP/QUICK_CRAFT/PICKUP_ALL 路径全被这两钩子挡死
@@ -105,6 +106,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     public int sellState()       { return props.get(2); }
     public int effPeriod()       { return props.get(3); } // m230
     public int effBudget()       { return props.get(4); } // m230
+    public boolean pullMode()    { return props.get(5) != 0; } // m231
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType type, PlayerEntity player) {
@@ -174,6 +176,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (be == null || player.getWorld().isClient) return false;
         if (id == 0) { be.setExtractOn(!be.extractOn()); return true; } // 启停切换（m225 潜行右键同一开关）
+        if (id == 1) { be.setPullMode(!be.pullMode()); return true; }   // m231 方向切换
         return false;
     }
 

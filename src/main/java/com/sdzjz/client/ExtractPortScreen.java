@@ -19,13 +19,14 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
     private static final int CELL    = SciSkin.CELL;
     private static final int CELLFRM = SciSkin.CELL_FRM;
 
-    // 启停钮几何（渲染与点击同源常量，m215/m223 教训：先收口再改数）
+    // 启停/模式钮几何（渲染与点击同源常量，m215/m223 教训：先收口再改数）
     private static final int BTN_X = 8, BTN_Y = 20, BTN_W = 160, BTN_H = 18;
+    private static final int MODE_Y = 42; // m231 方向钮行
 
     public ExtractPortScreen(ExtractPortScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 176;
-        this.backgroundHeight = 202; // m230 升级行加高
+        this.backgroundHeight = 224; // m230 升级行 + m231 模式钮行加高
     }
 
     @Override
@@ -46,6 +47,16 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         String label = Text.translatable(on ? "sdzjz.extract_port.running" : "sdzjz.extract_port.stopped").getString();
         ctx.drawText(this.textRenderer, label, bx + 16, by + 5, on ? SciSkin.TXT_MAX : TXT, false);
 
+        // m231 方向钮：送出(仓→机器/卖桌) / 回收(机器→仓)
+        boolean pull = this.handler.pullMode();
+        int mx2 = x + BTN_X, my2 = y + MODE_Y;
+        boolean hov2 = mouseX >= mx2 && mouseX < mx2 + BTN_W && mouseY >= my2 && mouseY < my2 + BTN_H;
+        ctx.fill(mx2, my2, mx2 + BTN_W, my2 + BTN_H, hov2 ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
+        ctx.drawBorder(mx2, my2, BTN_W, BTN_H, hov2 ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.drawText(this.textRenderer,
+                Text.translatable(pull ? "sdzjz.extract_port.mode_in" : "sdzjz.extract_port.mode_out").getString(),
+                mx2 + 6, my2 + 5, pull ? SciSkin.TXT_HI : TXT, false);
+
         // 邻接存储计数（属性 [1] 同步；0 台=柔和红提醒）
         int n = this.handler.adjacentCount();
         String adj = n > 0
@@ -54,13 +65,13 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         int sell = this.handler.sellState(); // m229 转化桌出售状态后缀
         if (sell == 1) adj += Text.translatable("sdzjz.extract_port.selling").getString();
         else if (sell == 2) adj += Text.translatable("sdzjz.extract_port.sell_blocked").getString();
-        ctx.drawText(this.textRenderer, adj, x + 8, y + 44,
-                n > 0 ? (sell == 1 ? SciSkin.GOLD : SUB) : SciSkin.RED_SOFT, false);
+        ctx.drawText(this.textRenderer, adj, x + 8, y + 66,
+                n > 0 ? (sell == 1 ? SciSkin.GOLD : SUB) : SciSkin.RED_SOFT, false); // m231 下移
 
         // 幽灵过滤槽底（槽坐标走 Handler 收口常量同源）
         for (int i = 0; i < ExtractPortScreenHandler.FILTER; i++)
             cell(ctx, x + 8 + i * 18, y + ExtractPortScreenHandler.FILTER_Y);
-        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.hint").getString(), x + 8, y + 80, SUB, false);
+        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.hint").getString(), x + 8, y + 102, SUB, false); // m231 下移
 
         // m230 升级行：标签 + 三槽（速度/数量/并发）+ 生效读数
         ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.upgrades").getString(),
@@ -90,10 +101,16 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        int bx = this.x + BTN_X, by = this.y + BTN_Y;
-        if (mx >= bx && mx < bx + BTN_W && my >= by && my < by + BTN_H) {
-            this.client.interactionManager.clickButton(this.handler.syncId, 0);
-            return true;
+        int bx = this.x + BTN_X;
+        if (mx >= bx && mx < bx + BTN_W) {
+            if (my >= this.y + BTN_Y && my < this.y + BTN_Y + BTN_H) {
+                this.client.interactionManager.clickButton(this.handler.syncId, 0);
+                return true;
+            }
+            if (my >= this.y + MODE_Y && my < this.y + MODE_Y + BTN_H) { // m231 方向钮
+                this.client.interactionManager.clickButton(this.handler.syncId, 1);
+                return true;
+            }
         }
         return super.mouseClicked(mx, my, button);
     }

@@ -143,5 +143,7 @@
   "sdzjz.extract_port.selling": " · 转化桌出售中",
   "sdzjz.extract_port.sell_blocked": " · 转化桌未就绪",
   "sdzjz.extract_port.upgrades": "升级",
-  "sdzjz.extract_port.stats": "每 %s t 至多 %s 件"
+  "sdzjz.extract_port.stats": "每 %s t 至多 %s 件",
+  "sdzjz.extract_port.mode_out": "模式：送出 → 旁接机器（点击切换）",
+  "sdzjz.extract_port.mode_in": "模式：回收 ← 旁接机器进存储（点击切换）"
 }
