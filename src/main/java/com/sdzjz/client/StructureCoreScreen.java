@@ -85,18 +85,30 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (!com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen) return this.height - (compactChrome() ? 26 : 30);
         return this.height - (compactChrome() ? 46 : 66);
     }
-    /** m219 底部五钮摆位（init 与"状态"开合共用；m182 折行口径原样：放得下的必是前缀，折行只在尾部）。 */
+    /** m219 底部五钮摆位（init 与"状态"开合共用）。m222 改自适应居中（作者点名"对齐/自适应放置/自动居中"）：
+     *  顺序装行、装不下换行（m182 口径：放得下的必是前缀，折行只在尾部），每行按可用宽水平居中；
+     *  首行在带内(botTop()+4)，溢出行往带上方叠——旧固定 bbX{8,104,200,300,396} 左堆版退役。 */
     private void layoutBottomButtons() {
         if (bottomBtns == null) return;
-        int[] bbX = {8, 104, 200, 300, 396};
+        int gap = 6, avail = Math.max(60, workRight() - 16); // 可用宽=带内左右各留 8（带只画到 workRight()）
         int bbH = bottomBtns[0].getHeight();
-        int bbLim = this.width - 8, bbFx = 8, bbFy = botTop() - bbH - 4; // 折行首行=带上方 4px（与画布剪刀 botTop 不撞）
-        for (int i = 0; i < bottomBtns.length; i++) {
-            if (bbX[i] + bottomBtns[i].getWidth() <= bbLim) { bottomBtns[i].setX(bbX[i]); bottomBtns[i].setY(botTop() + 4); }
-            else {
-                if (bbFx + bottomBtns[i].getWidth() > bbLim && bbFx > 8) { bbFx = 8; bbFy -= bbH + 4; }
-                bottomBtns[i].setX(bbFx); bottomBtns[i].setY(bbFy); bbFx += bottomBtns[i].getWidth() + 6;
-            }
+        java.util.List<java.util.List<TermButton>> rows = new java.util.ArrayList<>();
+        java.util.List<TermButton> cur = new java.util.ArrayList<>();
+        int curW = 0;
+        for (TermButton b : bottomBtns) {
+            int need = (cur.isEmpty() ? 0 : gap) + b.getWidth();
+            if (!cur.isEmpty() && curW + need > avail) { rows.add(cur); cur = new java.util.ArrayList<>(); curW = 0; need = b.getWidth(); }
+            cur.add(b);
+            curW += need;
+        }
+        if (!cur.isEmpty()) rows.add(cur);
+        for (int r = 0; r < rows.size(); r++) {
+            java.util.List<TermButton> row = rows.get(r);
+            int tw = -gap;
+            for (TermButton b : row) tw += b.getWidth() + gap;
+            int x = 8 + Math.max(0, (avail - tw) / 2);
+            int y = r == 0 ? botTop() + 4 : botTop() - (bbH + 4) * r; // 溢出行=带上方 4px 起往上叠（与画布剪刀 botTop 不撞，m182 口径）
+            for (TermButton b : row) { b.setX(x); b.setY(y); x += b.getWidth() + gap; }
         }
     }
 
@@ -241,9 +253,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             double[] v = VIEW.get(p);
             setViewInstant(v[0], v[1], v[2]); // m186 恢复视图走直设，顺带对齐动效目标
         }
-        // m182 底栏五钮防溢出：常规宽度坐标与旧版逐像素一致(8/104/200/300/396)；右缘越过安全边距的按钮
-        // （320 GUI 视口下"整理布局/重置视角"右缘 392/488 > 312）折行到状态条(height-78)上方流式摆放，
-        // setX/setY 走 pickerField 同款在树先例。历史坐标单调递增 → 放得下的必是前缀，折行只会发生在尾部。
+        // m182 底栏五钮防溢出→m222 自适应居中：顺序装行装不下折行（放得下的必是前缀），每行水平居中，
+        // 首行带内、溢出行往带上方叠——摆位唯一家=layoutBottomButtons()，旧固定坐标 8/104/200/300/396 退役。
         if (busScale < 0) busScale = (float) Math.max(BUS_MIN, Math.min(BUS_MAX, com.sdzjz.config.SdzjzConfig.get().canvasBusScale)); // m215 首次从配置装载
         int[] bbW = {90, 90, 96, 92, 92}; // 坐标 bbX 唯一家=layoutBottomButtons()（m219 搬家，防散写）
         int bbH = compactChrome() ? 16 : 20; // m215 紧凑钮高
