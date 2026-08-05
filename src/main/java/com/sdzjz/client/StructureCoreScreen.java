@@ -44,7 +44,6 @@ import java.util.List;
  */
 public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandler> {
 
-    private static final int BACKDROP = SciSkin.BACKDROP;
     private static final Identifier FRAME = Identifier.of("sdzjz", "textures/gui/structure_core_canvas.png");
     private static final int TXT      = SciSkin.TXT;
     private static final int SUB      = SciSkin.SUB;
@@ -216,12 +215,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // setX/setY 走 pickerField 同款在树先例。历史坐标单调递增 → 放得下的必是前缀，折行只会发生在尾部。
         int[] bbX = {8, 104, 200, 300, 396};
         int[] bbW = {90, 90, 96, 92, 92};
-        SciButton[] bb = {
-                new SciButton(0, 0, bbW[0], 20, Text.literal("▶ 开机"), b -> click(0)),
-                new SciButton(0, 0, bbW[1], 20, Text.literal("■ 停止"), b -> click(1)),
-                new SciButton(0, 0, bbW[2], 20, Text.literal("★ 领取经验"), b -> click(2)),
-                new SciButton(0, 0, bbW[3], 20, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
-                new SciButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
+        TermButton[] bb = { // m203 画布横幅按钮换终端主题控件
+                new TermButton(0, 0, bbW[0], 20, Text.literal("▶ 开机"), b -> click(0), true), // m203 主紫
+                new TermButton(0, 0, bbW[1], 20, Text.literal("■ 停止"), b -> click(1)),
+                new TermButton(0, 0, bbW[2], 20, Text.literal("★ 领取经验"), b -> click(2)),
+                new TermButton(0, 0, bbW[3], 20, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
+                new TermButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
         };
         int bbLim = this.width - 8, bbFx = 8, bbFy = this.height - 102; // 折行首行=状态条上方 4px（与画布剪刀 height-78 不撞）
         for (int i = 0; i < bb.length; i++) {
@@ -232,14 +231,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             }
             this.addDrawableChild(bb[i]);
         }
-        this.addDrawableChild(new SciButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
-        this.addDrawableChild(new SciButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
-        this.addDrawableChild(new SciButton(244, 2, 44, 16, Text.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
+        this.addDrawableChild(new TermButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
+        this.addDrawableChild(new TermButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
+        this.addDrawableChild(new TermButton(244, 2, 44, 16, Text.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
                 b -> { if (settingsOpen) closeSettings(); else openSettings(); }));
         int wr2 = this.width - 8; // m121 视图控制随全屏右移
-        this.addDrawableChild(new SciButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
-        this.addDrawableChild(new SciButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
-        this.addDrawableChild(new SciButton(wr2 - 86, 2, 78, 16, Text.literal("适应视图"), b -> fitView()));
+        this.addDrawableChild(new TermButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
+        this.addDrawableChild(new TermButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
+        this.addDrawableChild(new TermButton(wr2 - 86, 2, 78, 16, Text.literal("适应视图"), b -> fitView()));
         String keep = pickerField != null ? pickerField.getText() : "";
         this.pickerField = new TextFieldWidget(this.textRenderer, 0, 0, PICK_W - 16, 14, Text.literal("搜索"));
         this.pickerField.setChangedListener(t -> refilterPicker());
@@ -409,23 +408,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
-        ctx.fill(0, 0, this.width, this.height, BACKDROP);
+        ctx.fill(0, 0, this.width, this.height, SciSkin.termInk()); // m203 全屏底随主题（默认墨色≈旧深底）
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
-        SciSkin.panelBand(ctx, 0, 0, workRight(), 22); // m188 顶条渐变底带（m120 平面填充退役）
-        SciSkin.glowLineH(ctx, 0, workRight(), 22, CYAN); // m188 轨道线加霓虹晕
+        SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
+        SciSkin.termBandLine(ctx, 0, workRight(), 22);
         // m188 网格双色制：细线打底 + 每4格一根主线；相位按世界格序号（floorMod）定，平移不跳档
         int step = 32;
         int gi0 = (int) Math.floor(-panX / step), gi1 = (int) Math.floor((this.width - panX) / step);
         for (int gi = gi0; gi <= gi1; gi++) {
             int gsx = (int) Math.floor(panX + gi * (double) step);
             ctx.fill(gsx, 34, gsx + 1, this.height,
-                    Math.floorMod(gi, 4) == 0 ? SciSkin.GRID_MAJOR : SciSkin.GRID_MINOR);
+                    Math.floorMod(gi, 4) == 0 ? SciSkin.termGridMajor() : SciSkin.termGridMinor()); // m203 网格随主题强调色
         }
         int gj0 = (int) Math.floor((34 - panY) / step), gj1 = (int) Math.floor((this.height - panY) / step);
         for (int gj = gj0; gj <= gj1; gj++) {
             int gsy = (int) Math.floor(panY + gj * (double) step);
             if (gsy >= 34) ctx.fill(0, gsy, this.width, gsy + 1,
-                    Math.floorMod(gj, 4) == 0 ? SciSkin.GRID_MAJOR : SciSkin.GRID_MINOR);
+                    Math.floorMod(gj, 4) == 0 ? SciSkin.termGridMajor() : SciSkin.termGridMinor());
         }
         SciSkin.vignette(ctx, 0, 23, workRight(), this.height - 78); // m188 四缘暗角压景深（卡片/连线画在其上不受影响）
 
@@ -509,12 +508,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 boolean er = sx + 14 >= mcx; // 收料口在机器右侧→右缘出线，否则左缘出线
                 float mxs = (float) (panX + (wnx(be, nodes, mi) + (er ? NW : 0)) * zoom);
                 drawWire(ctx, mxs, mys, er ? 1 : -1, 0, sx + 14, sy + bh() + 2, 0, -1,
-                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
+                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
             } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器近侧缘（m184 同上）
                 boolean fr = sx + bw() - 14 >= mcx; // 供料口在机器右侧→从右缘进（行进方向向左），否则左缘进
                 float mxi = (float) (panX + (wnx(be, nodes, mi) + (fr ? NW : 0)) * zoom);
                 drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, fr ? -1 : 1, 0,
-                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
+                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
             }
         }
         for (var en : seBundles.entrySet()) { // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条
@@ -533,14 +532,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 float gxs = (float) (panX + (er ? r[2] : r[0]) * zoom);
                 bx2 = sx + 14; by2 = sy + bh() + 2;
                 drawWire(ctx, gxs, gys, er ? 1 : -1, 0, bx2, by2, 0, -1,
-                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
+                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
                 drawBundleBadge(ctx, (gxs + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
             } else {                 // 存储→组（供料）
                 boolean fr = sx + bw() - 14 >= gcx;
                 float gxi = (float) (panX + (fr ? r[2] : r[0]) * zoom);
                 bx2 = sx + bw() - 14; by2 = sy + bh() + 2;
                 drawWire(ctx, bx2, by2, 0, 1, gxi, gys, fr ? -1 : 1, 0,
-                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
+                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
                 drawBundleBadge(ctx, (gxi + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
             }
         }
@@ -569,7 +568,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
                 int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
                 drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
-                        lit2 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), (float) zoom); // m198
+                        lit2 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             }
         }
         for (var en : mmBundles.entrySet()) { // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条
@@ -582,7 +581,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int dir = fwd ? 1 : -1;
             boolean lit3 = en.getValue()[1] != 0;
             drawWire(ctx, ax, (float) A[1], dir, 0, bx, (float) B[1], dir, 0,
-                    lit3 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), (float) zoom); // m198
+                    lit3 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
@@ -608,20 +607,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             selected.removeIf(i -> i >= nodes.size());
             for (int i : selected) {
                 int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-                ctx.fill(nx - 3, ny - 3, nx + NW + 3, ny - 2, CYAN);
-                ctx.fill(nx - 3, ny + NH + 2, nx + NW + 3, ny + NH + 3, CYAN);
-                ctx.fill(nx - 3, ny - 3, nx - 2, ny + NH + 3, CYAN);
-                ctx.fill(nx + NW + 2, ny - 3, nx + NW + 3, ny + NH + 3, CYAN);
+                int selC = SciSkin.termAccent(); // m203 选中描边随主题
+                ctx.fill(nx - 3, ny - 3, nx + NW + 3, ny - 2, selC);
+                ctx.fill(nx - 3, ny + NH + 2, nx + NW + 3, ny + NH + 3, selC);
+                ctx.fill(nx - 3, ny - 3, nx - 2, ny + NH + 3, selC);
+                ctx.fill(nx + NW + 2, ny - 3, nx + NW + 3, ny + NH + 3, selC);
             }
         }
         if (boxSelecting) { // m192 框选矩形（淡面+亮边）
             int bx1 = (int) Math.min(boxX0, boxX1), by1 = (int) Math.min(boxY0, boxY1);
             int bx2 = (int) Math.max(boxX0, boxX1), by2 = (int) Math.max(boxY0, boxY1);
-            ctx.fill(bx1, by1, bx2, by2, SciSkin.withAlpha(CYAN, 0.10f));
-            ctx.fill(bx1, by1, bx2, by1 + 1, CYAN);
-            ctx.fill(bx1, by2 - 1, bx2, by2, CYAN);
-            ctx.fill(bx1, by1, bx1 + 1, by2, CYAN);
-            ctx.fill(bx2 - 1, by1, bx2, by2, CYAN);
+            int boxC = SciSkin.termAccent(); // m203 框选随主题
+            ctx.fill(bx1, by1, bx2, by2, SciSkin.withAlpha(boxC, 0.10f));
+            ctx.fill(bx1, by1, bx2, by1 + 1, boxC);
+            ctx.fill(bx1, by2 - 1, bx2, by2, boxC);
+            ctx.fill(bx1, by1, bx1 + 1, by2, boxC);
+            ctx.fill(bx2 - 1, by1, bx2, by2, boxC);
         }
         m.pop();
 
@@ -629,23 +630,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         {
             int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
             int bot = busVisible() ? 44 + rows * (bh() + 12) + 2 : 44;
-            ctx.fill(8, 24, workRight() - 8, bot, 0x66060B14);
-            SciSkin.glowLineH(ctx, 8, workRight() - 8, bot - 2, 0xFF2E6E8E); // m188 总线底轨霓虹化（沿用原轨道色）
-            ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SUB, false);
+            SciSkin.termBand(ctx, 8, 24, workRight() - 8, bot); // m203 总线带换浅色主题（旧半透深底字面量退役）
+            SciSkin.termBandLine(ctx, 8, workRight() - 8, bot - 2); // m203 底轨随主题（旧轨道色字面量退役）
+            ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SciSkin.termInk(), false); // m203 浅带写墨字
             // 收起/展开开关（右上角小块）
             int tx = workRight() - 34;
             boolean th = mouseX >= tx && mouseX <= tx + 22 && mouseY >= 26 && mouseY <= 40;
-            ctx.fill(tx - 1, 25, tx + 23, 41, th ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-            ctx.fill(tx, 26, tx + 22, 40, SciSkin.BTN_FACE);
-            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
+            ctx.fill(tx - 1, 25, tx + 23, 41, th ? SciSkin.termAccentDeep() : SciSkin.termFrame());
+            ctx.fill(tx, 26, tx + 22, 40, SciSkin.mix(SciSkin.termBase(), SciSkin.termHi(), 0.35f));
+            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? SciSkin.termAccentDeep() : SciSkin.termInk(), false);
             // m93：总线大小滑块（0.8x~1.25x）
             int trx = busTrackX();
-            ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SUB, false);
-            ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, SciSkin.BTN_FRM);
+            ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SciSkin.termSub(), false);
+            ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, SciSkin.termBaseDeep()); // m203 滑轨浅井+紫钮（照设计稿）
             int knx = trx + Math.round((busScale - 0.8f) / 0.45f * (BUS_TRACK_W - 6));
-            ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? SciSkin.TXT_HI : SciSkin.BTN_FRM_HOV);
+            ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? SciSkin.termAccentDeep() : SciSkin.termAccent());
             if (busVisible() && ends.isEmpty())
-                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SUB, false);
+                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, 48, SciSkin.termSub(), false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
             java.util.List<String> bi = busIdsOf(be);
@@ -655,9 +656,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (ist.isEmpty()) continue;
                 String cnt = fmtNum(bc.get(k2));
                 int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
-                if (cx + cw > workRight() - 186) { ctx.drawText(this.textRenderer, "…", cx, 29, SUB, false); break; }
+                if (cx + cw > workRight() - 186) { ctx.drawText(this.textRenderer, "…", cx, 29, SciSkin.termSub(), false); break; }
                 ctx.drawItem(ist, cx, 22);
-                ctx.drawText(this.textRenderer, cnt, cx + 18, 29, TXT, false);
+                ctx.drawText(this.textRenderer, cnt, cx + 18, 29, SciSkin.termInk(), false);
                 cx += cw;
             }
         }
@@ -1166,17 +1167,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.getMatrices().push();
         ctx.getMatrices().translate(-this.x, -this.y, 0);
         // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
-        SciSkin.panelBand(ctx, 0, 0, workRight(), 19); // m188 标题条渐变底带（与顶条同语言）
-        SciSkin.glowLineH(ctx, 0, workRight(), 19, CYAN);
+        SciSkin.termBand(ctx, 0, 0, workRight(), 19); // m203 标题条换浅带（与顶条同语言）
+        SciSkin.termBandLine(ctx, 0, workRight(), 19);
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
-        ctx.drawText(this.textRenderer, tierName, 10, 6, TXT, false);
+        ctx.drawText(this.textRenderer, tierName, 10, 6, SciSkin.termInk(), false); // m203 浅带写墨字
         String zp = Math.round(zoom * 100) + "%"; // m86 顶条缩放读数（−/＋按钮之间）
-        ctx.drawText(this.textRenderer, zp, workRight() - 128 - this.textRenderer.getWidth(zp) / 2, 6, TXT, false);
+        ctx.drawText(this.textRenderer, zp, workRight() - 128 - this.textRenderer.getWidth(zp) / 2, 6, SciSkin.termInk(), false);
 
         // 底部背板：按钮 + 状态 + 提示 一体
         // m87：底栏加高到 78，状态改画在按钮下方整行——之前固定 x=498 起画，GUI 缩放大时直接怼进 JEI（用户截图实锤）
-        SciSkin.panelBand(ctx, 0, this.height - 78, workRight(), this.height); // m188 底栏渐变底带
-        SciSkin.glowLineH(ctx, 0, workRight(), this.height - 78, CYAN); // m188 轨道线霓虹晕（微溢上沿=刻意受光）
+        SciSkin.termBand(ctx, 0, this.height - 78, workRight(), this.height); // m203 底栏换浅带
+        SciSkin.termBandLine(ctx, 0, workRight(), this.height - 78);
         boolean run = this.handler.isRunning();
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
@@ -1187,18 +1188,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
         }
         int maxW = workRight() - 16;
-        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, this.height - 48, run ? ON : SUB, false);
+        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, this.height - 48, run ? ON : SciSkin.termSub(), false);
         ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
                 + "  机器 " + this.handler.machineCount()
                 + "  存储 " + stor + " · 面板 " + term
                 + "  缓存 " + fmtNum(this.handler.buffered())
-                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, this.height - 48, SUB, false);
+                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, this.height - 48, SciSkin.termInk(), false); // m203
         ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
                 + "  升级∑ 加速" + this.handler.speedLv()
                 + " 数量" + this.handler.countLv()
                 + " 并列" + this.handler.parallelLv()
-                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, this.height - 36, SUB, false);
-        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, this.height - 12, SUB, false);
+                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, this.height - 36, SciSkin.termSub(), false);
+        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, this.height - 12, SciSkin.termSub(), false);
 
 
         // ===== m88：机器库侧栏（概念图左栏——列背包里的机器，点击放入画布）=====
@@ -1548,7 +1549,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         String bt = "×" + n;
         int tw = this.textRenderer.getWidth(bt);
         int bx = (int) midX - tw / 2, by = (int) midY - 5;
-        ctx.fill(bx - 2, by - 2, bx + tw + 2, by + 9, SciSkin.withAlpha(SciSkin.BACKDROP, 0.78f));
+        ctx.fill(bx - 2, by - 2, bx + tw + 2, by + 9, SciSkin.withAlpha(SciSkin.termInk(), 0.78f));
         ctx.drawText(this.textRenderer, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
     }
 

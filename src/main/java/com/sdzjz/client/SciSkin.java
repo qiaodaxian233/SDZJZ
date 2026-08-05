@@ -249,6 +249,22 @@ public final class SciSkin {
         vGrad(ctx, x1, y1, x2, y2, BAND_TOP, BAND_BOT);
     }
 
+    /** m203 终端主题浅色横幅带（画布顶条/标题条/总线带/底栏/状态区）：近白受光→主色沉底。 */
+    public static void termBand(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+        vGrad(ctx, x1, y1, x2, y2, mix(termBase(), termHi(), 0.5f), termBase());
+    }
+
+    /** m203 浅色带的轨道线：1px 边框细线 + 强调色霓虹晕（浅底上晕更克制，0.55 衰减）。 */
+    public static void termBandLine(net.minecraft.client.gui.DrawContext ctx, int x1, int x2, int y) {
+        vGrad(ctx, x1, y - 3, x2, y, withAlpha(termAccent(), 0f), withAlpha(termAccent(), 0.20f));
+        ctx.fill(x1, y, x2, y + 1, termFrame());
+        vGrad(ctx, x1, y + 1, x2, y + 4, withAlpha(termAccent(), 0.20f), withAlpha(termAccent(), 0f));
+    }
+
+    /** m203 画布网格随主题强调色联动（原 GRID_MINOR/MAJOR 定青退役于画布，别处未用）。 */
+    public static int termGridMinor() { return withAlpha(termAccent(), 0.10f); }
+    public static int termGridMajor() { return withAlpha(termAccent(), 0.19f); }
+
     /** m187 画布暗角：四缘向中心渐隐压景深，角部自然叠深；带宽随区域自适应。 */
     public static void vignette(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
         int bh = Math.max(24, (y2 - y1) / 6), bw = Math.max(28, (x2 - x1) / 8);

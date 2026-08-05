@@ -29,7 +29,7 @@ LITERAL_RE = re.compile(r"Text\.literal\(")
 ARGB_RE = re.compile(r"0x[0-9A-Fa-f]{8}")
 SKIN_CONST_RE = re.compile(r"public\s+static\s+final\s+int\s+\w+\s*=\s*(0x[0-9A-Fa-f]{8})")
 FIXED_BUTTON_RE = re.compile(
-    r"new\s+SciButton\(\s*(\d+)\s*,\s*([^,]+?)\s*,\s*(\d+)\s*,\s*(\d+)\s*,"
+    r"new\s+(?:Sci|Term)Button\(\s*(\d+)\s*,\s*([^,]+?)\s*,\s*(\d+)\s*,\s*(\d+)\s*,"  # m203 尺子跟上 TermButton
 )
 
 
