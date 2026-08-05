@@ -1856,8 +1856,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         StructureCoreBlockEntity be = be();
         BlockPos p = this.handler.blockPos();
         if (be == null || p == null) return;
-        for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满5台换列）
-            ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i / 5) * 150, 20 + (i % 5) * 130));
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); // m221 间距收紧+进配置（作者截图点名"离得有点远"）：
+        int rows = Math.max(1, c.canvasLayoutRows);                          // 旧 150/130 定值退役；步距=卡实占+间隙
+        int stepX = NW + Math.max(0, c.canvasLayoutGapX);                    // 卡宽 100 + 默认间隙 30 = 130
+        int stepY = NH + 28 + Math.max(0, c.canvasLayoutGapY);               // 卡高 52+28(升级格/徽章带，fitView 同口径) + 默认间隙 24 = 104
+        for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
+            ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i / rows) * stepX, 20 + (i % rows) * stepY));
         List<long[]> ends = endsOf(be);
         for (int j = 0; j < ends.size(); j++)
             ClientPlayNetworking.send(new StorageNodeMovePayload(p, ends.get(j)[0], 760, 20 + j * 72));
