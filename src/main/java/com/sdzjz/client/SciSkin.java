@@ -9,14 +9,14 @@ public final class SciSkin {
     private SciSkin() {}
 
     // ===== 基底 =====
-    public static final int BACKDROP  = 0xFF080B12; // 全屏底色（四屏统一，先铺再贴背景图）
-    public static final int CELL      = 0xFF0A1626; // 面板/格子底
-    public static final int CELL_FRM  = 0xFF163049; // 格子细边
-    public static final int FRAME     = 0xFF1C5A80; // 面板/节点主边框
-    public static final int HOVER     = 0xFF14304A; // 行/格悬停底（原 0xFF102A40 变体并入）
+    public static final int BACKDROP  = 0xFF0B0D18; // 全屏底色（m207 靛紫系）（四屏统一，先铺再贴背景图）
+    public static final int CELL      = 0xFF14182A; // 面板/格子底（m207）
+    public static final int CELL_FRM  = 0xFF2A2F4E; // 格子细边（m207）
+    public static final int FRAME     = 0xFF474C74; // 面板/节点主边框（m207 灰紫）
+    public static final int HOVER     = 0xFF232849; // 行/格悬停底（m207；原蓝系变体并入史见m117）
 
     // ===== 强调 =====
-    public static final int ACCENT    = 0xFF2EC4FF; // 主强调青
+    public static final int ACCENT    = 0xFFA8A0F0; // 主强调薰衣草紫（m207 照新截图；=出线默认色，青系退役）
     public static final int ON        = 0xFF33D07A; // 运行绿
     public static final int ON_DARK   = 0xFF10321E; // 运行绿的暗底
     public static final int RED       = 0xFFE85050; // 报警红
@@ -25,30 +25,30 @@ public final class SciSkin {
     public static final int OFF_GRAY  = 0xFF5A6470; // 离线灰
 
     // ===== 文字 =====
-    public static final int TXT       = 0xFFBFD2EC; // 正文
-    public static final int TXT_HI    = 0xFF9BE8FF; // 高亮读数
-    public static final int TXT_SOFT  = 0xFFB9D8E8; // 次级读数
-    public static final int TXT_MAX   = 0xFFE8FBFF; // 最亮（悬停按钮字）
-    public static final int SUB       = 0xFF7C90B0; // 辅助说明
+    public static final int TXT       = 0xFFC9CCE2; // 正文（m207）
+    public static final int TXT_HI    = 0xFFC7C0FB; // 高亮读数（m207）
+    public static final int TXT_SOFT  = 0xFFB9BDD8; // 次级读数（m207）
+    public static final int TXT_MAX   = 0xFFF1F1FC; // 最亮（悬停按钮字，m207）
+    public static final int SUB       = 0xFF8A8FAE; // 辅助说明（m207）
 
     // ===== 按钮（四屏统一为画布 SciButton 配色；终端旧的 1E4258/3FA9D0/0D1B2C 一族并入） =====
-    public static final int BTN_FRM      = 0xFF1C5A80; // 常态边
-    public static final int BTN_FRM_HOV  = 0xFF2EC4FF; // 悬停边
-    public static final int BTN_FACE     = 0xFF0C1E30; // 常态面
-    public static final int BTN_FACE_HOV = 0xFF123249; // 悬停面
+    public static final int BTN_FRM      = 0xFF474C74; // 常态边（m207）
+    public static final int BTN_FRM_HOV  = 0xFFA8A0F0; // 悬停边（m207）
+    public static final int BTN_FACE     = 0xFF1B1F35; // 常态面（m207）
+    public static final int BTN_FACE_HOV = 0xFF272C4D; // 悬停面（m207）
 
     // ===== m187 质感层（渐变端点/网格/暗角——各屏一律经由下方方法用，不许屏内散抄字面量）=====
-    public static final int CARD_TOP   = 0xE0152A44; // 卡面渐变·上（受光；保留 0xE0 网格微透传统）
-    public static final int CARD_BOT   = 0xE0060C18; // 卡面渐变·下（沉底）
-    public static final int SHEEN      = 0x2295D8FF; // 卡顶冷光泽（向下渐隐到透明）
+    public static final int CARD_TOP   = 0xE0282D45; // 卡面渐变·上（m207 靛蓝卡面照截图24293E）（受光；保留 0xE0 网格微透传统）
+    public static final int CARD_BOT   = 0xE00F1222; // 卡面渐变·下（m207）（沉底）
+    public static final int SHEEN      = 0x22B3ABFA; // 卡顶冷光泽（m207 薰衣草）（向下渐隐到透明）
     public static final int EDGE_LIGHT = 0x2EFFFFFF; // 内顶受光棱线（全局光照自上而下）
     public static final int EDGE_DARK  = 0x8C000000; // 外圈分离暗环 + 内底压边
-    public static final int BAND_TOP   = 0xF2111F32; // 顶/底栏渐变·亮端
-    public static final int BAND_BOT   = 0xF2070D17; // 顶/底栏渐变·暗端
+    public static final int BAND_TOP   = 0xF21B1F33; // 顶/底栏渐变·亮端（m207）
+    public static final int BAND_BOT   = 0xF20C0F1D; // 顶/底栏渐变·暗端（m207）
     public static final int GRID_MINOR = 0x1A26456A; // 画布细网格线
     public static final int GRID_MAJOR = 0x2E3A6E96; // 画布主网格线（每4格一根）
     public static final int VIGNETTE   = 0x55000000; // 画布四缘暗角强度
-    public static final int GROUP_FRM  = 0xC83C8FBF;
+    public static final int GROUP_FRM  = 0xC88C85DC; // m207 分组框边转薰衣草（原半透青蓝退役）
 
     // ===== m198 画布连线进/出分色（配置可调，本类为唯一出口——屏内不许硬编码） =====
     private static String wireOutSrc, wireInSrc;           // 解析缓存：配置串没变就不重解析
@@ -76,7 +76,7 @@ public final class SciSkin {
     public static final int TERM_BASE_DEEP_DEF   = 0xFFAEB4C7;
     public static final int TERM_ACCENT_DEF      = 0xFF8B7CF6;
     public static final int TERM_ACCENT_DEEP_DEF = 0xFF6D5CE0;
-    public static final int TERM_INK_DEF         = 0xFF1E2128;
+    public static final int TERM_INK_DEF         = 0xFF181C2B; // m207 墨色转藏蓝（照新截图工作区底）
     public static final int TERM_FRAME_DEF       = 0xFF3A3F4B;
     public static final int TERM_HI_DEF          = 0xFFFFFFFF;
 
@@ -106,7 +106,7 @@ public final class SciSkin {
     // m202 终端主题预设（配色数据唯一家；列序=配置字段序：base/baseDeep/accent/accentDeep/ink/frame/hi）
     public static final String[] TERM_PRESET_NAMES = {"紫晶", "暗夜", "海雾", "樱粉", "松绿"};
     public static final String[][] TERM_PRESETS = {
-            {"E6E8EF", "AEB4C7", "8B7CF6", "6D5CE0", "1E2128", "3A3F4B", "FFFFFF"}, // 紫晶=设计稿默认
+            {"E6E8EF", "AEB4C7", "8B7CF6", "6D5CE0", "181C2B", "3A3F4B", "FFFFFF"}, // 紫晶=设计稿默认（m207 墨转藏蓝）
             {"262C38", "161B24", "8B7CF6", "B0A6FF", "E7EAF3", "444B5A", "0E1118"}, // 暗夜（墨色兼文字→亮，高亮→暗压光）
             {"E2EEF0", "A9C3C9", "2FA8C2", "1E7E93", "13282D", "39555C", "FFFFFF"}, // 海雾
             {"F4E7EC", "D3AFBE", "E06C9F", "B84D7F", "32161F", "5C3A47", "FFFFFF"}, // 樱粉
@@ -145,7 +145,7 @@ public final class SciSkin {
         vGrad(ctx, x + 1, y + 1, x + w - 1, y + h / 2f, withAlpha(termHi(), primary ? 0.25f : 0.10f), withAlpha(termHi(), 0f));
         ctx.drawText(tr, label, x + (w - tr.getWidth(label)) / 2, y + (h - 8) / 2, termHi(), false);
     }
-    public static final int GROUP_FILL = 0x14224E70; // m192 画布分组框面（极淡，透出网格不压内容）
+    public static final int GROUP_FILL = 0x142B2E56; // 画布分组框面（m192 立、m207 转靛）（极淡，透出网格不压内容）
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
     public static final net.minecraft.util.Identifier SLOT_TEX =
@@ -188,6 +188,12 @@ public final class SciSkin {
     public static int withAlpha(int color, float a) {
         int al = (int) (((color >>> 24) & 0xFF) * Math.max(0f, Math.min(1f, a)));
         return (al << 24) | (color & 0xFFFFFF);
+    }
+
+    /** m207 精确置 alpha 字节（withAlpha 是"乘现有alpha"的小数口径，转固定 alpha 有截断误差）：
+     *  屏内"半透调色板色"一律走此出口，别再写 0xAA?????? 字面量（尺子按 RGB 对表，调色板一变就成孤儿）。 */
+    public static int withAlpha8(int color, int a8) {
+        return ((a8 & 0xFF) << 24) | (color & 0xFFFFFF);
     }
 
     /** m148 两色插值（悬停渐变用，含 alpha 通道）。 */

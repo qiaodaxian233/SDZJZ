@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 12; // m200 存储终端主题7色；m198 连线进/出分色；…m193 分组连线归并开关；m197 连线宽度随缩放+封顶
+    public int configVersion = 13; // m207 画布新配色默认迁移（线紫/绿+墨藏蓝）；m200 存储终端主题7色；m198 连线进/出分色；…m193 分组连线归并开关；m197 连线宽度随缩放+封顶
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -47,8 +47,8 @@ public class SdzjzConfig {
     public boolean canvasGroupsEnabled = true; // m191 画布机器打组（框选成组/组框拖动/连线归并）；关=服务端拒收组操作+客户端不画组框
     public boolean canvasWireScaleWithZoom = true; // m197 连线宽度随画布缩放（缩小时线跟着变细，与卡片视觉一致）；false=旧行为屏幕恒宽
     public double canvasWireMaxScale = 1.0;        // m197 线宽屏幕封顶倍率：屏幕线宽=基准×min(缩放,此值)。1.0=放大不加粗（现有粗细即上限）；调大则放大时线可增粗到该倍；下限0.2
-    public String canvasWireOutColor = "2EC4FF"; // m198 出线颜色RRGGBB（机器产出→存储/机器→机器），默认=原主强调青，非法值回退默认
-    public String canvasWireInColor  = "33D07A"; // m198 进线颜色RRGGBB（存储供料→机器），默认=原运行绿
+    public String canvasWireOutColor = "A8A0F0"; // m198 出线颜色RRGGBB（机器产出→存储/机器→机器），默认=薰衣草紫（m207 照新截图），非法值回退默认
+    public String canvasWireInColor  = "6FB57A"; // m198 进线颜色RRGGBB（存储供料→机器），默认=柔绿（m207 照新截图）
     public boolean canvasGroupBundleWires = true; // m193 跨组界连线归并成一条(×N徽章)；false=每条线照旧各画各的（纯客户端渲染，不碰数据）
 
     // ===== 存储终端主题（m200 照作者设计稿浅灰+紫；RRGGBB 字符串允许带#，非法回退默认；纯客户端渲染）=====
@@ -56,7 +56,7 @@ public class SdzjzConfig {
     public String termBaseDeep   = "AEB4C7"; // 主色深（槽底/滚条轨/凹陷面）
     public String termAccent     = "8B7CF6"; // 强调紫（主按钮/聚焦边/滚条滑块/数值）
     public String termAccentDeep = "6D5CE0"; // 强调深（主按钮边框/图标）
-    public String termInk        = "1E2128"; // 墨色（浅面上的正文字，兼全屏暗底/暗按钮面）
+    public String termInk        = "181C2B"; // 墨色（浅面上的正文字，兼全屏暗底/暗按钮面；m207 转藏蓝）
     public String termFrame      = "3A3F4B"; // 边框色
     public String termHi         = "FFFFFF"; // 高亮（浅面提亮/紫钮与暗钮上的文字）
 
@@ -81,6 +81,12 @@ public class SdzjzConfig {
             }
         }
         if (cfg == null) cfg = new SdzjzConfig();
+        if (cfg.configVersion < 13) { // m207 v13 迁移：画布新默认色——仅"仍是旧默认"才替换，用户自定义值不动
+            if ("2EC4FF".equals(cfg.canvasWireOutColor)) cfg.canvasWireOutColor = "A8A0F0";
+            if ("33D07A".equals(cfg.canvasWireInColor))  cfg.canvasWireInColor  = "6FB57A";
+            if ("1E2128".equals(cfg.termInk))            cfg.termInk            = "181C2B";
+            cfg.configVersion = 13;
+        }
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件
     }

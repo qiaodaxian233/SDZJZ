@@ -16,13 +16,13 @@ import java.util.Map;
 /** 超大工作台 12×12 合成界面 + 右侧配方浏览器（点机器=自动从背包填料）。 */
 public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
-    private static final int PANEL = 0xF00A1626;
+    private static final int PANEL = SciSkin.withAlpha8(SciSkin.CELL, 0xF0); // m207 孤儿归队
     private static final int CELLF = SciSkin.FRAME;
     private static final int CELLB = SciSkin.BTN_FACE;
     private static final int CYAN  = SciSkin.ACCENT;
     private static final int TXT   = SciSkin.TXT;
     private static final int SUB   = SciSkin.SUB;
-    private static final int SEL   = 0x552EC4FF;
+    private static final int SEL   = SciSkin.withAlpha8(SciSkin.ACCENT, 0x55); // m207 孤儿归队
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
 
     // 浏览器布局（GUI 相对坐标）
@@ -43,8 +43,8 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP); // m117：与其余三屏统一的全屏底色（此前唯独本屏漏铺）
         ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
-        ctx.fill(x, y, x + backgroundWidth, y + 16, 0xB80A1626);                                   // 标题条可读性底
-        ctx.fill(x + PX - 6, y + 16, x + backgroundWidth, y + backgroundHeight, 0xA00A1626);       // 浏览器区可读性底
+        ctx.fill(x, y, x + backgroundWidth, y + 16, SciSkin.withAlpha8(SciSkin.CELL, 0xB8));       // 标题条可读性底（m207 归队）
+        ctx.fill(x + PX - 6, y + 16, x + backgroundWidth, y + backgroundHeight, SciSkin.withAlpha8(SciSkin.CELL, 0xA0)); // 浏览器区可读性底（m207 归队）
         ctx.fill(x, y, x + backgroundWidth, y + 1, CYAN);
         ctx.fill(x, y + 15, x + backgroundWidth, y + 16, CYAN);
         ctx.fill(x + PX - 6, y + 18, x + PX - 5, y + backgroundHeight, CYAN); // 分隔线

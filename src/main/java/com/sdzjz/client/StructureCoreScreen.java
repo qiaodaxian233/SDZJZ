@@ -49,7 +49,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final int SUB      = SciSkin.SUB;
     private static final int ON       = SciSkin.ON;
     private static final int CYAN     = SciSkin.ACCENT;
-    private static final int NODEBG   = 0xE00A1626;
+    private static final int NODEBG   = SciSkin.withAlpha8(SciSkin.CELL, 0xE0); // m207 孤儿字面量归队（尺子按RGB对表，调色板一变即成孤儿）
     private static final int NODEFRM  = SciSkin.FRAME;
     private static final int STORFRM  = 0xFF1E8A5A;   // 存储节点边框（绿）
     private static final int TERMFRM  = 0xFF7A5AC8;   // 数据终端边框（紫）
@@ -756,13 +756,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int mframe = SciSkin.mix(SciSkin.FRAME, frm, 0.3f);
         SciSkin.drawCard(ctx, x, y, bw(), bh(), mframe);
         ctx.fill(x, y, x + bw(), y + 3, frm);                                   // 顶带=类型signature
-        ctx.fill(x, y + 3, x + bw(), y + 15, 0x40060E1A);                       // 标题底带（与机器卡同）
+        ctx.fill(x, y + 3, x + bw(), y + 15, SciSkin.withAlpha(SciSkin.BACKDROP, 0.25f)); // 标题底带（与机器卡同；m207 字面量退役随族）
         ctx.fill(x, y + bh() - 1, x + bw(), y + bh(), SciSkin.withAlpha(frm, 0.35f)); // 底部发丝线
-        ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, SciSkin.mix(CYAN, 0xFF06202E, 0.55f)); // 收料口·暗座
-        ctx.fill(x + 11, y + bh() - 1, x + 17, y + bh() + 3, CYAN);                                  // 收料口·亮芯
+        ctx.fill(x + 10, y + bh() - 2, x + 18, y + bh() + 4, SciSkin.mix(SciSkin.wireOut(), SciSkin.BACKDROP, 0.55f)); // 收料口·暗座（m207 端口跟出线色，m198留痕销账）
+        ctx.fill(x + 11, y + bh() - 1, x + 17, y + bh() + 3, SciSkin.wireOut());                     // 收料口·亮芯（m207 跟出线色）
         if (!iface) {
-            ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, SciSkin.mix(ON, 0xFF06280F, 0.55f)); // 供料口·暗座
-            ctx.fill(x + bw() - 17, y + bh() - 1, x + bw() - 11, y + bh() + 3, ON);                                  // 供料口·亮芯
+            ctx.fill(x + bw() - 18, y + bh() - 2, x + bw() - 10, y + bh() + 4, SciSkin.mix(SciSkin.wireIn(), SciSkin.BACKDROP, 0.55f)); // 供料口·暗座（m207 跟进线色）
+            ctx.fill(x + bw() - 17, y + bh() - 1, x + bw() - 11, y + bh() + 3, SciSkin.wireIn());                    // 供料口·亮芯（m207 跟进线色）
         }
         ItemStack icon = new ItemStack(iface ? com.sdzjz.registry.ModBlocks.SATELLITE_NODE.asItem()
                 : kind == 5 ? com.sdzjz.registry.ModBlocks.DATA_PANEL.asItem()
@@ -770,7 +770,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         float isc = 1.5f * busScale; // m122 图标 1.5× 且随尺寸滑块缩放（用户点名"看不清"）
         int ipx = Math.round(16 * isc);
         ctx.fill(x + 3, y + (bh() - ipx) / 2 - 1, x + 5 + ipx + 1, y + (bh() + ipx) / 2 + 1,
-                SciSkin.withAlpha(0xFF061018, 0.75f)); // m150b 图标暗托盘（图标不再悬空）
+                SciSkin.withAlpha(SciSkin.BACKDROP, 0.75f)); // m150b 图标暗托盘（图标不再悬空；m207 字面量退役随族）
         ctx.fill(x + 3, y + (bh() - ipx) / 2 - 1, x + 5 + ipx + 1, y + (bh() - ipx) / 2,
                 SciSkin.withAlpha(frm, 0.4f));
         var msI = ctx.getMatrices(); msI.push();
@@ -795,7 +795,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // 标题按剩余宽截断加省略号——副行 m164a 已治过，这行是漏网的（tgx 原先跟着标题漂无钳位）。
         int tgx = Math.max(txI + 12, x + bw() - tw - 7);
         ctx.drawText(this.textRenderer, fitText(title, tgx - 6 - txI), txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
-        ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 14, SciSkin.mix(tagC, 0xFF0A1626, 0.8f)); // m150b 类型药丸
+        ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 14, SciSkin.mix(tagC, SciSkin.CELL, 0.8f)); // m150b 类型药丸（m207 归队）
         ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 5, SciSkin.withAlpha(tagC, 0.55f));
         ctx.fill(tgx - 3, y + 13, tgx + tw + 3, y + 14, SciSkin.withAlpha(tagC, 0.55f));
         ctx.drawText(this.textRenderer, tag, tgx, y + 5, tagC, false);
@@ -819,7 +819,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private void drawNode(DrawContext ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
         SciSkin.drawCard(ctx, x, y, NW, NH, NODEFRM); // m120 投影+渐变面+角刻
         ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
-        ctx.fill(x, y + 3, x + NW, y + 15, 0x40060E1A); // m120 标题读数底带
+        ctx.fill(x, y + 3, x + NW, y + 15, SciSkin.withAlpha(SciSkin.BACKDROP, 0.25f)); // m120 标题读数底带（m207 字面量退役随族）
         ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
         ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
         int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
@@ -1664,7 +1664,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.getMatrices().translate(-menuX, -menuY, 0);
         ctx.fill(menuX + 3, menuY + 4, menuX + MENU_W + 3, menuY + h + 4, SciSkin.withAlpha(0x66000000, ease));
         ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, SciSkin.withAlpha(NODEFRM, ease));
-        ctx.fill(menuX, menuY, menuX + MENU_W, menuY + h, SciSkin.withAlpha(0xF00A1626, ease));
+        ctx.fill(menuX, menuY, menuX + MENU_W, menuY + h, SciSkin.withAlpha(SciSkin.withAlpha8(SciSkin.CELL, 0xF0), ease)); // m207 归队
         if (th > 0) {
             ctx.fill(menuX, menuY, menuX + MENU_W, menuY + th, SciSkin.withAlpha(0xF00E2438, ease));
             ctx.fill(menuX, menuY + th - 1, menuX + MENU_W, menuY + th, SciSkin.withAlpha(CYAN, ease * 0.9f));
@@ -1689,7 +1689,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             float pv = menuHoverP[i];
             boolean danger = menuStyles.get(i) == 1;
             if (menuStyles.get(i) == 2)
-                ctx.fill(menuX + 6, y0, menuX + MENU_W - 6, y0 + 1, SciSkin.withAlpha(0x552EC4FF, ease));
+                ctx.fill(menuX + 6, y0, menuX + MENU_W - 6, y0 + 1, SciSkin.withAlpha(SciSkin.withAlpha8(SciSkin.ACCENT, 0x55), ease)); // m207 归队
             if (pv > 0.02f)
                 ctx.fill(menuX, y0 + 1, menuX + MENU_W, y0 + MENU_H - 1,
                         SciSkin.withAlpha(danger ? 0xFF3A1420 : SciSkin.HOVER, ease * pv));
@@ -2507,7 +2507,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(0, 0, this.width, this.height, SciSkin.withAlpha(0xA0000000, 0.35f + 0.65f * easeP));
         ctx.fill(px + 3, py + 4, px + PICK_W + 3, py + PICK_H + 4, SciSkin.withAlpha(0x66000000, easeP)); // 投影
         ctx.fill(px - 1, py - 1, px + PICK_W + 1, py + PICK_H + 1, NODEFRM);
-        ctx.fill(px, py, px + PICK_W, py + PICK_H, 0xF00A1626);
+        ctx.fill(px, py, px + PICK_W, py + PICK_H, SciSkin.withAlpha8(SciSkin.CELL, 0xF0)); // m207 归队
         ctx.fill(px, py, px + PICK_W, py + 3, SciSkin.withAlpha(CYAN, 0.5f + 0.5f * easeP));
         int tickP = SciSkin.lighten(NODEFRM); // m148 下沿角刻与卡片语言呼应
         ctx.fill(px, py + PICK_H - 1, px + 4, py + PICK_H, tickP);
