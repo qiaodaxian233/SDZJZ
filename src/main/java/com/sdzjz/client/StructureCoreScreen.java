@@ -412,6 +412,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
         SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
+        // m210 底栏浅带迁到背景层：HandledScreen 帧序=背景→按钮→前景，m203 的不透明浅带留在前景层
+        // 把底部五钮整排糊死（作者实机截图实锤）；机器区剪刀(24~height-78)挡着，前置安全。
+        SciSkin.termBand(ctx, 0, this.height - 78, workRight(), this.height);
+        SciSkin.termBandLine(ctx, 0, workRight(), this.height - 78);
         // m188 网格双色制：细线打底 + 每4格一根主线；相位按世界格序号（floorMod）定，平移不跳档
         int step = 32;
         int gi0 = (int) Math.floor(-panX / step), gi1 = (int) Math.floor((this.width - panX) / step);
@@ -1167,8 +1171,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.getMatrices().push();
         ctx.getMatrices().translate(-this.x, -this.y, 0);
         // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
-        SciSkin.termBand(ctx, 0, 0, workRight(), 19); // m203 标题条换浅带（与顶条同语言）
-        SciSkin.termBandLine(ctx, 0, workRight(), 19);
+        // m210：此处原有 0..19 重复浅带已撤——顶条带(0..22)在背景层画过，前景层再铺一条不透明浅带
+        // 正好把 机器库/地图/设置/−/＋/适应视图 六钮糊死（浅带时代的画序坑，深色半透时代只是压暗看不出）。
         String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
         ctx.drawText(this.textRenderer, tierName, 10, 6, SciSkin.termInk(), false); // m203 浅带写墨字
         String zp = Math.round(zoom * 100) + "%"; // m86 顶条缩放读数（−/＋按钮之间）
@@ -1176,8 +1180,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
         // 底部背板：按钮 + 状态 + 提示 一体
         // m87：底栏加高到 78，状态改画在按钮下方整行——之前固定 x=498 起画，GUI 缩放大时直接怼进 JEI（用户截图实锤）
-        SciSkin.termBand(ctx, 0, this.height - 78, workRight(), this.height); // m203 底栏换浅带
-        SciSkin.termBandLine(ctx, 0, workRight(), this.height - 78);
+        // m210：底栏浅带已迁背景层（同上画序坑，盖死底部五钮）；本层只写状态/提示文字。
         boolean run = this.handler.isRunning();
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
