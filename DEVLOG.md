@@ -3148,3 +3148,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   样片选中环移过去，拖杆网格线实时变色；④点进"出线颜色"输入框：调节目标同步切出线；⑤背景色框清空：
   底色回主题+装饰图回归（m220 联动），再拖杆=从主题色起步显式定色；⑥Esc/点窗外关窗：色值落盘，重启保持；
   ⑦拖着滑杆直接 Esc：无残拖，画布不误平移；⑧恢复默认：四色框回默认、调节区跟随显示默认生效色。
+
+## m224 网络扳手六件套 + 数据线 FTA 直连层（作者点名"数据线可以连接所有存储接口…Tom's/AE/Storage Drawers/Create，后续要兼容多版本；咱们里面不是有个扳手吗"）
+- **背景/设计决策**：仓里其实没有扳手（作者记忆里的应是数据链接器）——按点名新立「网络扳手」。
+  兼容"所有存储模组+多版本"的唯一可持续路子=**走 Fabric Transfer API 标准口，不做逐模组集成**：
+  原版箱子有 Fabric 内建适配，Tom's Simple Storage/AE2/Storage Drawers/Create 等一切 Fabric 物流
+  模组即插即用，各模组自己跟版本走，我们零适配成本（m161c 已用同款思路做了"别人怼我们"方向，
+  本线开始做"我们怼别人"方向）。
+- **本笔落地**：
+  - 扳手六件套（非机器物品口径）：ModItems 注册+创造栏两处、SuperBenchRecipes `I,R,I/R,MM,R/I,I,I`
+    （多重集 I5R3MM1，复刻断言全表 16 条两两唯一 ✓）、中英 lang、item/generated 模型、128² 贴图
+    （16 格像素稿×8 邻近放大，SciSkin 配色系钢体+薰衣草能量条）。
+  - `DataCableBlockEntity.adjacentStorages()`：六向探测邻接 FTA 存储（先按贴线面查、回退无侧访问；
+    **自家网络方块一律排除**——存储核心自身暴露 FTA=m161c 抽给它是左手倒右手，结构核心实现
+    Inventory 会被 Fabric 兜底适配捞到，同坑）。扳手右键数据线=报告"找到 N 个可对接存储/没有"。
+  - 数据线 endFor 三态判定补第四条：暴露 FTA 的存储也伸插头（Create 置物台/AE2 接口这类不实现
+    Inventory 的全吃）；只在服务端权威世界查（客户端注册表可能缺第三方登记，方块状态由服务端同步），
+    世界生成期 ChunkRegion 不是 World 直接跳过。
+- **接线计划（留痕）**：m225=抽取引擎（数据线 BE 持过滤+开关，周期从相连存储核心账本取货塞邻接
+  FTA 存储，塞不下回账本绝不落地）+扳手潜行右键快速开关；m226=抽取口配置界面（9 幽灵过滤槽+启用钮），
+  扳手右键改开界面。
+- **教训**：跨模组兼容需求第一反应查"平台有没有标准 API"——Fabric 物流早已收敛到 transfer-api，
+  逐模组写适配是给自己挖多版本维护坑。
+- **断言**：语法冒烟 0；WrenchItem/adjacentStorages/WRENCH 作缺失符号 grep=0；六件套逐项计数
+  2/1/3+3/1/1 全齐 JSON 过 load；配方多重集复刻断言 ✓；docs_sync ✓94（扳手非机器不入清单）。
+- **待编译验证**：ItemStorage.SIDED.find(World,BlockPos,Direction)（在树只有 registerForBlockEntity
+  先例，find 签名按 fabric-transfer-api-v1 盲写——报错对 BlockApiLookup#find 源改）；
+  Storage#supportsInsertion 默认方法存在性同上。
+- **实机验证脚本**：①超级工作台合成扳手（铁5红石3核心模块1）；②数据线旁放原版箱子：线伸插头，
+  扳手右键报"找到 1 个"；③换 Tom's Simple Storage 的存储方块/Create 置物台再试：同样伸插头+计数；
+  ④把线贴在存储核心旁：不计数（自家排除）；⑤旁边什么都没有：报"没有可对接的存储"。

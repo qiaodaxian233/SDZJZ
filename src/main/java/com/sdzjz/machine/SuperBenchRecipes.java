@@ -407,6 +407,7 @@ public final class SuperBenchRecipes {
         addSmall9("sdzjz:villager_contract", 1, P,P,P,   B,E,B,    P,P,P);
         addSmall9("sdzjz:terminal",          1, GP,GP,GP, EP,MM,EP, I,I,I);
         addSmall9("sdzjz:linker",            1, R,EP,R,  EP,MM,EP, R,EP,R);
+        addSmall9("sdzjz:wrench",            1, I,R,I,   R,MM,R,   I,I,I);   // m224 网络扳手（多重集 I5 R3 MM1，全表唯一）
         addSmall9("sdzjz:capture_cage",      1, IB,I,IB, I,MM,I,   IB,I,IB);
         addSmall9("sdzjz:data_panel",        1, G,L,G,   EP,CH,EP, G,MM,G);
         addSmall9("sdzjz:storage_core",      1, I,CH,I,  CH,MM,CH, I,CH,I);

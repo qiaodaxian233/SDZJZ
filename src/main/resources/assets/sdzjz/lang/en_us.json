@@ -131,5 +131,8 @@
   "item.sdzjz.tunnel_borer": "Lazy-Load Tunnel Borer",
   "sdzjz.canvas.settings": "Settings",
   "sdzjz.canvas.status": "Status",
-  "sdzjz.canvas.help": "Help"
+  "sdzjz.canvas.help": "Help",
+  "item.sdzjz.wrench": "Network Wrench",
+  "sdzjz.wrench.found": "Found %s attachable storage(s) next to this cable",
+  "sdzjz.wrench.none": "No attachable storage next to this cable (place a chest or any Fabric-transfer storage beside it)"
 }
