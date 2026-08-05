@@ -2664,3 +2664,38 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ⑦ 关窗后 config/sdzjz.json 七键落盘；⑧ 类型满时标题栏"类型 N/M 满"变红照旧；⑨【待编译验证】
   盯点：TextFieldWidget setDrawsBackground/setPlaceholder/setEditableColor 均本屏在树旧用法，
   this.close() 为 Screen 核心 API，冒烟=0 新符号定向=0。
+
+## m201 合成终端接原版工作台接口（作者点名"合成这里最好调用原版工作台接口，现在点击 JEI 都没反应"）
+- **现象/根因**：终端合成区是自制 ScreenHandler+普通 Slot——配方查看器全都不认：
+  ① **JEI 转移按具体菜单类注册**（源码实锤：JustEnoughItems@1.21.1 VanillaPlugin.java L310
+  `addRecipeTransferHandler(CraftingMenu.class, …)` 逐类点名），自定义类点"+"无门；
+  ② **EMI 的兜底 CoercedRecipeHandler** 只认"槽位里有原版 CraftingResultSlot 且其 input 是
+  RecipeInputInventory"（源码实锤：emi@1.21 EmiRecipeFiller L87），咱是普通 Slot+SimpleInventory 不触发；
+  ③ 原版配方书 CraftRequest 协议只服务 AbstractRecipeScreenHandler 的实例。
+- **修法**（Yarn 1.21.1 官方映射逐名核过：class_1729 全方法/RecipeMatcher.addUnenchantedInput/
+  RecipeInputInventory 三方法/CraftingResultSlot 六参构造）：
+  - 新 `screen/CraftGridInventory`：SimpleInventory + RecipeInputInventory（3×3，provideRecipeInputs
+    照原版 CraftingInventory 逐格 addUnenchantedInput）；BE 的 craftGrid 换挂此类，持久化零变化。
+  - handler 继承 `AbstractRecipeScreenHandler<CraftingRecipeInput, CraftingRecipe>`，十一个接口方法
+    落地（matches 走既有 craftInput+缓存口径；clearCraftingSlots 只清格——原版填料器清格前已把
+    物品移回背包；canInsertIntoSlot(int)=原版"清格该回背包"语义）。
+  - **槽序重排（本刀核心风险点）**：原版 PlaceRecipe 填料器硬性假设合成格占句柄**前排下标**
+    （0..w*h 顺排、跳过结果位）——重排为 合成0..8/结果9/展示10..63/背包64..90/快捷91..99/回收100，
+    句柄头部立 CRAFT0/RESULT/DISP0/INV0/TRASH 常量为唯一口径；quickMove 五分支、1000+ 取货协议校验、
+    屏幕结果格拦截与浮层扫描区间全数同改，canInsertIntoSlot(ItemStack,Slot) 撤下标改库存身份判定。
+  - 结果格换 **CraftingResultSlot 匿名子类**（EMI 按 instanceof 认它=零插件点亮）：onTakeItem 全量
+    覆写走自家 consumeCraft（扣料+网络补料），**绝不调 super**——原版体内是本地扣格会二次扣料；
+    m127b 整取防线（tryTakeStackRange）原样迁入。
+- **效果矩阵**：EMI=装上即可点配方填充（兜底处理器直通）；原版配方书协议=已通（后续加绿书按钮
+  即用，需配方已解锁）；**JEI 的"+"仍需 JEI API 小插件**（按类注册是它的设计，看板 #15 待拍板——
+  compileOnly 不增运行时前置，但要动 gradle 加仓库）。
+- **教训**：接"查看器生态"不要猜各家机制——JEI/EMI 源码半小时翻完胜过任何臆测；凡涉及原版
+  隐含约定（填料器的前排下标假设）必先把约定挖实再动槽序，动槽序=全仓 grep 下标触点一个不漏。
+- **实机验证脚本**：① 合成区回归：摆 3×3 出结果、取结果扣料+网络补料、shift 整组、右键整组到光标、
+  清空回仓、shift 移进移出——全与 m200 前行为一致；② 展示格取货/浮层定量批量、背包 shift 存入照旧
+  （下标重排回归重点）；③ 装 EMI：点配方"+"→材料从背包/仓储入格、结果可合成；④ F3+存档重载合成
+  网格残留物品还在（BE 持久化零变化验证）；⑤ 回收格照常销毁；⑥【待编译验证】盯点：
+  AbstractRecipeScreenHandler 泛型两参与 (ScreenHandlerType,int) 构造、RecipeBookCategory.CRAFTING
+  常量名（映射文件无 FIELD 行，按全生态惯例写）、onInputSlotFillFinish 泛型形参（备选：裸 RecipeEntry）、
+  createRecipeInput 若为接口 default 则覆写合法/若抽象则本就必需、匿名 CraftingResultSlot 子类
+  tryTakeStackRange 可见性；冒烟=0 新符号定向=0。

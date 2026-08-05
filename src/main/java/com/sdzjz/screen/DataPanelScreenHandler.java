@@ -9,16 +9,26 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.util.math.BlockPos;
 
-/** 数据面板 GUI：54 展示格（只可取出，取出即从逻辑仓储扣数）+ 玩家背包（可 shift 存入面板）。 */
-public class DataPanelScreenHandler extends ScreenHandler {
+/** 数据面板 GUI：54 展示格（只可取出，取出即从逻辑仓储扣数）+ 玩家背包（可 shift 存入面板）。
+ *  m201 接原版工作台接口：继承 AbstractRecipeScreenHandler（原版配方书 CraftRequest 协议直通），
+ *  槽序重排为 合成0..8/结果9/展示10..63/背包64..90/快捷91..99/回收100——原版填料器 PlaceRecipe
+ *  硬性假设合成格占句柄前排下标（跳过结果位），不排前排=填进展示格。索引常量为唯一口径。 */
+public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeScreenHandler<
+        net.minecraft.recipe.input.CraftingRecipeInput, net.minecraft.recipe.CraftingRecipe> {
+
+    // m201 槽序唯一口径（screen 同用，别再写裸数字）
+    public static final int CRAFT0 = 0, RESULT = 9, DISP0 = 10;
+    public static final int INV0 = DISP0 + DataPanelBlockEntity.PAGE; // 64
+    public static final int TRASH = INV0 + 36;                        // 100
 
     private final DataPanelBlockEntity panel;
     private final BlockPos blockPos;
-    private final SimpleInventory craft;                                // m126a：BE 常驻网格（AE2 式模板）
+    private final PlayerEntity player;                                  // m201 matches() 要世界；onButtonClick 的 player 形参不与此混用
+    private final Inventory display;                                    // m201 身份判定用（canInsertIntoSlot 撤下标依赖）
+    private final CraftGridInventory craft;                             // m126a：BE 常驻网格（AE2 式模板）；m201 换挂 RecipeInputInventory
     private final SimpleInventory craftResult = new SimpleInventory(1);
     private final SimpleInventory trash = new SimpleInventory(1);       // 回收格：放入即销毁
     // m126a：共享 BE 网格必须可注销监听——匿名 lambda 无法 remove，每开一次界面就泄漏一个引旧 handler 的监听器
@@ -32,8 +42,30 @@ public class DataPanelScreenHandler extends ScreenHandler {
         super(ModScreenHandlers.DATA_PANEL, syncId);
         this.panel = be;
         this.blockPos = (be != null) ? be.getPos() : null;
-        this.craft = (be != null) ? be.craftGrid : new SimpleInventory(9); // 客户端 BE 同样有实例，槽位同步写它
-        Inventory display = (be != null) ? be.display : new SimpleInventory(DataPanelBlockEntity.PAGE);
+        this.player = playerInv.player;
+        this.craft = (be != null) ? be.craftGrid : new CraftGridInventory(); // 客户端 BE 同样有实例，槽位同步写它
+        this.display = (be != null) ? be.display : new SimpleInventory(DataPanelBlockEntity.PAGE);
+        // ===== m201 合成区排前排（0..8 + 结果9，原版填料器口径）=====
+        craft.addListener(craftListener);
+        trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                this.addSlot(new Slot(craft, c + r * 3, 213 + c * 18, 96 + r * 18));
+        // 结果格=原版 CraftingResultSlot 子类：EMI CoercedRecipeHandler 按 instanceof 认它（零插件点亮）；
+        // onTakeItem 全量覆写走自家 consumeCraft（扣料+网络补料），绝不调 super——原版体内是本地扣格，会二次扣料。
+        this.addSlot(new net.minecraft.screen.slot.CraftingResultSlot(playerInv.player, craft, craftResult, 0, 309, 114) {
+            @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
+                consumeCraft(player);
+                this.markDirty(); // 原版 Slot.onTakeItem 的收尾语义
+            }
+            // m127b：结果格整取或不取——取一半也触发 consumeCraft 扣整份料，随后重算把格内剩余覆盖成
+            // 满结果=玩家白丢差额。原版右键取半/近满同类光标/Q键 三条部分取出路径在此焊死；双端同跑零闪烁。
+            @Override public java.util.Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
+                ItemStack st = this.getStack();
+                if (!st.isEmpty() && Math.min(min, max) < st.getCount()) return java.util.Optional.empty();
+                return super.tryTakeStackRange(min, max, player);
+            }
+        });
 
         // 展示区 6×9（只取不放）
         for (int r = 0; r < 6; r++) {
@@ -67,27 +99,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 this.addSlot(new Slot(playerInv, c + r * 9 + 9, 16 + c * 18, 181 + r * 18));
         for (int c = 0; c < 9; c++)
             this.addSlot(new Slot(playerInv, c, 16 + c * 18, 237));
-        // m84b 合成终端：3×3(90..98) + 结果(99) + 回收(100)
-        craft.addListener(craftListener);
-        trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
-        for (int r = 0; r < 3; r++)
-            for (int c = 0; c < 3; c++)
-                this.addSlot(new Slot(craft, c + r * 3, 213 + c * 18, 96 + r * 18));
-        this.addSlot(new Slot(craftResult, 0, 309, 114) {
-            @Override public boolean canInsert(ItemStack s) { return false; }
-            @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
-                consumeCraft(player);
-                super.onTakeItem(player, stack);
-            }
-            // m127b：结果格整取或不取——取一半也触发 consumeCraft 扣整份料，随后重算把格内剩余覆盖成
-            // 满结果=玩家白丢差额。原版右键取半(min=半)/近满同类光标(max=余位)/Q键(min=1) 三条部分取出
-            // 路径在此焊死；此钩子双端同跑，客户端预测同样被拒，零闪烁。
-            @Override public java.util.Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
-                ItemStack st = this.getStack();
-                if (!st.isEmpty() && Math.min(min, max) < st.getCount()) return java.util.Optional.empty();
-                return super.tryTakeStackRange(min, max, player);
-            }
-        });
+        // m84b 回收格（m201 合成区已前移至下标 0..9，此处只剩回收殿后=下标 100）
         this.addSlot(new Slot(trash, 0, 269, 202));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
         // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
@@ -209,7 +221,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         if (id >= 1000) { // m82 取指定数量 / m100 批量取出：id = 1000 + 展示格下标*10 + 档位(0..8)
             int slotIdx = (id - 1000) / 10, k = (id - 1000) % 10;
             // 档位 0-4：定量 1/8/16/32/64；5-7：2组/4组/8组(组=该物品堆叠上限)；8：填满背包
-            if (slotIdx < 0 || slotIdx >= DataPanelBlockEntity.PAGE || k > 8) return false;
+            if (slotIdx < DISP0 || slotIdx >= INV0 || k > 8) return false; // m201 展示区=10..63（句柄下标口径）
             ItemStack disp = this.slots.get(slotIdx).getStack();
             if (disp.isEmpty()) return true;
             ItemStack tpl = disp.copy(); // m130：剥 amt 即真身——精确件按模板取，普通件按 id 取
@@ -340,11 +352,11 @@ public class DataPanelScreenHandler extends ScreenHandler {
 
     // m127b：双击收集(PICKUP_ALL)绝缘名单——原版该路径走 takeStack 直取，绕过 tryTakeStackRange 的整取防线：
     // ①结果格：部分吸取=扣整份料丢差额（原版 CraftingScreenHandler 排除 result 的同款语义）；
-    // ②展示格(id<PAGE)：常规光标因 amt 组件不相等吸不走，但创造中键 CLONE 出的光标带同款组件可绕开
+    // ②展示格：常规光标因 amt 组件不相等吸不走，但创造中键 CLONE 出的光标带同款组件可绕开
     // onTakeItem 正门外的账本钳数。本方法另参与拖拽落格判定，两类格 canInsert 本就 false，零行为变化。
     @Override
     public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-        return slot.inventory != craftResult && slot.id >= DataPanelBlockEntity.PAGE;
+        return slot.inventory != craftResult && slot.inventory != display; // m201 撤下标依赖，按库存身份判
     }
 
     @Override
@@ -353,13 +365,13 @@ public class DataPanelScreenHandler extends ScreenHandler {
         if (slot == null || !slot.hasStack()) return ItemStack.EMPTY;
         ItemStack stack = slot.getStack();
 
-        if (index < DataPanelBlockEntity.PAGE) {
+        if (index >= DISP0 && index < INV0) { // m201 展示区=10..63
             // 展示格 → 玩家背包：先试塞（真身副本），按实际塞入量扣账。
             // 顺序绝不能反：先扣后塞时背包满/塞一半 = 物品凭空消失。
             ItemStack clean = stack.copy(); // m130：剥 amt 即真身——精确件保留组件，普通件归零组件（双端同算）
             stripAmt(clean);
             int before = clean.getCount();
-            this.insertItem(clean, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+            this.insertItem(clean, INV0, TRASH, true);
             int inserted = before - clean.getCount();
             if (inserted > 0 && panel != null && !player.getWorld().isClient) { // m112 账本只在服务端扣
                 ItemStack tpl = stack.copy();
@@ -371,13 +383,13 @@ public class DataPanelScreenHandler extends ScreenHandler {
             }
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
-        } else if (index >= DataPanelBlockEntity.PAGE + 36 && index < DataPanelBlockEntity.PAGE + 45) {
+        } else if (index >= CRAFT0 && index < RESULT) {
             // 合成格 → 背包
-            this.insertItem(stack, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+            this.insertItem(stack, INV0, TRASH, true);
             if (stack.isEmpty()) slot.setStack(ItemStack.EMPTY);
             slot.markDirty();
             return ItemStack.EMPTY;
-        } else if (index == DataPanelBlockEntity.PAGE + 45) {
+        } else if (index == RESULT) {
             // m106b：shift 点结果格 = 连续合成一整组（学 AE2 CRAFT_SHIFT）。只在服务端跑，
             // 客户端不预测（m95 教训）；结果变化/背包塞不下即停；配合网络补料可一口气合到底。
             if (player.getWorld().isClient || panel == null || panel.getWorld() == null) return ItemStack.EMPTY;
@@ -395,13 +407,13 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 ItemStack cur = craftResult.getStack(0);
                 if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
                 ItemStack out = cur.copy();
-                boolean any = this.insertItem(out, DataPanelBlockEntity.PAGE, DataPanelBlockEntity.PAGE + 36, true);
+                boolean any = this.insertItem(out, INV0, TRASH, true);
                 if (!any) break;          // 一格都塞不进：不扣料直接停，结果留在格里
                 consumeCraft(player);     // 塞进去了才扣料+网络补料+重算
                 if (!out.isEmpty()) { player.dropItem(out, false); break; } // 只塞进一半：余量落脚下(AE2 同款)后停
             }
             return ItemStack.EMPTY;
-        } else if (index >= DataPanelBlockEntity.PAGE + 45) {
+        } else if (index == TRASH) {
             return ItemStack.EMPTY; // 回收格不 shift
         } else {
             // 玩家背包 → 存入面板
@@ -421,5 +433,52 @@ public class DataPanelScreenHandler extends ScreenHandler {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    // ===== m201 原版工作台接口实现（AbstractRecipeScreenHandler；名称全按 Yarn 1.21.1 官方映射核过）=====
+    @Override
+    public void populateRecipeFinder(net.minecraft.recipe.RecipeMatcher finder) {
+        craft.provideRecipeInputs(finder); // CraftGridInventory 照原版 CraftingInventory 逐格 addUnenchantedInput
+    }
+
+    @Override
+    public void clearCraftingSlots() { // 原版填料器清格前已把物品移回背包（clearGrid），此处只清格
+        craft.clear(); // 触发监听→updateCraftResult
+        craftResult.clear();
+    }
+
+    @Override
+    public boolean matches(net.minecraft.recipe.RecipeEntry<net.minecraft.recipe.CraftingRecipe> recipe) {
+        return recipe.value().matches(craftInput(), player.getWorld());
+    }
+
+    @Override
+    public int getCraftingResultSlotIndex() { return RESULT; }
+
+    @Override
+    public int getCraftingWidth() { return 3; }
+
+    @Override
+    public int getCraftingHeight() { return 3; }
+
+    @Override
+    public int getCraftingSlotCount() { return 10; } // 网格9+结果1（原版 CraftingScreenHandler 同口径）
+
+    @Override
+    public net.minecraft.recipe.book.RecipeBookCategory getCategory() {
+        return net.minecraft.recipe.book.RecipeBookCategory.CRAFTING;
+    }
+
+    @Override
+    public boolean canInsertIntoSlot(int index) { // 原版语义：清格时哪些前排格该移回背包
+        return index != RESULT;
+    }
+
+    @Override
+    public void onInputSlotFillStart() {}
+
+    @Override
+    public void onInputSlotFillFinish(net.minecraft.recipe.RecipeEntry<net.minecraft.recipe.CraftingRecipe> recipe) {
+        updateCraftResult(); // 填完立即出结果（监听逐格也会触发，这里兜底一次）
     }
 }

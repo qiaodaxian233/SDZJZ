@@ -34,7 +34,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public final SimpleInventory display = new SimpleInventory(PAGE);
     /** m126a：合成网格常驻方块（学 AE2 CraftingTerminalPart，代码自写）——关界面模板不清空，
      *  重开即接着合；多人共开同一面板共用同一网格（AE2 同款语义）。随 NBT 持久化，拆方块散落。 */
-    public final SimpleInventory craftGrid = new SimpleInventory(9);
+    public final com.sdzjz.screen.CraftGridInventory craftGrid = new com.sdzjz.screen.CraftGridInventory(); // m201 换挂 RecipeInputInventory 的子类（持久化路径零变化）
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_PANEL_BE, pos, state);

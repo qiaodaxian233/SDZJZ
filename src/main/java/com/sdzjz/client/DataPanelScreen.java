@@ -276,7 +276,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         }
         // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标（部分取出路径在 handler 焊死，见 m127b）
         if (button == 1) {
-            var resSlot = this.handler.slots.get(DataPanelBlockEntity.PAGE + 45);
+            var resSlot = this.handler.slots.get(DataPanelScreenHandler.RESULT); // m201 槽序重排：结果=9
             int rsx = this.x + resSlot.x, rsy = this.y + resSlot.y;
             if (mx >= rsx && mx < rsx + 16 && my >= rsy && my < rsy + 16) {
                 if (resSlot.hasStack()) clickXp(6);
@@ -284,7 +284,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             }
         }
         if (button == 1) { // m113 空手右键存储格=数量浮层（定量/拿满是百万量级下的主力，肌肉记忆优先）
-            for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
+            for (int i = DataPanelScreenHandler.DISP0; i < DataPanelScreenHandler.INV0 && i < this.handler.slots.size(); i++) { // m201 展示区=10..63
                 var sl = this.handler.slots.get(i);
                 if (!sl.hasStack()) continue;
                 int sx = this.x + sl.x, sy = this.y + sl.y;
