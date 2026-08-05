@@ -125,6 +125,7 @@ public class Sdzjz implements ModInitializer {
             });
         });
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodePausePayload.ID, com.sdzjz.net.NodePausePayload.CODEC); // m110b
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.JeiFillPayload.ID, com.sdzjz.net.JeiFillPayload.CODEC); // m212
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodePausePayload.ID, (payload, context) -> {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
@@ -132,6 +133,14 @@ public class Sdzjz implements ModInitializer {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     core.togglePause(payload.index());
                 }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.JeiFillPayload.ID, (payload, context) -> { // m212 JEI"+"填料：服务端权威取料（仓储优先、背包兜底）
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (!viewingPanel(p, payload.pos())) return; // 资格：面板开着且坐标对上（伪造包直接丢弃）
+                if (p.currentScreenHandler instanceof DataPanelScreenHandler h)
+                    h.jeiFill(p, payload.recipeId(), payload.max());
             });
         });
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFilterPayload.ID, (payload, context) -> {

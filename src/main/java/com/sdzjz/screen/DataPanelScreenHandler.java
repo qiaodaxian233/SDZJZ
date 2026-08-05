@@ -172,6 +172,73 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         updateCraftResult();
     }
 
+    /** m212 JEI"+"填料（服务端权威）：仓储优先取料、背包兜底；网格里不匹配的先退回背包（原版清格语义）。
+     *  自家 C2S 包驱动（JeiFillPayload），不依赖 JEI 的服务端搬运——专用服务器无需装 JEI。 */
+    public void jeiFill(net.minecraft.server.network.ServerPlayerEntity player, net.minecraft.util.Identifier rid, boolean max) {
+        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return; // 服务端权威（m95 口径）
+        var w = panel.getWorld();
+        var entry = w.getRecipeManager().get(rid).orElse(null);
+        if (entry == null || !(entry.value() instanceof net.minecraft.recipe.CraftingRecipe cr)) return;
+        var ings = cr.getIngredients();
+        net.minecraft.recipe.Ingredient[] want = new net.minecraft.recipe.Ingredient[9]; // 展平 3×3：有形按宽高左上对齐，无形顺排
+        if (cr instanceof net.minecraft.recipe.ShapedRecipe sr) {
+            int rw = sr.getWidth(), rh = sr.getHeight();
+            for (int r = 0; r < rh && r < 3; r++)
+                for (int c2 = 0; c2 < rw && c2 < 3; c2++)
+                    if (r * rw + c2 < ings.size()) want[r * 3 + c2] = ings.get(r * rw + c2);
+        } else {
+            for (int i = 0; i < Math.min(9, ings.size()); i++) want[i] = ings.get(i);
+        }
+        var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(w, blockPos);
+        int missing = 0;
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.recipe.Ingredient ing = want[i];
+            boolean blank = ing == null || ing.getMatchingStacks().length == 0; // 空原料判定走 matching 长度，不赌 isEmpty API
+            ItemStack cur = craft.getStack(i);
+            if (!cur.isEmpty() && (blank || !ing.test(cur))) { // 不匹配的退回背包，塞不下落地（不入仓：可能带组件）
+                if (!player.getInventory().insertStack(cur)) player.dropItem(cur, false);
+                craft.setStack(i, ItemStack.EMPTY);
+                cur = ItemStack.EMPTY;
+            }
+            if (blank) continue;
+            for (ItemStack cand : ing.getMatchingStacks()) {
+                if (!cur.isEmpty() && !cur.isOf(cand.getItem())) continue; // 已留同款只续同款
+                int cap = max ? cand.getMaxCount() : 1;
+                int need = cap - cur.getCount();
+                if (need <= 0) break;
+                int got = pullFor(player, cores, cand, need);
+                if (got > 0) {
+                    if (cur.isEmpty()) { cur = new ItemStack(cand.getItem(), got); craft.setStack(i, cur); }
+                    else cur.increment(got);
+                }
+                if (!cur.isEmpty()) break; // 材质已定，不再试其他候选
+            }
+            if (craft.getStack(i).isEmpty()) missing++;
+        }
+        updateCraftResult();
+        sendContentUpdates();
+        if (missing > 0) player.sendMessage(net.minecraft.text.Text.literal("JEI 填料：缺 " + missing + " 格材料（仓储+背包都没有）"), true);
+    }
+
+    /** m212 取料原语：仓储按 id 取（只对无组件候选，与 m106 补料同口径）→ 背包同款无组件兜底。 */
+    private int pullFor(net.minecraft.server.network.ServerPlayerEntity p,
+                        java.util.List<com.sdzjz.block.StorageCoreBlockEntity> cores, ItemStack cand, int n) {
+        int got = 0;
+        if (cand.getComponentChanges().isEmpty()) {
+            String id = Registries.ITEM.getId(cand.getItem()).toString();
+            for (var core : cores) { if (got >= n) break; got += core.withdraw(id, n - got); }
+        }
+        var inv = p.getInventory();
+        for (int s2 = 0; s2 < inv.size() && got < n; s2++) {
+            ItemStack st = inv.getStack(s2);
+            if (!st.isEmpty() && st.isOf(cand.getItem()) && st.getComponentChanges().isEmpty()) {
+                int take = Math.min(n - got, st.getCount());
+                st.decrement(take); got += take;
+            }
+        }
+        return got;
+    }
+
     @Override
     public void onClosed(PlayerEntity player) {
         super.onClosed(player);

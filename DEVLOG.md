@@ -2889,3 +2889,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证脚本**：①画布顶栏"设置"→末行 5 枚样片，悬停显名；②点"暗夜"→画布横幅/网格/终端
   全套即时换深色系，config 落盘 7 键；③点"紫晶"回默认藏蓝墨版；④恢复默认仍只回本面板六项
   （主题 7 色不动）；⑤窗外点/Esc/关屏落盘照旧。
+
+## m212 JEI"+"改从仓储取料（作者点名"合成终端为什么不能读取终端里的物品"）
+- **现象/根因**：m205 用的是 JEI **基本七参注册**——它的服务端搬运只会在"容器槽位之间"挪东西，
+  我们能给它的库存区只有玩家背包 36 格（展示区是仓储网络只读投影，JEI setStack 直写会撕账本，
+  绝不能圈进），所以"+"天生只认背包。要吃仓储，必须换**自定义转移器**自己结算。
+- **修法（四件）**：
+  - `SdzjzJeiTransfer`（自定义 IRecipeTransferHandler，签名照 JEI@1.21.1 源码实拉六参）：
+    transferRecipe 在客户端被调，只发自家 C2S 包，返 null 放行；客户端零预测（m95 口径）。
+  - `JeiFillPayload(pos, recipeId, max)`：BlockPos/Identifier/BOOL 三段 tuple 编解码，照 NodePause 样板。
+  - Sdzjz 接收器（内联照全库样板）：viewingPanel 资格闸（面板开着且坐标对上，伪造包丢弃）→
+    `DataPanelScreenHandler.jeiFill`。
+  - `jeiFill`（服务端权威）：配方 id → RecipeManager.get（映射核过 method_8130）→ 展平 3×3
+    （ShapedRecipe 按 getWidth/getHeight 左上对齐——两法映射核过；无形顺排）→ 网格里不匹配的
+    退回背包（原版清格语义，不入仓防组件抹除）→ 每格候选材质逐个试 `pullFor`：**仓储 withdraw
+    优先（只对无组件候选，与 m106 补料同口径）→ 背包同款无组件兜底**；max=按候选栈上限填满。
+    缺料格留空 + actionbar 报"缺 N 格"。收尾 updateCraftResult + sendContentUpdates。
+- **附带收益**：不再走 JEI 的服务端搬运——**专用服务器无需装 JEI**（m205 的老前提作废）。
+- **教训**：查看器"+"想吃自家存储系统，基本注册天生不够——那是"槽位间搬运"的抽象；凡有网络
+  账本的容器，一律走自定义转移器+自家包+服务端结算，别想着把网络槽塞进 inventory 区间糊弄。
+- **实机验证脚本**：①背包清空、仓储备料 → JEI 点配方"+"→ 材料从仓储进 3×3（终端库存数应减）；
+  ②shift 点"+"=每格按栈上限填满；③背包和仓储都有料时先扣仓储；④两边都没料 → actionbar
+  报"缺 N 格"、有的格照填；⑤网格里原有不匹配物品被退回背包不丢失；⑥取结果连续合成的网络
+  补料（m106）照旧；⑦【待编译验证】盯点：RecipeManager.get/ShapedRecipe.getWidth·getHeight
+  （映射核过）、Identifier.PACKET_CODEC（Yarn 1.21.1 应在，若报错换 PacketCodecs.STRING 包一层）、
+  Ingredient.getMatchingStacks 空判走 length 不赌 isEmpty；冒烟 0/自家符号定向 0/双棘轮 25、18 持平。

@@ -1,8 +1,6 @@
 package com.sdzjz.compat.jei;
 
 import com.sdzjz.Sdzjz;
-import com.sdzjz.registry.ModScreenHandlers;
-import com.sdzjz.screen.DataPanelScreenHandler;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -25,10 +23,9 @@ import net.minecraft.util.Identifier;
  *   直写 + sendContentUpdates：咱合成格是裸 Slot、库存区给的是原版玩家背包槽，全兼容；
  *   结果格（RESULT=9）与展示区（DISP0..INV0，网络投影槽，禁止外人直写）都不在搬运范围。
  *
- * 口径：槽位下标全部引用 handler 头部常量（m201 唯一口径），不许手写数字。
- * 库存区=玩家背包+快捷栏 36 格（INV0..INV0+35）；"+" 取料只看背包——展示区是仓储网络
- * 的只读投影，JEI 直写会撕账本，绝不能圈进库存区；持续合成时网格模板化网络补料（m106）照旧。
- * 注意：JEI 的转移是 C2S 包、服务端执行——单人/自建局域网天然可用；专用服务器需服务端也装 JEI。
+ * 口径（m212 起）：转移=自家 C2S 包（JeiFillPayload），服务端权威从**仓储网络优先**取料、背包兜底
+ * （见 SdzjzJeiTransfer / DataPanelScreenHandler.jeiFill）；展示区仍是只读投影，任何人不得直写。
+ * 专用服务器无需装 JEI（我们不走它的服务端搬运）。
  */
 @JeiPlugin
 public final class SdzjzJeiPlugin implements IModPlugin {
@@ -40,12 +37,8 @@ public final class SdzjzJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
-        registration.addRecipeTransferHandler(
-                DataPanelScreenHandler.class,
-                ModScreenHandlers.DATA_PANEL,           // 锁定菜单类型：别的屏不误触
-                RecipeTypes.CRAFTING,                   // 工作台配方
-                DataPanelScreenHandler.CRAFT0, 9,       // 配方槽=合成 3×3（0..8）
-                DataPanelScreenHandler.INV0, 36         // 库存槽=玩家背包+快捷栏（64..99）
-        );
+        // m212：弃基本七参注册（那条只会搬玩家背包），换自定义转移器——发自家 C2S 包，
+        // 服务端从仓储网络优先取料、背包兜底；专用服务器无需装 JEI。
+        registration.addRecipeTransferHandler(new SdzjzJeiTransfer(), RecipeTypes.CRAFTING);
     }
 }
