@@ -33,7 +33,7 @@
 5. 每里程碑写 DEVLOG（现象→根因→修法→教训），提交信息带 mNN 编号。
 6. 升级/封顶类公式改动必问："到顶之后玩家再投入会怎样"——静默无效比数值弱更伤（m99 教训）。
 
-## 当前状态（m205：JEI 转移插件收官——Fabric 侧发现机制=fabric.mod.json 的 jei_mod_plugin entrypoint（惰性加载，compileOnly 零运行时前置）+ 七参基本注册（合成 0..8/背包 36 格，展示区网络投影绝不圈入）；jei_version=19.21.0.247 待编译验证；盾构机/屠龙炮全景图仍待透明底版（#19 尾巴）
+## 当前状态（m205：JEI 转移插件收官——Fabric 侧发现机制=fabric.mod.json 的 jei_mod_plugin entrypoint（惰性加载，compileOnly 零运行时前置）+ 七参基本注册（合成 0..8/背包 36 格，展示区网络投影绝不圈入）；jei_version=19.21.0.247 待编译验证；#19 全销（m206 盾构机/屠龙炮满幅海报款归位）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
