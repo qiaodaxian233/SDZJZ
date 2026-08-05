@@ -285,6 +285,10 @@ public final class SciSkin {
         int v = C_BG.get(com.sdzjz.config.SdzjzConfig.get().canvasBgColor);
         return v == 0 ? termInk() : v;
     }
+    /** m220 背景色是否被配置覆盖（画布据此隐藏装饰底图：设色=纯色画布，装饰图让位）。 */
+    public static boolean canvasBgOverridden() {
+        return C_BG.get(com.sdzjz.config.SdzjzConfig.get().canvasBgColor) != 0;
+    }
     /** 画布网格基色（不带 alpha 语义）：配置 canvasGridColor 覆盖，空=主题强调色。设置面板样片同源。 */
     public static int canvasGridBase() {
         int v = C_GRID.get(com.sdzjz.config.SdzjzConfig.get().canvasGridColor);

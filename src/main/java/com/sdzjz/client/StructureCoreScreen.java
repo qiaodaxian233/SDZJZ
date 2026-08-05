@@ -449,7 +449,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
         ctx.fill(0, 0, this.width, this.height, SciSkin.canvasBg()); // m203 全屏底随主题；m217 配置可覆盖（空=跟随主题墨色）
-        ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
+        if (com.sdzjz.config.SdzjzConfig.get().canvasBgDecor && !SciSkin.canvasBgOverridden()) // m220 设了背景色=纯色画布，装饰底图让位（作者截图：改色无感+装饰边碍眼同根）；canvasBgDecor=false 可无条件关
+            ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
         SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
         // m210 底栏浅带迁到背景层：HandledScreen 帧序=背景→按钮→前景，m203 的不透明浅带留在前景层
