@@ -132,12 +132,41 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return got;
     }
 
+    /** m218 精确账本支路专用出口：暴露 40t 缓存的核心清单（m108c 同款语义：拆核即重建、开界面强刷）。
+     *  此前 SCBE 精确拉料每逻辑节点每 5t 直呼 connectedCores 裸 BFS（4096 上限逐格 getBlockEntity），
+     *  绕开了这层缓存——多核心大网络下是 tick 大户。 */
+    public List<StorageCoreBlockEntity> coresView() { return cores(); }
+
+    // m218 聚合视图缓存：revSum=各核心 storeRev 求和（rev 单调只增，和相等⇔全都没动过）+ 核心数双指纹。
+    // 同 tick 恒复用（调用侧本就循环首快照、value 只作试探上限、真实量以 withdraw 返回为准——语义等价）；
+    // 跨 tick 指纹不变也复用（真没变，精确）。旧行为=每调全量重建，panelViewCache=false 一键回退。
+    private java.util.LinkedHashMap<String, Long> viewCache;
+    private long viewCacheTime = -1000, viewCacheRevSum = -1;
+    private int viewCacheCoreN = -1;
+
     @Override
-    public java.util.Map<String, Long> storeView() { // 聚合快照：万能熔炉"接什么烧什么"扫描用
+    public java.util.Map<String, Long> storeView() { // 聚合快照：万能熔炉"接什么烧什么"扫描/逻辑节点拉料用
+        List<StorageCoreBlockEntity> cs = cores();
+        if (!com.sdzjz.config.SdzjzConfig.get().panelViewCache) {
+            java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();
+            for (StorageCoreBlockEntity core : cs)
+                for (var e : core.storeView().entrySet())
+                    merged.merge(e.getKey(), e.getValue(), Long::sum);
+            return merged;
+        }
+        long now = (this.world != null) ? this.world.getTime() : 0;
+        long rs = 0;
+        for (StorageCoreBlockEntity core : cs) rs += core.storeRev();
+        if (viewCache != null && (now == viewCacheTime || (rs == viewCacheRevSum && cs.size() == viewCacheCoreN)))
+            return viewCache;
         java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cores())
+        for (StorageCoreBlockEntity core : cs)
             for (var e : core.storeView().entrySet())
                 merged.merge(e.getKey(), e.getValue(), Long::sum);
+        viewCache = merged;
+        viewCacheTime = now;
+        viewCacheRevSum = rs;
+        viewCacheCoreN = cs.size();
         return merged;
     }
 

@@ -161,7 +161,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
-        if (world.getTime() - be.lastEndpointScan >= 40) { // 端点扫描独立于开机状态：画布随时能看到接口
+        // m218c 多核心错峰：周期性大活（ends包/区块票/拉料拍/端点扫描）按 pos 哈希移相——频率逐核不变，
+        // 只是不同核心不再挤同一全局 tick（m181 给 m88 兜底同步用过的同款药方，推广到其余四拍）。
+        int ph = SdzjzConfig.get().coreTickStagger ? pos.hashCode() : 0;
+        long wt = world.getTime() + ph;
+        // m218c 端点扫描错峰（回查自纠：初版"每次回拨相位"是复利——last=now-p 让下次在 40-p 就触发，
+        // 周期被永久压成 40-p 反而提频。改日历拍：稳态严格 40t、相位由 wt 哈希天然错开；-1000 哨兵=
+        // 刚加载首扫即时，画布随时能看到接口的原语义不变，首扫后至多 39t 内并入日历拍）。
+        if (be.lastEndpointScan <= -1000 || Math.floorMod(wt, 40) == 0) {
             be.lastEndpointScan = world.getTime();
             be.scanStorageEndpoints(world, pos);
         }
@@ -179,7 +186,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (ms > 60f) be.cleanupEjected(sw115);
         }
         // m89：端点+总线库存 直发正在看画布的玩家（BE同步链实机不生效的最终修复——走已被证明可靠的包通道）
-        if (world.getTime() % 40 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw) {
+        if (Math.floorMod(wt, 40) == 0 && world instanceof net.minecraft.server.world.ServerWorld sw) { // m218c 错峰
             com.sdzjz.net.CanvasEndsPayload pk = null;
             for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
                 if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
@@ -191,14 +198,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         // m133 强制加载：开机+配置开 → 钉住自身区块(FORCED,持久化,重启自恢复) + 每100t给端点区块续有期票；
         // 停机/配置关 → 解除；孤儿 forced（重启遗留：停机核心落盘前没来得及解除）每100t回收一次。
-        if (world.getTime() % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld swf) {
+        if (Math.floorMod(wt, 20) == 0 && world instanceof net.minecraft.server.world.ServerWorld swf) { // m218c 错峰（内层%100同偏移，嵌套节奏不变）
             boolean want = be.running && SdzjzConfig.get().coreChunkLoading;
             if (want != be.chunkForceOn) {
                 if (want) CoreChunkLoading.force(swf, pos);
                 else CoreChunkLoading.release(swf, pos);
                 be.chunkForceOn = want;
             }
-            if (world.getTime() % 100 == 0) {
+            if (Math.floorMod(wt, 100) == 0) {
                 if (want) {
                     be.refreshForceChunks(world);
                     be.renewEndpointTickets(swf);
@@ -246,7 +253,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
         // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
         // 熔炉需求=可熔炼表、合成机需求=目标配方材料、消耗机需求=定义 inputs；支持逻辑节点串联（深度8+防环）。
-        if (be.ticks % 5 == 0) { // m116：20t→5t 与逻辑节点转发同拍（此前 64/20t=64/秒天花板，用户熔炉组升到 50/50/54 也只吃到 100/秒）
+        if (Math.floorMod(be.ticks + ph, 5) == 0) { // m116：20t→5t 与逻辑节点转发同拍；m218c 多核心移相（此前 64/20t=64/秒天花板，用户熔炉组升到 50/50/54 也只吃到 100/秒）
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
@@ -269,7 +276,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     String id = en.getKey();
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）：链式需求门控仍在，在途量经 8/9 号属性可见
-                    if (!pump && !be.chainWants(world, i, id, 0, new java.util.HashSet<>(), outT, crafterNeeds)) continue;
+                    if (!pump && !be.chainWants(world, i, id, 0, be.wantsScratchCleared(), outT, crafterNeeds)) continue; // m218d scratch复用
                     if (pump && !machineFilterAllows(stL, id)) continue; // m160 抽取白名单：名单外碰都不碰
                     if (pump && !pumpAll) {
                         // m157（用户实测：猪人塔/幽匿线产物"消失"）：m154 的无条件抽把全网络吸进
@@ -297,14 +304,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     java.util.List<StorageCoreBlockEntity> banksP = new java.util.ArrayList<>();
                     if (sup instanceof StorageCoreBlockEntity cp) banksP.add(cp);
                     else if (sup instanceof DataPanelBlockEntity pp)
-                        banksP.addAll(StorageCoreBlockEntity.connectedCores(world, pp.getPos()));
+                        banksP.addAll(pp.coresView()); // m218b：走 m108c 的 40t 缓存——此前每逻辑节点每5t裸BFS(4096上限逐格getBlockEntity)，绕开缓存是tick大户
                     for (StorageCoreBlockEntity bank : banksP) {
                         for (ItemStack t : new java.util.ArrayList<>(bank.exactTemplates())) {
                             String idE = Registries.ITEM.getId(t.getItem()).toString();
                             long haveE = ownL.getOrDefault(idE, 0L);
                             if (haveE >= bufCapL) continue; // m163a：原硬编码 4096 没跟 bufCapL 统一——泵开高挡后精确支路先被卡死
                             if (isExtractor(stL) && !machineFilterAllows(stL, idE)) continue; // m160
-                            if (!be.chainEndsInTrash(world, i, idE, 0, new java.util.HashSet<>(), outT)) continue;
+                            if (!be.chainEndsInTrash(world, i, idE, 0, be.trashScratchCleared(), outT)) continue; // m218d scratch复用
                             long roomE = bufCapL - haveE;
                             if (pump) roomE = Math.min(roomE, pumpRate - pumped);
                             if (roomE <= 0) break;
@@ -1934,6 +1941,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (chainEndsInTrash(world, t, id, depth + 1, visited, outT)) return true;
         return false;
     }
+
+    // m218d：chainWants/chainEndsInTrash 顶层调用的 visited 集合复用——此前每类型每节点 new HashSet，
+    // 大仓库(数千类型)×多逻辑节点×每5t 可达每秒十万级分配纯喂GC。服务端tick单线程、顶层调用点只有
+    // 拉料循环两处且不互相嵌套（递归自身传同一集合），per-BE scratch 清场复用安全。
+    private final java.util.HashSet<Integer> wantsScratch = new java.util.HashSet<>();
+    private final java.util.HashSet<Integer> trashScratch = new java.util.HashSet<>();
+    private java.util.Set<Integer> wantsScratchCleared() { wantsScratch.clear(); return wantsScratch; }
+    private java.util.Set<Integer> trashScratchCleared() { trashScratch.clear(); return trashScratch; }
 
     private boolean chainWants(World world, int i, String id, int depth,
                                java.util.Set<Integer> visited,

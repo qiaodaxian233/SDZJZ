@@ -123,6 +123,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         String id = Registries.ITEM.getId(stack.getItem()).toString();
         if (!store.containsKey(id) && usedTypes() >= maxTypes()) return;
         store.merge(id, (long) stack.getCount(), Long::sum);
+        storeRev++; // m218
         stack.setCount(0);
         markDirty();
     }
@@ -171,11 +172,17 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         int take = (int) Math.min((long) amount, have);
         long left = have - take;
         if (left <= 0) store.remove(id); else store.put(id, left);
+        storeRev++; // m218
         markDirty();
         return take;
     }
 
     public Map<String, Long> storeView() { return store; }
+
+    // m218 账本修订号：store 每次变更 +1（六处变更点逐一挂钩+NBT读回一处）。数据面板聚合视图靠它做
+    // "无变更不重建"缓存——只增不减，跨核心求和作指纹（和相等⇔各核心都没动过，因为单调）。
+    private long storeRev;
+    public long storeRev() { return storeRev; }
 
     // ===== m161c 跨模组直连：Fabric Transfer API =====
     // 管道/机器怼在存储核心方块任意面即可存取（Create/Modern Industrialization/Tech Reborn/AE2
@@ -206,6 +213,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
 
         @Override protected void readSnapshot(Snap s) {
             store.clear(); store.putAll(s.store());
+            storeRev++; // m218（回滚也是变更）
             exactTpl.clear(); exactTpl.addAll(s.tpl());
             exactN.clear(); exactN.addAll(s.n());
         }
@@ -223,6 +231,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 if (accept <= 0) return 0;
                 updateSnapshots(tx);
                 store.put(id, cur + accept);
+                storeRev++; // m218
                 return accept;
             }
             for (int i = 0; i < exactTpl.size(); i++) { // 带组件走精确账本（m130 同款匹配）
@@ -252,6 +261,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 if (take <= 0) return 0;
                 updateSnapshots(tx);
                 if (have - take <= 0) store.remove(id); else store.put(id, have - take);
+                storeRev++; // m218
                 return take;
             }
             for (int i = 0; i < exactTpl.size(); i++) {
@@ -362,6 +372,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             NbtCompound c = list.getCompound(i);
             store.put(c.getString("id"), c.getLong("n"));
         }
+        storeRev++; // m218（NBT 读回=整本换血，记一次）
         exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
         exactN.clear();
         NbtList ex = nbt.getList("exact", NbtElement.COMPOUND_TYPE);
