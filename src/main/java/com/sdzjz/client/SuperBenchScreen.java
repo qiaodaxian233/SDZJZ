@@ -25,16 +25,49 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     private static final int SEL   = SciSkin.withAlpha8(SciSkin.ACCENT, 0x55); // m207 孤儿归队
     private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
 
-    // 浏览器布局（GUI 相对坐标）
-    private static final int PX = 270, PW = 192, LIST_Y = 30, ENTRY_H = 18, LIST_ROWS = 11; // m166 让位一行：BOM 配方材料可达 14+ 种，清单区要放下三行
+    // 浏览器布局（GUI 相对坐标）；m237 搜索框占一行：LIST_Y 30→34、行数 11→10（清单区反而更宽裕）
+    private static final int PX = 270, PW = 192, LIST_Y = 34, ENTRY_H = 18, LIST_ROWS = 10;
+    private static final int SEARCH_Y = 18; // m237 搜索框行（渲染/点击/占位提示三处同源）
 
     private int scroll = 0;
-    private int selected = -1;
+    private int selected = -1;                 // 选中配方（ALL 下标——填料协议 clickButton(idx) 口径不变）
+    private net.minecraft.client.gui.widget.TextFieldWidget search; // m237 配方搜索（m216 数据面板同工艺）
+    private final java.util.List<Integer> view = new java.util.ArrayList<>(); // 过滤视图：存 ALL 下标
 
     public SuperBenchScreen(SuperBenchScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 470;
         this.backgroundHeight = 316;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        String keep = this.search != null ? this.search.getText() : ""; // resize 保留已输入（pickerField 惯例）
+        this.search = new net.minecraft.client.gui.widget.TextFieldWidget(
+                this.textRenderer, this.x + PX, this.y + SEARCH_Y + 1, PW - 6, 12, Text.literal("搜索"));
+        this.search.setDrawsBackground(false); // m161b 去黑壳，底格自绘
+        this.search.setEditableColor(TXT);
+        this.search.setChangedListener(t -> refilter());
+        this.search.setText(keep);
+        this.addDrawableChild(this.search);
+        refilter();
+    }
+
+    /** m237 过滤视图重建：按结果物品显示名/注册 id 匹配（大小写不敏感），空词=全表。 */
+    private void refilter() {
+        view.clear();
+        String q = search != null ? search.getText().trim().toLowerCase() : "";
+        List<SuperBenchRecipes.Recipe> all = SuperBenchRecipes.ALL;
+        for (int i = 0; i < all.size(); i++) {
+            if (!q.isEmpty()) {
+                SuperBenchRecipes.Recipe r = all.get(i);
+                String nm = SuperBenchRecipes.resultStack(r).getName().getString().toLowerCase();
+                if (!nm.contains(q) && !r.result().toLowerCase().contains(q)) continue;
+            }
+            view.add(i);
+        }
+        scroll = 0;
     }
 
     @Override
@@ -48,6 +81,10 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         ctx.fill(x, y, x + backgroundWidth, y + 1, CYAN);
         ctx.fill(x, y + 15, x + backgroundWidth, y + 16, CYAN);
         ctx.fill(x + PX - 6, y + 18, x + PX - 5, y + backgroundHeight, CYAN); // 分隔线
+        // m237 搜索框底格（m216 工艺：CELL 底+细边，聚焦=强调色边；提示自绘在 drawForeground）
+        ctx.fill(x + PX - 2, y + SEARCH_Y - 1, x + PX + PW - 2, y + SEARCH_Y + 13, SciSkin.CELL);
+        ctx.drawBorder(x + PX - 2, y + SEARCH_Y - 1, PW, 14,
+                search != null && search.isFocused() ? CYAN : SciSkin.CELL_FRM);
 
         for (int r = 0; r < 12; r++)
             for (int c = 0; c < 12; c++)
@@ -74,12 +111,15 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
         // ===== 右侧配方浏览器 =====
         ctx.drawText(this.textRenderer, "机器配方（点击填料）", PX, 4, CYAN, false);
+        if (search != null && search.getText().isEmpty()) // m216 自绘提示：空文本两态都可见
+            ctx.drawText(this.textRenderer, "搜索机器…", PX + 1, SEARCH_Y + 2, SUB, false);
         List<SuperBenchRecipes.Recipe> all = SuperBenchRecipes.ALL;
-        int maxScroll = Math.max(0, all.size() - LIST_ROWS);
+        int maxScroll = Math.max(0, view.size() - LIST_ROWS); // m237 滚动/翻页全走过滤视图
         if (scroll > maxScroll) scroll = maxScroll;
         for (int row = 0; row < LIST_ROWS; row++) {
-            int idx = scroll + row;
-            if (idx >= all.size()) break;
+            int vi = scroll + row;
+            if (vi >= view.size()) break;
+            int idx = view.get(vi);
             SuperBenchRecipes.Recipe r = all.get(idx);
             int ey = LIST_Y + row * ENTRY_H;
             if (idx == selected) ctx.fill(PX, ey - 1, PX + PW, ey + ENTRY_H - 1, SEL);
@@ -98,7 +138,8 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             ctx.drawText(this.textRenderer, nm, PX + 20, ey + 4, TXT, false);
         }
         // 滚动提示
-        ctx.drawText(this.textRenderer, (scroll + LIST_ROWS < all.size() ? "▼ 滚轮翻页 " : "") + (scroll > 0 ? "▲" : ""),
+        ctx.drawText(this.textRenderer, view.isEmpty() ? "没有匹配的机器"
+                        : (scroll + LIST_ROWS < view.size() ? "▼ 滚轮翻页 " : "") + (scroll > 0 ? "▲" : ""),
                 PX, LIST_Y + LIST_ROWS * ENTRY_H + 2, SUB, false);
 
         // 选中配方的材料（活体对照：绿=已够(网格+背包)，红=还缺，计数显示 现有/需求）
@@ -172,8 +213,9 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         double rx = mouseX - this.x, ry = mouseY - this.y;
         if (button == 0 && rx >= PX && rx <= PX + PW && ry >= LIST_Y && ry < LIST_Y + LIST_ROWS * ENTRY_H) {
             int row = (int) ((ry - LIST_Y) / ENTRY_H);
-            int idx = scroll + row;
-            if (idx >= 0 && idx < SuperBenchRecipes.ALL.size()) {
+            int vi = scroll + row;
+            if (vi >= 0 && vi < view.size()) {
+                int idx = view.get(vi); // m237 过滤视图→ALL 下标，填料协议 clickButton(原下标) 口径不变
                 selected = idx;
                 if (this.client != null && this.client.interactionManager != null) {
                     this.client.interactionManager.clickButton(this.handler.syncId, idx); // 填料
@@ -182,6 +224,21 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) { // m237 聚焦时按键进搜索框（Esc 除外），防 E 关屏
+        if (search != null && search.isFocused() && keyCode != 256) {
+            search.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (search != null && search.isFocused()) return search.charTyped(chr, modifiers);
+        return super.charTyped(chr, modifiers);
     }
 
     @Override
