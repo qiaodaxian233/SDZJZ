@@ -425,43 +425,58 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
         ctx.enableScissor(0, 24, workRight(), this.height - 78); // m159 画布剪刀：drawItem自带z偏移(~150)
         // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
+        // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）
+        java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
+                groupsOn() ? groupMembers(be) : new java.util.LinkedHashMap<>();
+        java.util.HashMap<Integer, int[]> gRect = new java.util.HashMap<>();
+        int[] nGid = new int[nodes.size()];
+        java.util.Arrays.fill(nGid, -1);
+        for (var ge : gm.entrySet()) {
+            gRect.put(ge.getKey(), groupRect(be, nodes, ge.getValue()));
+            for (int gi2 : ge.getValue()) if (gi2 < nGid.length) nGid[gi2] = ge.getKey();
+        }
+        boolean bundleOn = !gm.isEmpty() && com.sdzjz.config.SdzjzConfig.get().canvasGroupBundleWires; // m193 归并开关
         // m192 组框（最底层：存储线/机器线/卡片全画其上）——世界坐标独立一次变换
-        if (groupsOn()) {
-            java.util.LinkedHashMap<Integer, java.util.List<Integer>> gmR = groupMembers(be);
-            if (!gmR.isEmpty()) {
-                MatrixStack mg = ctx.getMatrices();
-                mg.push();
-                mg.translate(panX, panY, 0);
-                mg.scale((float) zoom, (float) zoom, 1);
-                for (var ge : gmR.entrySet()) {
-                    int[] r = groupRect(be, nodes, ge.getValue());
-                    int fc = dragGid == ge.getKey() ? CYAN : SciSkin.GROUP_FRM; // 拖动中框提亮
-                    ctx.fill(r[0], r[1] + GBAND, r[2], r[3], SciSkin.GROUP_FILL);
-                    SciSkin.hGrad(ctx, r[0], r[1], r[2], r[1] + GBAND,
-                            SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.50f), SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.08f));
-                    ctx.fill(r[0], r[1], r[2], r[1] + 1, fc);
-                    ctx.fill(r[0], r[3] - 1, r[2], r[3], fc);
-                    ctx.fill(r[0], r[1], r[0] + 1, r[3], fc);
-                    ctx.fill(r[2] - 1, r[1], r[2], r[3], fc);
-                    ctx.fill(r[0], r[1] + GBAND - 1, r[2], r[1] + GBAND, SciSkin.withAlpha(fc, 0.45f));
-                    ctx.drawText(this.textRenderer, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
-                            + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
-                }
-                mg.pop();
+        if (!gm.isEmpty()) {
+            MatrixStack mg = ctx.getMatrices();
+            mg.push();
+            mg.translate(panX, panY, 0);
+            mg.scale((float) zoom, (float) zoom, 1);
+            for (var ge : gm.entrySet()) {
+                int[] r = gRect.get(ge.getKey());
+                int fc = dragGid == ge.getKey() ? CYAN : SciSkin.GROUP_FRM; // 拖动中框提亮
+                ctx.fill(r[0], r[1] + GBAND, r[2], r[3], SciSkin.GROUP_FILL);
+                SciSkin.hGrad(ctx, r[0], r[1], r[2], r[1] + GBAND,
+                        SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.50f), SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.08f));
+                ctx.fill(r[0], r[1], r[2], r[1] + 1, fc);
+                ctx.fill(r[0], r[3] - 1, r[2], r[3], fc);
+                ctx.fill(r[0], r[1], r[0] + 1, r[3], fc);
+                ctx.fill(r[2] - 1, r[1], r[2], r[3], fc);
+                ctx.fill(r[0], r[1] + GBAND - 1, r[2], r[1] + GBAND, SciSkin.withAlpha(fc, 0.45f));
+                ctx.drawText(this.textRenderer, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
+                        + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
             }
+            mg.pop();
         }
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
         // m184 机器端左右缘按几何就近选（卡口在机器哪一侧就从哪缘出入），端口语义（卡底左收料/右供料）不变。
+        java.util.LinkedHashMap<String, int[]> seBundles = new java.util.LinkedHashMap<>(); // m193 (组|端点|向)→{数,亮}
         if (busVisible()) for (long[] e : be.storageEdgesView()) {
             int mi = (int) e[0];
             if (mi >= nodes.size()) continue;
             int j = endpointIndex(ends, e[1]);
             if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
+            boolean lit = !hovAny || mi == hovN || e[1] == hovEnd; // m164b 悬停聚焦
+            if (bundleOn && nGid[mi] >= 0) { // m193 组成员的存储线→归并，后面按组框画一条
+                int[] acc = seBundles.computeIfAbsent(nGid[mi] + "|" + e[1] + "|" + e[2], k -> new int[]{0, 0});
+                acc[0]++;
+                if (lit) acc[1] = 1;
+                continue;
+            }
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             float mys = (float) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
             float mcx = (float) (panX + (wnx(be, nodes, mi) + NW / 2.0) * zoom); // m184 机器中心屏幕x：选缘看几何
-            boolean lit = !hovAny || mi == hovN || e[1] == hovEnd; // m164b 悬停聚焦
             if (e[2] == 0) { // 机器→存储（产出）：机器近侧缘水平出线 → 垂直向上接入卡底左收料口（m184 选缘看几何，卡口在哪侧就走哪缘，反向不再绕背后大圈）
                 boolean er = sx + 14 >= mcx; // 收料口在机器右侧→右缘出线，否则左缘出线
                 float mxs = (float) (panX + (wnx(be, nodes, mi) + (er ? NW : 0)) * zoom);
@@ -474,6 +489,33 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
             }
         }
+        for (var en : seBundles.entrySet()) { // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条
+            String[] kp = en.getKey().split("\\|");
+            int[] r = gRect.get(Integer.parseInt(kp[0]));
+            long pl = Long.parseLong(kp[1]);
+            int j = endpointIndex(ends, pl);
+            if (r == null || j < 0) continue;
+            int sx = snx(be, pl, j), sy = sny(be, pl, j);
+            float gys = (float) (panY + ((r[1] + GBAND + r[3]) / 2.0) * zoom);
+            float gcx = (float) (panX + ((r[0] + r[2]) / 2.0) * zoom);
+            boolean lit = en.getValue()[1] != 0;
+            float bx2, by2;
+            if (kp[2].equals("0")) { // 组→存储（产出）
+                boolean er = sx + 14 >= gcx;
+                float gxs = (float) (panX + (er ? r[2] : r[0]) * zoom);
+                bx2 = sx + 14; by2 = sy + bh() + 2;
+                drawWire(ctx, gxs, gys, er ? 1 : -1, 0, bx2, by2, 0, -1,
+                        lit ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), 1f);
+                drawBundleBadge(ctx, (gxs + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
+            } else {                 // 存储→组（供料）
+                boolean fr = sx + bw() - 14 >= gcx;
+                float gxi = (float) (panX + (fr ? r[2] : r[0]) * zoom);
+                bx2 = sx + bw() - 14; by2 = sy + bh() + 2;
+                drawWire(ctx, bx2, by2, 0, 1, gxi, gys, fr ? -1 : 1, 0,
+                        lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
+                drawBundleBadge(ctx, (gxi + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
+            }
+        }
 
         MatrixStack m = ctx.getMatrices();
         m.push();
@@ -481,16 +523,39 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         m.scale((float) zoom, (float) zoom, 1);
 
         // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）
+        // m193 归并：端点属组→锚到组框缘，同锚对折并成一条+×N徽章；同组内部线照旧各画各的
+        java.util.LinkedHashMap<Long, int[]> mmBundles = new java.util.LinkedHashMap<>(); // 锚对→{数,亮}
         for (int[] c : be.connections()) {
             if (c[0] < nodes.size() && c[1] < nodes.size()) {
+                int ga = bundleOn ? nGid[c[0]] : -1, gb = bundleOn ? nGid[c[1]] : -1;
+                boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
+                if ((ga >= 0 || gb >= 0) && ga != gb) { // 跨组界→归并（组内部线不归并）
+                    int se = ga >= 0 ? (GROUP_ENC | ga) : c[0], de = gb >= 0 ? (GROUP_ENC | gb) : c[1];
+                    int[] acc = mmBundles.computeIfAbsent(((long) se << 32) | (de & 0xFFFFFFFFL), k -> new int[]{0, 0});
+                    acc[0]++;
+                    if (lit2) acc[1] = 1;
+                    continue;
+                }
                 int ax0 = wnx(be, nodes, c[0]), ay = wny(be, nodes, c[0]) + NH / 2;
                 int bx0 = wnx(be, nodes, c[1]), by = wny(be, nodes, c[1]) + NH / 2;
                 boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
                 int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
-                boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
                 drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
                         lit2 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
             }
+        }
+        for (var en : mmBundles.entrySet()) { // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条
+            long k3 = en.getKey();
+            double[] A = mmAnchorGeom(be, nodes, gRect, (int) (k3 >>> 32));
+            double[] B = mmAnchorGeom(be, nodes, gRect, (int) k3);
+            if (A == null || B == null) continue;
+            boolean fwd = B[0] >= A[0];
+            float ax = (float) (fwd ? A[3] : A[2]), bx = (float) (fwd ? B[2] : B[3]);
+            int dir = fwd ? 1 : -1;
+            boolean lit3 = en.getValue()[1] != 0;
+            drawWire(ctx, ax, (float) A[1], dir, 0, bx, (float) B[1], dir, 0,
+                    lit3 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
+            drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int nx0 = wnx(be, nodes, linkFrom);
@@ -1293,6 +1358,32 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         renameField.setX(px + 8);
         renameField.setY(py + 26);
         renameField.render(ctx, mouseX, mouseY, delta);
+    }
+
+    // ===== m193 连线归并 =====
+    private static final int GROUP_ENC = 0x40000000; // 归并锚编码高位：置位=组(低位gid)，否则=节点下标
+
+    /** 归并锚点几何（世界坐标）：组=组框，节点=卡。返回 {中心x, 出线y, 左缘x, 右缘x}；查不到=null 跳过。 */
+    private double[] mmAnchorGeom(StructureCoreBlockEntity be, List<ItemStack> nodes,
+                                  java.util.Map<Integer, int[]> gRect, int enc) {
+        if ((enc & GROUP_ENC) != 0) {
+            int[] r = gRect.get(enc & ~GROUP_ENC);
+            if (r == null) return null;
+            return new double[]{(r[0] + r[2]) / 2.0, (r[1] + GBAND + r[3]) / 2.0, r[0], r[2]};
+        }
+        if (enc < 0 || enc >= nodes.size()) return null;
+        int nx = wnx(be, nodes, enc), ny = wny(be, nodes, enc);
+        return new double[]{nx + NW / 2.0, ny + NH / 2.0, nx, nx + NW};
+    }
+
+    /** 归并线 ×N 徽章：线中点小字（N<2 不画；底衬走 BACKDROP 半透，零新色字面量）。 */
+    private void drawBundleBadge(DrawContext ctx, float midX, float midY, int n, boolean lit) {
+        if (n < 2) return;
+        String bt = "×" + n;
+        int tw = this.textRenderer.getWidth(bt);
+        int bx = (int) midX - tw / 2, by = (int) midY - 5;
+        ctx.fill(bx - 2, by - 2, bx + tw + 2, by + 9, SciSkin.withAlpha(SciSkin.BACKDROP, 0.78f));
+        ctx.drawText(this.textRenderer, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
     }
 
     private void openNodeMenu(int idx, int atX, int atY) {
