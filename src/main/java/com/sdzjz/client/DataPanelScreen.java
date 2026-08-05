@@ -44,7 +44,8 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         this.search = new TextFieldWidget(this.textRenderer, this.x + 16, this.y + 30, 176, 12, Text.literal("搜索"));
         this.search.setDrawsBackground(false);
         this.search.setEditableColor(SciSkin.termInk()); // m200 浅面上写墨字
-        this.search.setPlaceholder(Text.literal("搜索物品(支持中文)…"));
+        // m216 撤原版 setPlaceholder：1.21.1 的 placeholder 聚焦即隐（作者实机截图=聚焦紫描边+空框无字），
+        // 改 drawBackground 自绘提示——空文本时两态（聚焦/失焦）都可见，光标压在提示首字上属正常观感。
         this.search.setChangedListener(s -> { scroll = 0; sendView(); });
         this.search.setText(keep);
         this.addDrawableChild(this.search);
@@ -161,6 +162,8 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 mouseX >= x + 336 && mouseX <= x + 352 && mouseY >= y + 4 && mouseY <= y + 20, false);
         // ===== 左列：搜索卡 =====
         SciSkin.termPanel(ctx, x + 8, y + 24, 191, 20);
+        if (search != null && search.getText().isEmpty()) // m216 自绘默认提示：坐标=控件文字原位(x+16,y+30)，subdued 色不与输入争眼
+            ctx.drawText(this.textRenderer, "搜索物品，支持中文…", x + 16, y + 30, SciSkin.termSub(), false);
         if (search != null && search.isFocused()) { // 聚焦=紫描边（四边 1px）
             int a = SciSkin.termAccent();
             ctx.fill(x + 9, y + 25, x + 198, y + 26, a);
