@@ -491,12 +491,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 boolean er = sx + 14 >= mcx; // 收料口在机器右侧→右缘出线，否则左缘出线
                 float mxs = (float) (panX + (wnx(be, nodes, mi) + (er ? NW : 0)) * zoom);
                 drawWire(ctx, mxs, mys, er ? 1 : -1, 0, sx + 14, sy + bh() + 2, 0, -1,
-                        lit ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), 1f);
+                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
             } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器近侧缘（m184 同上）
                 boolean fr = sx + bw() - 14 >= mcx; // 供料口在机器右侧→从右缘进（行进方向向左），否则左缘进
                 float mxi = (float) (panX + (wnx(be, nodes, mi) + (fr ? NW : 0)) * zoom);
                 drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, fr ? -1 : 1, 0,
-                        lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
+                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
             }
         }
         for (var en : seBundles.entrySet()) { // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条
@@ -515,14 +515,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 float gxs = (float) (panX + (er ? r[2] : r[0]) * zoom);
                 bx2 = sx + 14; by2 = sy + bh() + 2;
                 drawWire(ctx, gxs, gys, er ? 1 : -1, 0, bx2, by2, 0, -1,
-                        lit ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), 1f);
+                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
                 drawBundleBadge(ctx, (gxs + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
             } else {                 // 存储→组（供料）
                 boolean fr = sx + bw() - 14 >= gcx;
                 float gxi = (float) (panX + (fr ? r[2] : r[0]) * zoom);
                 bx2 = sx + bw() - 14; by2 = sy + bh() + 2;
                 drawWire(ctx, bx2, by2, 0, 1, gxi, gys, fr ? -1 : 1, 0,
-                        lit ? ON : SciSkin.mix(SciSkin.BACKDROP, ON, 0.30f), 1f);
+                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
                 drawBundleBadge(ctx, (gxi + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
             }
         }
@@ -551,7 +551,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
                 int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
                 drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
-                        lit2 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
+                        lit2 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             }
         }
         for (var en : mmBundles.entrySet()) { // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条
@@ -564,14 +564,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int dir = fwd ? 1 : -1;
             boolean lit3 = en.getValue()[1] != 0;
             drawWire(ctx, ax, (float) A[1], dir, 0, bx, (float) B[1], dir, 0,
-                    lit3 ? CYAN : SciSkin.mix(SciSkin.BACKDROP, CYAN, 0.30f), (float) zoom);
+                    lit3 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.BACKDROP, SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int nx0 = wnx(be, nodes, linkFrom);
             boolean lr = wmx(mouseX) >= nx0 + NW / 2.0; // m184 预览线同看几何：鼠标在节点左侧就从左缘出
             int ax = nx0 + (lr ? NW : 0), ay = wny(be, nodes, linkFrom) + NH / 2;
-            drawWireFree(ctx, ax, ay, lr ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), 0xFF88E0FF, (float) zoom);
+            drawWireFree(ctx, ax, ay, lr ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), SciSkin.wireOut(), (float) zoom); // m198 预览随出线色
         }
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
@@ -648,7 +648,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
-            drawWireFree(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mouseX, mouseY, 0xFF9BF0C0, 1f);
+            drawWireFree(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mouseX, mouseY, SciSkin.wireIn(), 1f); // m198 预览随进线色
         }
         if (busVisible()) for (int j = 0; j < ends.size(); j++)
             drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");

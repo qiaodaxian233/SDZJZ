@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 10; // …m191 画布分组开关；m193 分组连线归并开关；m197 连线宽度随缩放+封顶
+    public int configVersion = 11; // m198 连线进/出分色； …m191 画布分组开关；m193 分组连线归并开关；m197 连线宽度随缩放+封顶
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -47,6 +47,8 @@ public class SdzjzConfig {
     public boolean canvasGroupsEnabled = true; // m191 画布机器打组（框选成组/组框拖动/连线归并）；关=服务端拒收组操作+客户端不画组框
     public boolean canvasWireScaleWithZoom = true; // m197 连线宽度随画布缩放（缩小时线跟着变细，与卡片视觉一致）；false=旧行为屏幕恒宽
     public double canvasWireMaxScale = 1.0;        // m197 线宽屏幕封顶倍率：屏幕线宽=基准×min(缩放,此值)。1.0=放大不加粗（现有粗细即上限）；调大则放大时线可增粗到该倍；下限0.2
+    public String canvasWireOutColor = "2EC4FF"; // m198 出线颜色RRGGBB（机器产出→存储/机器→机器），默认=原主强调青，非法值回退默认
+    public String canvasWireInColor  = "33D07A"; // m198 进线颜色RRGGBB（存储供料→机器），默认=原运行绿
     public boolean canvasGroupBundleWires = true; // m193 跨组界连线归并成一条(×N徽章)；false=每条线照旧各画各的（纯客户端渲染，不碰数据）
 
     // ---- 单例 + 读写 ----

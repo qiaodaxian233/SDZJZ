@@ -48,7 +48,28 @@ public final class SciSkin {
     public static final int GRID_MINOR = 0x1A26456A; // 画布细网格线
     public static final int GRID_MAJOR = 0x2E3A6E96; // 画布主网格线（每4格一根）
     public static final int VIGNETTE   = 0x55000000; // 画布四缘暗角强度
-    public static final int GROUP_FRM  = 0xC83C8FBF; // m192 画布分组框边/标题带基色（半透青蓝，垫在连线卡片之下）
+    public static final int GROUP_FRM  = 0xC83C8FBF;
+
+    // ===== m198 画布连线进/出分色（配置可调，本类为唯一出口——屏内不许硬编码） =====
+    private static String wireOutSrc, wireInSrc;           // 解析缓存：配置串没变就不重解析
+    private static int wireOutVal = ACCENT, wireInVal = ON;
+    /** 出线色：机器产出→存储 / 机器→机器下游。配置 canvasWireOutColor(RRGGBB)，非法回退 ACCENT。 */
+    public static int wireOut() {
+        String c = com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor;
+        if (!java.util.Objects.equals(c, wireOutSrc)) { wireOutSrc = c; wireOutVal = parseHex(c, ACCENT); }
+        return wireOutVal;
+    }
+    /** 进线色：存储供料→机器。配置 canvasWireInColor(RRGGBB)，非法回退 ON。 */
+    public static int wireIn() {
+        String c = com.sdzjz.config.SdzjzConfig.get().canvasWireInColor;
+        if (!java.util.Objects.equals(c, wireInSrc)) { wireInSrc = c; wireInVal = parseHex(c, ON); }
+        return wireInVal;
+    }
+    private static int parseHex(String s, int fallback) {
+        if (s == null) return fallback;
+        try { return 0xFF000000 | (int) Long.parseLong(s.trim().replace("#", ""), 16); }
+        catch (NumberFormatException e) { return fallback; }
+    } // m192 画布分组框边/标题带基色（半透青蓝，垫在连线卡片之下）
     public static final int GROUP_FILL = 0x14224E70; // m192 画布分组框面（极淡，透出网格不压内容）
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
