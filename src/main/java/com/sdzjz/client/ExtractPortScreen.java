@@ -79,7 +79,7 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         for (int i = 0; i < ExtractPortScreenHandler.UPG; i++)
             cell(ctx, x + ExtractPortScreenHandler.UPG_X + i * 18, y + ExtractPortScreenHandler.UPG_Y);
         ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.stats",
-                        this.handler.effPeriod(), this.handler.effBudget()).getString(),
+                        this.handler.effPeriod(), fmt(this.handler.effBudget())).getString(),
                 x + ExtractPortScreenHandler.UPG_X + ExtractPortScreenHandler.UPG * 18 + 6,
                 y + ExtractPortScreenHandler.UPG_Y + 4, SciSkin.TXT_HI, false);
 
@@ -88,6 +88,19 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + py + r * 18);
         for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + py + 58);
+    }
+
+    private static String fmt(long n) { // m232 大数缩写（照 DataPanelScreen.fmt 同款，1K/1M/1B/1T）
+        if (n < 1000) return Long.toString(n);
+        if (n < 1_000_000L) return trim(n / 1_000.0) + "K";
+        if (n < 1_000_000_000L) return trim(n / 1_000_000.0) + "M";
+        if (n < 1_000_000_000_000L) return trim(n / 1_000_000_000.0) + "B";
+        return trim(n / 1_000_000_000_000.0) + "T";
+    }
+
+    private static String trim(double v) {
+        String s = String.format("%.1f", v);
+        return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
     }
 
     private void cell(DrawContext ctx, int cx, int cy) { // 四屏同款角标格（TradeCenter 工艺）

@@ -59,13 +59,17 @@ public class ExtractPortScreenHandler extends ScreenHandler {
                             && be.getWorld().getServer().getPlayerManager().getPlayer(be.owner()) != null;
                     return ready ? 1 : 2;   // 1=出售中 2=桌在但未就绪（未认领/所有者离线/API 不可用）
                 }
-                if (index == 3) return be.effPeriod(); // m230 生效周期（升级实时反映）
-                if (index == 4) return (int) Math.min(Integer.MAX_VALUE, be.effBudget()); // m230 生效批量
+                if (index == 3) return Math.min(0x7FFF, be.effPeriod()); // m230 生效周期（钳 15 位护通道）
+                // m232 生效批量拆低15+高位过 16 位属性通道（m106 教训：直发大数符号扩展成负数）；
+                // 上限 2^30-1（高位自身也要过短通道），超出显示饱和为 1B+，搬运用的真值不受影响
+                long b = Math.min((1L << 30) - 1, be.effBudget());
+                if (index == 4) return (int) (b & 0x7FFF);
+                if (index == 5) return (int) (b >> 15);
                 return be.pullMode() ? 1 : 0; // m231 方向
             }
             @Override public void set(int index, int value) {}
-            @Override public int size() { return 6; }
-        } : new ArrayPropertyDelegate(6);
+            @Override public int size() { return 7; }
+        } : new ArrayPropertyDelegate(7);
         addProperties(props);
 
         // 幽灵过滤槽（0..8）：真栈进不来也拿不走——原版 SWAP/QUICK_CRAFT/PICKUP_ALL 路径全被这两钩子挡死
@@ -105,8 +109,9 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     /** m229 转化桌出售状态：0=无桌 1=出售中 2=桌在但未就绪。 */
     public int sellState()       { return props.get(2); }
     public int effPeriod()       { return props.get(3); } // m230
-    public int effBudget()       { return props.get(4); } // m230
-    public boolean pullMode()    { return props.get(5) != 0; } // m231
+    /** m232 低15+高位拼回（SCBE 经验同款口径，规避属性 short 截断）。 */
+    public long effBudget()      { return ((long) props.get(5) << 15) | (props.get(4) & 0x7FFFL); }
+    public boolean pullMode()    { return props.get(6) != 0; } // m231
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType type, PlayerEntity player) {
