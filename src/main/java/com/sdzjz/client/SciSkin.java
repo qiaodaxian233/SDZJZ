@@ -37,6 +37,18 @@ public final class SciSkin {
     public static final int BTN_FACE     = 0xFF0C1E30; // 常态面
     public static final int BTN_FACE_HOV = 0xFF123249; // 悬停面
 
+    // ===== m187 质感层（渐变端点/网格/暗角——各屏一律经由下方方法用，不许屏内散抄字面量）=====
+    public static final int CARD_TOP   = 0xE0152A44; // 卡面渐变·上（受光；保留 0xE0 网格微透传统）
+    public static final int CARD_BOT   = 0xE0060C18; // 卡面渐变·下（沉底）
+    public static final int SHEEN      = 0x2295D8FF; // 卡顶冷光泽（向下渐隐到透明）
+    public static final int EDGE_LIGHT = 0x2EFFFFFF; // 内顶受光棱线（全局光照自上而下）
+    public static final int EDGE_DARK  = 0x8C000000; // 外圈分离暗环 + 内底压边
+    public static final int BAND_TOP   = 0xF2111F32; // 顶/底栏渐变·亮端
+    public static final int BAND_BOT   = 0xF2070D17; // 顶/底栏渐变·暗端
+    public static final int GRID_MINOR = 0x1A26456A; // 画布细网格线
+    public static final int GRID_MAJOR = 0x2E3A6E96; // 画布主网格线（每4格一根）
+    public static final int VIGNETTE   = 0x55000000; // 画布四缘暗角强度
+
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
     public static final net.minecraft.util.Identifier SLOT_TEX =
             net.minecraft.util.Identifier.of("sdzjz", "textures/gui/slot.png");
@@ -48,15 +60,17 @@ public final class SciSkin {
         ctx.drawTexture(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
     }
 
-    /** m120 画布卡片：投影+纵向渐变半透面（与旧 NODEBG 同 0xE0 透明度，网格微透）+边框+四角括号刻。
-     *  顶部有强调色条的卡片，上方两刻会被条覆盖——刻意如此，下沿两刻保持呼应即可。 */
+    /** m120 画布卡片 · m187 质感升级：软投影(三层渐淡)+外分离暗环+平滑渐变面(顶点插值,
+     *  旧三段带状假渐变退役,0xE0 网格微透保留)+顶部冷光泽+内顶受光棱线/内底压边+四角括号刻。
+     *  签名不变全部调用点白捡。顶部有强调色条的卡片，上方两刻会被条覆盖——刻意如此，下沿两刻呼应即可。 */
     public static void drawCard(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, int frame) {
-        ctx.fill(x + 2, y + 3, x + w + 3, y + h + 3, 0x59000000);
+        softShadow(ctx, x, y, w, h);
+        ctx.fill(x - 2, y - 2, x + w + 2, y + h + 2, EDGE_DARK);
         ctx.fill(x - 1, y - 1, x + w + 1, y + h + 1, frame);
-        int band = Math.max(3, h / 5);
-        ctx.fill(x, y, x + w, y + band, 0xE00E1E32);
-        ctx.fill(x, y + band, x + w, y + h - band, 0xE00A1626);
-        ctx.fill(x, y + h - band, x + w, y + h, 0xE0081220);
+        vGrad(ctx, x, y, x + w, y + h, CARD_TOP, CARD_BOT);
+        vGrad(ctx, x, y, x + w, y + Math.max(6, h / 3f), SHEEN, withAlpha(SHEEN, 0f));
+        ctx.fill(x, y, x + w, y + 1, EDGE_LIGHT);
+        ctx.fill(x, y + h - 1, x + w, y + h, EDGE_DARK);
         int t = lighten(frame);
         ctx.fill(x, y, x + 4, y + 1, t);             ctx.fill(x, y, x + 1, y + 4, t);
         ctx.fill(x + w - 4, y, x + w, y + 1, t);     ctx.fill(x + w - 1, y, x + w, y + 4, t);
@@ -92,6 +106,58 @@ public final class SciSkin {
     public static int lighten(int c) {
         int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
         return 0xFF000000 | (Math.min(255, r + 70) << 16) | (Math.min(255, g + 70) << 8) | Math.min(255, b + 70);
+    }
+
+    /** m187 平滑纵向渐变矩形：顶点色插值零色带（照画布 wirePath/ribbon 在树先例走 GUI 顶点缓冲）。 */
+    public static void vGrad(net.minecraft.client.gui.DrawContext ctx,
+                             float x1, float y1, float x2, float y2, int top, int bottom) {
+        net.minecraft.client.render.VertexConsumer vc =
+                ctx.getVertexConsumers().getBuffer(net.minecraft.client.render.RenderLayer.getGui());
+        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
+        vc.vertex(mat, x1, y1, 0).color(top);
+        vc.vertex(mat, x1, y2, 0).color(bottom);
+        vc.vertex(mat, x2, y2, 0).color(bottom);
+        vc.vertex(mat, x2, y1, 0).color(top);
+    }
+
+    /** m187 平滑横向渐变矩形。 */
+    public static void hGrad(net.minecraft.client.gui.DrawContext ctx,
+                             float x1, float y1, float x2, float y2, int left, int right) {
+        net.minecraft.client.render.VertexConsumer vc =
+                ctx.getVertexConsumers().getBuffer(net.minecraft.client.render.RenderLayer.getGui());
+        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
+        vc.vertex(mat, x1, y1, 0).color(left);
+        vc.vertex(mat, x1, y2, 0).color(left);
+        vc.vertex(mat, x2, y2, 0).color(right);
+        vc.vertex(mat, x2, y1, 0).color(right);
+    }
+
+    /** m187 软投影：三层递缩递浓半透黑（中心叠深、边缘渐淡），替代旧单层硬边黑块。 */
+    public static void softShadow(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h) {
+        ctx.fill(x + 1, y + 2, x + w + 5, y + h + 6, 0x12000000);
+        ctx.fill(x + 2, y + 3, x + w + 4, y + h + 5, 0x1C000000);
+        ctx.fill(x + 3, y + 4, x + w + 3, y + h + 4, 0x26000000);
+    }
+
+    /** m187 霓虹横线：1px 亮核 + 上下 3px 渐隐光晕（顶/底栏与总线轨道线统一质感）。 */
+    public static void glowLineH(net.minecraft.client.gui.DrawContext ctx, int x1, int x2, int y, int color) {
+        vGrad(ctx, x1, y - 3, x2, y, withAlpha(color, 0f), withAlpha(color, 0.36f));
+        ctx.fill(x1, y, x2, y + 1, color);
+        vGrad(ctx, x1, y + 1, x2, y + 4, withAlpha(color, 0.36f), withAlpha(color, 0f));
+    }
+
+    /** m187 顶/底横栏渐变底带：全局光照统一自上而下（亮上暗下），配 glowLineH 轨道线用。 */
+    public static void panelBand(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+        vGrad(ctx, x1, y1, x2, y2, BAND_TOP, BAND_BOT);
+    }
+
+    /** m187 画布暗角：四缘向中心渐隐压景深，角部自然叠深；带宽随区域自适应。 */
+    public static void vignette(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+        int bh = Math.max(24, (y2 - y1) / 6), bw = Math.max(28, (x2 - x1) / 8);
+        vGrad(ctx, x1, y1, x2, y1 + bh, VIGNETTE, withAlpha(VIGNETTE, 0f));
+        vGrad(ctx, x1, y2 - bh, x2, y2, withAlpha(VIGNETTE, 0f), VIGNETTE);
+        hGrad(ctx, x1, y1, x1 + bw, y2, VIGNETTE, withAlpha(VIGNETTE, 0f));
+        hGrad(ctx, x2 - bw, y1, x2, y2, withAlpha(VIGNETTE, 0f), VIGNETTE);
     }
 
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */

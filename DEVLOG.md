@@ -2449,3 +2449,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   视图=目标稳态；⑤配置 canvasSmoothZoom=false：滚轮瞬时跳变与 m185 行为一致；⑥低帧率(20fps)
   与高帧率(144fps)下动画时长观感一致（dt 实测）；⑦【待编译验证】盯点：System.nanoTime/Math.exp
   均 java.lang 无新 API，语法冒烟+定向 grep=0，audit 零 ERROR。
+
+## m187 控件质感升级：SciSkin 渐变原语层 + 卡片/按钮换质（用户点名"界面很廉价、不精良"第一刀）
+- **廉价感病灶（对着截图数的）**：①卡片投影=单层硬边黑块（像错位矩形）；②卡面=三段式假渐变
+  （肉眼可见色带）；③1px 等亮描边无受光方向；④按钮悬停二值跳变。
+- **修法（全部收口 SciSkin，屏内零散抄字面量仍被禁）**：
+  ① 新原语六件：`vGrad/hGrad`（**顶点色插值真渐变，零色带**——照 wirePath/ribbon 在树先例走
+  GUI 顶点缓冲，零新 API）、`softShadow`（三层递缩递浓半透黑，中心叠深边缘渐淡）、
+  `glowLineH`（1px 亮核+上下 3px 渐隐霓虹晕）、`panelBand`（顶/底栏渐变底带）、`vignette`（四缘暗角）。
+  ② `drawCard` v2 **签名不变**：软投影+外圈分离暗环+平滑渐变面（0xE0 网格微透传统保留）+
+  顶部冷光泽+内顶受光棱线/内底压边（全局光照统一自上而下）+四角括号刻照旧——全部调用点白捡。
+  ③ SciButton 悬停缓动：指数趋近（与 m186 同族）驱动文字色 TXT→TXT_MAX 渐变 + 底沿 ACCENT
+  强调线渐显；贴图仍二值切换（png 侧不动，换皮通道保留）。
+  ④ 调色板新增质感层 10 色（CARD_TOP/BOT、SHEEN、EDGE_LIGHT/DARK、BAND_TOP/BOT、
+  GRID_MINOR/MAJOR、VIGNETTE）——供 m188 屏侧落地取用，audit 合法色集自动纳入。
+- **教训**："廉价感"要拆成可执行病灶（硬影/色带/等亮边/跳变）逐个打，笼统"加特效"会越加越乱；
+  受光方向全局统一（上亮下暗）是"精良"的第一要素，比多加颜色管用。
+- 验证脚本：①画布卡片：投影边缘柔和无硬线、卡面渐变无色带、顶缘一条受光棱线；②按钮悬停：
+  文字亮度 ~0.1s 渐入、底沿青线渐显，移开渐出；③其余屏观感不变（drawCard 仅画布在用）；
+  ④`python3 docs/tools_gui_audit.py .` 零 ERROR、off-palette 不涨；⑤【待编译验证】盯点：
+  vertex/color/RenderLayer.getGui 逐字复用 ribbon 在树写法，SciButton↔SciSkin 引用成员 14/14
+  源内实存（级联噪音已按 m180 盲区法人工核销）。
