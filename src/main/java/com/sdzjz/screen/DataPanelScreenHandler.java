@@ -190,30 +190,75 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
             for (int i = 0; i < Math.min(9, ings.size()); i++) want[i] = ings.get(i);
         }
         var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(w, blockPos);
-        int missing = 0;
+        // ① 清场：不匹配的退回背包（原版清格语义，不入仓防组件抹除）
         for (int i = 0; i < 9; i++) {
             net.minecraft.recipe.Ingredient ing = want[i];
-            boolean blank = ing == null || ing.getMatchingStacks().length == 0; // 空原料判定走 matching 长度，不赌 isEmpty API
             ItemStack cur = craft.getStack(i);
-            if (!cur.isEmpty() && (blank || !ing.test(cur))) { // 不匹配的退回背包，塞不下落地（不入仓：可能带组件）
+            boolean blank = ing == null || ing.getMatchingStacks().length == 0;
+            if (!cur.isEmpty() && (blank || !ing.test(cur))) {
                 if (!player.getInventory().insertStack(cur)) player.dropItem(cur, false);
                 craft.setStack(i, ItemStack.EMPTY);
-                cur = ItemStack.EMPTY;
             }
-            if (blank) continue;
-            for (ItemStack cand : ing.getMatchingStacks()) {
-                if (!cur.isEmpty() && !cur.isOf(cand.getItem())) continue; // 已留同款只续同款
-                int cap = max ? cand.getMaxCount() : 1;
-                int need = cap - cur.getCount();
-                if (need <= 0) break;
-                int got = pullFor(player, cores, cand, need);
-                if (got > 0) {
-                    if (cur.isEmpty()) { cur = new ItemStack(cand.getItem(), got); craft.setStack(i, cur); }
-                    else cur.increment(got);
-                }
-                if (!cur.isEmpty()) break; // 材质已定，不再试其他候选
+        }
+        // ② 按原料分组（键=候选材质首选项的物品 id；同 3×3 里同一原料共池均分——m213 修"第一格吞光"）
+        java.util.LinkedHashMap<String, java.util.List<Integer>> groups = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.recipe.Ingredient ing = want[i];
+            if (ing == null || ing.getMatchingStacks().length == 0) continue;
+            ItemStack kept = craft.getStack(i);
+            String key = !kept.isEmpty() ? Registries.ITEM.getId(kept.getItem()).toString()
+                    : Registries.ITEM.getId(ing.getMatchingStacks()[0].getItem()).toString();
+            groups.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(i);
+        }
+        int missing = 0;
+        for (var ge : groups.entrySet()) {
+            java.util.List<Integer> slots = ge.getValue();
+            net.minecraft.recipe.Ingredient ing = want[slots.get(0)];
+            // 组内材质：已留同款则钉死；否则逐候选试取（木板类多材质配方靠这层兜住）
+            ItemStack chosen = null;
+            for (int si : slots) if (!craft.getStack(si).isEmpty()) { chosen = craft.getStack(si); break; }
+            int n = slots.size();
+            long pool = 0; ItemStack cand = null;
+            java.util.List<ItemStack> tryList = chosen != null ? java.util.List.of(chosen)
+                    : java.util.List.of(ing.getMatchingStacks());
+            for (ItemStack c2 : tryList) {
+                int cap0 = max ? c2.getMaxCount() : 1;
+                long req = 0;
+                for (int si : slots) req += Math.max(0, cap0 - craft.getStack(si).getCount());
+                if (req <= 0) { cand = c2; break; }
+                long got = pullFor(player, cores, c2, (int) Math.min(Integer.MAX_VALUE, req));
+                if (got > 0 || chosen != null) { cand = c2; pool = got; break; }
             }
-            if (craft.getStack(i).isEmpty()) missing++;
+            if (cand == null) { missing += n; continue; }
+            int cap = max ? cand.getMaxCount() : 1;
+            // ③ 均分：二分最大公平水位 T（Σmax(0,T-have)≤pool 且 T≤cap），已高于 T 的格不动
+            long[] have = new long[n];
+            for (int k = 0; k < n; k++) have[k] = craft.getStack(slots.get(k)).getCount();
+            long lo = 0, hi = cap;
+            while (lo < hi) {
+                long mid = (lo + hi + 1) >>> 1, needSum = 0;
+                for (long h : have) needSum += Math.max(0, mid - h);
+                if (needSum <= pool) lo = mid; else hi = mid - 1;
+            }
+            long left = pool;
+            for (int k = 0; k < n; k++) {
+                long give = Math.max(0, lo - have[k]);
+                if (give <= 0) continue;
+                left -= give;
+                ItemStack cur = craft.getStack(slots.get(k));
+                if (cur.isEmpty()) craft.setStack(slots.get(k), new ItemStack(cand.getItem(), (int) give));
+                else cur.increment((int) give);
+            }
+            // ④ 余量回流：背包 → 仓储 → 落地（候选皆无组件，入仓安全；类型已存在不会撞类型闸）
+            while (left > 0) {
+                int chunk = (int) Math.min(left, cand.getMaxCount());
+                ItemStack back = new ItemStack(cand.getItem(), chunk);
+                player.getInventory().insertStack(back);
+                if (!back.isEmpty() && !cores.isEmpty()) cores.get(0).deposit(back);
+                if (!back.isEmpty()) player.dropItem(back, false);
+                left -= chunk;
+            }
+            for (int si : slots) if (craft.getStack(si).isEmpty()) missing++;
         }
         updateCraftResult();
         sendContentUpdates();
