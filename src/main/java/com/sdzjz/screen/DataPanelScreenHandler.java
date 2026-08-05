@@ -39,7 +39,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 9; c++) {
                 int idx = c + r * 9;
-                this.addSlot(new Slot(display, idx, 99 + c * 18, 30 + r * 18) {
+                this.addSlot(new Slot(display, idx, 16 + c * 18, 52 + r * 18) {
                     @Override public boolean canInsert(ItemStack s) { return false; }
                     @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
                         // m112：账本只在服务端动（m95 铁律）。此钩子客户端预测也会跑——客户端 BE 账本是空的，
@@ -64,16 +64,16 @@ public class DataPanelScreenHandler extends ScreenHandler {
         // 玩家背包
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++)
-                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 99 + c * 18, 158 + r * 18));
+                this.addSlot(new Slot(playerInv, c + r * 9 + 9, 16 + c * 18, 181 + r * 18));
         for (int c = 0; c < 9; c++)
-            this.addSlot(new Slot(playerInv, c, 99 + c * 18, 216));
+            this.addSlot(new Slot(playerInv, c, 16 + c * 18, 237));
         // m84b 合成终端：3×3(90..98) + 结果(99) + 回收(100)
         craft.addListener(craftListener);
         trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 3; c++)
-                this.addSlot(new Slot(craft, c + r * 3, 272 + c * 18, 40 + r * 18));
-        this.addSlot(new Slot(craftResult, 0, 290, 102) {
+                this.addSlot(new Slot(craft, c + r * 3, 213 + c * 18, 96 + r * 18));
+        this.addSlot(new Slot(craftResult, 0, 309, 114) {
             @Override public boolean canInsert(ItemStack s) { return false; }
             @Override public void onTakeItem(PlayerEntity player, ItemStack stack) {
                 consumeCraft(player);
@@ -88,7 +88,7 @@ public class DataPanelScreenHandler extends ScreenHandler {
                 return super.tryTakeStackRange(min, max, player);
             }
         });
-        this.addSlot(new Slot(trash, 0, 334, 216));
+        this.addSlot(new Slot(trash, 0, 269, 202));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
         // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
         if (be != null && be.getWorld() != null && !be.getWorld().isClient) be.addViewer();

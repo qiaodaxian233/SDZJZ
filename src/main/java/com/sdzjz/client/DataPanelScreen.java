@@ -9,23 +9,22 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
-/** 存储终端：搜索 + 滚动 + 大数量显示（仿 Tom's Simple Storage）。 */
+/** 存储终端：搜索 + 滚动 + 大数量显示（仿 Tom's Simple Storage）。
+ *  m200 照作者设计稿整体重铺：浅灰+紫主题（7 色全走 SciSkin.termXxx 配置出口）、分区卡片（标题栏/搜索/
+ *  存储网格/背包/经验库/合成终端/回收）、圆角细边+受光渐变质感；标题栏"主题"钮开游戏内调色面板，
+ *  打字实时换肤（m199 同款 live 写配置 + SciSkin 串比缓存）。全屏 BG 贴图退役，改程序化卡片。 */
 public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
-
-    private static final int BACKDROP = SciSkin.BACKDROP;
-    private static final int TXT      = SciSkin.TXT;
-    private static final int SUB      = SciSkin.SUB;
-    private static final int CYAN     = SciSkin.ACCENT;
-    private static final int CELL     = SciSkin.CELL;
-    private static final int CELLFRM  = SciSkin.CELL_FRM;
-
-    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/data_panel_gui.png");
 
     private TextFieldWidget search;
     private int scroll = 0;
+
+    // ===== m200 主题调色面板（modal，照 m199 画布设置面板刀法）=====
+    private boolean themeOpen = false;
+    private TextFieldWidget[] themeF;
+    private static final String[] THEME_LABELS = {"主色", "主色深", "强调紫", "强调深", "墨色", "边框", "高亮"};
+    private static final int TH_W = 170, TH_H = 204, TH_ROW = 20;
 
     public DataPanelScreen(DataPanelScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
@@ -36,17 +35,67 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     @Override
     protected void init() {
         super.init();
-        // m161b 搜索框去黑壳：原版 TextFieldWidget 自带黑底灰边压在科幻皮上突兀（用户截图点名"不好看"）。
-        // setDrawsBackground(false) 后由 drawBackground 的 CELL 底+细边接管观感；聚焦时边框亮青。
-        // 顺带照 StructureCoreScreen.pickerField 的做法：resize 重建控件时保留已输入文字。
+        // m161b 搜索框去黑壳（setDrawsBackground(false)，卡片接管观感）；resize 保留已输入文字（pickerField 惯例）。
         String keep = this.search != null ? this.search.getText() : "";
-        this.search = new TextFieldWidget(this.textRenderer, this.x + 184, this.y + 7, 168, 16, Text.literal("搜索"));
+        this.search = new TextFieldWidget(this.textRenderer, this.x + 16, this.y + 30, 176, 12, Text.literal("搜索"));
         this.search.setDrawsBackground(false);
-        this.search.setEditableColor(SciSkin.TXT_HI);
+        this.search.setEditableColor(SciSkin.termInk()); // m200 浅面上写墨字
         this.search.setPlaceholder(Text.literal("搜索物品(支持中文)…"));
         this.search.setChangedListener(s -> { scroll = 0; sendView(); });
         this.search.setText(keep);
         this.addDrawableChild(this.search);
+        // m200 主题面板 7 色输入框（占位 Text.empty 保 literal 棘轮；live 写配置=打字实时换肤，落盘在关窗）
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        TextFieldWidget[] old = themeF;
+        themeF = new TextFieldWidget[7];
+        for (int i = 0; i < 7; i++) {
+            final int fi = i;
+            String kv = old != null && old[i] != null ? old[i].getText() : themeGet(c, i);
+            themeF[i] = new TextFieldWidget(this.textRenderer, 0, 0, 54, 12, Text.empty());
+            themeF[i].setDrawsBackground(false);
+            themeF[i].setMaxLength(7);
+            themeF[i].setText(kv == null ? "" : kv);
+            themeF[i].setChangedListener(t -> themeSet(com.sdzjz.config.SdzjzConfig.get(), fi, t.trim()));
+        }
+    }
+
+    private static String themeGet(com.sdzjz.config.SdzjzConfig c, int i) {
+        if (i == 0) return c.termBase;
+        if (i == 1) return c.termBaseDeep;
+        if (i == 2) return c.termAccent;
+        if (i == 3) return c.termAccentDeep;
+        if (i == 4) return c.termInk;
+        if (i == 5) return c.termFrame;
+        return c.termHi;
+    }
+
+    private static void themeSet(com.sdzjz.config.SdzjzConfig c, int i, String v) {
+        if (i == 0) c.termBase = v;
+        else if (i == 1) c.termBaseDeep = v;
+        else if (i == 2) c.termAccent = v;
+        else if (i == 3) c.termAccentDeep = v;
+        else if (i == 4) c.termInk = v;
+        else if (i == 5) c.termFrame = v;
+        else c.termHi = v;
+    }
+
+    /** 第 i 色的当前生效值（经 SciSkin 出口=非法回退默认，样片直显真实渲染色）。 */
+    private static int themeColor(int i) {
+        if (i == 0) return SciSkin.termBase();
+        if (i == 1) return SciSkin.termBaseDeep();
+        if (i == 2) return SciSkin.termAccent();
+        if (i == 3) return SciSkin.termAccentDeep();
+        if (i == 4) return SciSkin.termInk();
+        if (i == 5) return SciSkin.termFrame();
+        return SciSkin.termHi();
+    }
+
+    private static boolean hexOk(String s) { // 照 m199（非法只做红线提示，渲染层自会回退）
+        if (s == null) return false;
+        String t = s.trim().replace("#", "");
+        if (t.isEmpty() || t.length() > 6) return false;
+        for (int i = 0; i < t.length(); i++) if (Character.digit(t.charAt(i), 16) < 0) return false;
+        return true;
     }
 
     private void sendView() {
@@ -86,86 +135,87 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
-        ctx.fill(0, 0, this.width, this.height, BACKDROP);
         int x = this.x, y = this.y;
-        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
-        // 搜索框底（m161b：细边接管原版黑壳——聚焦亮青、平时格边色，与 slot/按钮同族）
-        int sfrm = (search != null && search.isFocused()) ? SciSkin.ACCENT : SciSkin.CELL_FRM;
-        ctx.fill(x + 177, y + 5, x + 359, y + 25, sfrm);
-        ctx.fill(x + 178, y + 6, x + 358, y + 24, SciSkin.CELL);
-        // 存储 6×9
+        ctx.fill(0, 0, this.width, this.height, SciSkin.termInk()); // 全屏暗底（设计稿背景色）
+        SciSkin.termPanel(ctx, x + 4, y, 352, 256); // 窗体大卡
+        // ===== 标题栏：图标 + 名称 + 类型用量 + 主题钮 + 关闭 =====
+        ctx.fill(x + 6, y + 20, x + 354, y + 21, SciSkin.withAlpha(SciSkin.termFrame(), 0.6f)); // 分隔细线
+        ctx.fill(x + 11, y + 5, x + 23, y + 17, SciSkin.termAccentDeep()); // 图标：紫方块+受光角
+        ctx.fill(x + 12, y + 6, x + 22, y + 16, SciSkin.termAccent());
+        ctx.fill(x + 12, y + 6, x + 16, y + 10, SciSkin.withAlpha(SciSkin.termHi(), 0.55f));
+        ctx.drawText(this.textRenderer, "存储终端", x + 28, y + 7, SciSkin.termInk(), false);
+        // m97/m98 全网类型用量（满=红：核心类型上限到顶新种类被拒收的原因亮出来）
+        int tu = this.handler.typesUsedView(), tc = this.handler.typesCapView();
+        String usage; int ucol;
+        if (tc <= 0)           { usage = "无存储核心"; ucol = SciSkin.RED; }
+        else if (tc == 0xFFFF) { usage = "类型 " + tu; ucol = SciSkin.termSub(); }
+        else                   { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? SciSkin.RED : SciSkin.termSub(); }
+        ctx.drawText(this.textRenderer, usage, x + 294 - this.textRenderer.getWidth(usage), y + 7, ucol, false);
+        SciSkin.termBtn(ctx, this.textRenderer, x + 298, y + 4, 34, 16, "主题",
+                mouseX >= x + 298 && mouseX <= x + 332 && mouseY >= y + 4 && mouseY <= y + 20, false);
+        SciSkin.termBtn(ctx, this.textRenderer, x + 336, y + 4, 16, 16, "×",
+                mouseX >= x + 336 && mouseX <= x + 352 && mouseY >= y + 4 && mouseY <= y + 20, false);
+        // ===== 左列：搜索卡 =====
+        SciSkin.termPanel(ctx, x + 8, y + 24, 191, 20);
+        if (search != null && search.isFocused()) { // 聚焦=紫描边（四边 1px）
+            int a = SciSkin.termAccent();
+            ctx.fill(x + 9, y + 25, x + 198, y + 26, a);
+            ctx.fill(x + 9, y + 42, x + 198, y + 43, a);
+            ctx.fill(x + 9, y + 25, x + 10, y + 43, a);
+            ctx.fill(x + 197, y + 25, x + 198, y + 43, a);
+        }
+        // ===== 左列：存储网格卡 + 真实比例滚动条（m107b）=====
+        SciSkin.termPanel(ctx, x + 8, y + 46, 191, 118);
         for (int r = 0; r < 6; r++)
-            for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 30 + r * 18);
-        // m107b 真实比例滚动条（总行数走属性 id4 同步；行数≤6 画暗色满轨=不可滚）
-        int sbx = x + 99 + 9 * 18 + 3;
-        ctx.fill(sbx, y + 30, sbx + 6, y + 30 + 108, SciSkin.CELL);
+            for (int c = 0; c < 9; c++) SciSkin.termSlot(ctx, x + 16 + c * 18, y + 52 + r * 18);
+        int sbx = x + 181;
+        ctx.fill(sbx, y + 52, sbx + 6, y + 160, SciSkin.termBaseDeep());
+        ctx.fill(sbx, y + 52, sbx + 6, y + 53, SciSkin.withAlpha(SciSkin.termInk(), 0.28f)); // 轨内顶阴影，与槽同质感
         int rowsAll = Math.max(6, this.handler.rowsView());
         int th = Math.max(12, 108 * 6 / rowsAll);
         int mr = Math.max(0, this.handler.rowsView() - 6);
-        int ty2 = y + 30 + (mr == 0 ? 0 : (108 - th) * Math.min(scroll, mr) / mr);
-        ctx.fill(sbx, ty2, sbx + 6, ty2 + (mr == 0 ? 108 : th), mr == 0 ? 0xFF13293E : CYAN);
-        // 背包 3×9 + 快捷栏
+        int ty2 = y + 52 + (mr == 0 ? 0 : (108 - th) * Math.min(scroll, mr) / mr);
+        ctx.fill(sbx, ty2, sbx + 6, ty2 + (mr == 0 ? 108 : th),
+                mr == 0 ? SciSkin.mix(SciSkin.termBaseDeep(), SciSkin.termFrame(), 0.5f) : SciSkin.termAccent());
+        // ===== 左列：背包卡 =====
+        SciSkin.termPanel(ctx, x + 8, y + 168, 191, 87);
+        ctx.drawText(this.textRenderer, "背包", x + 16, y + 170, SciSkin.termSub(), false);
         for (int r = 0; r < 3; r++)
-            for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 158 + r * 18);
-        for (int c = 0; c < 9; c++) cell(ctx, x + 99 + c * 18, y + 216);
-        // ===== m80c 左侧：经验库（m127a 撤乔大仙立牌，用户点名）=====
-        ctx.fill(x + 8, y + 166, x + 92, y + 240, 0xC0081120);
-        ctx.drawText(this.textRenderer, "经验库", x + 14, y + 170, SUB, false);
-        String xv = fmt(((com.sdzjz.screen.DataPanelScreenHandler) this.handler).xpBankView());
-        ctx.drawText(this.textRenderer, xv + " 点", x + 14, y + 182, 0xFF7CFC9A, false);
-        xpBtn(ctx, x + 12, y + 196, "存入经验", mouseX, mouseY);
-        xpBtn(ctx, x + 12, y + 218, "取出经验", mouseX, mouseY);
-        // ===== m84b 合成终端 3×3 + 结果 =====
+            for (int c = 0; c < 9; c++) SciSkin.termSlot(ctx, x + 16 + c * 18, y + 181 + r * 18);
+        for (int c = 0; c < 9; c++) SciSkin.termSlot(ctx, x + 16 + c * 18, y + 237);
+        // ===== 右列：经验库（m80c）=====
+        SciSkin.termPanel(ctx, x + 205, y + 24, 147, 52);
+        ctx.fill(x + 211, y + 29, x + 213, y + 37, SciSkin.termAccent()); // 标题紫刻
+        ctx.drawText(this.textRenderer, "经验库", x + 217, y + 29, SciSkin.termSub(), false);
+        ctx.drawText(this.textRenderer, fmt(this.handler.xpBankView()) + " 点", x + 217, y + 41, SciSkin.termAccentDeep(), false);
+        SciSkin.termBtn(ctx, this.textRenderer, x + 211, y + 56, 66, 16, "存入经验",
+                mouseX >= x + 211 && mouseX <= x + 277 && mouseY >= y + 56 && mouseY <= y + 72, false);
+        SciSkin.termBtn(ctx, this.textRenderer, x + 281, y + 56, 66, 16, "取出经验",
+                mouseX >= x + 281 && mouseX <= x + 347 && mouseY >= y + 56 && mouseY <= y + 72, false);
+        // ===== 右列：合成终端（m84b）=====
+        SciSkin.termPanel(ctx, x + 205, y + 80, 147, 98);
+        ctx.fill(x + 211, y + 85, x + 213, y + 93, SciSkin.termAccent());
+        ctx.drawText(this.textRenderer, "合成终端", x + 217, y + 85, SciSkin.termSub(), false);
         for (int r = 0; r < 3; r++)
-            for (int c2 = 0; c2 < 3; c2++) cell(ctx, x + 272 + c2 * 18, y + 40 + r * 18);
-        cell(ctx, x + 290, y + 102);
-        ctx.fill(x + 294, y + 94, x + 302, y + 100, CYAN); // 网格→结果 指示
-        // m107c 清空网格→回仓按钮（m106b 补料后网格常驻满编，换配方需一键清）
-        boolean hovClr = mouseX >= x + 272 && mouseX <= x + 326 && mouseY >= y + 124 && mouseY <= y + 138;
-        ctx.fill(x + 271, y + 123, x + 327, y + 139, hovClr ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-        ctx.fill(x + 272, y + 124, x + 326, y + 138, SciSkin.BTN_FACE);
-        String clr = "清空回仓";
-        ctx.drawText(this.textRenderer, clr, x + 272 + (54 - this.textRenderer.getWidth(clr)) / 2, y + 127,
-                hovClr ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
-        // 回收格（红框，放入即销毁）
-        int tx = x + 334, ty = y + 216;
-        ctx.fill(tx - 1, ty - 1, tx + 17, ty + 17, 0xFF8E2E2E);
-        ctx.fill(tx, ty, tx + 16, ty + 16, 0xFF1A0D0D);
-    }
-
-    private void xpBtn(DrawContext ctx, int bx, int by, String label, int mouseX, int mouseY) {
-        boolean hov = mouseX >= bx && mouseX <= bx + 76 && mouseY >= by && mouseY <= by + 18;
-        ctx.fill(bx - 1, by - 1, bx + 77, by + 19, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-        ctx.fill(bx, by, bx + 76, by + 18, SciSkin.BTN_FACE);
-        ctx.drawText(this.textRenderer, label, bx + (76 - this.textRenderer.getWidth(label)) / 2, by + 5,
-                hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
-    }
-
-    private void cell(DrawContext ctx, int x, int y) {
-        SciSkin.drawSlot(ctx, x, y); // m118 贴图槽位（slot.png 简易稿逐像素复刻旧程序槽，换皮=覆盖 png）
-    }
-
-    private void header(DrawContext ctx, String s, int x, int y) {
-        ctx.fill(x, y + 1, x + 2, y + 9, CYAN);
-        ctx.drawText(this.textRenderer, s, x + 6, y, SUB, false);
+            for (int c = 0; c < 3; c++) SciSkin.termSlot(ctx, x + 213 + c * 18, y + 96 + r * 18);
+        ctx.drawText(this.textRenderer, "▶", x + 283, y + 118, SciSkin.termAccent(), false); // 网格→结果
+        ctx.fill(x + 306, y + 111, x + 328, y + 133, SciSkin.termAccentDeep()); // 结果格紫外环
+        SciSkin.termSlot(ctx, x + 309, y + 114);
+        SciSkin.termBtn(ctx, this.textRenderer, x + 211, y + 156, 135, 16, "清空回仓",
+                mouseX >= x + 211 && mouseX <= x + 346 && mouseY >= y + 156 && mouseY <= y + 172, true); // 设计稿主紫钮
+        // ===== 右列：回收（放入即销毁）=====
+        SciSkin.termPanel(ctx, x + 205, y + 182, 147, 73);
+        ctx.fill(x + 211, y + 187, x + 213, y + 195, SciSkin.RED);
+        ctx.drawText(this.textRenderer, "回收", x + 217, y + 187, SciSkin.termSub(), false);
+        ctx.fill(x + 266, y + 199, x + 288, y + 221, SciSkin.RED); // 危险红外环
+        SciSkin.termSlot(ctx, x + 269, y + 202);
+        String rc = "放入即销毁";
+        ctx.drawText(this.textRenderer, rc, x + 278 - this.textRenderer.getWidth(rc) / 2, y + 228, SciSkin.termSub(), false);
     }
 
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
-        ctx.drawText(this.textRenderer, "存储终端", 24, 12, TXT, false);
-        header(ctx, "存储 · 滚轮翻页", 99, 20);
-        // m97：全网类型用量。满了变红——存储核心类型上限(27×等级)到顶时新种类被拒收，
-        // 表现就是"格子只填了几排再也进不去新东西"，这里把原因亮出来。
-        int tu = this.handler.typesUsedView(), tc = this.handler.typesCapView();
-        String usage; int ucol; // m98 哨兵：0=无存储核心, 0xFFFF=无限
-        if (tc <= 0)            { usage = "无存储核心"; ucol = SciSkin.RED_SOFT; }
-        else if (tc == 0xFFFF)  { usage = "类型 " + tu; ucol = SUB; }
-        else                    { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? SciSkin.RED_SOFT : SUB; }
-        int uw = this.textRenderer.getWidth(usage);
-        ctx.drawText(this.textRenderer, usage, 99 + 162 - uw, 20, ucol, false);
-        header(ctx, "物品栏", 99, 148);
-        header(ctx, "合成", 272, 28);
-        ctx.drawText(this.textRenderer, "回收", 306, 220, SciSkin.RED_SOFT, false);
+        // m200 全部文字随卡片画在 drawBackground（撤原版标题/物品栏默认字）；本覆盖保留为空即达意。
     }
 
     @Override
@@ -177,7 +227,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             ctx.getMatrices().push();
             ctx.getMatrices().translate(slot.x + 17, slot.y + 12.5f, 200); // 右下角锚定
             ctx.getMatrices().scale(0.5f, 0.5f, 1f);                       // 半尺寸：最长 "606.4K" 也压不出格
-            ctx.drawText(this.textRenderer, s, -this.textRenderer.getWidth(s), 0, 0xFFFFFFFF, true);
+            ctx.drawText(this.textRenderer, s, -this.textRenderer.getWidth(s), 0, SciSkin.termHi(), true);
             ctx.getMatrices().pop();
         } else {
             super.drawSlot(ctx, slot);
@@ -190,6 +240,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (themeOpen) return themeClick(mx, my, button); // m200 主题面板 modal 最先判（m103 区域化）
         if (qtySlot >= 0) { // 浮层打开中：命中按钮或关闭
             for (int k = 0; k < QTY.length; k++) { // 第一行：定量
                 int bx = qtyX + k * 26, by = qtyY;
@@ -211,21 +262,19 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             return true;
         }
         // m107b：滚动条命中——点轨道跳页并开始拖拽（浮层打开时不抢，见上）
-        int sbx = this.x + 99 + 9 * 18 + 3;
-        if (button == 0 && mx >= sbx - 1 && mx <= sbx + 7 && my >= this.y + 30 && my <= this.y + 30 + 108) {
+        int sbx = this.x + 181;
+        if (button == 0 && mx >= sbx - 1 && mx <= sbx + 7 && my >= this.y + 52 && my <= this.y + 160) {
             sbDrag = true;
             sbUpdate(my);
             return true;
         }
         // m111 AE 手感：光标拿着东西点存储区 = 存入（左键全放/右键放1）——原版此处是"无操作"，必须拦截
-        boolean overGridClick = mx >= this.x + 99 && mx < this.x + 99 + 162 && my >= this.y + 30 && my < this.y + 30 + 108;
+        boolean overGridClick = mx >= this.x + 16 && mx < this.x + 178 && my >= this.y + 52 && my < this.y + 160;
         if (overGridClick && !this.handler.getCursorStack().isEmpty() && (button == 0 || button == 1)) {
             clickXp(button == 0 ? 4 : 5);
             return true;
         }
-        // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标。原版右键=取一半，对结果格是吞产物的
-        // 残废语义（取半也触发 consumeCraft 扣整份料，随后 updateCraftResult 又把剩余覆盖成满结果——白丢一半），
-        // 无论光标空否都拦截交服务端权威处理。
+        // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标（部分取出路径在 handler 焊死，见 m127b）
         if (button == 1) {
             var resSlot = this.handler.slots.get(DataPanelBlockEntity.PAGE + 45);
             int rsx = this.x + resSlot.x, rsy = this.y + resSlot.y;
@@ -234,9 +283,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 return true;
             }
         }
-        if (button == 1) { // m113 浮层回到普通右键（用户点名"右键拿一组/拿满哪去了"）——本模组存量动辄百万，
-            // 定量/拿满才是主力，AE 的"右键抓半组"在这个量级没用，肌肉记忆优先。Shift+右键同样开浮层。
-            // 光标拿着东西时右键=存1（上方拦截在先），空手右键=浮层，语义不冲突。
+        if (button == 1) { // m113 空手右键存储格=数量浮层（定量/拿满是百万量级下的主力，肌肉记忆优先）
             for (int i = 0; i < DataPanelBlockEntity.PAGE && i < this.handler.slots.size(); i++) {
                 var sl = this.handler.slots.get(i);
                 if (!sl.hasStack()) continue;
@@ -249,11 +296,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
                 }
             }
         }
-        if (button == 0) { // m80c：经验库按钮（1=存入 2=取出）；m107c：清空网格（3）
+        if (button == 0) { // 固定钮：经验库(1存/2取)、清空回仓(3)、主题、关闭（区域与 drawBackground 同一套）
             double rx = mx - this.x, ry = my - this.y;
-            if (rx >= 12 && rx <= 88 && ry >= 196 && ry <= 214) { clickXp(1); return true; }
-            if (rx >= 12 && rx <= 88 && ry >= 218 && ry <= 236) { clickXp(2); return true; }
-            if (rx >= 272 && rx <= 326 && ry >= 124 && ry <= 138) { clickXp(3); return true; }
+            if (rx >= 211 && rx <= 277 && ry >= 56 && ry <= 72) { clickXp(1); return true; }
+            if (rx >= 281 && rx <= 347 && ry >= 56 && ry <= 72) { clickXp(2); return true; }
+            if (rx >= 211 && rx <= 346 && ry >= 156 && ry <= 172) { clickXp(3); return true; }
+            if (rx >= 298 && rx <= 332 && ry >= 4 && ry <= 20) { openTheme(); return true; }
+            if (rx >= 336 && rx <= 352 && ry >= 4 && ry <= 20) { this.close(); return true; }
         }
         return super.mouseClicked(mx, my, button);
     }
@@ -265,9 +314,10 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
+        if (themeOpen) return true; // m200 主题面板吞滚轮
         // m107b：只在悬停存储格/滚动条区域时翻页（m103 交易列表同款教训），指着背包/合成区滚不再劫持
-        boolean overGrid = mx >= this.x + 99 && mx <= this.x + 99 + 162 + 9
-                && my >= this.y + 30 && my <= this.y + 30 + 108;
+        boolean overGrid = mx >= this.x + 16 && mx <= this.x + 187
+                && my >= this.y + 52 && my <= this.y + 160;
         if (!overGrid) return super.mouseScrolled(mx, my, h, v);
         int mr = Math.max(0, this.handler.rowsView() - 6); // 真实 clamp，撤 bottomFull 启发式
         int ns = Math.max(0, Math.min(mr, scroll + (v < 0 ? 1 : -1)));
@@ -283,13 +333,14 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
         if (mr <= 0) return;
         int rowsAll = Math.max(6, this.handler.rowsView());
         int th = Math.max(12, 108 * 6 / rowsAll);
-        double rel = (my - (this.y + 30) - th / 2.0) / (double) (108 - th);
+        double rel = (my - (this.y + 52) - th / 2.0) / (double) (108 - th);
         int ns = (int) Math.round(Math.max(0, Math.min(1, rel)) * mr);
         if (ns != scroll) { scroll = ns; sendView(); }
     }
 
     @Override
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        if (themeOpen) return true; // m200
         if (sbDrag) { sbUpdate(my); return true; }
         return super.mouseDragged(mx, my, button, dx, dy);
     }
@@ -302,6 +353,11 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (themeOpen) { // m200 主题窗：Esc=关，其余喂 7 色框（未聚焦的自不吃）
+            if (keyCode == 256) { closeTheme(); return true; }
+            for (TextFieldWidget f : themeF) f.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
         if (search != null && search.isFocused() && keyCode != 256) {
             search.keyPressed(keyCode, scanCode, modifiers);
             return true;
@@ -311,10 +367,76 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (themeOpen) { for (TextFieldWidget f : themeF) f.charTyped(chr, modifiers); return true; } // m200
         if (search != null && search.isFocused()) {
             return search.charTyped(chr, modifiers);
         }
         return super.charTyped(chr, modifiers);
+    }
+
+    @Override
+    public void removed() {
+        if (themeOpen) com.sdzjz.config.SdzjzConfig.save(); // m200 主题窗开着直接关屏也落盘（m199 同款兜底）
+        super.removed();
+    }
+
+    // ===== m200 主题调色面板 =====
+    private void openTheme() {
+        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
+        for (int i = 0; i < 7; i++) themeF[i].setText(themeGet(c, i)); // 开窗对齐配置现值
+        themeOpen = true;
+    }
+
+    private void closeTheme() {
+        themeOpen = false;
+        for (TextFieldWidget f : themeF) f.setFocused(false);
+        com.sdzjz.config.SdzjzConfig.save();
+    }
+
+    private int[] thPos() { return new int[]{(this.width - TH_W) / 2, (this.height - TH_H) / 2}; }
+
+    /** 主题面板渲染：面板自身就用 termPanel/termBtn 画——调色时面板同步换肤，所见即所得。 */
+    private void renderTheme(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int px = thPos()[0], py = thPos()[1];
+        SciSkin.termPanel(ctx, px, py, TH_W, TH_H);
+        ctx.drawText(this.textRenderer, "终端主题（RRGGBB）", px + 8, py + 7, SciSkin.termInk(), false);
+        for (int i = 0; i < 7; i++) {
+            int ry = py + 22 + i * TH_ROW;
+            ctx.drawText(this.textRenderer, THEME_LABELS[i], px + 8, ry + 3, SciSkin.termSub(), false);
+            ctx.fill(px + 68, ry - 1, px + 126, ry + 14, SciSkin.termBaseDeep()); // 输入井
+            ctx.fill(px + 68, ry - 1, px + 126, ry, SciSkin.withAlpha(SciSkin.termInk(), 0.28f));
+            themeF[i].setX(px + 71);
+            themeF[i].setY(ry + 2);
+            themeF[i].render(ctx, mouseX, mouseY, delta);
+            ctx.fill(px + 131, ry - 2, px + 149, ry + 15, SciSkin.termFrame()); // 样片=实际生效色（非法自动显回退）
+            ctx.fill(px + 132, ry - 1, px + 148, ry + 14, themeColor(i));
+            if (!hexOk(themeF[i].getText())) ctx.fill(px + 68, ry + 14, px + 126, ry + 15, SciSkin.RED);
+        }
+        int rx = px + (TH_W - 64) / 2, rby = py + 22 + 7 * TH_ROW + 3;
+        SciSkin.termBtn(ctx, this.textRenderer, rx, rby, 64, 16, "恢复默认",
+                mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16, true);
+        ctx.drawText(this.textRenderer, "打字实时换肤 · Esc/点窗外=关", px + 8, py + TH_H - 13, SciSkin.termSub(), false);
+    }
+
+    /** 主题面板点击派发（几何与 renderTheme 同一套）。恒返回 true=modal 吞穿透。 */
+    private boolean themeClick(double mx, double my, int button) {
+        int px = thPos()[0], py = thPos()[1];
+        if (mx < px || mx > px + TH_W || my < py || my > py + TH_H) { closeTheme(); return true; } // 窗外点=关
+        for (int i = 0; i < 7; i++) {
+            if (themeF[i].mouseClicked(mx, my, button)) {
+                for (int j = 0; j < 7; j++) if (j != i) themeF[j].setFocused(false);
+                return true;
+            }
+        }
+        for (TextFieldWidget f : themeF) f.setFocused(false);
+        if (button != 0) return true;
+        int rx = px + (TH_W - 64) / 2, rby = py + 22 + 7 * TH_ROW + 3;
+        if (mx >= rx && mx <= rx + 64 && my >= rby && my <= rby + 16) { // 恢复默认（new 实例取字段默认，零硬编码重复）
+            com.sdzjz.config.SdzjzConfig d = new com.sdzjz.config.SdzjzConfig();
+            for (int i = 0; i < 7; i++) themeF[i].setText(themeGet(d, i)); // setText 触发 listener 回写配置
+            com.sdzjz.config.SdzjzConfig.save();
+        }
+        return true;
     }
 
     private static long amtOf(net.minecraft.item.ItemStack st) {
@@ -343,28 +465,22 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
-        if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行
+        if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行（m200 换终端主题皮：墨底浮层+主题钮）
             int w = QTY.length * 26 + 6;
-            ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 40, 0xF0081120);
-            ctx.drawText(this.textRenderer, "取出数量:", qtyX, qtyY - 12, 0xFF8FB8CC, false);
+            ctx.fill(qtyX - 5, qtyY - 17, qtyX + w + 1, qtyY + 41, SciSkin.termFrame());
+            ctx.fill(qtyX - 4, qtyY - 16, qtyX + w, qtyY + 40, SciSkin.withAlpha(SciSkin.termInk(), 0.96f));
+            ctx.drawText(this.textRenderer, "取出数量:", qtyX, qtyY - 12, SciSkin.termHi(), false);
             for (int k = 0; k < QTY.length; k++) { // 第一行：定量
                 int bx = qtyX + k * 26, by = qtyY;
                 boolean hov = mouseX >= bx && mouseX <= bx + 24 && mouseY >= by && mouseY <= by + 16;
-                ctx.fill(bx - 1, by - 1, bx + 25, by + 17, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-                ctx.fill(bx, by, bx + 24, by + 16, SciSkin.BTN_FACE);
-                String t = String.valueOf(QTY[k]);
-                ctx.drawText(this.textRenderer, t, bx + (24 - this.textRenderer.getWidth(t)) / 2, by + 4,
-                        hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
+                SciSkin.termBtn(ctx, this.textRenderer, bx, by, 24, 16, String.valueOf(QTY[k]), hov, hov);
             }
             for (int j = 0; j < QTY2.length; j++) { // m100 第二行：批量(2组/4组/8组/填满背包)
                 int bx = qtyX + j * 32, by = qtyY + 20;
                 boolean hov = mouseX >= bx && mouseX <= bx + 30 && mouseY >= by && mouseY <= by + 16;
-                ctx.fill(bx - 1, by - 1, bx + 31, by + 17, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-                ctx.fill(bx, by, bx + 30, by + 16, SciSkin.BTN_FACE);
-                String t = QTY2[j];
-                ctx.drawText(this.textRenderer, t, bx + (30 - this.textRenderer.getWidth(t)) / 2, by + 4,
-                        hov ? SciSkin.TXT_HI : SciSkin.TXT_SOFT, false);
+                SciSkin.termBtn(ctx, this.textRenderer, bx, by, 30, 16, QTY2[j], hov, hov);
             }
         }
+        if (themeOpen) renderTheme(ctx, mouseX, mouseY, delta); // m200 主题面板压最上层（tooltip 之后）
     }
 }
