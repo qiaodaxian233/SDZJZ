@@ -81,7 +81,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     // ===== m215 上下 chrome 紧凑化（配置开关，改后重开画布生效；所有底栏/总线纵向几何只许走这三口，不许再散写 78/44/12）=====
     private static boolean compactChrome() { return com.sdzjz.config.SdzjzConfig.get().canvasCompactChrome; }
     /** 底部横带上缘 y（旧版=height-78，紧凑=height-56）：画布剪刀/暗角/小地图/机器库底缘全部以此为准。 */
-    private int botTop() { return this.height - (compactChrome() ? 56 : 78); }
+    private int botTop() { // m219 状态区可收：收起=按钮排+上下留白；展开=两行统计（提示行已迁"帮助"卡，56/78 时代的第三行位随之瘦掉）
+        if (!com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen) return this.height - (compactChrome() ? 26 : 30);
+        return this.height - (compactChrome() ? 46 : 66);
+    }
+    /** m219 底部五钮摆位（init 与"状态"开合共用；m182 折行口径原样：放得下的必是前缀，折行只在尾部）。 */
+    private void layoutBottomButtons() {
+        if (bottomBtns == null) return;
+        int[] bbX = {8, 104, 200, 300, 396};
+        int bbH = bottomBtns[0].getHeight();
+        int bbLim = this.width - 8, bbFx = 8, bbFy = botTop() - bbH - 4; // 折行首行=带上方 4px（与画布剪刀 botTop 不撞）
+        for (int i = 0; i < bottomBtns.length; i++) {
+            if (bbX[i] + bottomBtns[i].getWidth() <= bbLim) { bottomBtns[i].setX(bbX[i]); bottomBtns[i].setY(botTop() + 4); }
+            else {
+                if (bbFx + bottomBtns[i].getWidth() > bbLim && bbFx > 8) { bbFx = 8; bbFy -= bbH + 4; }
+                bottomBtns[i].setX(bbFx); bottomBtns[i].setY(bbFy); bbFx += bottomBtns[i].getWidth() + 6;
+            }
+        }
+    }
+
     /** 总线卡片首行 y（旧 44，紧凑 42=收起态带底同值）。 */
     private int busCardTop() { return compactChrome() ? 42 : 44; }
     /** 总线卡片行距（旧 bh+12，紧凑 bh+8）。 */
@@ -169,6 +187,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private boolean settingsOpen = false;
     private TextFieldWidget wireOutField, wireInField;   // 出/进线颜色 RRGGBB：live 写配置实例即时预览，关窗落盘
     private TextFieldWidget bgField, gridColField;       // m217 背景色/网格色 RRGGBB：空=跟随主题；live 写实例即时预览
+    private TermButton[] bottomBtns;                      // m219 底部五钮存引用："状态"钮切换后就地重摆（botTop 变高矮）
+    private boolean helpOpen = false;                     // m219 帮助卡（操作提示行迁入，modal 同吞穿透口径）
     private static final int SETT_W = 236, SETT_H = 332, SETT_ROW = 24; // m211 +24：第7行主题预设；m217 +96：背景四行（6~9），预设/恢复默认下移至10/11行位
 
     // m110a 小地图（纯客户端零协议）
@@ -225,29 +245,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         // （320 GUI 视口下"整理布局/重置视角"右缘 392/488 > 312）折行到状态条(height-78)上方流式摆放，
         // setX/setY 走 pickerField 同款在树先例。历史坐标单调递增 → 放得下的必是前缀，折行只会发生在尾部。
         if (busScale < 0) busScale = (float) Math.max(BUS_MIN, Math.min(BUS_MAX, com.sdzjz.config.SdzjzConfig.get().canvasBusScale)); // m215 首次从配置装载
-        int[] bbX = {8, 104, 200, 300, 396};
-        int[] bbW = {90, 90, 96, 92, 92};
+        int[] bbW = {90, 90, 96, 92, 92}; // 坐标 bbX 唯一家=layoutBottomButtons()（m219 搬家，防散写）
         int bbH = compactChrome() ? 16 : 20; // m215 紧凑钮高
-        TermButton[] bb = { // m203 画布横幅按钮换终端主题控件
+        bottomBtns = new TermButton[]{ // m203 画布横幅按钮换终端主题控件；m219 存引用可重摆
                 new TermButton(0, 0, bbW[0], bbH, Text.literal("▶ 开机"), b -> click(0), true), // m203 主紫
                 new TermButton(0, 0, bbW[1], bbH, Text.literal("■ 停止"), b -> click(1)),
                 new TermButton(0, 0, bbW[2], bbH, Text.literal("★ 领取经验"), b -> click(2)),
                 new TermButton(0, 0, bbW[3], bbH, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
                 new TermButton(0, 0, bbW[4], bbH, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
         };
-        int bbLim = this.width - 8, bbFx = 8, bbFy = botTop() - bbH - 4; // 折行首行=带上方 4px（与画布剪刀 botTop 不撞）
-        for (int i = 0; i < bb.length; i++) {
-            if (bbX[i] + bbW[i] <= bbLim) { bb[i].setX(bbX[i]); bb[i].setY(botTop() + 4); }
-            else {
-                if (bbFx + bbW[i] > bbLim && bbFx > 8) { bbFx = 8; bbFy -= bbH + 4; }
-                bb[i].setX(bbFx); bb[i].setY(bbFy); bbFx += bbW[i] + 6;
-            }
-            this.addDrawableChild(bb[i]);
-        }
+        layoutBottomButtons();
+        for (TermButton btn : bottomBtns) this.addDrawableChild(btn);
         this.addDrawableChild(new TermButton(132, 2, 60, 16, Text.literal("机器库"), b -> libOpen = !libOpen)); // m88
         this.addDrawableChild(new TermButton(196, 2, 44, 16, Text.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
         this.addDrawableChild(new TermButton(244, 2, 44, 16, Text.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
                 b -> { if (settingsOpen) closeSettings(); else openSettings(); }));
+        this.addDrawableChild(new TermButton(292, 2, 40, 16, Text.translatable("sdzjz.canvas.status"), // m219 状态区开合（即点即存；320 极窄视口下与右簇重叠属既有降级，见 DEVLOG）
+                b -> { com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen = !com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen;
+                       com.sdzjz.config.SdzjzConfig.save(); layoutBottomButtons(); }));
+        this.addDrawableChild(new TermButton(336, 2, 40, 16, Text.translatable("sdzjz.canvas.help"), // m219 帮助卡（操作提示行迁入）
+                b -> helpOpen = !helpOpen));
         int wr2 = this.width - 8; // m121 视图控制随全屏右移
         this.addDrawableChild(new TermButton(wr2 - 170, 2, 16, 16, Text.literal("−"), b -> zoomBy(1 / 1.2)));
         this.addDrawableChild(new TermButton(wr2 - 106, 2, 16, 16, Text.literal("+"), b -> zoomBy(1.2)));
@@ -1214,19 +1231,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (st2 == 1) nRun++; else if (st2 == 2) nBlk++; else if (st2 == 3) nLack++;
         }
         int maxW = workRight() - 16;
-        int sy1 = this.height - (compactChrome() ? 32 : 48), sy2 = this.height - (compactChrome() ? 22 : 36), sy3 = this.height - (compactChrome() ? 11 : 12); // m215
-        ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, sy1, run ? ON : SciSkin.termSub(), false);
-        ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
-                + "  机器 " + this.handler.machineCount()
-                + "  存储 " + stor + " · 面板 " + term
-                + "  缓存 " + fmtNum(this.handler.buffered())
-                + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, sy1, SciSkin.termInk(), false); // m203
-        ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
-                + "  升级∑ 加速" + this.handler.speedLv()
-                + " 数量" + this.handler.countLv()
-                + " 并列" + this.handler.parallelLv()
-                + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, sy2, SciSkin.termSub(), false);
-        ctx.drawText(this.textRenderer, fitText("右键=菜单 · 拖节点=移动 · 绿口拖线 · 滚轮缩放 · 状态灯 绿=运行 黄=阻塞 红=缺料 · 节点色 青=生产 橙=加工 紫=逻辑 绿=农场", maxW), 8, sy3, SciSkin.termSub(), false);
+        if (com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen) { // m219 状态区可收（顶栏"状态"钮开合）；提示行已迁"帮助"卡
+            int sy1 = this.height - (compactChrome() ? 22 : 36), sy2 = this.height - (compactChrome() ? 12 : 24); // m215 行距节奏原样，整体上提填掉旧提示行位
+            ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, sy1, run ? ON : SciSkin.termSub(), false);
+            ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
+                    + "  机器 " + this.handler.machineCount()
+                    + "  存储 " + stor + " · 面板 " + term
+                    + "  缓存 " + fmtNum(this.handler.buffered())
+                    + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, sy1, SciSkin.termInk(), false); // m203
+            ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
+                    + "  升级∑ 加速" + this.handler.speedLv()
+                    + " 数量" + this.handler.countLv()
+                    + " 并列" + this.handler.parallelLv()
+                    + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, sy2, SciSkin.termSub(), false);
+        }
 
 
         // ===== m88：机器库侧栏（概念图左栏——列背包里的机器，点击放入画布）=====
@@ -1292,7 +1310,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             libScroll -= (int) Math.signum(verticalAmount);
             return true;
         }
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen) return true; // m199 设置窗并入
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             zoomToward(verticalAmount > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪
@@ -1518,6 +1536,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.drawText(this.textRenderer, "恢复默认", rx + 32 - this.textRenderer.getWidth("恢复默认") / 2, rby + 4,
                 rh ? SciSkin.TXT_MAX : SciSkin.TXT, false);
         ctx.drawText(this.textRenderer, "即改即存 config/sdzjz.json · Esc/点窗外=关", px + 8, py + SETT_H - 13, SciSkin.SUB, false);
+        ctx.getMatrices().pop();
+    }
+
+    /** m219 帮助卡：操作提示行迁入（原底带一行塞不下的内容摊开写；纯静态无交互，点哪都关）。 */
+    private void renderHelp(DrawContext ctx) {
+        int hw = 236, hh = 96;
+        int px = Math.max(8, Math.min(336, workRight() - hw - 8)), py = 22; // 锚"帮助"钮下方，窄屏向左让位
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0, 0, 400); // m202 抬z口径
+        SciSkin.drawCard(ctx, px, py, hw, hh, SciSkin.FRAME);
+        ctx.drawText(this.textRenderer, "操作帮助", px + 8, py + 7, SciSkin.TXT_HI, false);
+        String[] lines = {
+                "右键节点=菜单 · 拖节点=移动",
+                "绿口拖线=连线 · 滚轮=缩放",
+                "状态灯：绿=运行 黄=阻塞 红=缺料",
+                "节点色：青=生产 橙=加工 紫=逻辑 绿=农场",
+        };
+        for (int i = 0; i < lines.length; i++)
+            ctx.drawText(this.textRenderer, lines[i], px + 10, py + 24 + i * 14, i < 2 ? SciSkin.TXT : SciSkin.SUB, false);
+        ctx.drawText(this.textRenderer, "点任意处关闭", px + 8, py + hh - 13, SciSkin.SUB, false);
         ctx.getMatrices().pop();
     }
 
@@ -1826,6 +1864,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (helpOpen) { helpOpen = false; return true; } // m219 帮助卡：任意点即关（modal 吞穿透，m103 口径）
         if (settingsOpen) return settingsClick(mouseX, mouseY, button); // m199 设置面板 modal 最先判
         if (renameGid >= 0) { // m192 重命名小窗 modal：窗内点进字段，窗外点=关
             int rw = 200, rh = 58, rpx = (this.width - rw) / 2, rpy = (this.height - rh) / 2;
@@ -2152,7 +2191,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen) return true; // m199 设置窗并入
+        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
         if (linking) return true;
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
@@ -2287,6 +2326,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (menuOpen) renderMenu(ctx, mouseX, mouseY);
             if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
             if (settingsOpen) renderSettings(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（与重命名互斥，openSettings 已清场）
+        if (helpOpen) renderHelp(ctx); // m219 帮助卡
         } finally {
             SciSkin.scopeCanvas(false);
         }
@@ -2693,6 +2733,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (helpOpen) { if (keyCode == 256) helpOpen = false; return true; } // m219 帮助卡：Esc=关，其余吞（modal 同口径）
         if (settingsOpen) { // m199 设置窗：Esc=关；其余喂两个颜色框（未聚焦的 TextFieldWidget 自不吃）
             if (keyCode == 256) { closeSettings(); return true; }
             wireOutField.keyPressed(keyCode, scanCode, modifiers);

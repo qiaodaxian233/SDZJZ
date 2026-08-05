@@ -129,5 +129,7 @@
   "item.sdzjz.dragon_cannon": "Dragon Slayer Cannon",
   "item.sdzjz.hoglin_farm": "Hoglin Farm",
   "item.sdzjz.tunnel_borer": "Lazy-Load Tunnel Borer",
-  "sdzjz.canvas.settings": "Settings"
+  "sdzjz.canvas.settings": "Settings",
+  "sdzjz.canvas.status": "Status",
+  "sdzjz.canvas.help": "Help"
 }

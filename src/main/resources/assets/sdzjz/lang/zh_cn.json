@@ -129,5 +129,7 @@
   "item.sdzjz.dragon_cannon": "屠龙炮",
   "item.sdzjz.hoglin_farm": "疣猪兽农场",
   "item.sdzjz.tunnel_borer": "弱加载盾构机",
-  "sdzjz.canvas.settings": "设置"
+  "sdzjz.canvas.settings": "设置",
+  "sdzjz.canvas.status": "状态",
+  "sdzjz.canvas.help": "帮助"
 }
