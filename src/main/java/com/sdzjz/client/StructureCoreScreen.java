@@ -124,6 +124,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private int dragIndex = -1;
     private long dragStor = Long.MIN_VALUE;
     private double dragOffX, dragOffY;
+    private int dragCurX, dragCurY; // m196 拖动中的屏幕本地坐标（渲染/发包唯一真源）——BE 坐标拖动中会被服务器全量同步打回旧值，读它=闪跳；从它回读发包=同步恰好盖掉就把旧坐标发回去=永久漂移
     private boolean linking = false;
     private int linkFrom = -1;                        // 机器输出口起点
     private long linkStor = Long.MIN_VALUE;           // 存储供料口起点
@@ -265,8 +266,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     private double wmx(double mx) { return (mx - panX) / zoom; }
     private double wmy(double my) { return (my - panY) / zoom; }
-    private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeX(nodes.get(i), 20 + (i % 6) * 112); }
-    private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) { return be.nodeY(nodes.get(i), 20 + (i / 6) * 88); }
+    // m196 拖动中覆盖：单卡读 dragCur、组成员读快照+增量——渲染永不读会被同步打回的 BE 坐标，根治"闪两个位置来回跳"
+    private int wnx(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) {
+        if (i == dragIndex) return dragCurX;
+        if (dragGid >= 0) { int[] s = dragGidSnap.get(i); if (s != null) return s[0] + dragGidDx; }
+        return be.nodeX(nodes.get(i), 20 + (i % 6) * 112);
+    }
+    private int wny(StructureCoreBlockEntity be, List<ItemStack> nodes, int i) {
+        if (i == dragIndex) return dragCurY;
+        if (dragGid >= 0) { int[] s = dragGidSnap.get(i); if (s != null) return s[1] + dragGidDy; }
+        return be.nodeY(nodes.get(i), 20 + (i / 6) * 88);
+    }
     /** m85：画布 UI 的右边界——右侧留空给 JEI/REI 物品栏（用户点名），所有屏幕锚定元素不越界。 */
     private int workRight() { return this.width - 8; } // m121 撤 m85 的 JEI 预留：画布全屏，JEI 已随全屏声明自动隐藏
 
@@ -1885,7 +1895,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                                 if (!selected.remove(Integer.valueOf(i))) selected.add(i);
                                 return true;
                             }
-                            dragIndex = i; dragStor = Long.MIN_VALUE; dragOffX = wx - nx; dragOffY = wy - ny; return true;
+                            dragIndex = i; dragStor = Long.MIN_VALUE; dragOffX = wx - nx; dragOffY = wy - ny; dragCurX = nx; dragCurY = ny; return true; // m196 覆盖坐标起手定格
                         }
                     }
                     // m192 组框标题带：左键=整组拖动（成员坐标快照，拖动时快照+增量绝对写，松手一包发增量）
@@ -1920,9 +1930,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
             if (be != null && dragIndex < be.nodes().size()) {
-                int nx = (int) (wmx(mouseX) - dragOffX);
-                int ny = (int) (wmy(mouseY) - dragOffY);
-                be.setNodePos(dragIndex, nx, ny);
+                dragCurX = (int) (wmx(mouseX) - dragOffX); // m196 写覆盖坐标（渲染真源），BE 顺手同写但不依赖它
+                dragCurY = (int) (wmy(mouseY) - dragOffY);
+                be.setNodePos(dragIndex, dragCurX, dragCurY);
             }
             return true;
         }
@@ -2002,14 +2012,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             StructureCoreBlockEntity be = be();
             BlockPos p = this.handler.blockPos();
             if (be != null && p != null && dragIndex < be.nodes().size()) {
-                ItemStack st = be.nodes().get(dragIndex);
-                ClientPlayNetworking.send(new NodeMovePayload(p, dragIndex, be.nodeX(st, 0), be.nodeY(st, 0)));
+                be.setNodePos(dragIndex, dragCurX, dragCurY); // m196 本地定格 + 发包用覆盖坐标——从 BE 回读会被中途同步盖成旧值(漂移元凶)
+                ClientPlayNetworking.send(new NodeMovePayload(p, dragIndex, dragCurX, dragCurY));
             }
             dragIndex = -1;
             return true;
         }
         if (button == 0 && dragGid >= 0) { // m192 组拖动松手：一包发总增量（服务端批量改+单次同步，防N连发全量同步）
             BlockPos p = this.handler.blockPos();
+            StructureCoreBlockEntity gbe = be(); // m196 覆盖失效前按快照+增量本地定格——否则松手到服务端回同步之间闪回旧位置
+            if (gbe != null) for (var en : dragGidSnap.entrySet())
+                if (en.getKey() < gbe.nodes().size())
+                    gbe.setNodePos(en.getKey(), en.getValue()[0] + dragGidDx, en.getValue()[1] + dragGidDy);
             if (p != null && (dragGidDx != 0 || dragGidDy != 0))
                 ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupMovePayload(p, dragGid, dragGidDx, dragGidDy));
             dragGid = -1;
