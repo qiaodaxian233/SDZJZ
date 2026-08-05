@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 6; // m185 新增画布缩放上下限
+    public int configVersion = 7; // m185 新增画布缩放上下限；m186 新增缩放平滑动效开关
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -43,6 +43,7 @@ public class SdzjzConfig {
     // ===== 画布（客户端视图数值，读本机配置文件，不参与服务端逻辑）=====
     public double canvasZoomMin = 0.05;   // m185 画布缩放下限（0.05=5%；旧硬编码 0.4 放开，想更小自己改）
     public double canvasZoomMax = 8.0;    // m185 画布缩放上限（8=800%；旧硬编码 2.5 放开）
+    public boolean canvasSmoothZoom = true; // m186 画布缩放平滑动效（指数缓动+指哪缩哪；false=瞬时跳变旧行为）
 
     // ---- 单例 + 读写 ----
     private static SdzjzConfig INSTANCE;

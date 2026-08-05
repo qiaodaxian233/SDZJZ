@@ -64,6 +64,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static final java.util.Map<BlockPos, double[]> VIEW = new java.util.HashMap<>();
 
     private double panX = 0, panY = 0, zoom = 1.0;
+    // ===== m186 缩放平滑动效（anime.js easeOutExpo 思路移植：速度∝剩余距离，帧率无关）=====
+    private double zoomTarget = 1.0;           // 缓动目标缩放
+    private boolean zoomAnim = false;          // 动效进行中
+    private double zoomAnchorSx, zoomAnchorSy; // 锚点屏幕坐标（指哪缩哪）
+    private double zoomAnchorWx, zoomAnchorWy; // 锚点世界坐标
+    private long zoomAnimNs = 0;               // 上帧时间戳
     private boolean libOpen = false; // m88 机器库侧栏
     private int libScroll = 0;
     private boolean busCollapsed = false; // m91：总线收起（拉线时自动展开）
@@ -186,7 +192,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         BlockPos p = this.handler.blockPos();
         if (p != null && VIEW.containsKey(p)) {
             double[] v = VIEW.get(p);
-            panX = v[0]; panY = v[1]; zoom = v[2];
+            setViewInstant(v[0], v[1], v[2]); // m186 恢复视图走直设，顺带对齐动效目标
         }
         // m182 底栏五钮防溢出：常规宽度坐标与旧版逐像素一致(8/104/200/300/396)；右缘越过安全边距的按钮
         // （320 GUI 视口下"整理布局/重置视角"右缘 392/488 > 312）折行到状态条(height-78)上方流式摆放，
@@ -198,7 +204,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 new SciButton(0, 0, bbW[1], 20, Text.literal("■ 停止"), b -> click(1)),
                 new SciButton(0, 0, bbW[2], 20, Text.literal("★ 领取经验"), b -> click(2)),
                 new SciButton(0, 0, bbW[3], 20, Text.literal("整理布局"), b -> autoLayout()), // m85 概念图底栏
-                new SciButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> { panX = 0; panY = 0; zoom = 1.0; })
+                new SciButton(0, 0, bbW[4], 20, Text.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
         };
         int bbLim = this.width - 8, bbFx = 8, bbFy = this.height - 102; // 折行首行=状态条上方 4px（与画布剪刀 height-78 不撞）
         for (int i = 0; i < bb.length; i++) {
@@ -223,6 +229,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public void removed() {
+        if (zoomAnim) { zoom = zoomTarget; panX = zoomAnchorSx - zoomAnchorWx * zoom; panY = zoomAnchorSy - zoomAnchorWy * zoom; zoomAnim = false; } // m186 结算未完动效再存视图
         BlockPos p = this.handler.blockPos();
         if (p != null) VIEW.put(p, new double[]{panX, panY, zoom});
         super.removed();
@@ -295,19 +302,46 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return Math.max(lo, Math.min(hi, z));
     }
 
+    /** m186 视图直设：重置/适应/恢复等瞬时路径统一走这里，顺手终止缩放动效防隔帧抢写。 */
+    private void setViewInstant(double px, double py, double z) {
+        panX = px; panY = py; zoom = z; zoomTarget = z; zoomAnim = false;
+    }
+
+    /** m186 朝目标缩放：锚点 (sx,sy) 屏幕点始终指着同一世界点；连滚累积在目标上；配置关平滑=瞬时跳变（旧行为）。 */
+    private void zoomToward(double factor, double sx, double sy) {
+        double nz = clampZoom((zoomAnim ? zoomTarget : zoom) * factor);
+        double wx = (sx - panX) / zoom, wy = (sy - panY) / zoom;
+        if (!com.sdzjz.config.SdzjzConfig.get().canvasSmoothZoom) {
+            zoom = nz; zoomTarget = nz; zoomAnim = false;
+            panX = sx - wx * nz; panY = sy - wy * nz;
+            return;
+        }
+        zoomAnchorSx = sx; zoomAnchorSy = sy; zoomAnchorWx = wx; zoomAnchorWy = wy;
+        zoomTarget = nz;
+        if (!zoomAnim) { zoomAnim = true; zoomAnimNs = System.nanoTime(); }
+    }
+
+    /** m186 每帧推进：指数趋近（1-e^{-14·dt}，半衰≈50ms），收敛吸附；锚点公式保证屏幕锚点纹丝不动。 */
+    private void tickZoomAnim() {
+        if (!zoomAnim) return;
+        long now = System.nanoTime();
+        double dt = Math.min(0.1, (now - zoomAnimNs) / 1.0e9);
+        zoomAnimNs = now;
+        zoom += (zoomTarget - zoom) * (1 - Math.exp(-14.0 * dt));
+        if (Math.abs(zoomTarget - zoom) < zoomTarget * 0.002) { zoom = zoomTarget; zoomAnim = false; }
+        panX = zoomAnchorSx - zoomAnchorWx * zoom;
+        panY = zoomAnchorSy - zoomAnchorWy * zoom;
+    }
+
     /** m86 视图控制：围绕工作区中心缩放。 */
     private void zoomBy(double f) {
-        double nz = clampZoom(zoom * f);
-        double cx = workRight() / 2.0, cy = this.height / 2.0;
-        panX = cx - (cx - panX) * (nz / zoom);
-        panY = cy - (cy - panY) * (nz / zoom);
-        zoom = nz;
+        zoomToward(f, workRight() / 2.0, this.height / 2.0); // m186 走平滑缓动
     }
 
     /** m86 适应视图：所有节点装进 总线下缘~底栏 之间的可视区。 */
     private void fitView() {
         StructureCoreBlockEntity be = be();
-        if (be == null || be.nodes().isEmpty()) { panX = 0; panY = 0; zoom = 1.0; return; }
+        if (be == null || be.nodes().isEmpty()) { setViewInstant(0, 0, 1.0); return; }
         List<ItemStack> nodes = be.nodes();
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
         for (int i = 0; i < nodes.size(); i++) {
@@ -321,6 +355,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         zoom = clampZoom(Math.min(zw, zh)); // m185 范围走配置
         panX = left + ((right - left) - (maxX - minX) * zoom) / 2 - minX * zoom;
         panY = top + ((bottom - top) - (maxY - minY) * zoom) / 2 - minY * zoom;
+        zoomTarget = zoom; zoomAnim = false; // m186 直设视图终止动效
     }
 
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
@@ -330,6 +365,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+        tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
         ctx.fill(0, 0, workRight(), 22, 0xEE0A121F);  // m120 顶条底带（与底栏同语言）
@@ -531,6 +567,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     /** 点中的世界点移到工作区中心；拖拽期间用快照几何。 */
     private void mapJump(double mouseX, double mouseY) {
         if (mapGeomDrag == null) return;
+        zoomAnim = false; zoomTarget = zoom; // m186 手动跳转终止缩放动效防隔帧抢写
         double wx = mapGeomDrag[0] + (mouseX - mapX() - 5) / mapGeomDrag[2];
         double wy = mapGeomDrag[1] + (mouseY - mapY() - 5) / mapGeomDrag[2];
         panX = workRight() / 2.0 - wx * zoom;
@@ -1060,11 +1097,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (pickerNode >= 0 || menuOpen) return true;
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
-            double old = zoom;
-            zoom = clampZoom(zoom * (verticalAmount > 0 ? 1.1 : 0.9)); // m185 范围走配置
-            double wx = (mouseX - panX) / old, wy = (mouseY - panY) / old;
-            panX = mouseX - wx * zoom;
-            panY = mouseY - wy * zoom;
+            zoomToward(verticalAmount > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
@@ -1504,7 +1537,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     clearMenu();
                     menuTitle = "画布"; // m148
                     addMenu("整理布局", mi(net.minecraft.item.Items.COMPASS), this::autoLayout);
-                    addMenu("重置视角", mi(net.minecraft.item.Items.SPYGLASS), () -> { panX = 0; panY = 0; zoom = 1.0; });
+                    addMenu("重置视角", mi(net.minecraft.item.Items.SPYGLASS), () -> setViewInstant(0, 0, 1.0));
                     addMenu("取消", null, 2, () -> {});
                     openMenu((int) mouseX, (int) mouseY);
                     return true;
@@ -1606,6 +1639,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             return true;
         }
         if (button == 0 && mouseY > 34) {
+            zoomAnim = false; zoomTarget = zoom; // m186 手动平移终止缩放动效防隔帧抢写
             panX += deltaX;
             panY += deltaY;
             return true;
