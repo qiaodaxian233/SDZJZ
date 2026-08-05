@@ -70,6 +70,68 @@ public final class SciSkin {
         try { return 0xFF000000 | (int) Long.parseLong(s.trim().replace("#", ""), 16); }
         catch (NumberFormatException e) { return fallback; }
     } // m192 画布分组框边/标题带基色（半透青蓝，垫在连线卡片之下）
+
+    // ===== m200 存储终端浅色主题（配置 7 色可调，本类唯一出口；默认=作者设计稿配色方案）=====
+    public static final int TERM_BASE_DEF        = 0xFFE6E8EF;
+    public static final int TERM_BASE_DEEP_DEF   = 0xFFAEB4C7;
+    public static final int TERM_ACCENT_DEF      = 0xFF8B7CF6;
+    public static final int TERM_ACCENT_DEEP_DEF = 0xFF6D5CE0;
+    public static final int TERM_INK_DEF         = 0xFF1E2128;
+    public static final int TERM_FRAME_DEF       = 0xFF3A3F4B;
+    public static final int TERM_HI_DEF          = 0xFFFFFFFF;
+
+    /** 配置色缓存件（m198 wireOut 同款串比：配置串不变不重解析，逐帧调用零开销）。 */
+    private static final class CfgColor {
+        private String src; private int val; private final int fb;
+        CfgColor(int fb) { this.fb = fb; this.val = fb; }
+        int get(String c) { if (!java.util.Objects.equals(c, src)) { src = c; val = parseHex(c, fb); } return val; }
+    }
+    private static final CfgColor T_BASE = new CfgColor(TERM_BASE_DEF), T_DEEP = new CfgColor(TERM_BASE_DEEP_DEF),
+            T_ACC = new CfgColor(TERM_ACCENT_DEF), T_ACCD = new CfgColor(TERM_ACCENT_DEEP_DEF),
+            T_INK = new CfgColor(TERM_INK_DEF), T_FRM = new CfgColor(TERM_FRAME_DEF), T_HI = new CfgColor(TERM_HI_DEF);
+
+    public static int termBase()       { return T_BASE.get(com.sdzjz.config.SdzjzConfig.get().termBase); }
+    public static int termBaseDeep()   { return T_DEEP.get(com.sdzjz.config.SdzjzConfig.get().termBaseDeep); }
+    public static int termAccent()     { return T_ACC.get(com.sdzjz.config.SdzjzConfig.get().termAccent); }
+    public static int termAccentDeep() { return T_ACCD.get(com.sdzjz.config.SdzjzConfig.get().termAccentDeep); }
+    public static int termInk()        { return T_INK.get(com.sdzjz.config.SdzjzConfig.get().termInk); }
+    public static int termFrame()      { return T_FRM.get(com.sdzjz.config.SdzjzConfig.get().termFrame); }
+    public static int termHi()         { return T_HI.get(com.sdzjz.config.SdzjzConfig.get().termHi); }
+    /** 终端次级文字（墨→主色 35% 提灰，随主题联动）。 */
+    public static int termSub()        { return mix(termInk(), termBase(), 0.35f); }
+
+    /** m200 终端浅色卡片：软投影 + 1px 圆角外框(角内收) + 近白提亮面 + 顶部受光渐隐 + 底压边——设计稿"圆角细边+质感"。 */
+    public static void termPanel(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h) {
+        softShadow(ctx, x, y, w, h);
+        int frm = termFrame(), face = mix(termBase(), termHi(), 0.42f);
+        ctx.fill(x, y + 1, x + w, y + h - 1, frm);
+        ctx.fill(x + 1, y, x + w - 1, y + h, frm);
+        ctx.fill(x + 1, y + 2, x + w - 1, y + h - 2, face);
+        ctx.fill(x + 2, y + 1, x + w - 2, y + h - 1, face);
+        vGrad(ctx, x + 2, y + 1, x + w - 2, y + Math.max(4, h / 4f), withAlpha(termHi(), 0.55f), withAlpha(termHi(), 0f));
+        ctx.fill(x + 2, y + h - 2, x + w - 2, y + h - 1, withAlpha(termBaseDeep(), 0.85f));
+    }
+
+    /** m200 终端凹陷槽位（浅色系程序槽；x,y 传 16×16 物品区左上角，与 drawSlot 同占位）：深灰井面+内顶阴影+内底受光。 */
+    public static void termSlot(net.minecraft.client.gui.DrawContext ctx, int x, int y) {
+        ctx.fill(x - 1, y - 1, x + 17, y + 17, termFrame());
+        ctx.fill(x, y, x + 16, y + 16, termBaseDeep());
+        ctx.fill(x, y, x + 16, y + 1, withAlpha(termInk(), 0.28f));
+        ctx.fill(x, y + 15, x + 16, y + 16, withAlpha(termHi(), 0.45f));
+    }
+
+    /** m200 终端按钮：primary=强调紫面/深紫边(设计稿"清空回仓")，否则=墨面/边框色边(设计稿"回仓"暗钮)；文字一律高亮色。 */
+    public static void termBtn(net.minecraft.client.gui.DrawContext ctx, net.minecraft.client.font.TextRenderer tr,
+                               int x, int y, int w, int h, String label, boolean hover, boolean primary) {
+        int frm = primary ? termAccentDeep() : termFrame();
+        int face = primary ? (hover ? mix(termAccent(), termHi(), 0.18f) : termAccent())
+                           : (hover ? mix(termInk(), termBase(), 0.22f) : termInk());
+        ctx.fill(x, y + 1, x + w, y + h - 1, frm);
+        ctx.fill(x + 1, y, x + w - 1, y + h, frm);
+        ctx.fill(x + 1, y + 1, x + w - 1, y + h - 1, face);
+        vGrad(ctx, x + 1, y + 1, x + w - 1, y + h / 2f, withAlpha(termHi(), primary ? 0.25f : 0.10f), withAlpha(termHi(), 0f));
+        ctx.drawText(tr, label, x + (w - tr.getWidth(label)) / 2, y + (h - 8) / 2, termHi(), false);
+    }
     public static final int GROUP_FILL = 0x14224E70; // m192 画布分组框面（极淡，透出网格不压内容）
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====

@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 11; // m198 连线进/出分色； …m191 画布分组开关；m193 分组连线归并开关；m197 连线宽度随缩放+封顶
+    public int configVersion = 12; // m200 存储终端主题7色；m198 连线进/出分色；…m193 分组连线归并开关；m197 连线宽度随缩放+封顶
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -50,6 +50,15 @@ public class SdzjzConfig {
     public String canvasWireOutColor = "2EC4FF"; // m198 出线颜色RRGGBB（机器产出→存储/机器→机器），默认=原主强调青，非法值回退默认
     public String canvasWireInColor  = "33D07A"; // m198 进线颜色RRGGBB（存储供料→机器），默认=原运行绿
     public boolean canvasGroupBundleWires = true; // m193 跨组界连线归并成一条(×N徽章)；false=每条线照旧各画各的（纯客户端渲染，不碰数据）
+
+    // ===== 存储终端主题（m200 照作者设计稿浅灰+紫；RRGGBB 字符串允许带#，非法回退默认；纯客户端渲染）=====
+    public String termBase       = "E6E8EF"; // 主色（窗体/卡面浅灰）
+    public String termBaseDeep   = "AEB4C7"; // 主色深（槽底/滚条轨/凹陷面）
+    public String termAccent     = "8B7CF6"; // 强调紫（主按钮/聚焦边/滚条滑块/数值）
+    public String termAccentDeep = "6D5CE0"; // 强调深（主按钮边框/图标）
+    public String termInk        = "1E2128"; // 墨色（浅面上的正文字，兼全屏暗底/暗按钮面）
+    public String termFrame      = "3A3F4B"; // 边框色
+    public String termHi         = "FFFFFF"; // 高亮（浅面提亮/紫钮与暗钮上的文字）
 
     // ---- 单例 + 读写 ----
     private static SdzjzConfig INSTANCE;
