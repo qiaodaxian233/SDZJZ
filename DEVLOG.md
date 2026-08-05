@@ -2843,3 +2843,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：多加载器项目的 maven 里同名 API 常有"官方映射原味版"和"intermediary 转味版"两套，
   **Yarn 工程引第三方 API 先看它的发布脚本**（publications 段），别只抄 README 坐标。
 - **实机验证脚本**：重跑"拉取并构建"应过 compileJava；后续照 DEVLOG m205 七步验证 JEI"+"。
+
+## m209 热修二：JEI 依赖改吃全量 fabric jar（作者复贴同款四错，m208 拆件路线弃用）
+- **现象**：换 `common-api-intermediary` 后四错原样复现——类路径上仍有 Mojang 官方映射的
+  IModPlugin（报错点名 net.minecraft.resources.ResourceLocation=官方名铁证）。
+- **根因判定（坦白：无法完全实锤）**：两个候选——① 19.21.0.247 老版 fabric-api 的 POM 传递
+  依赖仍指向 mojmap 版 common-api，把它漏回类路径（显式加 intermediary 并不会把传递的 mojmap
+  版挤出去，javac 撞见谁算谁）；② 该老版 intermediary 工件自身发布口径有包袱。blamejared 的
+  POM 沙箱域不可达，JEI 仓库 tag 只打到 v9.x 时代、19.21.0.247 当时的构建脚本考古无门——
+  两个候选无法二选一，**但可以选一条对两个都免疫的路**。
+- **修法（m209 终解）**：弃拆件 API，编译期直引**全量 `jei-1.21.1-fabric` 正式 mod jar** +
+  `transitive = false`：它是 remapJar 产物（intermediary）、内含 fabric.mod.json——Loom 见
+  fabric.mod.json **无条件**远端映射到 Yarn，不依赖 Fabric-Loom-Remap manifest 标；API 类全在
+  其中（运行时第三方插件本就靠它链接）；transitive=false 斩断 POM 拖 mojmap 拆件回来的通道。
+  插件代码零改动。
+- **教训**：①传递依赖会把你刚踢走的坏工件从后门放回来——排"类路径污染"必须连 POM 传递一起斩
+  （transitive=false / exclude），只换正面工件名可能白换；②拆件 API 的多映射发布是重灾区，
+  Yarn 工程吃第三方最稳的路=吃它的**正式发行 jar**（fabric.mod.json 在场=Loom remap 走硬路径）。
+- **实机验证脚本**：重跑"拉取并构建"过 compileJava（本刀盯点：首次会从 blamejared 拉全量 jar
+  约几 MB，构建时间比 2s 长属正常）；过后照 DEVLOG m205 七步验 JEI"+"填料。

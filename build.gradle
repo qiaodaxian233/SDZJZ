@@ -23,12 +23,13 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // JEI API 仅编译期（m205 立、m208 修正映射工件）：modCompileOnly=Loom 远端映射到 Yarn 但不进运行时，
+    // JEI 仅编译期（m205 立、m208/m209 两修）：modCompileOnly=Loom 远端映射到 Yarn 但不进运行时，
     // 玩家不装 JEI 零影响；插件类由 jei_mod_plugin entrypoint 惰性加载。
-    // 坑（m208 实锤）：`common-api` 是 Mojang 官方映射直发，Yarn 工程吃不了（报 ResourceLocation 找不到）；
-    // 必须用 FabricApi 工程代发的 `common-api-intermediary`（RemapJarTask 产物，带 Fabric-Loom-Remap 标）。
-    modCompileOnly "mezz.jei:jei-${project.minecraft_version}-common-api-intermediary:${project.jei_version}"
-    modCompileOnly "mezz.jei:jei-${project.minecraft_version}-fabric-api:${project.jei_version}"
+    // 血泪（m208/m209）：拆件 API 在 19.21.0.x 的发布口径有历史包袱——`common-api` 为 Mojang 官方映射直发，
+    // 且换 intermediary 拆件后 mojmap 版仍经传递解析漏回类路径（作者两轮同错实测）。
+    // 终解：直接引全量 fabric 正式 jar——remapJar 产物内含 fabric.mod.json，Loom 无条件远端映射到 Yarn；
+    // API 类全在其中；transitive=false 斩断 POM 把 mojmap 拆件拖回来的通道。
+    modCompileOnly("mezz.jei:jei-${project.minecraft_version}-fabric:${project.jei_version}") { transitive = false }
 }
 
 processResources {

@@ -33,7 +33,7 @@
 5. 每里程碑写 DEVLOG（现象→根因→修法→教训），提交信息带 mNN 编号。
 6. 升级/封顶类公式改动必问："到顶之后玩家再投入会怎样"——静默无效比数值弱更伤（m99 教训）。
 
-## 当前状态（m207：画布照新截图换靛紫配色——深色族retint（ACCENT青退役→薰衣草紫A8A0F0）+线默认紫/绿+端口跟线色（m198留痕销账）+configVersion13默认迁移；off-palette棘轮30→25新低；m206 盾构机/屠龙炮满幅海报款归位；m205+m208 JEI插件收官（common-api 换 intermediary 工件，待复编译）
+## 当前状态（m207：画布照新截图换靛紫配色——深色族retint（ACCENT青退役→薰衣草紫A8A0F0）+线默认紫/绿+端口跟线色（m198留痕销账）+configVersion13默认迁移；off-palette棘轮30→25新低；m206 盾构机/屠龙炮满幅海报款归位；m205+m208+m209 JEI插件（终解=全量fabric jar+transitive=false，待复编译）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
