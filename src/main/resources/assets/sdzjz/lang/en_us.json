@@ -141,5 +141,7 @@
   "sdzjz.extract_port.on": "Extract port ON (%s adjacent storage(s); empty filter = extract everything)",
   "sdzjz.extract_port.off": "Extract port OFF",
   "sdzjz.extract_port.selling": " · Selling to table",
-  "sdzjz.extract_port.sell_blocked": " · Table not ready"
+  "sdzjz.extract_port.sell_blocked": " · Table not ready",
+  "sdzjz.extract_port.upgrades": "Upgrades",
+  "sdzjz.extract_port.stats": "Every %s t, up to %s"
 }

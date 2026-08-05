@@ -25,7 +25,7 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
     public ExtractPortScreen(ExtractPortScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 176;
-        this.backgroundHeight = 178;
+        this.backgroundHeight = 202; // m230 升级行加高
     }
 
     @Override
@@ -57,14 +57,26 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         ctx.drawText(this.textRenderer, adj, x + 8, y + 44,
                 n > 0 ? (sell == 1 ? SciSkin.GOLD : SUB) : SciSkin.RED_SOFT, false);
 
-        // 幽灵过滤槽底（槽坐标与 Handler 同：8+i*18, 58）
-        for (int i = 0; i < ExtractPortScreenHandler.FILTER; i++) cell(ctx, x + 8 + i * 18, y + 58);
+        // 幽灵过滤槽底（槽坐标走 Handler 收口常量同源）
+        for (int i = 0; i < ExtractPortScreenHandler.FILTER; i++)
+            cell(ctx, x + 8 + i * 18, y + ExtractPortScreenHandler.FILTER_Y);
         ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.hint").getString(), x + 8, y + 80, SUB, false);
 
-        // 背包槽底（与 Handler px=8/py=96 同源）
+        // m230 升级行：标签 + 三槽（速度/数量/并发）+ 生效读数
+        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.upgrades").getString(),
+                x + 8, y + ExtractPortScreenHandler.UPG_Y + 4, SUB, false);
+        for (int i = 0; i < ExtractPortScreenHandler.UPG; i++)
+            cell(ctx, x + ExtractPortScreenHandler.UPG_X + i * 18, y + ExtractPortScreenHandler.UPG_Y);
+        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.stats",
+                        this.handler.effPeriod(), this.handler.effBudget()).getString(),
+                x + ExtractPortScreenHandler.UPG_X + ExtractPortScreenHandler.UPG * 18 + 6,
+                y + ExtractPortScreenHandler.UPG_Y + 4, SciSkin.TXT_HI, false);
+
+        // 背包槽底（与 Handler PINV_Y 同源）
+        int py = ExtractPortScreenHandler.PINV_Y;
         for (int r = 0; r < 3; r++)
-            for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + 96 + r * 18);
-        for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + 154);
+            for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + py + r * 18);
+        for (int c = 0; c < 9; c++) cell(ctx, x + 8 + c * 18, y + py + 58);
     }
 
     private void cell(DrawContext ctx, int cx, int cy) { // 四屏同款角标格（TradeCenter 工艺）

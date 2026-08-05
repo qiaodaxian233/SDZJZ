@@ -35,10 +35,30 @@ public class DataCableBlockEntity extends BlockEntity
     private long coresScanTick = Long.MIN_VALUE;               // 相连核心 40t 缓存（m108c 同款语义）
     private List<BlockPos> coresCache = List.of();
     private java.util.UUID owner = null;                       // m229 端口所有者（EMC 记谁账上；配置即认领）
+    /** m230 升级槽（0=速度 1=数量 2=并发；级数=槽内件数，配置界面装取）。 */
+    public final net.minecraft.inventory.SimpleInventory upgrades = new net.minecraft.inventory.SimpleInventory(3);
     private net.minecraft.server.network.ServerPlayerEntity opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_CABLE_BE, pos, state);
+        upgrades.addListener(inv -> this.markDirty()); // m230 升级槽改动落盘（markDirty 自带 world==null 守卫）
+    }
+
+    /** m230 生效周期：基础周期 ÷ (1+速度级)，触底 1t（触底后的富余速度折进单拍批量，见 effBudget——
+     *  m99 教训"到顶之后玩家再投入会怎样"：每一件升级永远有增益，绝不静默无效）。 */
+    public int effPeriod() {
+        int base = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
+        return Math.max(1, base / (1 + upgrades.getStack(0).getCount()));
+    }
+
+    /** m230 单拍批量：基础批量 × (1+数量级) × (1+并发级) × 速度触底折算倍率。 */
+    public long effBudget() {
+        int base = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
+        long speedFactor = 1 + upgrades.getStack(0).getCount();
+        long fold = speedFactor <= base ? 1 : (speedFactor + base - 1) / base; // 超出 1t 触底的速度折进批量（向上取整保单调）
+        return Math.max(1, SdzjzConfig.get().extractPortBatch)
+                * (1 + upgrades.getStack(1).getCount())
+                * (1 + upgrades.getStack(2).getCount()) * fold;
     }
 
     public boolean extractOn() { return extractOn; }
@@ -110,7 +130,7 @@ public class DataCableBlockEntity extends BlockEntity
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
     public static void tick(World world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
         if (world.isClient || !be.extractOn) return;
-        int period = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
+        int period = be.effPeriod(); // m230 升级生效
         if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
         Adjacency adj = scanAdjacent(world, pos);
         List<Storage<ItemVariant>> targets = adj.targets();
@@ -120,7 +140,7 @@ public class DataCableBlockEntity extends BlockEntity
         if (targets.isEmpty() && be.opSeller == null) return;
         List<StorageCoreBlockEntity> cores = be.cores(world, pos);
         if (cores.isEmpty()) return;
-        long budget = Math.max(1, SdzjzConfig.get().extractPortBatch);
+        long budget = be.effBudget(); // m230 升级生效
         be.opTargetsFull = false;
         List<ItemStack> want = new ArrayList<>();
         for (ItemStack f : be.filter) if (!f.isEmpty()) want.add(f);
@@ -228,6 +248,8 @@ public class DataCableBlockEntity extends BlockEntity
         super.writeNbt(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
         if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
+        for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
+            if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).encode(lookup));
         NbtList fl = new NbtList(); // 过滤模板持久化（精确账本 m130 同款 encode）
         for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.encode(lookup));
         nbt.put("filter", fl);
@@ -238,6 +260,10 @@ public class DataCableBlockEntity extends BlockEntity
         super.readNbt(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
+        for (int i = 0; i < 3; i++) { // m230
+            upgrades.setStack(i, nbt.contains("up" + i)
+                    ? ItemStack.fromNbt(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);
+        }
         filter.clear();
         NbtList fl = nbt.getList("filter", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < fl.size(); i++) {

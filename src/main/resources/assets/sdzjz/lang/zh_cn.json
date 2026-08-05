@@ -141,5 +141,7 @@
   "sdzjz.extract_port.on": "抽取口已开启（旁接 %s 个存储；空过滤=全部抽取）",
   "sdzjz.extract_port.off": "抽取口已关闭",
   "sdzjz.extract_port.selling": " · 转化桌出售中",
-  "sdzjz.extract_port.sell_blocked": " · 转化桌未就绪"
+  "sdzjz.extract_port.sell_blocked": " · 转化桌未就绪",
+  "sdzjz.extract_port.upgrades": "升级",
+  "sdzjz.extract_port.stats": "每 %s t 至多 %s 件"
 }
