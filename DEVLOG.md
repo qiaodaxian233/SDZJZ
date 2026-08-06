@@ -4378,3 +4378,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：冒烟真错 0，sortKey/PinyinInitials/bom 定向检零真错，拼音尺/dup/取色三闸绿。
   实机脚本：机器列表字母序稳定；选守卫者农场=30 种小图标按名序排满 5 行不压"材料→压缩包"两钮、
   计数不糊邻列；选小配方布局同样规整；搜索/点击填料照旧。
+
+## m288 修复 m286 编译红：@Override 被楔到私有新方法头上（作者 gradle 实锤）+ 回归尺
+
+- **现象**：`DataPanelScreen.java:457 错误: 方法不会覆盖或实现超类型的方法`。
+- **根因**：m286 用 str_replace 插 toggleBook() 时，替换锚只写了 `public void refreshRecipeBook() {`
+  签名行、没带上面的 `@Override`——插入物被楔进注解和方法之间，@Override 落到了不覆写任何东西的
+  私有新方法头上，refreshRecipeBook 反而丢了注解。
+- **为什么沙箱冒烟没抓住**＝**冒烟盲区#4**：缺 MC 依赖时超类（HandledScreen）不可解析，javac 对
+  错误类型直接跳过 @Override 校验，全绿假象；作者本地 gradle（全依赖）一编就红。
+  （盲区档案：#1 缺依赖噪音淹真错→关键词过滤；#2 自家类改名漏改→定向 grep；#3 参数类型不可解析时
+  不报 already defined→dup 尺；#4 本条→override 尺。）
+- **修法**：@Override 归位 refreshRecipeBook，toggleBook 去注解。
+- **回归尺**：`docs/tools_override_check.py` 入库挂 CI 第七道闸——@Override 之后（允许隔注释/注解）
+  首个声明若是 private/static 方法即判死刑（Java 里这两类永远不可能覆写，纯静态可判）；
+  对 m286 坏样本自证能抓（退出码 1），字段初始化括号不误报，全库现零命中。
+- **教训**：str_replace 锚必须带上方法前的注解行——光锚签名行会把插入物楔进注解和方法之间。

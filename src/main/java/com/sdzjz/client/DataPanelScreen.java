@@ -454,7 +454,6 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
                 this.backgroundWidth, this.backgroundHeight, button) && out;
     }
 
-    @Override
     /** m286 书开合（原版 CraftingScreen 同款挪窗）：翻书→重算左缘→自家绝对坐标控件跟着窗体走。 */
     private void toggleBook() {
         recipeBook.toggleOpen();
@@ -462,6 +461,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         if (search != null) search.setX(this.x + 16);
     }
 
+    @Override
     public void refreshRecipeBook() { this.recipeBook.refresh(); } // 数据包重载(/reload)后原版回调
 
     @Override
