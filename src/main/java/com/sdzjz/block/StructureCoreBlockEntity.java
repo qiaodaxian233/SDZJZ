@@ -90,6 +90,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.List<long[]> forceChunks = new java.util.ArrayList<>();
     private final java.util.List<String> forceDims = new java.util.ArrayList<>();
     private boolean chunkForceOn; // 瞬态：本核心当前是否登记了自身区块 FORCED
+    private boolean chunkOwned;   // m268 持久化：本核心是否拥有自身区块 forced 所有权（管理员 /forceload 撞同区块=false，永不由本核心解除）
     private static final int ENDPOINT_CAP = 9; // 含常驻输出接口
     /** 常驻「输出接口」哨兵端点：连它=显式走默认自动路由（绑定>有线>无线>卫星>输出缓存）。 */
     public static final long OUTPUT_IFACE = Long.MIN_VALUE + 7;
@@ -202,8 +203,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (Math.floorMod(wt, 20) == 0 && world instanceof net.minecraft.server.world.ServerWorld swf) { // m218c 错峰（内层%100同偏移，嵌套节奏不变）
             boolean want = be.running && SdzjzConfig.get().coreChunkLoading;
             if (want != be.chunkForceOn) {
-                if (want) CoreChunkLoading.force(swf, pos);
-                else CoreChunkLoading.release(swf, pos);
+                if (want) { be.chunkOwned = CoreChunkLoading.force(swf, pos, be.chunkOwned); be.markDirty(); } // m268 传入既有所有权,重启后保持不误判
+                else CoreChunkLoading.release(swf, pos, be.chunkOwned);
                 be.chunkForceOn = want;
             }
             if (Math.floorMod(wt, 100) == 0) {
@@ -211,7 +212,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.refreshForceChunks(world);
                     be.renewEndpointTickets(swf);
                 } else if (swf.getForcedChunks().contains(new net.minecraft.util.math.ChunkPos(pos).toLong())) {
-                    CoreChunkLoading.release(swf, pos); // 孤儿回收（手动/forceload撞同区块的极边角已在类头留痕）
+                    CoreChunkLoading.reclaimOrphan(swf, pos, be.chunkOwned); // m268 孤儿回收凭核心持久化的所有权判定，管理员 /forceload 永不误伤
                 }
             }
         }
@@ -2107,6 +2108,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m133：本核心当前是否钉住了自身区块（拆方块时由 Block 调 release）。 */
     public boolean chunkForceActive() { return chunkForceOn; }
+    public boolean chunkOwnedFlag() { return chunkOwned; } // m268 供拆核心时把所有权传给 release
 
     private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
         if (prof != null) prof.storageResolves++; // m177
@@ -2911,6 +2913,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nbt.put("busTop", bt);
         nbt.putLong("prodPM", prodPerMin); // m86 实测产量
+        nbt.putBoolean("chunkOwned", chunkOwned); // m268 强加载所有权（管理员 /forceload 撞同区块=false，重启后据此判断该不该解除）
     }
 
     @Override
@@ -2995,6 +2998,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             busTopCounts.add(btr.getCompound(i).getLong("n"));
         }
         prodPerMin = nbt.getLong("prodPM"); // m86
+        chunkOwned = nbt.getBoolean("chunkOwned"); // m268 缺键=false（老档/新核心默认无所有权，force 首拍会重新判定并落盘）
         NbtCompound spn = nbt.getCompound("storNodePos");
         for (String k : spn.getKeys()) {
             int[] v = spn.getIntArray(k);

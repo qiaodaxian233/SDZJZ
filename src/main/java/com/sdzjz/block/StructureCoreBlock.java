@@ -82,7 +82,7 @@ public class StructureCoreBlock extends BlockWithEntity {
             if (world.getBlockEntity(pos) instanceof StructureCoreBlockEntity core) {
                 core.dropAll(world, pos);
                 if (core.chunkForceActive() && world instanceof net.minecraft.server.world.ServerWorld swr)
-                    CoreChunkLoading.release(swr, pos); // m133 拆核心解除自身区块钉住（端点有期票自动过期）
+                    CoreChunkLoading.release(swr, pos, core.chunkOwnedFlag()); // m133 拆核心解除自身区块钉住（端点有期票自动过期）；m268 带所有权=管理员 /forceload 不误伤
             }
             super.onStateReplaced(state, world, pos, newState, moved);
         }

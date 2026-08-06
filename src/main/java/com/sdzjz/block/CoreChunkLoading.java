@@ -25,7 +25,15 @@ import java.util.Set;
  * 运行中的核心 ≤20t 维护里重新登记）。release 对未登记区块直接解除——重启后孤儿 forced 区块
  * （比如停机状态落盘前没来得及解除）由此兜底；同区块另一台运行核心会在下个维护拍重新登记加回，
  * 该时刻区块必然已加载（正在执行 release 的就是本区块里的 BE），无卸载窗口。
- * 设计留痕：玩家手动 /forceload 的区块若恰与被拆核心同区块，会被顺手解除——极边角，登记不处理。
+ *
+ * m268 强加载所有权（外部审计）：force 前先查 getForcedChunks——**若该区块在本 MOD 动手前
+ * 就已 forced（管理员 /forceload 或别的 MOD），登记为「外部所有」，本 MOD 永不解除它**。
+ * force 返回「本 MOD 是否拥有该区块 forced 所有权」的布尔，由核心持久化进**自己的 NBT**
+ * （chunkOwned，零新 API、随核心存档落盘）；release/reclaimOrphan 收核心传回的这个布尔，
+ * **只解除本 MOD 名下的区块**。重启后运行时 EXTERNAL 表虽空，核心的 chunkOwned 仍在，
+ * 故「管理员先 /forceload、核心后进同区块」以及重启后的孤儿回收都不会误伤管理员的强加载。
+ * 管理员在核心已钉住区块上再叠加 /forceload 的罕见次生情况，因核心 chunkOwned=true 解除时会
+ * 一并撤，属可接受近似（管理员再执行一次 /forceload 即恢复）。
  */
 public final class CoreChunkLoading {
     private CoreChunkLoading() {}
@@ -33,38 +41,73 @@ public final class CoreChunkLoading {
     /** 维度id → (区块long → 登记的核心方块坐标集合)。 */
     private static final Map<String, Map<Long, Set<Long>>> FORCED = new HashMap<>();
 
+    /** m268 维度id → 本 MOD 动手前就已 forced 的区块集合（外部所有，永不由本 MOD 解除）。 */
+    private static final Map<String, Set<Long>> EXTERNAL = new HashMap<>();
+
     /** 端点有期票：300t(15s) 过期，核心每 100t 续票。 */
     private static final ChunkTicketType<ChunkPos> ENDPOINT =
             ChunkTicketType.create("sdzjz_endpoint", Comparator.comparingLong(ChunkPos::toLong), 300);
 
     public static void clearAll() {
         FORCED.clear();
+        EXTERNAL.clear();
     }
 
     private static String dimId(ServerWorld w) {
         return w.getRegistryKey().getValue().toString();
     }
 
-    /** 登记并钉住核心自身区块（重复登记幂等）。 */
-    public static void force(ServerWorld w, BlockPos core) {
-        ChunkPos cp = new ChunkPos(core);
-        Set<Long> owners = FORCED.computeIfAbsent(dimId(w), k -> new HashMap<>())
-                .computeIfAbsent(cp.toLong(), k -> new HashSet<>());
-        boolean first = owners.isEmpty();
-        owners.add(core.asLong());
-        if (first) w.setChunkForced(cp.x, cp.z, true); // 已 forced 时重复置 true 无害
+    /** m268 该区块此刻是否已被（任何来源）forced。 */
+    private static boolean isForcedNow(ServerWorld w, ChunkPos cp) {
+        return w.getForcedChunks().contains(cp.toLong());
     }
 
-    /** 注销；本区块无其他登记核心（或压根未登记=重启后孤儿）→ 解除 forced。 */
-    public static void release(ServerWorld w, BlockPos core) {
+    /** m268 该区块此刻是否已被（任何来源）forced。 */
+    private static boolean isForcedNow(ServerWorld w, ChunkPos cp) {
+        return w.getForcedChunks().contains(cp.toLong());
+    }
+
+    /** 登记并钉住核心自身区块（重复登记幂等）。
+     *  m268 priorOwned=核心持久化的既有所有权（重启后运行时表虽空但它仍在）——若本核心此前就
+     *  拥有该区块所有权，即便此刻 getForcedChunks 仍显示 forced（正是它自己重启前钉的），也保持
+     *  拥有、不误判为外部。返回本 MOD 是否拥有该区块 forced 所有权，供核心持久化。 */
+    public static boolean force(ServerWorld w, BlockPos core, boolean priorOwned) {
         ChunkPos cp = new ChunkPos(core);
-        Map<Long, Set<Long>> dim = FORCED.get(dimId(w));
-        Set<Long> owners = dim == null ? null : dim.get(cp.toLong());
+        String dim = dimId(w);
+        Set<Long> owners = FORCED.computeIfAbsent(dim, k -> new HashMap<>())
+                .computeIfAbsent(cp.toLong(), k -> new HashSet<>());
+        boolean first = owners.isEmpty();
+        // 首次登记且区块已 forced 且本核心此前不拥有=外部所有（管理员 /forceload 或别的 MOD）
+        if (first && isForcedNow(w, cp) && !priorOwned)
+            EXTERNAL.computeIfAbsent(dim, k -> new HashSet<>()).add(cp.toLong());
+        owners.add(core.asLong());
+        boolean externallyOwned = EXTERNAL.getOrDefault(dim, Set.of()).contains(cp.toLong());
+        if (first) w.setChunkForced(cp.x, cp.z, true); // 已 forced 时重复置 true 无害
+        return !externallyOwned;
+    }
+
+    /** 注销；本区块无其他登记核心（或压根未登记=重启后孤儿）→ 解除 forced。
+     *  m268 owned=调用方持久化的所有权（本 MOD 名下才允许解除）；externalRuntime 兜运行时的 EXTERNAL 记录。 */
+    public static void release(ServerWorld w, BlockPos core, boolean owned) {
+        ChunkPos cp = new ChunkPos(core);
+        String dim = dimId(w);
+        Map<Long, Set<Long>> dimMap = FORCED.get(dim);
+        Set<Long> owners = dimMap == null ? null : dimMap.get(cp.toLong());
         if (owners != null) {
             owners.remove(core.asLong());
             if (!owners.isEmpty()) return; // 同区块还有别的运行核心，保持钉住
-            dim.remove(cp.toLong());
+            dimMap.remove(cp.toLong());
         }
+        Set<Long> ext = EXTERNAL.get(dim);
+        boolean externalRuntime = ext != null && ext.remove(cp.toLong());
+        if (externalRuntime || !owned) return; // 外部所有（运行时或持久标记）→ 只清登记不动 forced
+        w.setChunkForced(cp.x, cp.z, false);
+    }
+
+    /** 孤儿回收（重启后登记表空但 forced 仍在）：owned=核心持久化的所有权，仅本 MOD 名下才解除。 */
+    public static void reclaimOrphan(ServerWorld w, BlockPos core, boolean owned) {
+        if (!owned) return; // 不是本 MOD 名下（管理员 /forceload）=绝不碰
+        ChunkPos cp = new ChunkPos(core);
         w.setChunkForced(cp.x, cp.z, false);
     }
 

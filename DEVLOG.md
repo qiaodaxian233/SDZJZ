@@ -3954,3 +3954,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证**：①正常搜索（含中文长词）照常出结果，超 128 字符自动截断不报错；②带一屏
   附魔书/药水的大网络开终端不卡（合并走哈希）；③展示顺序与改动前逐格一致；④按住终端狂发
   搜索包，服务器 tick 时间不再随发包频率飙升（2t 节流 + 变化检测挡住重复刷新）。
+
+## m268 强加载所有权修复（外部审计"区块强加载可能取消管理员 /forceload"）
+- **风险**：m133 强加载与原版 forced 标记共用一个无法区分所有权的布尔——管理员手动 /forceload
+  的区块若与核心同区块，核心释放/孤儿回收时会顺手把管理员的强加载一并解除。
+- **修法**：给 CoreChunkLoading 加**所有权判定**：
+  - **运行时**：force 前查 `getForcedChunks()`——本 MOD 未登记且区块已 forced=外部所有，
+    记入 EXTERNAL，release 永不解除它（管理员先 forceload、核心后进同区块的主线场景）。
+  - **持久化**：force 返回「本 MOD 是否拥有该区块所有权」的布尔，由核心持久化进**自己的 NBT**
+    （chunkOwned，零新 MC API、随核心存档落盘）；release/reclaimOrphan 收核心传回的这个布尔，
+    **只解除本 MOD 名下的区块**。重启后运行时 EXTERNAL 表虽空、核心 chunkOwned 仍在，孤儿回收
+    不再误伤管理员。force 另收既有 chunkOwned，防重启后把自己钉的区块误判成外部。
+  - 孤儿回收从直接 release 改 reclaimOrphan（凭核心传入的所有权，非本 MOD 名下=不碰）。
+  - 实现说明：首版试过独立 PersistentState 落盘，因 PersistentState.Type 构造在沙箱冒烟查不了
+    类型、CI 真编译红（run 31101764313），改用核心自身 NBT 记 chunkOwned——零新 API、更内聚。
+  - **二次红（m123/m180 盲区又一例）**：release/force/reclaimOrphan 升 3 参后漏改
+    StructureCoreBlock.java:85 拆核心处的旧 2 参 release——自家方法 arity 不匹配的报错长得像
+    依赖噪音被冒烟过滤器吞掉，CI 才现行（run 31102168586）。补 chunkOwnedFlag() getter 并对齐；
+    **新增收尾必做项：改自家方法签名后全仓 grep 该方法全部调用点逐一核 arity**（本次 4 处全对齐，
+    顺手核了 m265 StorageNodeMovePayload×4、m264 NodeGroupPayload×5 无残留旧 arity）。
+- **近似**：管理员在核心已钉区块上再叠加 /forceload，核心释放会一并撤（原区块已在本 MOD 名下），
+  管理员再执行一次即可恢复——极罕见次生情况，可接受。
+- **教训**：与原版共享的全局标记必须自带所有权账本，布尔"是否 forced"不足以安全撤销。
+- **实机验证**：①管理员 /forceload 一个区块→在其中放核心并开机→拆核心/停机→该区块仍 forced
+  （/forceload query 确认还在）；②核心自己 force 的区块拆核心后正常解除（不泄漏）；③重启服务器后
+  停机核心的孤儿区块被回收解除，而管理员 forceload 的区块重启后仍在；④同区块多核心共存时，
+  拆掉其中一台其余仍钉住。
