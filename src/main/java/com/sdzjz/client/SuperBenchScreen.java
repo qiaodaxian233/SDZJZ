@@ -196,11 +196,16 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 ctx.drawItem(s, sx, sy);
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 boolean ok = got >= e.getValue();
-                ctx.drawText(this.textRenderer, ok ? "×" + e.getValue() : got + "/" + e.getValue(),
+                ctx.drawText(this.textRenderer, ok ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()),
                         sx + 15, sy + 5, ok ? 0xFF50E850 : SciSkin.RED, false);
                 col++;
             }
         }
+    }
+
+    /** m244 工程款过万计数缩写（32px 列挤不下 5 位整数；精确数在聊天缺料摘要里）。 */
+    private static String cnt(int n) {
+        return n >= 10000 ? String.format("%.1fK", n / 1000.0) : Integer.toString(n);
     }
 
     /** 网格 + 玩家背包里每种物品的可用量（客户端本地算，零网络）。 */

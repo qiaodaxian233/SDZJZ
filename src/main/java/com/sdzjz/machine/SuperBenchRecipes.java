@@ -431,6 +431,34 @@ public final class SuperBenchRecipes {
         ALL.add(new Recipe(result, autoLayout(ing), ing, mobs, 1, tierOf(result)));
     }
 
+    /** m244 打包版 BOM（工程款全量总数用）：kv 仍为 (原版物品id, 原版总数) 交替——匹配/缺料全按
+     *  原版计数（m242 内核认包），数字直接写 litematic 全量过账后的取整值（策略：二级向上取整溢价≤15%
+     *  或一级包要超 32 格→全二级，否则全一级，一律向上取整）。layout=null 即"打包填料"标记：
+     *  填料钮不铺蓝图，改从背包按内容物贪心搬压缩包（二级→一级→散件），见 Handler.pullPacked。
+     *  离线断言（类加载即炸，宁可开不了游戏不可带病上线）：①大宗(≥64)须 64 整倍；
+     *  ②一级要超 32 格(>2048)须 4096 整倍（策略"全二级"）；③保守槽位账 Σceil(包数/64)+小件件数 ≤144。 */
+    private static void bomPacked(String result, String mobsCsv, Object... kv) {
+        List<String> mobs = mobsCsv.isEmpty() ? java.util.List.<String>of() : List.of(mobsCsv.split(","));
+        Map<String, Integer> ing = new java.util.LinkedHashMap<>();
+        if (!mobs.isEmpty()) ing.put(CAGE_ID, mobs.size());
+        for (int i = 0; i < kv.length; i += 2) ing.merge((String) kv[i], (Integer) kv[i + 1], Integer::sum);
+        ing.merge("sdzjz:core_module", 4, Integer::sum);
+        int slots = 0;
+        for (Map.Entry<String, Integer> e : ing.entrySet()) {
+            int n = e.getValue();
+            if (n < 64) { slots += n; continue; } // 小件按 1 格 1 件保守计
+            if (n % 64 != 0) throw new IllegalStateException(result + " 大宗 " + e.getKey() + "×" + n + " 非64整倍");
+            int packs = n / 64;
+            if (packs > 32) {
+                if (n % 4096 != 0) throw new IllegalStateException(result + " " + e.getKey() + "×" + n + " 一级超32格须全二级(4096整倍)");
+                packs = n / 4096;
+            }
+            slots += (packs + 63) / 64; // 同内容包堆到 64/格
+        }
+        if (slots > SLOTS) throw new IllegalStateException(result + " 打包槽位账 " + slots + " > 144");
+        ALL.add(new Recipe(result, null, ing, mobs, 1, tierOf(result)));
+    }
+
     /** BOM 自动布局：按清单顺序逐行铺进 12×12（1 格 1 件），整体垂直居中、末行水平居中。 */
     private static String[] autoLayout(Map<String, Integer> ing) {
         List<String> seq = new ArrayList<>();

@@ -219,6 +219,21 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 }
             }
         }
+        // m244 打包填料分流：layout=null 的打包版 BOM 不铺蓝图——笼子照常搬，材料从背包
+        // 按内容物贪心搬压缩包（二级→一级→散件），落网格自动堆叠。
+        if (r.layout() == null) {
+            for (ItemStack c : cages) {
+                ItemStack rem = insertToGrid(c);
+                if (!rem.isEmpty() && !player.getInventory().insertStack(rem)) player.dropItem(rem, false);
+            }
+            for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
+                if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue;
+                pullPacked(player, e.getKey(), e.getValue());
+            }
+            input.markDirty();
+            sendMissingSummary(player, r);
+            return true;
+        }
         // 从背包按需批量取料，建立可用池
         Map<String, Integer> pool = new HashMap<>();
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
@@ -245,6 +260,39 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         input.markDirty();
         sendMissingSummary(player, r); // 填完统计缺什么，聊天栏直说，不再"点了没反应"
         return true;
+    }
+
+    /** m244 打包填料：为材料 id 凑 need 件原版计数——背包里 二级包→一级包→普通散件 三轮贪心，
+     *  整只搬包不拆（need 为包整倍时刚好凑齐），落网格自动堆叠；塞不下（理论到不了，槽位账
+     *  离线断言过）按倍率回账并还背包不落地。 */
+    private void pullPacked(PlayerEntity player, String id, int need) {
+        PlayerInventory pinv = player.getInventory();
+        Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
+        for (int pass = 0; pass < 3 && need > 0; pass++) {
+            int ratio = pass == 0 ? 4096 : pass == 1 ? 64 : 1;
+            Item want = pass == 0 ? t2 : pass == 1 ? t1 : null;
+            for (int i = 0; i < pinv.size() && need >= ratio; i++) {
+                ItemStack s = pinv.getStack(i);
+                if (pass < 2) {
+                    if (s.getItem() != want || !id.equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+                } else {
+                    if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+                    if (!s.getComponentChanges().isEmpty()) continue; // 组件件不当散料搬（附魔书等）
+                    if (!Registries.ITEM.getId(s.getItem()).toString().equals(id)) continue;
+                }
+                int take = Math.min(need / ratio, s.getCount());
+                if (take <= 0) continue;
+                ItemStack moved = s.copyWithCount(take);
+                s.decrement(take);
+                if (s.isEmpty()) pinv.setStack(i, ItemStack.EMPTY);
+                need -= take * ratio;
+                ItemStack rem = insertToGrid(moved);
+                if (!rem.isEmpty()) {
+                    need += rem.getCount() * ratio;
+                    if (!pinv.insertStack(rem)) player.dropItem(rem, false);
+                }
+            }
+        }
     }
 
     /** 填料后核对网格 vs 配方：缺什么、缺几个，发聊天消息；齐了发"就绪"。m166 多生物逐只报缺。 */
