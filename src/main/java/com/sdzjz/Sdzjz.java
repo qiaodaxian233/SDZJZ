@@ -167,7 +167,7 @@ public class Sdzjz implements ModInitializer {
             p.getServer().execute(() -> {
                 if (payload.dim().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
-                    core.toggleStorageEdge(payload.machineIndex(), payload.storagePos(), payload.dir(), payload.dim());
+                    core.toggleStorageEdge(p, payload.machineIndex(), payload.storagePos(), payload.dir(), payload.dim()); // m270 带玩家
                 }
             });
         });
@@ -195,7 +195,7 @@ public class Sdzjz implements ModInitializer {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
-                    core.toggleConnection(payload.from(), payload.to());
+                    core.toggleConnection(p, payload.from(), payload.to()); // m270 带玩家
                 }
             });
         });
@@ -241,7 +241,7 @@ public class Sdzjz implements ModInitializer {
                             || StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
                             || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st);
                     if (!ok) continue;
-                    core.insertMachine(st); // 内部 decrement 1 + 同步
+                    core.insertMachine(p, st); // 内部 decrement 1 + 同步；m270 带玩家
                     inv.markDirty();
                     return;
                 }

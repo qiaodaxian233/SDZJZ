@@ -162,6 +162,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
+        be.recipesThisTick = 0; // m270 全核tick周期预算复位（cyclesThisTick 共享额度）
         // m218c 多核心错峰：周期性大活（ends包/区块票/拉料拍/端点扫描）按 pos 哈希移相——频率逐核不变，
         // 只是不同核心不再挤同一全局 tick（m181 给 m88 兜底同步用过的同款药方，推广到其余四拍）。
         int ph = SdzjzConfig.get().coreTickStagger ? pos.hashCode() : 0;
@@ -294,6 +295,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long roomL = bufCapL - have;
                     if (pump) roomL = Math.min(roomL, pumpRate - pumped); // 泵按挡位限速
                     if (roomL <= 0) { if (pump) break; else continue; }
+                    if (!be.bufTypeOk(ownL, id)) continue; // m270 类型上限：withdraw 前判——拒收=不抽，物品留仓零损失
                     int got = sup.withdraw(id, (int) Math.min(roomL, Integer.MAX_VALUE));
                     if (got > 0) { ownL.merge(id, (long) got, Long::sum); pumped += got; }
                 }
@@ -313,6 +315,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             long haveE = ownL.getOrDefault(idE, 0L);
                             if (haveE >= bufCapL) continue; // m163a：原硬编码 4096 没跟 bufCapL 统一——泵开高挡后精确支路先被卡死
                             if (isExtractor(stL) && !machineFilterAllows(stL, idE)) continue; // m160
+                            if (!be.bufTypeOk(ownL, idE)) continue; // m270 类型上限：withdrawExact 前判，拒收=不抽零损失
                             if (!be.chainEndsInTrash(world, i, idE, 0, be.trashScratchCleared(), outT)) continue; // m218d scratch复用
                             long roomE = bufCapL - haveE;
                             if (pump) roomE = Math.min(roomE, pumpRate - pumped);
@@ -433,6 +436,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 if ((pass == 0) == StructureCoreBlockEntity.isTrash(be.machineNodes.get(t))) continue;
                                 if (!be.accepts(world, t, id)) continue;
                                 java.util.Map<String, Long> mX = be.nodeBuf(t);
+                                if (!be.bufTypeOk(mX, id)) continue; // m270 类型上限：跳过满型目标，残量留源头/走下面搬仓
                                 long cur = mX.getOrDefault(id, 0L);
                                 long put = Math.min(Math.max(0, BUF_CAP - cur), left);
                                 if (put > 0) { mX.put(id, cur + put); left -= put; }
@@ -1028,8 +1032,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 右键把机器/笼子作为一个节点加入画布（无数量上限）。 */
     /** 右键把机器/笼子作为一个节点加入画布（无上限）；首次自动布局位置。 */
-    public boolean insertMachine(ItemStack held) {
+    public boolean insertMachine(net.minecraft.entity.player.PlayerEntity byPlayer, ItemStack held) {
         if (held.isEmpty()) return false;
+        int capN = SdzjzConfig.get().maxNodesPerCore; // m270 硬上限（审计"无限节点"条）：拓扑重编译/tick遍历/NBT同步成本全随节点数涨
+        if (capN > 0 && machineNodes.size() >= capN) {
+            capMsg(byPlayer, "画布节点已达上限 " + capN + "（config maxNodesPerCore 可调，0=无限）");
+            return false;
+        }
         ItemStack node = held.copyWithCount(1); // m78：一次只放 1 台（原来整叠塞进一个节点，"一右键就是一组"）
         NbtCompound n = node.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (!n.contains("nx")) {
@@ -1058,6 +1067,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // 新模型：速率=(1+gain)^速度级×productionRateMultiplier，每tick累积、攒够基础周期结算1次，
     // 速率溢出折成同tick多周期——永不触底；并发直接乘台数(1台也翻倍)；数量顶只在"产出只能进内部缓存"时保留。
     private final java.util.Map<Integer, Double> workAcc = new java.util.HashMap<>(); // 节点索引→累积工作量(不落盘,重载至多丢半个周期)
+    private long recipesThisTick = 0; // m270 全核每tick已结算周期数（tickInner 每tick复位；配合 maxRecipesPerCoreTick 共享预算）
 
     /** 该节点本tick应结算的生产周期数（0=继续攒）。 */
     private int cyclesThisTick(int nodeIndex, int baseInterval, int speedLv, SdzjzConfig cfg) {
@@ -1068,9 +1078,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         double acc = workAcc.getOrDefault(nodeIndex, 0.0) + rate;
         int cycles = (int) (acc / base);
         if (cycles > cap) cycles = cap;
+        if (cfg.maxRecipesPerCoreTick > 0) { // m270 真接线（审计核实三键此前只声明零使用）：全核共享每tick周期预算
+            long remain = cfg.maxRecipesPerCoreTick - recipesThisTick;
+            if (remain <= 0) cycles = 0;                    // 预算耗尽：本tick不结算，工作量照常累积下tick续（不静默蒸发,m99教训）
+            else if (cycles > remain) cycles = (int) remain;
+        }
         acc -= (double) cycles * base;
-        if (acc > (double) base * cap) acc = (double) base * cap; // 被cap截断时不无限囤积
+        if (acc > (double) base * cap) acc = (double) base * cap; // 被cap/预算截断时不无限囤积
         workAcc.put(nodeIndex, acc);
+        recipesThisTick += cycles;
         return cycles;
     }
 
@@ -2156,7 +2172,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 连/断一条 机器↔存储 定向连线（已存在则断开）。dir 0=产出到该存储 1=从该存储供料。 */
-    public void toggleStorageEdge(int machineIndex, long storagePos, int dir, String dim) {
+    public void toggleStorageEdge(net.minecraft.entity.player.PlayerEntity byPlayer, int machineIndex, long storagePos, int dir, String dim) {
         if (machineIndex < 0 || machineIndex >= machineNodes.size() || dir < 0 || dir > 1) return;
         boolean known = false; // 只允许连到画布上确实显示的端点，防伪造包连任意坐标
         String epDim = null;
@@ -2174,6 +2190,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 syncToClient();
                 return;
             }
+        }
+        int capSE = SdzjzConfig.get().maxEdgesPerCore; // m270 存储连线单独同额封顶（断开在上面永远放行，只闸新增）
+        if (capSE > 0 && storageEdges.size() >= capSE) {
+            capMsg(byPlayer, "存储连线总数已达上限 " + capSE + "（config maxEdgesPerCore 可调，0=无限）");
+            return;
         }
         // 维度以服务端端点表为准（客户端传空/伪造都不作数），兜底当前维度
         String useDim = (epDim != null && !epDim.isEmpty()) ? epDim
@@ -2279,6 +2300,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return nodeBufs.get(i);
     }
 
+    /** m270 单节点缓存类型上限（审计"每个节点缓存的物品类型上限"条）：拒收"新类型"，已有类型照常合并，0=无限。
+     *  调用规矩：**取料/入账前判**——泵料在 withdraw 前跳过、分发拒收残量走默认路由/留在源头，零物品损失。 */
+    private boolean bufTypeOk(java.util.Map<String, Long> m, String id) {
+        int cap = SdzjzConfig.get().maxBufferTypesPerNode;
+        return cap <= 0 || m.containsKey(id) || m.size() < cap;
+    }
+
     /** 节点可用量 = 自己的输入缓存 + 遗留共享池（老档迁移兜底）。 */
     private long bufCountFor(int i, String id) {
         return nodeBuf(i).getOrDefault(id, 0L) + internalBuffer.getOrDefault(id, 0L);
@@ -2310,6 +2338,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long want = share + (k < extra ? 1 : 0);
                     if (want <= 0) continue;
                     java.util.Map<String, Long> m = nodeBuf(ok.get(k));
+                    if (!bufTypeOk(m, id)) { undelivered += want; continue; } // m270 类型上限：拒收份额转默认路由
                     long cur = m.getOrDefault(id, 0L);
                     long put = Math.min(Math.max(0, BUF_CAP - cur), want);
                     if (put > 0) m.put(id, cur + put);
@@ -2336,6 +2365,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if ((pass == 0) == isTrash(machineNodes.get(t))) continue;
                     if (!accepts(world, t, id)) continue;
                     java.util.Map<String, Long> m = nodeBuf(t);
+                    if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面定向存储/默认路由
                     long cur = m.getOrDefault(id, 0L);
                     long put = Math.min(Math.max(0, BUF_CAP - cur), amt);
                     if (put > 0) { m.put(id, cur + put); amt -= put; }
@@ -2421,11 +2451,32 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
     }
 
-    /** 连/断一条 from→to 连线（已存在则断开）。 */
-    public void toggleConnection(int from, int to) {        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
+    /** m270 硬上限拒绝提示（actionbar，空玩家安全跳过）——m99 教训：静默无效比数值弱更伤，界面上必须看得出来。 */
+    private static void capMsg(net.minecraft.entity.player.PlayerEntity p, String s) {
+        if (p != null) p.sendMessage(net.minecraft.text.Text.literal(s), true);
+    }
+
+    /** m270 节点连线度数（进+出合计），配合 maxEdgesPerNode。 */
+    private int nodeDegree(int n) {
+        int d = 0;
+        for (int[] c : connections) if (c[0] == n || c[1] == n) d++;
+        return d;
+    }
+
+    /** 连/断一条 from→to 连线（已存在则断开）。m270 签名升带玩家：上限拒绝要提示（m99 静默无效教训）。 */
+    public void toggleConnection(net.minecraft.entity.player.PlayerEntity byPlayer, int from, int to) {        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
         for (int i = 0; i < connections.size(); i++) {
             int[] c = connections.get(i);
             if (c[0] == from && c[1] == to) { connections.remove(i); bumpTopo(); markDirty(); syncToClient(); return; } // m179
+        }
+        SdzjzConfig cfgE = SdzjzConfig.get(); // m270 硬上限：断开永远放行，只闸新增
+        if (cfgE.maxEdgesPerCore > 0 && connections.size() >= cfgE.maxEdgesPerCore) {
+            capMsg(byPlayer, "连线总数已达上限 " + cfgE.maxEdgesPerCore + "（config maxEdgesPerCore 可调，0=无限）");
+            return;
+        }
+        if (cfgE.maxEdgesPerNode > 0 && (nodeDegree(from) >= cfgE.maxEdgesPerNode || nodeDegree(to) >= cfgE.maxEdgesPerNode)) {
+            capMsg(byPlayer, "单节点连线已达上限 " + cfgE.maxEdgesPerNode + "（config maxEdgesPerNode 可调，0=无限）");
+            return;
         }
         connections.add(new int[]{from, to});
         bumpTopo(); // m179

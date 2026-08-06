@@ -16,12 +16,12 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 24; // m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 25; // m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
-    public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
-    public long maxRecipesPerChunkTick = 262_144L;      // 每区块每tick上限
-    public long maxRecipesPerNetworkTick = 1_048_576L;  // 每玩家网络每tick上限
+    public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
+    public long maxRecipesPerChunkTick = 262_144L;      // 【遗留,m270核实未接线】每区块每tick上限——跨核记账需全局表；核心级+节点级(upgradeMaxCyclesPerTick)双层预算已封顶，待真实需求再接
+    public long maxRecipesPerNetworkTick = 1_048_576L;  // 【遗留,m270核实未接线】每玩家网络每tick上限——同上
     public int accelMinPeriodTicks = 1;                 // 【遗留,m99后不再参与计算】旧线性加速的最小周期下限
     public double upgradeSpeedGainPerLevel = 0.5;       // m99 速度升级每级增益(乘算,0.5=+50%,速率=1.5^级)，速率溢出折成同tick多周期，永不触底
     public int upgradeMaxCyclesPerTick = 20;            // m99 单节点每tick最多结算周期数(防极高速度级单tick天量运算卡服)
@@ -33,6 +33,11 @@ public class SdzjzConfig {
     public int coreBufferSlots = 27;          // 生产核心输出缓存槽数（满则按面板设置停机/喷射）
     public int storageTypesPerTier = 0;       // 存储核心每级类型数：0=无限类型(默认,m98)；>0=旧成长机制(原27,存储升级+1级)
     public boolean sleepWhenIdle = true;      // 无红石/缺料/堵塞/无人加载时休眠停tick（§15.3）
+    // ===== m270 服务器硬上限（外部审计"'无限节点'需要服务器硬上限"；全部 0=无限即旧行为；只闸新增长，超限旧档原样跑不截断）=====
+    public int maxNodesPerCore = 512;        // 每核心画布节点数上限（拓扑重编译/tick遍历/NBT同步成本全随它涨）
+    public int maxEdgesPerCore = 2048;       // 每核心机器连线总数上限（存储连线单独同额封顶）
+    public int maxEdgesPerNode = 64;         // 单节点连线度数上限（进+出合计；分配器扇出场景 64 已很奢侈）
+    public int maxBufferTypesPerNode = 256;  // 单节点输入缓存物品类型数上限（拒收新类型时残量走默认路由/干脆不抽，零物品损失）
     public int packetWriteBudgetPerTick = 40; // m269 每玩家每tick画布/面板C2S写包预算（防洪泛：每个写包都触发全量同步，无闸=同步风暴；正常UI交互每tick至多几包，40远够）；0=关闭护栏
     public boolean coreChunkLoading = true;   // m133 结构核心开机=强制加载自身区块(重启自恢复)+存储端点区块(有期票)；关=离开即停产(旧行为)
     public boolean canvasEndsPlaceable = true; // m265 总线端点卡可拖下画布钉在图上；关=拖拽禁用+一律按停靠栏渲染（已落位数据保留不丢，重开即恢复）
@@ -155,6 +160,7 @@ public class SdzjzConfig {
         }
         if (cfg.configVersion < 23) cfg.configVersion = 23; // m265 纯加键（canvasEndsPlaceable 端点卡可拖下画布开关），缺键走字段初值
         if (cfg.configVersion < 24) cfg.configVersion = 24; // m269 纯加键（packetWriteBudgetPerTick 每玩家每tick写包预算），缺键走字段初值
+        if (cfg.configVersion < 25) cfg.configVersion = 25; // m270 纯加键（maxNodesPerCore/maxEdgesPerCore/maxEdgesPerNode/maxBufferTypesPerNode 服务器硬上限），缺键走字段初值
 
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件

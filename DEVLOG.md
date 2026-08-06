@@ -4014,3 +4014,35 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   同 tick 洪泛 100 个 NodeMove 包→仅前 40 生效无同步风暴，`/sdzjz profile core` 对表主线程无尖峰；
   ④组反复移动到坐标墙（±1e6）后节点不消失不闪跳，往回拖正常；⑤config 设 packetWriteBudgetPerTick=0
   后护栏关闭行为复旧。
+
+## m270 服务器硬上限（外部审计第一批第四条"'无限节点'需要服务器硬上限"）
+- **风险**：machineNodes/connections/nodeBufs 均可无限增长——拓扑重编译 O(节点+边)、tick 至少
+  遍历所有节点、全部图数据进 NBT 和同步包；且审计核实 `maxRecipesPer*Tick` 三个配置**只声明零使用**
+  （设计文档 §7.4 时代写进配置从未接线的死键）。
+- **修法**（四道闸 + 预算真接线，全部 0=无限即旧行为；**只闸新增长，超限旧档原样跑不截断**——
+  NBT 读入截断=静默毁玩家产线，绝不做）：
+  - **节点上限** `maxNodesPerCore=512`：insertMachine 把门。签名升带玩家（方块右键/侧栏收包
+    两处调用点都有玩家），拒绝走 actionbar 提示（m99 静默无效教训）。
+  - **连线上限** `maxEdgesPerCore=2048` + **度数上限** `maxEdgesPerNode=64`（进+出合计）：
+    toggleConnection 把门，断开分支在上限判定之前**永远放行**；storageEdges 单独同额封顶
+    （toggleStorageEdge，known 端点闸之后）。两方法签名升带玩家提示。
+  - **缓存类型上限** `maxBufferTypesPerNode=256`：新辅助 bufTypeOk（containsKey=已有类型照常
+    合并；只拒新类型）。**调用规矩=取料/入账前判**，5 个写入点逐个套：①普通泵 withdraw 前
+    （拒收=不抽物品留仓）②精确泵 withdrawExact 前 ③抽取推送目标判满型跳过（残量留源/走搬仓）
+    ④distributeEven 拒收份额计入 undelivered 转默认路由 ⑤distribute 跳满型目标余量走定向存储/
+    默认路由——全部拒收路径残量有去处，**零物品损失**（先扣后拒=凭空蒸发，这是本条最大的坑）。
+  - **预算接线**：`maxRecipesPerCoreTick` 真接进 cyclesThisTick（五条生产分支唯一收口）——
+    新字段 recipesThisTick 于 tickInner 顶部每 tick 复位，节点 cap 截断后再按全核余额截断；
+    预算耗尽=本 tick 不结算但**工作量照常累积下 tick 续**（不静默蒸发）。默认 65536 高于
+    节点cap20×512节点=10240 理论峰值——默认不束缚，纯管理员旋钮。Chunk/Network 两键跨核记账
+    需全局表且双层预算已封顶，标注【遗留,未接线】留档（accelMinPeriodTicks 同款惯例），待真实需求再接。
+  - 配置 v25 纯加键迁移；机器组合.md 补缓存类型上限语义段（铁律7：动了 distribute/distributeEven）。
+- **教训**：①上限拒收必须发生在"物品还没离开源头"之前——分发/泵料两类路径的安全点不同
+  （泵=不抽，分发=转默认路由），逐点确认去处再动手；②"配置声明了"≠"生效了"，
+  接手他人（或过去的自己）的配置键先 grep 使用点。
+- **实机验证**：①默认配置正常游玩全程无感（上限远高于常规产线）；②config 把 maxNodesPerCore
+  临时改 3→塞第 4 台机器：actionbar 提示且物品不消耗；③maxEdgesPerNode 改 2→给同一节点拉第 3 根
+  线：提示且线不出现，断开已有线仍随时可断；④maxBufferTypesPerNode 改 2→分配器进 3 种物品：
+  第 3 种自动入仓（默认路由）不丢失不堵死；⑤maxRecipesPerCoreTick 改 1→高速产线明显减速但
+  `/sdzjz profile core` 无异常、产量按预算线性、调回 0 恢复全速；⑥超限旧档（若有）加载后原样跑，
+  只是不能再加新节点/线。

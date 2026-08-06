@@ -63,7 +63,7 @@ public class StructureCoreBlock extends BlockWithEntity {
         ItemStack held = player.getStackInHand(Hand.MAIN_HAND);
         if (!held.isEmpty()) {
             if (held.getItem() instanceof MachineItem || held.getItem() instanceof CaptureCageItem) {
-                core.insertMachine(held);
+                core.insertMachine(player, held); // m270 带玩家：节点上限拒绝走 actionbar 提示
                 return ActionResult.SUCCESS;
             }
             return ActionResult.PASS; // 其它物品放行（升级改在画布节点格里加）
