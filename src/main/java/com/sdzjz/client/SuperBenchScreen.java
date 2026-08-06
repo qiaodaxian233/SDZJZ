@@ -73,7 +73,16 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             }
             view.add(i);
         }
+        // m287 按名称排序（作者点名）：中文按码点排没意义，借 m282 的 PinyinInitials 做拼音字母序
+        // （抽屉c<刷石机s<自动熔炉z…），同首字母再按显示名稳定序。view 只动显示顺序，
+        // selected/clickButton 全走 ALL 原下标，填料协议零改动。
+        view.sort(java.util.Comparator.comparing(i -> sortKey(SuperBenchRecipes.resultStack(all.get(i)).getName().getString())));
         scroll = 0;
+    }
+
+    /** m287 名称排序键：拼音首字母串+原名（PinyinInitials 语言无关，英文名走词首字母同样成序）。 */
+    private static String sortKey(String nm) {
+        return PinyinInitials.of(nm) + "|" + nm;
     }
 
     @Override
@@ -189,17 +198,46 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                         PX + 58, dy, allOk ? 0xFF50E850 : SciSkin.RED, false);
             }
             Map<String, Integer> have = countAvailable();
-            int iy = dy + 12, col = 0;
-            for (Map.Entry<String, Integer> e : all.get(selected).ingredients().entrySet()) {
-                ItemStack s = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
-                int sx = PX + (col % 6) * 32, sy = iy + (col / 6) * 20; // 6 列×32px；m166 列表让位后清单区可放三行=18 种，BOM 最多 14 种不越底
-                ctx.drawItem(s, sx, sy);
+            // m287 BOM 重设计（作者三点名：太多缩小/可能没显示全/乱摆）。此前 6 列×32px 三行封顶 18 种、
+            // 文本预算 17px 装不下"0/256"糊到邻列，守卫者农场 30+ 种直接淹过压缩两钮（截图实锤）。
+            // 现在：①条目按名称排序（拼音字母序同机器列表）；②整块 0.62 缩放（drawItem/drawText 都吃
+            // pose 缩放）；③列宽=16+最长计数文本+4 自适应不再互糊；④行数按 BTN_Y 上界硬夹永不淹钮，
+            // 溢出末格画"+N"绝不静默截断。
+            java.util.List<Map.Entry<String, Integer>> bom =
+                    new java.util.ArrayList<>(all.get(selected).ingredients().entrySet());
+            java.util.Map<String, ItemStack> bs = new java.util.HashMap<>();
+            java.util.Map<String, String> bl = new java.util.HashMap<>();
+            for (Map.Entry<String, Integer> e : bom) {
+                ItemStack st = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
+                bs.put(e.getKey(), st);
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
-                boolean ok = got >= e.getValue();
-                ctx.drawText(this.textRenderer, ok ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()),
-                        sx + 15, sy + 5, ok ? 0xFF50E850 : SciSkin.RED, false);
-                col++;
+                bl.put(e.getKey(), got >= e.getValue() ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()));
             }
+            bom.sort(java.util.Comparator.comparing(e -> sortKey(bs.get(e.getKey()).getName().getString())));
+            final float S = 0.62F;
+            int labelW = 12;
+            for (String l : bl.values()) labelW = Math.max(labelW, this.textRenderer.getWidth(l));
+            int colW = 16 + labelW + 4, rowH = 18; // 行高 18：0.62 缩放下 (298-240)/0.62/18=5 行×6 列=30 格，守卫者农场级 BOM 全显
+            int cols = Math.max(1, (int) (PW / S) / colW);
+            int rows = Math.max(1, (int) ((BTN_Y - 4 - (dy + 12)) / S) / rowH); // 上界=两钮顶再让 4px
+            int cap = cols * rows;
+            boolean over = bom.size() > cap;
+            int show = over ? cap - 1 : bom.size();
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate(PX, dy + 12, 0);
+            ctx.getMatrices().scale(S, S, 1.0F);
+            for (int k = 0; k < show; k++) {
+                Map.Entry<String, Integer> e = bom.get(k);
+                int sx = (k % cols) * colW, sy = (k / cols) * rowH;
+                ctx.drawItem(bs.get(e.getKey()), sx, sy);
+                boolean ok = bl.get(e.getKey()).startsWith("×");
+                ctx.drawText(this.textRenderer, bl.get(e.getKey()), sx + 17, sy + 5,
+                        ok ? 0xFF50E850 : SciSkin.RED, false);
+            }
+            if (over)
+                ctx.drawText(this.textRenderer, "+" + (bom.size() - show) + "…",
+                        (show % cols) * colW, (show / cols) * rowH + 5, SUB, false);
+            ctx.getMatrices().pop();
         }
     }
 
