@@ -3793,3 +3793,11 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   `package com.sdzjz.* does not exist`=0——自家委托链完整。
 - **边界照旧**：冒烟查不了对 MC API 的类型错（yarn 签名对错），真编译仍等作者本地构建或 CI 启用。
 - **实机验证**：无行为变更；作者下次"拉取并构建"即真编译对账。
+
+## m258 CI 正式启用（作者开通 PAT workflow 权限）
+- docs/ci/ci.yml → .github/workflows/ci.yml 正式就位（git mv 单份），四道闸生效：
+  配方校验 / 全库资源审计 / 文档同步 / m255 取色回归尺 + Gradle 真编译出包上传 artifact。
+- **本次推送即触发首跑**——m112 以来第一次自动真编译。首跑结果推完轮询
+  `api.github.com/repos/qiaodaxian233/SDZJZ/actions/runs`，红了按报错逐修（重点盯 m249/m250
+  渲染层新 API：yarn 核过名没过编译器）。
+- **实机验证**：GitHub Actions 页应见 CI 工作流两个 job；绿后 artifact 里有 jar 可直接下载测试。
