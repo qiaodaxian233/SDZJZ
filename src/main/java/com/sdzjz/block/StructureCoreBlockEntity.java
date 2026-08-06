@@ -297,7 +297,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (roomL <= 0) { if (pump) break; else continue; }
                     if (!be.bufTypeOk(ownL, id)) continue; // m270 类型上限：withdraw 前判——拒收=不抽，物品留仓零损失
                     int got = sup.withdraw(id, (int) Math.min(roomL, Integer.MAX_VALUE));
-                    if (got > 0) { ownL.merge(id, (long) got, Long::sum); pumped += got; }
+                    if (got > 0) { ownL.merge(id, (long) got, StorageCoreBlockEntity::satAdd); pumped += got; } // m273 饱和加法
                 }
                 {
                     // m155 精确账本抽取 → m158 推广到任意逻辑节点的供料边（用户新摆法：
@@ -322,7 +322,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (roomE <= 0) break;
                             ItemStack tpl = t.copyWithCount(1); // withdrawExact 可能移除模板，先复制
                             int gotE = bank.withdrawExact(tpl, (int) Math.min(roomE, Integer.MAX_VALUE));
-                            if (gotE > 0) { ownL.merge(idE, (long) gotE, Long::sum); pumped += gotE; }
+                            if (gotE > 0) { ownL.merge(idE, (long) gotE, StorageCoreBlockEntity::satAdd); pumped += gotE; } // m273 饱和加法
                         }
                     }
                 }
@@ -1936,12 +1936,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             BlockPos bp = BlockPos.fromLong(v[0]);
             if (!tw.getChunkManager().isChunkLoaded(bp.getX() >> 4, bp.getZ() >> 4)) continue;
             if (tw.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
-                for (var en : sc.storeView().entrySet()) agg.merge(en.getKey(), en.getValue(), Long::sum);
+                for (var en : sc.storeView().entrySet()) agg.merge(en.getKey(), en.getValue(), StorageCoreBlockEntity::satAdd); // m273
                 // m163b：精确账本条目按 id 并入——山羊角(乐器组件)/附魔书全在精确账本，不并的话
                 // 总线库存看不见它们、抽取白名单选择器（候选=网络现有）也列不出，m155 的招牌用例直接失明。
                 java.util.List<ItemStack> tplB = sc.exactTemplates();
                 for (int k = 0; k < tplB.size(); k++)
-                    agg.merge(Registries.ITEM.getId(tplB.get(k).getItem()).toString(), sc.exactCount(k), Long::sum);
+                    agg.merge(Registries.ITEM.getId(tplB.get(k).getItem()).toString(), sc.exactCount(k), StorageCoreBlockEntity::satAdd); // m273
             }
         }
         java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
@@ -2309,7 +2309,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 节点可用量 = 自己的输入缓存 + 遗留共享池（老档迁移兜底）。 */
     private long bufCountFor(int i, String id) {
-        return nodeBuf(i).getOrDefault(id, 0L) + internalBuffer.getOrDefault(id, 0L);
+        return StorageCoreBlockEntity.satAdd(nodeBuf(i).getOrDefault(id, 0L), internalBuffer.getOrDefault(id, 0L)); // m273 饱和加法
     }
 
     /** 先扣自己的输入缓存，不足部分再扣遗留池。 */
@@ -2441,7 +2441,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private void bufAdd(String id, long amt) {
-        long sum = internalBuffer.getOrDefault(id, 0L) + amt;
+        long sum = StorageCoreBlockEntity.satAdd(internalBuffer.getOrDefault(id, 0L), amt); // m273：中间加法溢出翻负会绕过 BUF_CAP 封顶
         if (sum > BUF_CAP) {
             long spill = sum - BUF_CAP;
             internalBuffer.put(id, BUF_CAP);
@@ -2992,17 +2992,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         internalBuffer.clear();
         NbtCompound buf = nbt.getCompound("internalBuffer");
-        for (String k : buf.getKeys()) internalBuffer.put(k, buf.getLong(k));
+        int droppedBuf = 0; // m273：缓存读入校验——写路径 left<=0 即 remove，零/负值从不合法落盘；负数毒化计数算术且可绕封顶
+        for (String k : buf.getKeys()) {
+            long v = buf.getLong(k);
+            if (!k.isEmpty() && v > 0) internalBuffer.put(k, v); else droppedBuf++;
+        }
         nodeBufs.clear();
         NbtList nbl = nbt.getList("nodeBufs", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < machineNodes.size(); i++) {
             java.util.Map<String, Long> m = new java.util.HashMap<>();
             if (i < nbl.size()) {
                 NbtCompound c = nbl.getCompound(i);
-                for (String k : c.getKeys()) m.put(k, c.getLong(k));
+                for (String k : c.getKeys()) {
+                    long v = c.getLong(k);
+                    if (!k.isEmpty() && v > 0) m.put(k, v); else droppedBuf++; // m273 同口径
+                }
             }
             nodeBufs.add(m); // 老档无此键=全空缓存；共享池留在 internalBuffer 里继续被消耗（无损迁移）
         }
+        if (droppedBuf > 0) com.sdzjz.Sdzjz.LOGGER.warn("结构核心 {} 缓存读入丢弃 {} 条非法条目（空键或非正计数）", pos, droppedBuf);
         if (nbt.contains("boundPos")) {
             boundPanelPos = BlockPos.fromLong(nbt.getLong("boundPos"));
             boundPanelDim = nbt.getString("boundDim");

@@ -98,10 +98,17 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     public int usedTypes() { return store.size() + exactTpl.size(); } // m130：精确条目同占类型额度
     public void upgrade() { tier++; markDirty(); }
 
+    /** m273：非负计数饱和加法——溢出封顶 Long.MAX_VALUE（把 FTA insert 路径既有的
+     *  Long.MAX_VALUE-cur 口径收成公共辅助；账本/缓存/经验库全部裸加法统一走这里）。 */
+    public static long satAdd(long a, long b) {
+        long r = a + b;
+        return ((a ^ r) & (b ^ r)) < 0 ? Long.MAX_VALUE : r; // 符号溢出检测：两非负操作数溢出必为负
+    }
+
     // ===== m80c 经验库：网络级经验银行（数据面板界面存/取）=====
     private long xpBank = 0;
     public long xpBank() { return xpBank; }
-    public void xpAdd(long points) { if (points > 0) { xpBank += points; markDirty(); } }
+    public void xpAdd(long points) { if (points > 0) { xpBank = satAdd(xpBank, points); markDirty(); } } // m273 饱和加法
     /** 取出至多 max 点，返回实际取出。 */
     public long xpTake(long max) {
         long t = Math.min(xpBank, Math.max(0, max));
@@ -122,7 +129,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         if (!stack.getComponentChanges().isEmpty()) { depositExact(stack); return; }
         String id = Registries.ITEM.getId(stack.getItem()).toString();
         if (!store.containsKey(id) && usedTypes() >= maxTypes()) return;
-        store.merge(id, (long) stack.getCount(), Long::sum);
+        store.merge(id, (long) stack.getCount(), StorageCoreBlockEntity::satAdd); // m273 饱和加法
         storeRev++; // m218
         stack.setCount(0);
         markDirty();
@@ -133,7 +140,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         if (stack.isEmpty()) return;
         for (int i = 0; i < exactTpl.size(); i++) {
             if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), stack)) {
-                exactN.set(i, exactN.get(i) + stack.getCount());
+                exactN.set(i, satAdd(exactN.get(i), stack.getCount())); // m273 饱和加法
                 stack.setCount(0);
                 markDirty();
                 return;
@@ -369,10 +376,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         xpBank = Math.max(0, nbt.getLong("xpBank"));
         store.clear();
         NbtList list = nbt.getList("store", NbtElement.COMPOUND_TYPE);
+        int dropped = 0; // m273：账本读入校验——空id/非正计数=非法条目（写路径 left<=0 即 remove，零值从不合法落盘；负数毒化全部计数算术）
         for (int i = 0; i < list.size(); i++) {
             NbtCompound c = list.getCompound(i);
-            store.put(c.getString("id"), c.getLong("n"));
+            String id = c.getString("id");
+            long n = c.getLong("n");
+            if (!id.isEmpty() && n > 0) store.put(id, n); else dropped++;
         }
+        if (dropped > 0) com.sdzjz.Sdzjz.LOGGER.warn("存储核心 {} 账本读入丢弃 {} 条非法条目（空id或非正计数）", pos, dropped);
         storeRev++; // m218（NBT 读回=整本换血，记一次）
         exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
         exactN.clear();

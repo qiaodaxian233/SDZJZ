@@ -4089,3 +4089,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   config 目录出现 `.broken-时间戳` 文件、新 sdzjz.json 为默认值；③把 .broken 文件修好改回
   sdzjz.json→重启配置生效；④（可选）配置文件设只读→启动不崩、日志报保存失败、原文件未被覆盖；
   ⑤删除配置文件→启动重生成默认，与旧行为一致。
+
+## m273 NBT 读入账本校验 + 全账本饱和加法（外部审计第一批余账）
+- **风险**：①三本长整型账本（存储核心 store/exact、结构核心 internalBuffer/nodeBufs）NBT 读入
+  **零校验**——手改/损坏 NBT 注入负数直接毒化全部计数算术，且负值中间加法可绕 BUF_CAP 封顶；
+  ②账本加法裸 `+`/`Long::sum`——xpBank 反复存经验、deposit 长期堆积可溢出 long 翻负天文数
+  （FTA insert 路径倒是早有 `Long.MAX_VALUE - cur` 封顶，说明作者意识到过，只是没铺全）。
+- **修法**：
+  1. 新公共辅助 `StorageCoreBlockEntity.satAdd(long,long)`——非负计数饱和加法，符号溢出检测
+     封顶 Long.MAX_VALUE（把 FTA 路径既有口径收成唯一出口）。裸加法全量替换 **10 处**：
+     存储核心 xpAdd/deposit/depositExact ×3、结构核心泵料 merge ×2 + 面板聚合 merge ×2 +
+     双缓存合计 ×1 + bufAdd ×1（BUF_CAP 封顶逻辑不变，只治中间溢出翻负绕过封顶）、
+     数据面板 xpCache ×1。残留 grep 终检：两 BE 内账本 `Long::sum` 归零。
+  2. NBT 读入校验三处：store 循环 + internalBuffer 循环 + nodeBufs 循环——空键/非正计数条目
+     丢弃（**写路径 left<=0 即 remove，零值从不合法落盘**，读入见零/负=必为损坏或手改），
+     丢弃计数 >0 时 LOGGER.warn 出声（m272 教训：用户数据路径不静默）。精确账本读入
+     原有 `!t.isEmpty() && n>0` 校验不动——t.isEmpty() 含"物品所在模组已卸载"合法情形，
+     保持静默跳过，不与损坏告警混流。tier/xpBank 读入原有 Math.max 守卫不动。
+- **边界确认**：satAdd 替换纯溢出语义（正常量程结果逐位一致），泵料/聚合/分发路由语义零变化，
+  机器组合.md 无需动（铁律 7 核过：未改路由决策，只改加法算子）。
+- **教训**：①同一类风险（计数溢出）修过一处（FTA insert）不等于修完——按"账本"这个资产维度
+  全量 grep 加法点列清单销账，别按"报过错的路径"修；②读入校验口径先核写路径不变量
+  （零值合法与否）再定丢弃线，抄写路径的 `left<=0 remove` 不变量最稳。
+- **实机验证**：①正常游玩存取物品/经验、泵料、分发、面板聚合读数全程无感；②NBT 编辑器
+  给存储核心 store 塞一条 n=-100 条目→载入日志告警一次、终端不显示该条目、其余账目完好；
+  ③给 internalBuffer 塞负值→载入告警、`/sdzjz profile core` 无异常、分发不再出现负计数；
+  ④（可选）xpBank 手改到 Long.MAX-10 后反复存经验→停在 Long.MAX 不翻负，取用正常。

@@ -118,7 +118,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public long xpTotal() { return xpCache; }
     /** 存入：进网络第一个核心；无核心返回 false（不吞玩家经验）。 */
     public boolean xpDeposit(long points) {
-        for (StorageCoreBlockEntity core : cores()) { core.xpAdd(points); xpCache += points; return true; }
+        for (StorageCoreBlockEntity core : cores()) { core.xpAdd(points); xpCache = StorageCoreBlockEntity.satAdd(xpCache, points); return true; } // m273 饱和加法
         return false;
     }
     /** 取出至多 max 点（跨核心），返回实际取出。 */
