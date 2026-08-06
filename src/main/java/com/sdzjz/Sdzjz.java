@@ -262,8 +262,8 @@ public class Sdzjz implements ModInitializer {
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
                 if (!viewingPanel(p, payload.pos())) return; // 校验走界面而非距离——手持终端可远程开面板
-                if (p.getWorld().getBlockEntity(payload.pos()) instanceof DataPanelBlockEntity panel) {
-                    panel.setView(payload.search(), payload.scrollRow(), payload.matchedIds());
+                if (p.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h) {
+                    h.setView(payload.search(), payload.scrollRow(), payload.matchedIds()); // m292 视图归玩家自己的 handler
                 }
             });
         });

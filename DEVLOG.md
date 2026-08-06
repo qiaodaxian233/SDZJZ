@@ -4459,3 +4459,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   尺现真绿（17 包全过）。
 - **教训（工作流级）**：闸红=后续记账/提交全停，一律用显式失败中断而不是 && 链里夹闸；
   DEVLOG 里"已挂/全过"必须写在验证输出之后而非预写。
+
+## m292 终端视图状态迁 handler（外部审计复查 P1 第二位：多人共用面板搜索/滚动互相覆盖）
+
+- **病根**：searchFilter/scrollRow/matchedIds/filteredCount/lastViewTick 和 54 格展示页全挂在
+  DataPanelBlockEntity 上=同面板全体共享。A 搜"钻石" B 搜"铁"互相覆盖；lastViewTick 节流也是
+  面板级，B 的合法刷新会被 A 的节流窗吃掉。
+- **架构改法**：BE 只供 `masterEntries()` 全量快照（普通聚合+精确 ItemVariant 合并，m112 客户端
+  保险丝原样；DispEnt 升 public）；每个 DataPanelScreenHandler 自持视图五字段+54 格 SimpleInventory，
+  自己过滤/排序（m83 存量降序稳定序原样）/钳滚动/写页——原版槽同步天然只发本玩家。
+  BE 的 refreshDisplay/setView/filteredRows/display/tick 刷新链整段退休（tick 留空壳注释），
+  VIEW_* 钳制常量留 BE 供两端与 m291 协议层对齐。
+- **节拍**：原 BE tick 10t 节律迁进 handler.sendContentUpdates（每玩家独立）：视图脏且距上刷 ≥2t
+  即刷（玩家级节流，审计原话）；每 10t 无条件刷兜机器侧进出料。开面板构造即首刷不空白；
+  操作者存取走 repage() 即时回显，**同面板他人**的页由其自己 10t 节拍带上（与机器侧变化同待遇，
+  最坏晚半秒——换来的是各刷各的互不覆盖）。
+- **路由**：DataPanelViewPayload 接收器改喂 p.currentScreenHandler（viewingPanel 资格校验原样，
+  写包预算原样）。属性 i==4 行数改读 handler 自家 filteredCount。
+- **验证**：冒烟真错 0；be.display/panel.setView/filteredRows/refreshDisplay 全库残留零；八闸全绿。
+  实机脚本：**双人开同一面板各搜各的词各自翻页互不干扰**（审计建议的 twoPanelViewersHaveIndependentSearch
+  手工版）；单人取物/存入即时回显；机器进出料 ≤0.5s 上屏；滚动条行数随各自过滤词正确。

@@ -27,11 +27,7 @@ import java.util.Map;
 public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, com.sdzjz.machine.StorageAccess {
 
     public static final int PAGE = 54;
-    private String searchFilter = "";
-    private int scrollRow = 0;
-    private int filteredCount = 0;
-    private int refreshTicker = 0;
-    public final SimpleInventory display = new SimpleInventory(PAGE);
+    // m292：searchFilter/scrollRow/matchedIds/filteredCount/lastViewTick/display 全部迁 handler（每玩家独立）
     /** m126a：合成网格常驻方块（学 AE2 CraftingTerminalPart，代码自写）——关界面模板不清空，
      *  重开即接着合；多人共开同一面板共用同一网格（AE2 同款语义）。随 NBT 持久化，拆方块散落。 */
     public final com.sdzjz.screen.CraftGridInventory craftGrid = new com.sdzjz.screen.CraftGridInventory(); // m201 换挂 RecipeInputInventory 的子类（持久化路径零变化）
@@ -42,16 +38,14 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
-        if (world.isClient) return;
-        if (be.viewers <= 0) return; // m107a：无人查看不聚合——闲置面板零 BFS 空转（存取走 live 路径不受影响）
-        // 节流：refreshDisplay 内部要 BFS 聚合存储核心，每 tick 跑是卡顿机器；改每 10 tick。
-        if (++be.refreshTicker % 10 != 0) return;
-        be.refreshDisplay();
+        // m292：BE 级共享展示页退休（外部审计 P1：多人共用面板搜索/滚动互相覆盖）。
+        // 视图状态与分页全部迁到各玩家自己的 DataPanelScreenHandler（sendContentUpdates 里
+        // viewDirty 即时 + 10t 节拍兜机器侧变化），BE 只供 masterEntries() 快照。tick 无事可做。
     }
 
     // m107a：打开界面的玩家计数。handler 服务端构造 +1（并立即刷一次，打开不空白），onClosed -1。
     private int viewers = 0;
-    public void addViewer() { viewers++; coresCacheTime = -1000; refreshDisplay(); } // m108c：开界面强刷网络缓存
+    public void addViewer() { viewers++; coresCacheTime = -1000; } // m108c 开界面强刷网络缓存；m292 首刷由 handler 构造时自 repage
     public void removeViewer() { if (viewers > 0) viewers--; }
 
     // m108c：cores() 此前每次调用全新 BFS——机器供料/落库/熔炉扫描/经验/计数全走它，
@@ -193,64 +187,27 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return got;
     }
 
-    private java.util.Set<String> matchedIds = java.util.Set.of();
-
-    // m267 视图包 DoS 护栏（外部审计第二条）：入包边界钳制 + 变化检测 + 每玩家节流。
+    // m267 视图包 DoS 护栏常量（m292：钳制/节流逻辑随视图状态迁 handler，常量留此供两端对齐——
+    //  m291 协议层 Bounded 上限也照它）。
     public static final int VIEW_SEARCH_MAX = 128;   // 搜索词最长
     public static final int VIEW_MATCHED_MAX = 256;  // 匹配 id 列表最长
     public static final int VIEW_ID_MAX = 128;       // 单个 id 最长
-    private long lastViewTick = Long.MIN_VALUE;      // 上次真刷新的世界刻（≥2t 才接下一次）
-
-    /** m267：越界即钳（不是拒收——正常长搜索词照样能用，只是不给无限长），返回清洗后的集合。
-     *  合法性交给 Identifier.tryParse：非法 id 直接丢，不进 Set 也不参与后续比对。 */
-    private static java.util.Set<String> sanitizeMatched(java.util.List<String> matched) {
-        if (matched == null || matched.isEmpty()) return java.util.Set.of();
-        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
-        for (String id : matched) {
-            if (out.size() >= VIEW_MATCHED_MAX) break;
-            if (id == null || id.isEmpty() || id.length() > VIEW_ID_MAX) continue;
-            if (net.minecraft.util.Identifier.tryParse(id) == null) continue; // 非法 id 丢弃
-            out.add(id);
-        }
-        return out.isEmpty() ? java.util.Set.of() : java.util.Set.copyOf(out);
-    }
-
-    public void setView(String search, int scroll, java.util.List<String> matched) {
-        String sf = search == null ? "" : (search.length() > VIEW_SEARCH_MAX ? search.substring(0, VIEW_SEARCH_MAX) : search);
-        int sr = Math.max(0, Math.min(scroll, 1_000_000)); // 包处理阶段就钳（审计点名）
-        java.util.Set<String> ms = sanitizeMatched(matched);
-        boolean same = sf.equals(this.searchFilter) && sr == this.scrollRow && ms.equals(this.matchedIds);
-        if (same) return; // 值没变=一次全量 refreshDisplay 都不欠（刷屏包最大的一刀）
-        this.searchFilter = sf;
-        this.scrollRow = sr;
-        this.matchedIds = ms;
-        long now = this.world != null ? this.world.getTime() : 0L;
-        if (this.world != null && now - lastViewTick < 2L) return; // 每玩家 ≥2t 一次真刷新；
-        // 值已落字段，下一拍的 10t 节拍刷新会带上（不丢更新，只是最坏晚半秒）
-        lastViewTick = now;
-        refreshDisplay();
-    }
-
-    public int filteredRows() { return (filteredCount + 8) / 9; }
 
     /** m130：展示条目——tpl==null 为普通(id账本)，否则为精确件(模板账本，count=1)。 */
-    private static final class DispEnt {
-        final String id; final ItemStack tpl; long n;
-        DispEnt(String id, ItemStack tpl, long n) { this.id = id; this.tpl = tpl; this.n = n; }
+    public static final class DispEnt { // m292 升 public：各 handler 自行过滤/排序/分页
+        public final String id; public final ItemStack tpl; public long n;
+        public DispEnt(String id, ItemStack tpl, long n) { this.id = id; this.tpl = tpl; this.n = n; }
     }
 
-    public void refreshDisplay() { // m111 升 public：光标存取后 handler 即时刷新，不等 10t 节拍
-        // m112 保险丝：客户端 BE 账本恒空，跑聚合=把展示页 54 格全写 EMPTY 且服务端不知情无从纠正（视频 bug）。
-        // 客户端展示页只允许原版槽位同步来写。
-        if (this.world == null || this.world.isClient) return;
+    /** m292：全量条目快照（普通聚合 + 精确条目合并），**不含**过滤/排序/分页——那些是每玩家
+     *  handler 自己的事（外部审计 P1：共享视图状态=多人搜索互相覆盖）。
+     *  m112 保险丝原样保留：客户端 BE 账本恒空，禁跑聚合。 */
+    public java.util.List<DispEnt> masterEntries() {
+        if (this.world == null || this.world.isClient) return java.util.List.of();
         java.util.List<DispEnt> all = new java.util.ArrayList<>();
         LinkedHashMap<String, Long> agg = aggregate();
         for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
-        // m130：精确条目跨核心按「物品+组件」合并后并入同一张列表
-        // m267 性能（外部审计第 4 条）：旧法对每个模板线性扫已合并列表=O(n²)，带组件物品一多就塌。
-        // 改 ItemVariant 作哈希键（Fabric Transfer 的物品+组件不可变键，equals/hashCode 现成、
-        // 在树先例 DataCableBlockEntity）——平均 O(n)。合并顺序仍按首见先后（LinkedHashMap），
-        // 与旧版一致，排序键不变故展示顺序零漂移。
+        // m130：精确条目跨核心按「物品+组件」合并（m267 ItemVariant 哈希键 O(n)，在树先例 DataCableBlockEntity）
         java.util.LinkedHashMap<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant, DispEnt> exactMap =
                 new java.util.LinkedHashMap<>();
         for (StorageCoreBlockEntity core : cores()) {
@@ -264,48 +221,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             }
         }
         all.addAll(exactMap.values());
-        java.util.List<DispEnt> filtered = new java.util.ArrayList<>();
-        String q = searchFilter == null ? "" : searchFilter.toLowerCase();
-        for (DispEnt d : all)
-            if (q.isEmpty() || d.id.toLowerCase().contains(q) || matchedIds.contains(d.id)) filtered.add(d);
-        filtered.sort((a, b) -> { // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
-            int c = Long.compare(b.n, a.n);
-            if (c != 0) return c;
-            c = a.id.compareTo(b.id);
-            if (c != 0) return c;
-            c = Boolean.compare(a.tpl != null, b.tpl != null); // 同量同 id：普通在前
-            if (c != 0) return c;
-            String ca = a.tpl == null ? "" : String.valueOf(a.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
-            String cb = b.tpl == null ? "" : String.valueOf(b.tpl.getComponentChanges());
-            return ca.compareTo(cb);
-        });
-        filteredCount = filtered.size();
-        int rows = (filteredCount + 8) / 9;
-        int maxRow = Math.max(0, rows - 6);
-        if (scrollRow > maxRow) scrollRow = maxRow;
-        if (scrollRow < 0) scrollRow = 0;
-
-        int i = 0;
-        for (int idx = scrollRow * 9; idx < filtered.size() && i < PAGE; idx++, i++) {
-            DispEnt d = filtered.get(idx);
-            ItemStack st;
-            if (d.tpl == null) {
-                Item item = Registries.ITEM.get(Identifier.of(d.id));
-                int max = new ItemStack(item).getMaxCount();
-                st = new ItemStack(item, Math.max(1, (int) Math.min(d.n, (long) max)));
-            } else {
-                st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxCount())));
-            }
-            // m130：展示栈=真身+amt 数量标签——精确件保留自身 CUSTOM_DATA，仅并入 amt 键；
-            // 取出方剥掉 amt 即还原真身（handler stripAmt）。自家 NBT 键无 "amt" 冲突（全键清单核对）。
-            NbtCompound tag = st.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
-                    net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
-            tag.putLong("amt", d.n);
-            st.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
-                    net.minecraft.component.type.NbtComponent.of(tag));
-            display.setStack(i, st);
-        }
-        for (; i < PAGE; i++) display.setStack(i, ItemStack.EMPTY);
+        return all;
     }
 
     @Override

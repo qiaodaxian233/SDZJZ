@@ -29,6 +29,15 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     private final PlayerEntity player;
     // m289 全网库存摘要：客户端侧由 TerminalStockPayload 灌入（喂 populateRecipeFinder）；
     // 服务端侧 stockFp/stockTick 做指纹节流（内容没变不发包）。两组字段各在各端有效互不相扰。
+    // ===== m292 每玩家视图状态（自 DataPanelBlockEntity 迁入；节流从面板级改玩家级——审计 P1 原话）=====
+    private String searchFilter = "";
+    private int scrollRow = 0;
+    private java.util.Set<String> matchedIds = java.util.Set.of();
+    private int filteredCount = 0;
+    private long lastRepageTick = Long.MIN_VALUE;
+    private boolean viewDirty = false;
+    private int repageTick = 0;
+
     private java.util.List<String> stockIds;
     private java.util.List<Integer> stockCounts;
     private long stockFp = Long.MIN_VALUE;
@@ -50,7 +59,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         this.blockPos = (be != null) ? be.getPos() : null;
         this.player = playerInv.player;
         this.craft = (be != null) ? be.craftGrid : new CraftGridInventory(); // 客户端 BE 同样有实例，槽位同步写它
-        this.display = (be != null) ? be.display : new SimpleInventory(DataPanelBlockEntity.PAGE);
+        this.display = new SimpleInventory(DataPanelBlockEntity.PAGE); // m292 每玩家自持展示页（此前挂 be.display=全体共享）
         // ===== m201 合成区排前排（0..8 + 结果9，原版填料器口径）=====
         craft.addListener(craftListener);
         trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
@@ -90,7 +99,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
                                     : panel.withdrawExact(tpl, stack.getCount());
                             // m111：网络实收多少给多少——展示栈在 10t 刷新窗口内可能过期，绝不超发凭空造物
                             if (got < stack.getCount()) stack.setCount(Math.max(0, got));
-                            panel.refreshDisplay(); // 取走后余量立刻回显，格子不再空 0.5s（AE 手感）
+                            repage(); // m292 取走后自家页立刻回显（AE 手感）；同面板他人由其 handler 10t 节拍带上
                         }
                         // m130：剥掉展示用的 amt 数量标签（精确件保留自身组件——附魔/损耗/阶位原样带走）
                         stripAmt(stack);
@@ -108,6 +117,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         // m84b 回收格（m201 合成区已前移至下标 0..9，此处只剩回收殿后=下标 100）
         this.addSlot(new Slot(trash, 0, 269, 202));
         this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
+        if (be != null && be.getWorld() != null && !be.getWorld().isClient) repage(); // m292 开面板首帧不空白
         // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
         if (be != null && be.getWorld() != null && !be.getWorld().isClient) be.addViewer();
         updateCraftResult(); // m126a：网格常驻后开界面可能已带配方——立即出结果，不等首次改动（内部自带客户端守卫）
@@ -305,7 +315,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         @Override public int get(int i) {
             if (i == 2) return panel != null ? panel.typesUsed() : 0; // m97 全网类型用量
             if (i == 3) return panel != null ? panel.typesCap()  : 0;
-            if (i == 4) return panel != null ? Math.min(panel.filteredRows(), 65534) : 0; // m107b 总行数→真实滚动条
+            if (i == 4) return Math.min((filteredCount + 8) / 9, 65534); // m107b 总行数→真实滚动条（m292 改自家视图）
             long v = panel != null ? Math.min(panel.xpTotal(), Integer.MAX_VALUE) : 0;
             return i == 0 ? (int) (v & 0xFFFF) : (int) ((v >> 16) & 0x7FFF);
         }
@@ -380,7 +390,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
                 panel.deposit(cur);
             }
             this.setCursorStack(cur.isEmpty() ? ItemStack.EMPTY : cur);
-            panel.refreshDisplay();                    // 存完立刻可见
+            repage();                                  // m292 存完自家页立刻可见
             return true;
         }
         if (id == 6) { // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标（服务端权威零预测，m95 同款）
@@ -502,14 +512,14 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
                     ? panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), want)
                     : panel.withdrawExact(clean.copy(), want);
             if (got <= 0) { // 账本已空：什么都不给，立刻刷新让展示缓存跟上真相
-                panel.refreshDisplay();
+                repage();
                 slot.setStack(ItemStack.EMPTY);
                 return ItemStack.EMPTY;
             }
             ItemStack giving = clean.copyWithCount(got);
             this.insertItem(giving, INV0, TRASH, true);
             if (!giving.isEmpty()) panel.deposit(giving); // 背包塞不下的余量原路退回账本（绝不落地）
-            panel.refreshDisplay(); // 余量立刻回显
+            repage(); // m292 余量自家页立刻回显
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
         } else if (index >= CRAFT0 && index < RESULT) {
@@ -556,7 +566,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
                 if (copy.getCount() != stack.getCount()) {
                     slot.setStack(copy.isEmpty() ? ItemStack.EMPTY : copy);
                     slot.markDirty();
-                    panel.refreshDisplay(); // m111 存完立刻可见
+                    repage(); // m111 存完自家页立刻可见
                 }
                 return ItemStack.EMPTY;
             }
@@ -586,6 +596,84 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         this.stockCounts = counts;
     }
 
+    /** m292 视图入包（原 BE.setView 迁入，节流现为**玩家级**）：越界即钳（m267 口径，协议层 m291
+     *  Bounded 已先拒过更离谱的）、非法 id 丢弃、值没变一次刷新都不欠；≥2t 一次真刷新，
+     *  节流窗内的更新落字段置脏，由 sendContentUpdates 下一拍带上（不丢更新）。 */
+    public void setView(String search, int scroll, java.util.List<String> matched) {
+        String sf = search == null ? "" : (search.length() > DataPanelBlockEntity.VIEW_SEARCH_MAX
+                ? search.substring(0, DataPanelBlockEntity.VIEW_SEARCH_MAX) : search);
+        int sr = Math.max(0, Math.min(scroll, 1_000_000));
+        java.util.Set<String> ms = sanitizeMatched(matched);
+        if (sf.equals(this.searchFilter) && sr == this.scrollRow && ms.equals(this.matchedIds)) return;
+        this.searchFilter = sf;
+        this.scrollRow = sr;
+        this.matchedIds = ms;
+        long now = (panel != null && panel.getWorld() != null) ? panel.getWorld().getTime() : 0L;
+        if (now - lastRepageTick < 2L) { viewDirty = true; return; }
+        repage();
+    }
+
+    private static java.util.Set<String> sanitizeMatched(java.util.List<String> matched) {
+        if (matched == null || matched.isEmpty()) return java.util.Set.of();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (String id : matched) {
+            if (out.size() >= DataPanelBlockEntity.VIEW_MATCHED_MAX) break;
+            if (id == null || id.isEmpty() || id.length() > DataPanelBlockEntity.VIEW_ID_MAX) continue;
+            if (net.minecraft.util.Identifier.tryParse(id) == null) continue;
+            out.add(id);
+        }
+        return out.isEmpty() ? java.util.Set.of() : java.util.Set.copyOf(out);
+    }
+
+    /** m292 本玩家分页：BE 全量快照 → 本 handler 的过滤/排序（m83 存量降序）/钳滚动/写自家 54 格。
+     *  服务端权威；display 是自持 SimpleInventory，原版槽同步只发给本玩家。 */
+    private void repage() {
+        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return;
+        viewDirty = false;
+        lastRepageTick = panel.getWorld().getTime();
+        java.util.List<DataPanelBlockEntity.DispEnt> all = panel.masterEntries();
+        java.util.List<DataPanelBlockEntity.DispEnt> filtered = new java.util.ArrayList<>();
+        String q = searchFilter.toLowerCase();
+        for (DataPanelBlockEntity.DispEnt d : all)
+            if (q.isEmpty() || d.id.toLowerCase().contains(q) || matchedIds.contains(d.id)) filtered.add(d);
+        filtered.sort((x, y) -> { // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
+            int c = Long.compare(y.n, x.n);
+            if (c != 0) return c;
+            c = x.id.compareTo(y.id);
+            if (c != 0) return c;
+            c = Boolean.compare(x.tpl != null, y.tpl != null); // 同量同 id：普通在前
+            if (c != 0) return c;
+            String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
+            String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentChanges());
+            return ca.compareTo(cb);
+        });
+        filteredCount = filtered.size();
+        int rows = (filteredCount + 8) / 9;
+        int maxRow = Math.max(0, rows - 6);
+        if (scrollRow > maxRow) scrollRow = maxRow;
+        if (scrollRow < 0) scrollRow = 0;
+        int i = 0;
+        for (int idx = scrollRow * 9; idx < filtered.size() && i < DataPanelBlockEntity.PAGE; idx++, i++) {
+            DataPanelBlockEntity.DispEnt d = filtered.get(idx);
+            ItemStack st;
+            if (d.tpl == null) {
+                var item = Registries.ITEM.get(net.minecraft.util.Identifier.of(d.id));
+                int max = new ItemStack(item).getMaxCount();
+                st = new ItemStack(item, Math.max(1, (int) Math.min(d.n, (long) max)));
+            } else {
+                st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxCount())));
+            }
+            // m130：展示栈=真身+amt 数量标签；取出方剥 amt 还原真身（stripAmt）
+            var tag = st.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                    net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
+            tag.putLong("amt", d.n);
+            st.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                    net.minecraft.component.type.NbtComponent.of(tag));
+            display.setStack(i, st);
+        }
+        for (; i < DataPanelBlockEntity.PAGE; i++) display.setStack(i, ItemStack.EMPTY);
+    }
+
     /** m289 服务端：每秒对全网库存算序无关指纹，变了才直发摘要包（开屏首帧必发）。
      *  摘要=各存储核心 storeView 聚合，按存量取前 2048 种、计数封顶 9999；
      *  精确件(exactTemplates,带组件)不入摘要——配方原料按物品匹配、jeiFill 取料也不动精确件，口径一致。 */
@@ -594,6 +682,10 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         super.sendContentUpdates();
         if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity sp) || panel == null
                 || panel.getWorld() == null || panel.getWorld().isClient) return;
+        // m292 分页节拍（原 BE tick 10t 节律迁入，每玩家独立）：脏视图 ≥2t 即刷；10t 无条件刷兜机器侧进出料
+        repageTick++;
+        if (viewDirty && panel.getWorld().getTime() - lastRepageTick >= 2L) repage();
+        else if (repageTick % 10 == 0) repage();
         if (!com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook
                 || !com.sdzjz.config.SdzjzConfig.get().terminalBookStock) return;
         if (stockTick++ % 20 != 0) return;
