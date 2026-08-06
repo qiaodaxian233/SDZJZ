@@ -406,13 +406,15 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         long t2Opened = 0, t1Opened = 0;
         boolean spaceOut = false;
         Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
+        // m260 卡顿主治：旧版逐包循环——每拆 1 包全扫一遍网格144+背包36做容量账（含 NBT 组件比较）再全扫插入，
+        // 一次点击拆几百包=十几万次 ItemStack/NBT 比较，单人内置服一卡客户端就顿。改槽级批量：
+        // 容量一次结算整批开包 + insertBulk 单趟灌装，每击总开销 O(槽位数×轮数)，轮数受物理容量约束（腾槽才续轮）。
         for (int pass = 0; pass < 2; pass++) {
             Item packItem = pass == 0 ? t2 : t1;
-            boolean passOut = false; // 空间账按层各算：超级包层堵住不连坐一级层（产物不同容量不同）
-            boolean any = true;
-            while (any && !passOut) {
+            boolean any = true; // 空间账仍按层各算：超级包层堵住不连坐一级层（产物不同容量不同）
+            while (any) {
                 any = false;
-                for (int i = 0; i < GRID_SLOTS && !passOut; i++) {
+                for (int i = 0; i < GRID_SLOTS; i++) {
                     ItemStack s = input.getStack(i);
                     if (s.getItem() != packItem) continue;
                     String in = com.sdzjz.item.CompressedPackItem.innerId(s);
@@ -420,17 +422,13 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                     ItemStack proto = pass == 0
                             ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
                             : new ItemStack(Registries.ITEM.get(Identifier.of(in)), 1);
-                    if (capacityFor(player, proto) < 64) { passOut = true; spaceOut = true; break; } // 网格+背包合计
-                    s.decrement(1);
+                    int can = (int) Math.min(s.getCount(), capacityAll(player, proto) / 64); // 一包出64件
+                    if (can <= 0) { spaceOut = true; continue; }
+                    if (can < s.getCount()) spaceOut = true; // 本槽没拆完=空间见底（若腾出槽位下一轮还会进来）
+                    s.decrement(can);
                     if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
-                    int left = 64;
-                    while (left > 0) {
-                        int chunk = Math.min(left, proto.getMaxCount());
-                        ItemStack rem = insertToGrid(proto.copyWithCount(chunk));
-                        if (!rem.isEmpty() && !player.getInventory().insertStack(rem)) player.dropItem(rem, false); // 容量已核，兜底
-                        left -= chunk;
-                    }
-                    if (pass == 0) t2Opened++; else t1Opened++;
+                    insertBulk(player, proto, (long) can * 64);
+                    if (pass == 0) t2Opened += can; else t1Opened += can;
                     any = true;
                 }
             }
@@ -440,9 +438,11 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         long t2Left = 0, t1Left = 0;
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getStack(i);
+            if (com.sdzjz.item.CompressedPackItem.innerId(s) == null) continue; // 裸包拆不了，不进"剩×N"账（m260）
             if (s.getItem() == t2) t2Left += s.getCount();
             else if (s.getItem() == t1) t1Left += s.getCount();
         }
+        spaceOut = spaceOut && (t2Left + t1Left) > 0; // 批拆后全清空就别报"已满"
         if (t2Opened + t1Opened > 0) {
             String msg = "已拆开: " + (t2Opened > 0 ? "超级包×" + t2Opened + "→一级包×" + (t2Opened * 64) : "")
                     + (t2Opened > 0 && t1Opened > 0 ? "、" : "")
@@ -467,18 +467,57 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         }
     }
 
-    /** 网格+玩家背包合计还能容纳多少件与 proto 同物同组件的东西（m246：拆包产物两级承接）。 */
-    private int capacityFor(PlayerEntity player, ItemStack proto) {
-        int cap = gridCapacityFor(proto);
-        if (cap >= 64) return cap;
+    /** 网格+玩家主背包合计还能容纳多少件与 proto 同物同组件的东西——全量口径不早退（m260 批量结算用；盔甲/副手不收料）。 */
+    private long capacityAll(PlayerEntity player, ItemStack proto) {
+        long cap = 0;
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.isEmpty()) cap += proto.getMaxCount();
+            else if (ItemStack.areItemsAndComponentsEqual(s, proto)) cap += Math.max(0, s.getMaxCount() - s.getCount());
+        }
         PlayerInventory pinv = player.getInventory();
-        for (int i = 0; i < pinv.main.size(); i++) { // 只数主背包 36 格（盔甲/副手不收料）
+        for (int i = 0; i < pinv.main.size(); i++) {
             ItemStack s = pinv.main.get(i);
             if (s.isEmpty()) cap += proto.getMaxCount();
             else if (ItemStack.areItemsAndComponentsEqual(s, proto)) cap += Math.max(0, s.getMaxCount() - s.getCount());
-            if (cap >= 64) return cap;
         }
         return cap;
+    }
+
+    /** 批量灌装 total 件 proto：网格先并同栈再填空格→主背包同法，各一趟 O(槽)（m260；调用方已按 capacityAll 核量，兜底落地不丢件）。 */
+    private void insertBulk(PlayerEntity player, ItemStack proto, long total) {
+        for (int i = 0; i < GRID_SLOTS && total > 0; i++) {
+            ItemStack s = input.getStack(i);
+            if (!s.isEmpty() && ItemStack.areItemsAndComponentsEqual(s, proto)) {
+                int mv = (int) Math.min(s.getMaxCount() - s.getCount(), total);
+                if (mv > 0) { s.increment(mv); total -= mv; }
+            }
+        }
+        for (int i = 0; i < GRID_SLOTS && total > 0; i++) {
+            if (input.getStack(i).isEmpty()) {
+                int mv = (int) Math.min(proto.getMaxCount(), total);
+                input.setStack(i, proto.copyWithCount(mv)); total -= mv;
+            }
+        }
+        PlayerInventory pinv = player.getInventory();
+        for (int i = 0; i < pinv.main.size() && total > 0; i++) {
+            ItemStack s = pinv.main.get(i);
+            if (!s.isEmpty() && ItemStack.areItemsAndComponentsEqual(s, proto)) {
+                int mv = (int) Math.min(s.getMaxCount() - s.getCount(), total);
+                if (mv > 0) { s.increment(mv); total -= mv; }
+            }
+        }
+        for (int i = 0; i < pinv.main.size() && total > 0; i++) {
+            if (pinv.main.get(i).isEmpty()) {
+                int mv = (int) Math.min(proto.getMaxCount(), total);
+                pinv.main.set(i, proto.copyWithCount(mv)); total -= mv;
+            }
+        }
+        while (total > 0) { // 容量已核不该走到；兜底不丢件（与关屏散落同口径）
+            int mv = (int) Math.min(proto.getMaxCount(), total);
+            player.dropItem(proto.copyWithCount(mv), false); total -= mv;
+        }
+        pinv.markDirty();
     }
 
     /** 从网格取走 n 件指定 id 的"普通物品"（无组件差异；调用方已核总量足够）。 */
@@ -504,18 +543,6 @@ public class SuperBenchScreenHandler extends ScreenHandler {
             s.decrement(take); n -= take;
             if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
         }
-    }
-
-    /** 网格还能容纳多少件与 proto 同物同组件的东西（空格按 maxCount 计，同栈按余量计）。 */
-    private int gridCapacityFor(ItemStack proto) {
-        int cap = 0;
-        for (int i = 0; i < GRID_SLOTS; i++) {
-            ItemStack s = input.getStack(i);
-            if (s.isEmpty()) cap += proto.getMaxCount();
-            else if (ItemStack.areItemsAndComponentsEqual(s, proto)) cap += Math.max(0, s.getMaxCount() - s.getCount());
-            if (cap >= 64) return cap; // 够本次拆包就不必扫完
-        }
-        return cap;
     }
 
     /** 插入网格：先并同物同组件栈，再落空格；返回没塞下的余量（可能为空栈）。 */
