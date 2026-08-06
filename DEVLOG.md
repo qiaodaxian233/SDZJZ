@@ -3757,3 +3757,16 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   精账 14 台/粗账 4 台分野、过账中修正的账务三条（策略/归一化/口径）。
 - docs_sync ✓94（机器数无变动，校验模式过）。核查报告第四节"m末"就此销账。
 - **实机验证**：无代码变更，文档拉取后人读核对即可。
+
+## m255 全画布事件路径裸取色巡检（m239 挂账待办销账，结论=干净）
+- **巡检法**（落盘 docs/tools_color_scope_audit.py，命中退出码 1 可挂 CI）：StructureCoreScreen
+  118 个方法切体建 3 层调用图，从 8 条事件/生命周期路径（init/removed/鼠标四件/键盘两件）追
+  term*()/SciSkin.hex/mix 取色命中；另断言 render 的 scopeCanvas(true)+try/finally+scopeCanvas(false)
+  三件结构完整（防后人改 render 拆掉作用域包裹）。
+- **结论**：①直接读色的方法全在 render 帧内（drawBackground/drawForeground/drawBundleBadge/
+  renderSettings）；②事件路径 3 层调用图零裸读色，唯一读色口 settColorVal 已是 m239 自带
+  作用域保存/恢复；③事件路径的配置写全为布尔/数值/用户键入串/预设常量串——**无"读色→写回"模式**，
+  m239 同类漏洞别处没有；④render 作用域包裹完整覆盖 super.render 与四个浮层。
+- **教训**：一次性巡检写成回归尺才算销账——m239 的病是"作用域只在渲染帧开"这个结构性前提，
+  以后任何人往事件路径加取色都会现行，让尺子盯着比让记忆盯着可靠。
+- **实机验证**：无行为变更；`python3 docs/tools_color_scope_audit.py` 输出 ✓ 即可。
