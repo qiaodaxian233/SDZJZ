@@ -136,6 +136,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     public int tier() { return tier; }
     public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
     public int usedTypes() { return store.size() + exactTpl.size(); } // m130：精确条目同占类型额度
+
+    /** m293 插入闸口径（外部审计 P2：默认无限类型=最大的存档/NBT/GUI 排序压力源没有技术保险）：
+     *  玩法额度与绝对安全上限取小。安全上限独立于玩法——typesPerTier=0 的"无限仓库"照常显示无限、
+     *  照常用，只是单核心新类型到 8192 种后拒收（已有超限存档不裁账，只是加不了新类型）。≤0=关闸。 */
+    private int typeGate() {
+        int hard = com.sdzjz.config.SdzjzConfig.get().absoluteStorageTypeSafetyLimit;
+        int play = maxTypes();
+        return hard > 0 ? (int) Math.min((long) play, (long) hard) : play;
+    }
     public void upgrade() { tier++; markDirty(); }
 
     /** m273：非负计数饱和加法——溢出封顶 Long.MAX_VALUE（把 FTA insert 路径既有的
@@ -168,7 +177,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         if (stack.isEmpty()) return;
         if (!stack.getComponentChanges().isEmpty()) { depositExact(stack); return; }
         String id = Registries.ITEM.getId(stack.getItem()).toString();
-        if (!store.containsKey(id) && usedTypes() >= maxTypes()) return;
+        if (!store.containsKey(id) && usedTypes() >= typeGate()) return; // m293 安全硬顶同闸
         store.merge(id, (long) stack.getCount(), StorageCoreBlockEntity::satAdd); // m273 饱和加法
         storeRev++; // m218
         stack.setCount(0);
@@ -186,7 +195,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 return;
             }
         }
-        if (usedTypes() >= maxTypes()) return;
+        if (usedTypes() >= typeGate()) return; // m293
         exactTpl.add(stack.copyWithCount(1));
         exactN.add((long) stack.getCount());
         stack.setCount(0);
@@ -276,7 +285,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             ItemStack one = resource.toStack(1);
             if (one.getComponentChanges().isEmpty()) { // 与 deposit 同一分流：无组件走普通账本
                 String id = Registries.ITEM.getId(one.getItem()).toString();
-                if (!store.containsKey(id) && usedTypes() >= maxTypes()) return 0;
+                if (!store.containsKey(id) && usedTypes() >= typeGate()) return 0; // m293
                 long cur = store.getOrDefault(id, 0L);
                 long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
                 if (accept <= 0) return 0;
@@ -299,7 +308,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                     return accept;
                 }
             }
-            if (usedTypes() >= maxTypes()) return 0;
+            if (usedTypes() >= typeGate()) return 0; // m293
             updateSnapshots(tx);
             undoJournal.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）
                 int last = exactTpl.size() - 1; exactTpl.remove(last); exactN.remove(last); });
