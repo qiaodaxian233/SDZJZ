@@ -231,7 +231,7 @@ public final class SuperBenchRecipes {
         bom("sdzjz:gold_smelter", "", FUR, 8, "minecraft:raw_gold", 8, LB, 1, HOP, 8, CHE, 2);
         bom("sdzjz:guardian_farm", "minecraft:guardian", "minecraft:sponge", 8, "minecraft:prismarine", 24, // 海绵=原版抽水神殿
                 "minecraft:sea_lantern", 2, WB, 2, HOP, 4, CHE, 2);
-        // m248 全量过账：守卫者三件套 2664+820+425 块合账（船收集/展示类实体入料，神殿排水不入原理图→海绵16 抽水税照 m171 保留）；实体账[minecraft:glow_item_frame×6入料; minecraft:chest_minecart×3入料; minecraft:boat×1入料; minecraft:armor_stand×1入料; minecraft:boat×63入料]；计料实测 3736→BOM 4179（溢价 11.9%），保守槽位 81。
+        // m248 全量过账：守卫者三件套 2664+820+425 块合账（船收集/展示类实体入料，神殿排水不入原理图→海绵16 抽水税照 m171 保留）；实体账[minecraft:glow_item_frame×6入料; minecraft:chest_minecart×3入料; minecraft:boat×1入料; minecraft:armor_stand×1入料; minecraft:boat×63入料]；计料实测 3752→BOM 4195（溢价 11.8%），保守槽位 83（m251：wall_torch 归一并入 torch=23 销死料、海绵16外挂账并入脚本总账）。
         bomPacked("sdzjz:mega_guardian_farm", "minecraft:guardian",
                 "minecraft:glass", 896,
                 "minecraft:white_concrete", 256,
@@ -249,9 +249,8 @@ public final class SuperBenchRecipes {
                 "minecraft:prismarine_slab", 128,
                 "minecraft:blue_ice", 128,
                 "minecraft:stone_button", 128,
-                "minecraft:oak_boat", 64,
-                "minecraft:sponge", 16,
                 "minecraft:water_bucket", 64,
+                "minecraft:oak_boat", 64,
                 "minecraft:repeater", 62,
                 "minecraft:jack_o_lantern", 44,
                 "minecraft:warped_trapdoor", 43,
@@ -259,13 +258,14 @@ public final class SuperBenchRecipes {
                 "minecraft:soul_sand", 30,
                 "minecraft:ladder", 28,
                 "minecraft:cobweb", 28,
+                "minecraft:torch", 23,
                 "minecraft:iron_trapdoor", 22,
                 "minecraft:white_stained_glass_pane", 22,
-                "minecraft:torch", 22,
                 "minecraft:sticky_piston", 22,
                 "minecraft:prismarine_brick_slab", 22,
                 "minecraft:cyan_glazed_terracotta", 19,
                 "minecraft:composter", 16,
+                "minecraft:sponge", 16,
                 "minecraft:activator_rail", 15,
                 "minecraft:dispenser", 15,
                 "minecraft:redstone_block", 14,
@@ -286,8 +286,8 @@ public final class SuperBenchRecipes {
                 "minecraft:prismarine_wall", 4,
                 "minecraft:warped_sign", 3,
                 "minecraft:detector_rail", 3,
-                "minecraft:chest_minecart", 3,
                 "minecraft:nether_brick_fence", 3,
+                "minecraft:chest_minecart", 3,
                 "minecraft:warped_fence_gate", 2,
                 "minecraft:iron_bars", 2,
                 "minecraft:campfire", 2,
@@ -295,7 +295,6 @@ public final class SuperBenchRecipes {
                 "minecraft:lever", 1,
                 "minecraft:spruce_trapdoor", 1,
                 "minecraft:lantern", 1,
-                "minecraft:wall_torch", 1,
                 "minecraft:armor_stand", 1);
         bom("sdzjz:gunpowder_farm", "minecraft:creeper", COB, 24, "minecraft:white_carpet", 8, TRAP, 8, // 地毯=原版防蜘蛛
                 "minecraft:gunpowder", 4, HOP, 4, CHE, 2);
@@ -331,7 +330,7 @@ public final class SuperBenchRecipes {
                 "minecraft:birch_stairs", 10, "minecraft:diorite_wall", 10, "minecraft:birch_fence", 7,
                 WB, 6, "minecraft:birch_planks", 5, TRAP, 4, TCH, 3, OSV, 2, LB, 1,
                 "minecraft:oak_boat", 1, HOP, 4, CHE, 2);
-        // m248 全量过账：160核刷铁机+合成收集 20103+644 块合账（村民573实体=活体不入料，双笼口径照旧）；实体账[minecraft:villager×573不入; minecraft:minecart×10入料]；计料实测 18628→BOM 19138（溢价 2.7%），保守槽位 69。
+        // m248 全量过账：160核刷铁机+合成收集 20103+644 块合账（村民573实体=活体不入料，双笼口径照旧）；实体账[minecraft:villager×573不入; minecraft:minecart×10入料]；计料实测 18628→BOM 19138（溢价 2.7%），保守槽位 71（m251：farmland 128 归一成 dirt 销死料）。
         bomPacked("sdzjz:iron_farm_160", "minecraft:villager,minecraft:zombie",
                 "minecraft:white_stained_glass", 6016,
                 "minecraft:powered_rail", 3008,
@@ -343,7 +342,7 @@ public final class SuperBenchRecipes {
                 "minecraft:lever", 192,
                 "minecraft:activator_rail", 192,
                 "minecraft:bamboo_trapdoor", 192,
-                "minecraft:farmland", 128,
+                "minecraft:dirt", 128,
                 "minecraft:carrot", 128,
                 "minecraft:soul_sand", 128,
                 "minecraft:wither_rose", 128,
