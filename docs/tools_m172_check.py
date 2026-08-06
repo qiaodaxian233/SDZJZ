@@ -3,7 +3,7 @@
 # ① 全表配方多重集两两唯一 ② 每方 BOM 总件数≤144、种数≤18 ③ 生物笼计数=生物数
 # ④ 注册六件套计数断言（MachineDef/ModItems reg+创造栏/配方/双语言/模型/贴图）
 import re, json, sys, os
-os.chdir('/home/claude/SDZJZ')
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))  # m259 自锚定仓库根：CI 跑批机不在 /home/claude
 
 src = open('src/main/java/com/sdzjz/machine/SuperBenchRecipes.java').read()
 

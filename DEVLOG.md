@@ -3801,3 +3801,16 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   `api.github.com/repos/qiaodaxian233/SDZJZ/actions/runs`，红了按报错逐修（重点盯 m249/m250
   渲染层新 API：yarn 核过名没过编译器）。
 - **实机验证**：GitHub Actions 页应见 CI 工作流两个 job；绿后 artifact 里有 jar 可直接下载测试。
+
+## m259 CI 首跑红=坏尺子（m109 又一例）+ 首次真编译验绿大账
+- **首跑结果（run 31093760976，d3859d0）**：Gradle 编译 job **success**——**m177~m258 共 82 笔
+  的真编译欠账一次验绿**（含 m249/m250 渲染层新 API、m243 动态图标管线、压缩包全家）；
+  红的是离线闸第一步配方校验，exit 1。
+- **根因**：tools_m172_check.py 第 6 行 `os.chdir('/home/claude/SDZJZ')` **写死沙箱路径**——
+  本地存在所以绿，CI 跑批机在 /home/runner/work/... chdir 直接 FileNotFoundError。
+  校验器自身带病（m109 坏尺子同款）。
+- **修法**：改自锚定 `os.chdir(dirname(abspath(__file__))/..)`；四道闸全部从陌生 cwd（/tmp）
+  预演退出码=0（另两把 CI 尺 m175/m176 生来自锚定无病；m141 抠图工具写死路径属历史一次性件
+  不在闸里，不动）。
+- **教训**：给 CI 用的尺子必须从非仓库 cwd 预演一遍再上闸——"本地绿"里藏着本地路径。
+- **实机验证**：本推送触发 CI 第二跑应全绿+出 jar artifact。
