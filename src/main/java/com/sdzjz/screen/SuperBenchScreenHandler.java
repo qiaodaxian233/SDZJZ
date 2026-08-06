@@ -78,7 +78,14 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         Map<String, Integer> m = new HashMap<>();
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getStack(i);
-            if (!s.isEmpty()) m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+            if (s.isEmpty()) continue;
+            // m242 认包：压缩包按 内容物×倍率 折算成原版计数入集，包自身 id 不入集（裸包=0 不参与）。
+            // 折算溢出防护：单格上限 64×4096=262144 远小于 int，但 144 格合计可到 3775 万仍在 int 内；
+            // 工程款 BOM 最大单项 13 万级（litematic 实测 json），口径安全。
+            long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
+            if (raw > 0) m.merge(com.sdzjz.item.CompressedPackItem.innerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
+            else if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem))
+                m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         return m;
     }
@@ -126,13 +133,35 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                 }
                 continue;
             }
+            // m242 扣料认包：散件先扣，再整只扣压缩包（每只入账 倍率 件）。精确多重集匹配下
+            // 总量==需求，理论无找零；防御性找零（need 非倍率整除）拆成散件回网格不白丢。
             for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
                 ItemStack s = input.getStack(i);
-                if (!s.isEmpty() && Registries.ITEM.getId(s.getItem()).toString().equals(e.getKey())) {
+                if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+                if (Registries.ITEM.getId(s.getItem()).toString().equals(e.getKey())) {
                     int take = Math.min(need, s.getCount());
                     s.decrement(take);
                     need -= take;
                 }
+            }
+            for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
+                ItemStack s = input.getStack(i);
+                if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem pk)) continue;
+                if (!e.getKey().equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+                while (need > 0 && !s.isEmpty()) {
+                    s.decrement(1);
+                    if (pk.ratio > need) { // 防御性找零：多出来的拆成散件回网格
+                        ItemStack change = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())), 1);
+                        int left = pk.ratio - need;
+                        while (left > 0) {
+                            int chunk = Math.min(left, change.getMaxCount());
+                            insertToGrid(change.copyWithCount(chunk));
+                            left -= chunk;
+                        }
+                        need = 0;
+                    } else need -= pk.ratio;
+                }
+                if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
             }
         }
         onContentChanged(input);

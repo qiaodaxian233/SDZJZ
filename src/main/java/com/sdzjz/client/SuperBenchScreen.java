@@ -208,7 +208,12 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         Map<String, Integer> m = new java.util.HashMap<>();
         for (int i = 0; i < this.handler.slots.size(); i++) {
             ItemStack s = this.handler.slots.get(i).getStack();
-            if (!s.isEmpty()) m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+            if (s.isEmpty()) continue;
+            // m242 认包：绿/红对照与服务端 gridMultiset 同口径——包按 内容物×倍率 计原版件数
+            long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
+            if (raw > 0) m.merge(com.sdzjz.item.CompressedPackItem.innerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
+            else if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem))
+                m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         return m;
     }
