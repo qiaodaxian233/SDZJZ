@@ -11,6 +11,8 @@ bad = []
 for name in c2s:
     p = os.path.join(ROOT, 'src/main/java/com/sdzjz/net/%s.java' % name)
     s = open(p, encoding='utf-8').read()
+    s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)  # 剥块注释（含 javadoc）——注释提旧 API 不算罪
+    s = re.sub(r'//[^\n]*', '', s)                 # 剥行注释
     if re.search(r'PacketCodecs\.STRING|PacketCodecs\.collection|collect\(PacketCodecs\.toList', s):
         bad.append(name)
 if bad:

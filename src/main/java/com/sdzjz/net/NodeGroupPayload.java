@@ -16,7 +16,7 @@ import java.util.List;
  * gid>=0 且 name 非空     = 重命名；
  * gid>=0 且 name 空       = 解散。
  * 语义在服务端接收器判定，客户端只按上述组合发；members 编码照 CanvasEndsPayload 的
- * PacketCodecs.collection 在树先例（tuple 六元先例在前，本包四元无上限之虞）。
+ * members 编码走 Bounded.intList（m291 起解码期有界，协议硬顶 4096）。
  */
 public record NodeGroupPayload(BlockPos pos, int gid, String name, List<Integer> members) implements CustomPayload {
 

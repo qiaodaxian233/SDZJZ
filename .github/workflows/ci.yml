@@ -25,6 +25,8 @@ jobs:
         run: python3 docs/tools_dup_method_check.py
       - name: 拼音首字母回归尺(m282,护边界表/二级硬表/端到端口径)
         run: python3 docs/tools_pinyin_check.py
+      - name: 有界Codec回归尺(m291,C2S含串/表的包必须走Bounded解码期拒越界)
+        run: python3 docs/tools_bounded_codec_check.py
       - name: Override错挂检查(m288 回归尺,冒烟盲区#4=超类不可解析时javac跳过@Override校验)
         run: python3 docs/tools_override_check.py
 
