@@ -28,6 +28,10 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     // 浏览器布局（GUI 相对坐标）；m237 搜索框占一行：LIST_Y 30→34、行数 11→10（清单区反而更宽裕）
     private static final int PX = 270, PW = 192, LIST_Y = 34, ENTRY_H = 18, LIST_ROWS = 10;
     private static final int SEARCH_Y = 18; // m237 搜索框行（渲染/点击/占位提示三处同源）
+    // m240 底图三段带绘：热栏格(304..321)原先压过艺术底边(贴图308..315行)并伸出面板5px——
+    // 面板加高到 332，贴图按 [0..TEX_SPLIT) 原样 + [TEX_TILE..TEX_SPLIT) 干净行带平铺 + [TEX_SPLIT..316) 底边带挪到新底，
+    // 逐行扫描证实 242..306 行只有竖向边框线（0/5/175/264-267/466-469 列），平铺像素级无缝、艺术零拉伸。
+    private static final int BH = 332, TEX_H = 316, TEX_SPLIT = 304, TEX_TILE = 288;
 
     private int scroll = 0;
     private int selected = -1;                 // 选中配方（ALL 下标——填料协议 clickButton(idx) 口径不变）
@@ -37,7 +41,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     public SuperBenchScreen(SuperBenchScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 470;
-        this.backgroundHeight = 316;
+        this.backgroundHeight = BH; // m240 底部越界修复：316→332，热栏整体包进框内
     }
 
     @Override
@@ -75,7 +79,10 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         int x = this.x, y = this.y;
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP); // m117：与其余三屏统一的全屏底色（此前唯独本屏漏铺）
         ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
-        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
+        // m240 三段带绘：0..304 原样 → 288..304 干净行带平铺补 16px → 304..316 底边带落到新底（艺术零拉伸）
+        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, TEX_SPLIT, backgroundWidth, TEX_H);
+        ctx.drawTexture(BG, x, y + TEX_SPLIT, 0.0F, (float) TEX_TILE, backgroundWidth, TEX_SPLIT - TEX_TILE, backgroundWidth, TEX_H);
+        ctx.drawTexture(BG, x, y + TEX_SPLIT + (TEX_SPLIT - TEX_TILE), 0.0F, (float) TEX_SPLIT, backgroundWidth, TEX_H - TEX_SPLIT, backgroundWidth, TEX_H);
         ctx.fill(x, y, x + backgroundWidth, y + 16, SciSkin.withAlpha8(SciSkin.CELL, 0xB8));       // 标题条可读性底（m207 归队）
         ctx.fill(x + PX - 6, y + 16, x + backgroundWidth, y + backgroundHeight, SciSkin.withAlpha8(SciSkin.CELL, 0xA0)); // 浏览器区可读性底（m207 归队）
         ctx.fill(x, y, x + backgroundWidth, y + 1, CYAN);
