@@ -121,14 +121,64 @@ public final class SuperBenchRecipes {
         bom("sdzjz:chorus_farm", "", "minecraft:chorus_flower", 4, EST, 24, GL, 8,
                 "minecraft:popped_chorus_fruit", 2, HOP, 4, CHE, 2);
         bom("sdzjz:cobble_maker", "", WB, 1, LB, 1, PIS, 2, OSV, 2, RSD, 4, SST, 8, HOP, 4, CHE, 2); // m168 回归：入门款=原版就俩桶，全表最便宜
-        // m168 百万刷石机（m167 蓝图 BOM 移交给它）：对表用户 520万/h 工程蓝图（litematic 实测 99587 块：
-        // 活塞10069/侦测器7162/白玻璃17895/黑曜石9261/圆石壳29334/岩浆源3936/水源3979/锁链2091/音符盒955/
-        // TNT复制引擎…，÷≈700 取整，岩浆桶对齐"近四千桶"取 10(÷394)，黏活塞/黏液/TNT 各留 1 引擎标志件）
-        // ——全表最重 123 件，产能 722/10t≈520万/h 与配方难度同挡。
-        bom("sdzjz:mega_cobble_maker", "", COB, 24, "minecraft:white_stained_glass", 18, PIS, 12, OBSI, 10,
-                OSV, 9, "minecraft:diorite_wall", 8, "minecraft:stone_brick_wall", 5, LB, 10, WB, 5,
-                RSD, 4, "minecraft:chain", 3, "minecraft:note_block", 2, "minecraft:sticky_piston", 1,
-                "minecraft:slime_block", 1, "minecraft:tnt", 1, HOP, 4, CHE, 2);
+        // m245 百万刷石机全量过账（mC 首台，520万刷石机.litematic 实测 99587 块）：旧 m168 ÷≈700 蒸馏版
+        // 退役，改 bomPacked 全量总数（归一化口径：红石线→红石/壁挂火把→手持/壁挂告示牌→手持/
+        // 壁挂珊瑚扇→手持；水=64桶打水税（水无限+桶可复用）、岩浆=一桶一源全量4096；活塞臂·玩家头
+        // 剔除=技术方块/生存不可获得；蝙蝠·发光鱿鱼·掉落物实体不计料）。取整策略：二级溢价≤15%
+        // 或一级超32格→全二级，否则全一级，一律向上取整——50 种料、BOM 总数 113182（溢价 18.1%）、
+        // 保守槽位 59；大宗 9 种全二级：圆石 32768/白玻璃 20480/活塞·黑曜石各 12288/侦测器·闪长岩墙
+        // 各 8192/岩浆桶·石砖墙·锁链各 4096。
+        bomPacked("sdzjz:mega_cobble_maker", "",
+                "minecraft:cobblestone", 32768,
+                "minecraft:white_stained_glass", 20480,
+                "minecraft:piston", 12288,
+                "minecraft:obsidian", 12288,
+                "minecraft:observer", 8192,
+                "minecraft:diorite_wall", 8192,
+                "minecraft:lava_bucket", 4096,
+                "minecraft:stone_brick_wall", 4096,
+                "minecraft:chain", 4096,
+                "minecraft:polished_diorite", 1472,
+                "minecraft:note_block", 960,
+                "minecraft:activator_rail", 576,
+                "minecraft:redstone", 576,
+                "minecraft:iron_trapdoor", 448,
+                "minecraft:white_concrete", 256,
+                "minecraft:scaffolding", 256,
+                "minecraft:polished_diorite_stairs", 192,
+                "minecraft:powered_rail", 192,
+                "minecraft:repeater", 192,
+                "minecraft:polished_diorite_slab", 192,
+                "minecraft:light_gray_glazed_terracotta", 192,
+                "minecraft:sticky_piston", 192,
+                "minecraft:iron_door", 192,
+                "minecraft:oak_fence_gate", 128,
+                "minecraft:slime_block", 128,
+                "minecraft:redstone_block", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:tnt", 64,
+                "minecraft:comparator", 60,
+                "minecraft:warped_fence_gate", 37,
+                "minecraft:oak_leaves", 30,
+                "minecraft:oak_log", 30,
+                "minecraft:redstone_torch", 20,
+                "minecraft:dropper", 15,
+                "minecraft:dead_horn_coral_fan", 14,
+                "minecraft:stone_button", 13,
+                "minecraft:furnace", 10,
+                "minecraft:composter", 8,
+                "minecraft:crimson_fence_gate", 8,
+                "minecraft:birch_log", 8,
+                "minecraft:birch_leaves", 8,
+                "minecraft:oak_sign", 6,
+                "minecraft:ender_chest", 4,
+                "minecraft:lever", 3,
+                "minecraft:anvil", 3,
+                "minecraft:target", 3,
+                "minecraft:black_stained_glass", 2,
+                "minecraft:cherry_sign", 2,
+                "minecraft:redstone_lamp", 1,
+                "minecraft:white_stained_glass_pane", 1);
         bom("sdzjz:drowned_tower", "minecraft:drowned", COB, 24, WB, 2, "minecraft:turtle_egg", 1,
                 "minecraft:copper_ingot", 4, HOP, 4, CHE, 2);
         // m172 僵尸增援溺尸塔：对表用户蓝图（78×21×46，4990 块：白玻璃2068/铁块1694/脚手架220/
@@ -446,7 +496,7 @@ public final class SuperBenchRecipes {
         int slots = 0;
         for (Map.Entry<String, Integer> e : ing.entrySet()) {
             int n = e.getValue();
-            if (n < 64) { slots += n; continue; } // 小件按 1 格 1 件保守计
+            if (n < 64) { slots += (n + 15) / 16; continue; } // 小件按 16/格 保守计（若引入 maxCount=1 的小件需另行过账）
             if (n % 64 != 0) throw new IllegalStateException(result + " 大宗 " + e.getKey() + "×" + n + " 非64整倍");
             int packs = n / 64;
             if (packs > 32) {
