@@ -147,5 +147,7 @@
   "sdzjz.extract_port.mode_out": "模式：送出 → 旁接机器（点击切换）",
   "sdzjz.extract_port.mode_in": "模式：回收 ← 旁接机器进存储（点击切换）",
   "sdzjz.extract_port.face_off": "已断开 %s 面连接（潜行右键缆芯该侧可恢复）",
-  "sdzjz.extract_port.face_on": "已恢复 %s 面连接"
+  "sdzjz.extract_port.face_on": "已恢复 %s 面连接",
+  "item.sdzjz.compressed_pack": "压缩材料包",
+  "item.sdzjz.super_compressed_pack": "超级压缩材料包"
 }

@@ -32,6 +32,8 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     // 面板加高到 332，贴图按 [0..TEX_SPLIT) 原样 + [TEX_TILE..TEX_SPLIT) 干净行带平铺 + [TEX_SPLIT..316) 底边带挪到新底，
     // 逐行扫描证实 242..306 行只有竖向边框线（0/5/175/264-267/466-469 列），平铺像素级无缝、艺术零拉伸。
     private static final int BH = 332, TEX_H = 316, TEX_SPLIT = 304, TEX_TILE = 288;
+    // m241 压缩区两钮（右栏底部，BOM 清单最深到 ~296、底边艺术带从 324 起，302..317 两不相扰）
+    private static final int BTN_Y = 302, BTN_H = 15, BTN_W = 93, BTN_GAP = 6;
 
     private int scroll = 0;
     private int selected = -1;                 // 选中配方（ALL 下标——填料协议 clickButton(idx) 口径不变）
@@ -93,6 +95,14 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
         ctx.drawBorder(x + PX - 2, y + SEARCH_Y - 1, PW, 14,
                 search != null && search.isFocused() ? CYAN : SciSkin.CELL_FRM);
 
+        // m241 压缩区两钮底格（label 在 drawForeground；悬停=强调色边）
+        for (int b = 0; b < 2; b++) {
+            int bx = x + PX + b * (BTN_W + BTN_GAP), by = y + BTN_Y;
+            boolean hov = mouseX >= bx && mouseX < bx + BTN_W && mouseY >= by && mouseY < by + BTN_H;
+            ctx.fill(bx, by, bx + BTN_W, by + BTN_H, SciSkin.BTN_FACE);
+            ctx.drawBorder(bx, by, BTN_W, BTN_H, hov ? CYAN : SciSkin.CELL_FRM);
+        }
+
         for (int r = 0; r < 12; r++)
             for (int c = 0; c < 12; c++)
                 cell(ctx, x + 8 + c * 18, y + 18 + r * 18);
@@ -144,6 +154,14 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             String nm = this.textRenderer.trimToWidth(res.getName().getString(), nameW);
             ctx.drawText(this.textRenderer, nm, PX + 20, ey + 4, TXT, false);
         }
+        // m241 压缩区两钮文字（居中；底格在 drawBackground）
+        String[] btnLabels = {"材料→压缩包", "拆开材料包"};
+        for (int b = 0; b < 2; b++) {
+            int bx = PX + b * (BTN_W + BTN_GAP);
+            int tw = this.textRenderer.getWidth(btnLabels[b]);
+            ctx.drawText(this.textRenderer, btnLabels[b], bx + (BTN_W - tw) / 2, BTN_Y + 4, TXT, false);
+        }
+
         // 滚动提示
         ctx.drawText(this.textRenderer, view.isEmpty() ? "没有匹配的机器"
                         : (scroll + LIST_ROWS < view.size() ? "▼ 滚轮翻页 " : "") + (scroll > 0 ? "▲" : ""),
@@ -218,6 +236,14 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         double rx = mouseX - this.x, ry = mouseY - this.y;
+        if (button == 0 && ry >= BTN_Y && ry < BTN_Y + BTN_H && rx >= PX && rx < PX + PW) { // m241 压缩区两钮
+            int b = rx < PX + BTN_W ? 0 : (rx >= PX + BTN_W + BTN_GAP ? 1 : -1);
+            if (b >= 0 && this.client != null && this.client.interactionManager != null) {
+                this.client.interactionManager.clickButton(this.handler.syncId,
+                        b == 0 ? SuperBenchScreenHandler.BTN_COMPRESS : SuperBenchScreenHandler.BTN_UNPACK);
+                return true;
+            }
+        }
         if (button == 0 && rx >= PX && rx <= PX + PW && ry >= LIST_Y && ry < LIST_Y + LIST_ROWS * ENTRY_H) {
             int row = (int) ((ry - LIST_Y) / ENTRY_H);
             int vi = scroll + row;

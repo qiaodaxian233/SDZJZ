@@ -156,9 +156,15 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         return slot.inventory != result;
     }
 
+    // ===== m241 压缩区（方案A）：保留钮 id 远离配方下标域，复用既有 clickButton 通道零新协议 =====
+    public static final int BTN_COMPRESS = 1_000_000; // 压缩网格材料（64→一级包，64一级→二级包，一次点击级联）
+    public static final int BTN_UNPACK   = 1_000_001; // 拆开材料包（二级→一级→原物，只落网格、拆前查容量）
+
     /** 配方浏览器点击：把 #id 配方的材料从背包填入网格（先清空网格还给玩家）。 */
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
+        if (id == BTN_COMPRESS) { if (!player.getWorld().isClient) compressGrid(player); return true; }
+        if (id == BTN_UNPACK)   { if (!player.getWorld().isClient) unpackGrid(player);   return true; }
         if (id < 0 || id >= SuperBenchRecipes.ALL.size()) return false;
         SuperBenchRecipes.Recipe r = SuperBenchRecipes.ALL.get(id);
         // 清空网格→还给玩家
@@ -264,6 +270,158 @@ public class SuperBenchScreenHandler extends ScreenHandler {
             if (s.isOf(item)) { int take = Math.min(need - got, s.getCount()); s.decrement(take); got += take; }
         }
         return got;
+    }
+
+    // ===== m241 压缩引擎（方案A，服务端权威）。口径：包=原版物品的数量压缩（作者拍板），
+    // 只压"无组件差异的普通物品"（附魔书/药水等跳过，防压包抹组件——精确条目教训同源）。 =====
+
+    /** 压缩：网格里同种普通物品每满 64 → 1 一级包；同内容一级包每满 64 → 1 二级包（一次点击级联）。 */
+    private void compressGrid(PlayerEntity player) {
+        long rawPacked = 0; int t1Made = 0, t2Made = 0;
+        Map<String, Integer> plain = new HashMap<>();
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+            if (!s.getComponentChanges().isEmpty()) continue;
+            plain.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+        }
+        for (Map.Entry<String, Integer> e : plain.entrySet()) {
+            int k = e.getValue() / 64;
+            if (k <= 0) continue;
+            takePlainFromGrid(e.getKey(), k * 64);
+            giveToGridOrPlayer(player, com.sdzjz.item.CompressedPackItem.of(
+                    com.sdzjz.registry.ModItems.COMPRESSED_PACK, e.getKey(), k));
+            rawPacked += (long) k * 64; t1Made += k;
+        }
+        Map<String, Integer> packs = new HashMap<>();
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.getItem() == com.sdzjz.registry.ModItems.COMPRESSED_PACK) {
+                String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+                if (in != null) packs.merge(in, s.getCount(), Integer::sum);
+            }
+        }
+        for (Map.Entry<String, Integer> e : packs.entrySet()) {
+            int k = e.getValue() / 64;
+            if (k <= 0) continue;
+            takePacksFromGrid(e.getKey(), k * 64);
+            giveToGridOrPlayer(player, com.sdzjz.item.CompressedPackItem.of(
+                    com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, e.getKey(), k));
+            t2Made += k;
+        }
+        input.markDirty();
+        if (t1Made == 0 && t2Made == 0) {
+            player.sendMessage(net.minecraft.text.Text.literal(
+                    "没有可压缩的（需网格里同种普通物品≥64，或同内容一级包≥64）")
+                    .formatted(net.minecraft.util.Formatting.GRAY), false);
+        } else {
+            player.sendMessage(net.minecraft.text.Text.literal(
+                    "压缩完成: " + (t1Made > 0 ? "一级包+" + t1Made + "（收纳原物 " + rawPacked + " 件）" : "")
+                    + (t1Made > 0 && t2Made > 0 ? "、" : "") + (t2Made > 0 ? "二级包+" + t2Made : ""))
+                    .formatted(net.minecraft.util.Formatting.GREEN), false);
+        }
+    }
+
+    /** 拆包：二级→一级→原物逐包拆，只落网格；拆前查网格容量，装不下就停并提示（不落地不丢件）。 */
+    private void unpackGrid(PlayerEntity player) {
+        boolean did = false, blocked = false;
+        Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
+        for (int pass = 0; pass < 2; pass++) {
+            Item packItem = pass == 0 ? t2 : t1;
+            boolean any = true;
+            while (any) {
+                any = false;
+                for (int i = 0; i < GRID_SLOTS; i++) {
+                    ItemStack s = input.getStack(i);
+                    if (s.getItem() != packItem) continue;
+                    String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+                    if (in == null) continue;
+                    ItemStack proto = pass == 0
+                            ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
+                            : new ItemStack(Registries.ITEM.get(Identifier.of(in)), 1);
+                    if (gridCapacityFor(proto) < 64) { blocked = true; continue; }
+                    s.decrement(1);
+                    if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
+                    int left = 64;
+                    while (left > 0) {
+                        int chunk = Math.min(left, proto.getMaxCount());
+                        ItemStack rem = insertToGrid(proto.copyWithCount(chunk));
+                        if (!rem.isEmpty()) { // 容量刚查过理论到不了；兜底还给玩家不落地
+                            if (!player.getInventory().insertStack(rem)) player.dropItem(rem, false);
+                        }
+                        left -= chunk;
+                    }
+                    did = true; any = true;
+                }
+            }
+        }
+        input.markDirty();
+        if (blocked) player.sendMessage(net.minecraft.text.Text.literal(
+                "网格空间不足，部分包未拆——先取走一些再点").formatted(net.minecraft.util.Formatting.RED), false);
+        else if (!did) player.sendMessage(net.minecraft.text.Text.literal("网格里没有材料包")
+                .formatted(net.minecraft.util.Formatting.GRAY), false);
+    }
+
+    /** 从网格取走 n 件指定 id 的"普通物品"（无组件差异；调用方已核总量足够）。 */
+    private void takePlainFromGrid(String id, int n) {
+        for (int i = 0; i < GRID_SLOTS && n > 0; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+            if (!s.getComponentChanges().isEmpty()) continue;
+            if (!Registries.ITEM.getId(s.getItem()).toString().equals(id)) continue;
+            int take = Math.min(n, s.getCount());
+            s.decrement(take); n -= take;
+            if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
+        }
+    }
+
+    /** 从网格取走 n 个装着 innerId 的一级包。 */
+    private void takePacksFromGrid(String innerId, int n) {
+        for (int i = 0; i < GRID_SLOTS && n > 0; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.getItem() != com.sdzjz.registry.ModItems.COMPRESSED_PACK) continue;
+            if (!innerId.equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+            int take = Math.min(n, s.getCount());
+            s.decrement(take); n -= take;
+            if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
+        }
+    }
+
+    /** 网格还能容纳多少件与 proto 同物同组件的东西（空格按 maxCount 计，同栈按余量计）。 */
+    private int gridCapacityFor(ItemStack proto) {
+        int cap = 0;
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.isEmpty()) cap += proto.getMaxCount();
+            else if (ItemStack.areItemsAndComponentsEqual(s, proto)) cap += Math.max(0, s.getMaxCount() - s.getCount());
+            if (cap >= 64) return cap; // 够本次拆包就不必扫完
+        }
+        return cap;
+    }
+
+    /** 插入网格：先并同物同组件栈，再落空格；返回没塞下的余量（可能为空栈）。 */
+    private ItemStack insertToGrid(ItemStack st) {
+        for (int i = 0; i < GRID_SLOTS && !st.isEmpty(); i++) {
+            ItemStack s = input.getStack(i);
+            if (!s.isEmpty() && ItemStack.areItemsAndComponentsEqual(s, st)) {
+                int room = s.getMaxCount() - s.getCount();
+                if (room > 0) { int mv = Math.min(room, st.getCount()); s.increment(mv); st.decrement(mv); }
+            }
+        }
+        for (int i = 0; i < GRID_SLOTS && !st.isEmpty(); i++) {
+            if (input.getStack(i).isEmpty()) {
+                int mv = Math.min(st.getMaxCount(), st.getCount());
+                input.setStack(i, st.copyWithCount(mv));
+                st.decrement(mv);
+            }
+        }
+        return st;
+    }
+
+    /** 压缩产物给回：优先网格，塞不下进背包，再不行落地（与关屏散落同口径）。 */
+    private void giveToGridOrPlayer(PlayerEntity player, ItemStack st) {
+        ItemStack rem = insertToGrid(st);
+        if (!rem.isEmpty() && !player.getInventory().insertStack(rem)) player.dropItem(rem, false);
     }
 
     @Override

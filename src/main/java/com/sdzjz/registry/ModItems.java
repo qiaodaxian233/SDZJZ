@@ -28,6 +28,8 @@ public class ModItems {
     public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Settings()));
     public static final Item STORAGE_UPGRADE   = reg("storage_upgrade", new Item(new Item.Settings()));
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
+    public static final Item COMPRESSED_PACK       = reg("compressed_pack",       new com.sdzjz.item.CompressedPackItem(new Item.Settings(), 64));   // m241 方案A 一级 64:1
+    public static final Item SUPER_COMPRESSED_PACK = reg("super_compressed_pack", new com.sdzjz.item.CompressedPackItem(new Item.Settings(), 4096)); // m241 方案A 二级 64²:1
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
     public static final Item LOGO = reg("logo", new Item(new Item.Settings())); // m93 创造栏标签图标(不入栏)
@@ -188,6 +190,8 @@ public class ModItems {
             entries.add(PARALLEL_UPGRADE);
             entries.add(STORAGE_UPGRADE);
             entries.add(CAPTURE_CAGE);
+            entries.add(COMPRESSED_PACK);       // m241
+            entries.add(SUPER_COMPRESSED_PACK); // m241
             entries.add(LINKER);
             entries.add(TERMINAL);
             entries.add(AUTO_FEEDER);
