@@ -280,7 +280,7 @@ public class Sdzjz implements ModInitializer {
     /** m269 每玩家每 tick C2S 写包预算（外部审计"速率限制"）：全部画布/面板写包都触发
      *  markDirty+syncToClient 全量同步，伪造包洪泛=同步风暴打卡主线程。正常 UI 交互每 tick
      *  至多几包，默认预算 40 绝不伤手感；超限静默丢弃（客户端下一次交互重发即生效）。
-     *  服务端主线程内调用（各接收器 execute 里），无并发问题；下线残留条目为几十字节可忽略。 */
+     *  服务端主线程内调用（各接收器 execute 里），无并发问题；m294 起下线即清、停服清空（此前"残留可忽略"的判断已过时）。 */
     private static final java.util.HashMap<java.util.UUID, long[]> WRITE_BUDGET = new java.util.HashMap<>();
     private static boolean writeBudget(ServerPlayerEntity p) {
         int cap = SdzjzConfig.get().packetWriteBudgetPerTick;

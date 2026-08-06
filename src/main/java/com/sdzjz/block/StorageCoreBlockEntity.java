@@ -36,7 +36,8 @@ import java.util.Set;
  *  数据面板/机器经网络(数据线/相邻)访问；机器/过滤器/熔炉只见普通账本。 */
 public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess {
 
-    /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。 */
+    /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。
+     *  m293 注：展示口径归本方法；插入闸另受 absoluteStorageTypeSafetyLimit(默认8192) 技术硬顶，见 typeGate()。 */
     private static int typesPerTier() { return com.sdzjz.config.SdzjzConfig.get().storageTypesPerTier; }
     private final LinkedHashMap<String, Long> store = new LinkedHashMap<>();
     // m130 精确存储：带组件物品的模板账本（模板 count=1 + 独立 long 计数，两表下标对齐）。

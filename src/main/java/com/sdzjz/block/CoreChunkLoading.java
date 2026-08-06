@@ -113,8 +113,12 @@ public final class CoreChunkLoading {
             w.getChunkManager().addTicket(CORE, cp, 2, cp); // 重复 addTicket 幂等，first 只为少打点
             Claims c = claims(w);
             if (c.chunks.add(cp.toLong())) c.markDirty();
-            if (priorOwned && w.getForcedChunks().contains(cp.toLong()))
+            if (priorOwned && w.getForcedChunks().contains(cp.toLong())) {
                 w.setChunkForced(cp.x, cp.z, false); // 旧通道换轨（一次性；管理员叠旗需重跑 /forceload，见类头）
+                com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] 强加载换轨：已撤下 {} 区块({}, {}) 的旧版 forced 旗"
+                        + "（核心改用自有票据）。若管理员曾对该区块执行过 /forceload，请重新执行一次以恢复。",
+                        dim, cp.x, cp.z);
+            }
         }
         return true;
     }
