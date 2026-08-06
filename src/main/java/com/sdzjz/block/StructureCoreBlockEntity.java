@@ -1855,7 +1855,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // 无线：范围内已加载的存储核心
         if (found.size() < ENDPOINT_CAP && hasWirelessNode(world, corePos)) {
             long range = SdzjzConfig.get().wirelessRange, r2 = range * range;
-            for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
+            for (BlockPos p : StorageCoreBlockEntity.coresNear(world, corePos, range)) { // m279 空间索引
                 if (found.size() >= ENDPOINT_CAP) break;
                 long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
                 if (dx * dx + dy * dy + dz * dz > r2) continue;
@@ -2773,7 +2773,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         long range = SdzjzConfig.get().wirelessRange;
         long r2 = range * range, best = Long.MAX_VALUE;
         StorageCoreBlockEntity found = null;
-        for (BlockPos p : java.util.List.copyOf(StorageCoreBlockEntity.coresIn(world))) {
+        for (BlockPos p : StorageCoreBlockEntity.coresNear(world, corePos, range)) { // m279 空间索引：只访问范围覆盖的桶
             long dx = p.getX() - corePos.getX(), dy = p.getY() - corePos.getY(), dz = p.getZ() - corePos.getZ();
             long d2 = dx * dx + dy * dy + dz * dz;
             if (d2 > r2 || d2 >= best) continue;

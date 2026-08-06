@@ -46,6 +46,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     private int tier = 1;
 
     private static final Map<RegistryKey<World>, Set<BlockPos>> CORES = new HashMap<>();
+    // m279 空间索引：按 (x>>6, z>>6) 64 格桶分区（y 不分桶，核心分布以水平为主）。与 CORES 平面表
+    // 双写同源（register/unregister/clearAll 单一漏斗），范围查询只访问 AABB 覆盖的桶。
+    private static final Map<RegistryKey<World>, Map<Long, Set<BlockPos>>> CORE_BUCKETS = new HashMap<>();
+    private static final int BUCKET_SHIFT = 6; // 桶边长 64 格
+
+    private static long bucketKey(int x, int z) { return packBuckets(x >> BUCKET_SHIFT, z >> BUCKET_SHIFT); }
+    private static long packBuckets(int bx, int bz) { // 手工打包零新 API（高32=z桶 低32=x桶）
+        return ((long) bz << 32) | (bx & 0xFFFFFFFFL);
+    }
 
     public StorageCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.STORAGE_CORE_BE, pos, state);
@@ -53,15 +62,45 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
 
     public static void register(World world, BlockPos pos) {
         if (world.isClient) return;
-        CORES.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>()).add(pos.toImmutable());
+        BlockPos ip = pos.toImmutable();
+        if (!CORES.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>()).add(ip)) return; // 已登记=桶里必已有
+        CORE_BUCKETS.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>())
+                .computeIfAbsent(bucketKey(ip.getX(), ip.getZ()), k -> new HashSet<>()).add(ip);
     }
     public static void unregister(World world, BlockPos pos) {
         Set<BlockPos> s = CORES.get(world.getRegistryKey());
         if (s != null) s.remove(pos);
+        Map<Long, Set<BlockPos>> bm = CORE_BUCKETS.get(world.getRegistryKey()); // m279 桶同步剔除
+        if (bm != null) {
+            long k = bucketKey(pos.getX(), pos.getZ());
+            Set<BlockPos> b = bm.get(k);
+            if (b != null && b.remove(pos) && b.isEmpty()) bm.remove(k); // 空桶回收防泄漏
+        }
     }
     public static Set<BlockPos> coresIn(World world) {
         return CORES.getOrDefault(world.getRegistryKey(), Set.of());
     }
+
+    /** m279 范围查询：只访问 AABB 覆盖的桶，返回快照列表（调用方 loadedCoreAt 触发 unregister
+     *  也不炸游标）。候选按桶粒度粗筛，精确球面距离仍由调用方判（口径与旧全表扫一致）。
+     *  桶格数超阈值（超大 range 配置）退回全表快照——桶遍历不许比旧路径还贵。 */
+    public static List<BlockPos> coresNear(World world, BlockPos center, long range) {
+        Map<Long, Set<BlockPos>> bm = CORE_BUCKETS.get(world.getRegistryKey());
+        if (bm == null || bm.isEmpty()) return List.of();
+        int r = (int) Math.min(range, 30_000_000L);
+        int b0x = (center.getX() - r) >> BUCKET_SHIFT, b1x = (center.getX() + r) >> BUCKET_SHIFT;
+        int b0z = (center.getZ() - r) >> BUCKET_SHIFT, b1z = (center.getZ() + r) >> BUCKET_SHIFT;
+        long cells = (long) (b1x - b0x + 1) * (b1z - b0z + 1);
+        if (cells > 1024 || cells > 4L * bm.size()) return List.copyOf(coresIn(world)); // 兜底：稀桶/巨范围走全表
+        List<BlockPos> out = new ArrayList<>();
+        for (int bx = b0x; bx <= b1x; bx++)
+            for (int bz = b0z; bz <= b1z; bz++) {
+                Set<BlockPos> b = bm.get(packBuckets(bx, bz));
+                if (b != null) out.addAll(b);
+            }
+        return out;
+    }
+
     public static Set<RegistryKey<World>> dimensionsWithCores() {
         return CORES.keySet();
     }
@@ -69,6 +108,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     /** 服务器停止时清空登记表（防跨存档幽灵坐标）。 */
     public static void clearAll() {
         CORES.clear();
+        CORE_BUCKETS.clear(); // m279
     }
 
     /**
