@@ -62,11 +62,6 @@ public final class CoreChunkLoading {
         return w.getForcedChunks().contains(cp.toLong());
     }
 
-    /** m268 该区块此刻是否已被（任何来源）forced。 */
-    private static boolean isForcedNow(ServerWorld w, ChunkPos cp) {
-        return w.getForcedChunks().contains(cp.toLong());
-    }
-
     /** 登记并钉住核心自身区块（重复登记幂等）。
      *  m268 priorOwned=核心持久化的既有所有权（重启后运行时表虽空但它仍在）——若本核心此前就
      *  拥有该区块所有权，即便此刻 getForcedChunks 仍显示 forced（正是它自己重启前钉的），也保持

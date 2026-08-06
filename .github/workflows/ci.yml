@@ -21,6 +21,8 @@ jobs:
         run: python3 docs/tools_docs_sync.py
       - name: 画布取色作用域巡检(m255 回归尺,防事件路径裸取色)
         run: python3 docs/tools_color_scope_audit.py
+      - name: 重复方法定义检查(m271 回归尺,冒烟盲区#3=参数类型不可解析时javac不报already defined)
+        run: python3 docs/tools_dup_method_check.py
 
   build:
     name: Gradle 编译出包
