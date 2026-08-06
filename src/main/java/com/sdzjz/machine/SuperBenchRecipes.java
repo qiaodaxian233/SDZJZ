@@ -121,23 +121,17 @@ public final class SuperBenchRecipes {
         bom("sdzjz:chorus_farm", "", "minecraft:chorus_flower", 4, EST, 24, GL, 8,
                 "minecraft:popped_chorus_fruit", 2, HOP, 4, CHE, 2);
         bom("sdzjz:cobble_maker", "", WB, 1, LB, 1, PIS, 2, OSV, 2, RSD, 4, SST, 8, HOP, 4, CHE, 2); // m168 回归：入门款=原版就俩桶，全表最便宜
-        // m245 百万刷石机全量过账（mC 首台，520万刷石机.litematic 实测 99587 块）：旧 m168 ÷≈700 蒸馏版
-        // 退役，改 bomPacked 全量总数（归一化口径：红石线→红石/壁挂火把→手持/壁挂告示牌→手持/
-        // 壁挂珊瑚扇→手持；水=64桶打水税（水无限+桶可复用）、岩浆=一桶一源全量4096；活塞臂·玩家头
-        // 剔除=技术方块/生存不可获得；蝙蝠·发光鱿鱼·掉落物实体不计料）。取整策略：二级溢价≤15%
-        // 或一级超32格→全二级，否则全一级，一律向上取整——50 种料、BOM 总数 113182（溢价 18.1%）、
-        // 保守槽位 59；大宗 9 种全二级：圆石 32768/白玻璃 20480/活塞·黑曜石各 12288/侦测器·闪长岩墙
-        // 各 8192/岩浆桶·石砖墙·锁链各 4096。
+        // m247 重取整（m245 首账，策略修正后溢价 18.1%→8.3%）：520万刷石机.litematic 全量 99587 块；计料实测 95830→BOM 103774（溢价 8.3%），保守槽位 75。
         bomPacked("sdzjz:mega_cobble_maker", "",
                 "minecraft:cobblestone", 32768,
                 "minecraft:white_stained_glass", 20480,
-                "minecraft:piston", 12288,
-                "minecraft:obsidian", 12288,
+                "minecraft:piston", 10112,
+                "minecraft:obsidian", 9280,
                 "minecraft:observer", 8192,
-                "minecraft:diorite_wall", 8192,
+                "minecraft:diorite_wall", 5952,
                 "minecraft:lava_bucket", 4096,
                 "minecraft:stone_brick_wall", 4096,
-                "minecraft:chain", 4096,
+                "minecraft:chain", 2112,
                 "minecraft:polished_diorite", 1472,
                 "minecraft:note_block", 960,
                 "minecraft:activator_rail", 576,
@@ -181,14 +175,57 @@ public final class SuperBenchRecipes {
                 "minecraft:white_stained_glass_pane", 1);
         bom("sdzjz:drowned_tower", "minecraft:drowned", COB, 24, WB, 2, "minecraft:turtle_egg", 1,
                 "minecraft:copper_ingot", 4, HOP, 4, CHE, 2);
-        // m172 僵尸增援溺尸塔：对表用户蓝图（78×21×46，4990 块：白玻璃2068/铁块1694/脚手架220/
-        // 黏液块184/蜂蜜块105=推板双件/岩浆块8击杀），÷≈64 蒸馏；笼子要僵尸——增援机制的种子
-        // 是僵尸，进水才转溺尸（与基础款溺尸笼刻意不同，原版梗）。
-        bom("sdzjz:mega_drowned_tower", "minecraft:zombie", "minecraft:white_stained_glass", 32,
-                "minecraft:iron_block", 26, "minecraft:scaffolding", 4, "minecraft:slime_block", 3,
-                "minecraft:honey_block", 2, RSD, 2, "minecraft:comparator", 1,
-                "minecraft:sticky_piston", 1, "minecraft:magma_block", 1, "minecraft:oak_leaves", 1,
-                WB, 1, HOP, 4, CHE, 2);
+        // m247 全量过账：僵尸增援溺尸塔.litematic 4990 块（他模组背包×1 剔除；盔甲架3+展示框1=实体入料；僵尸笼=增援种子口径照旧）；计料实测 5022→BOM 5348（溢价 6.5%），保守槽位 55。
+        bomPacked("sdzjz:mega_drowned_tower", "minecraft:zombie",
+                "minecraft:white_stained_glass", 2112,
+                "minecraft:iron_block", 1728,
+                "minecraft:scaffolding", 256,
+                "minecraft:slime_block", 192,
+                "minecraft:redstone", 192,
+                "minecraft:honey_block", 128,
+                "minecraft:glass", 128,
+                "minecraft:oak_leaves", 128,
+                "minecraft:comparator", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:white_glazed_terracotta", 54,
+                "minecraft:smooth_stone", 35,
+                "minecraft:sticky_piston", 31,
+                "minecraft:powered_rail", 14,
+                "minecraft:hopper", 14,
+                "minecraft:obsidian", 14,
+                "minecraft:redstone_torch", 12,
+                "minecraft:repeater", 11,
+                "minecraft:oak_sign", 10,
+                "minecraft:dropper", 9,
+                "minecraft:spruce_trapdoor", 9,
+                "minecraft:observer", 8,
+                "minecraft:magma_block", 8,
+                "minecraft:lever", 8,
+                "minecraft:composter", 6,
+                "minecraft:note_block", 5,
+                "minecraft:smooth_stone_slab", 5,
+                "minecraft:soul_sand", 4,
+                "minecraft:target", 4,
+                "minecraft:powder_snow_bucket", 3,
+                "minecraft:armor_stand", 3,
+                "minecraft:iron_trapdoor", 2,
+                "minecraft:crafter", 2,
+                "minecraft:stone_brick_slab", 2,
+                "minecraft:dispenser", 2,
+                "minecraft:oak_button", 2,
+                "minecraft:furnace", 2,
+                "minecraft:white_carpet", 2,
+                "minecraft:redstone_lamp", 1,
+                "minecraft:packed_ice", 1,
+                "minecraft:oak_trapdoor", 1,
+                "minecraft:sculk_catalyst", 1,
+                "minecraft:redstone_block", 1,
+                "minecraft:lava_bucket", 1,
+                "minecraft:stone_button", 1,
+                "minecraft:rail", 1,
+                "minecraft:activator_rail", 1,
+                "minecraft:barrel", 1,
+                "minecraft:item_frame", 1);
         bom("sdzjz:flesh_farm", "minecraft:zombie", COB, 24, WB, 2, TRAP, 4, "minecraft:rotten_flesh", 4, HOP, 4, CHE, 2);
         bom("sdzjz:glass_kiln", "", FUR, 8, SND, 16, "minecraft:charcoal", 8, HOP, 8, CHE, 2);
         bom("sdzjz:gold_smelter", "", FUR, 8, "minecraft:raw_gold", 8, LB, 1, HOP, 8, CHE, 2);
@@ -287,14 +324,59 @@ public final class SuperBenchRecipes {
                 "minecraft:smooth_stone_slab", 1, LB, 1, CHE, 1);
         bom("sdzjz:raid_tower", "minecraft:pillager", "minecraft:bell", 1, BED, 1, COB, 32, WB, 2, // 钟+床=一格假村庄
                 "minecraft:emerald", 4, HOP, 4, CHE, 4);
-        // m172 百万劫掠塔：对表用户蓝图（101×183×37，7594 块：白玻璃2118/平滑石1654/红石线321/
-        // 漏斗264/侦测器241/铁块212/中继器190/石按钮177/黏液块176，村民16=假村庄+劫掠兽入栏），
-        // ÷≈80 蒸馏；钟+床=一格假村庄梗照基础款。
-        bom("sdzjz:mega_raid_tower", "minecraft:pillager", "minecraft:white_stained_glass", 26,
-                SST, 21, "minecraft:smooth_stone_slab", 5, RSD, 4, "minecraft:powered_rail", 3,
-                OSV, 3, "minecraft:iron_block", 3, "minecraft:repeater", 2, "minecraft:stone_button", 2,
-                "minecraft:slime_block", 2, "minecraft:sticky_piston", 2, "minecraft:bell", 1, BED, 1,
-                HOP, 4, CHE, 2);
+        // m247 全量过账：百万劫掠塔.litematic 7594 块（他模组背包×3 剔除；盔甲架×2=实体入料；村民16/劫掠兽=活体不入料，掠夺者笼照旧）；计料实测 7460→BOM 8146（溢价 9.2%），保守槽位 63。
+        bomPacked("sdzjz:mega_raid_tower", "minecraft:pillager",
+                "minecraft:white_stained_glass", 2176,
+                "minecraft:smooth_stone", 1664,
+                "minecraft:smooth_stone_slab", 448,
+                "minecraft:redstone", 384,
+                "minecraft:hopper", 320,
+                "minecraft:powered_rail", 320,
+                "minecraft:observer", 256,
+                "minecraft:iron_block", 256,
+                "minecraft:repeater", 192,
+                "minecraft:blue_stained_glass", 192,
+                "minecraft:stone_button", 192,
+                "minecraft:slime_block", 192,
+                "minecraft:comparator", 192,
+                "minecraft:stone_brick_wall", 192,
+                "minecraft:sticky_piston", 192,
+                "minecraft:white_glazed_terracotta", 128,
+                "minecraft:sand", 128,
+                "minecraft:redstone_torch", 128,
+                "minecraft:piston", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:obsidian", 40,
+                "minecraft:white_stained_glass_pane", 38,
+                "minecraft:iron_trapdoor", 36,
+                "minecraft:scaffolding", 32,
+                "minecraft:stone_brick_stairs", 32,
+                "minecraft:fletching_table", 28,
+                "minecraft:cobblestone_stairs", 28,
+                "minecraft:redstone_block", 24,
+                "minecraft:crafter", 24,
+                "minecraft:lantern", 16,
+                "minecraft:packed_ice", 12,
+                "minecraft:oak_trapdoor", 12,
+                "minecraft:spruce_trapdoor", 11,
+                "minecraft:note_block", 9,
+                "minecraft:oak_button", 9,
+                "minecraft:cobblestone_wall", 8,
+                "minecraft:pointed_dripstone", 6,
+                "minecraft:birch_sign", 5,
+                "minecraft:honey_block", 4,
+                "minecraft:lever", 4,
+                "minecraft:iron_door", 4,
+                "minecraft:redstone_lamp", 3,
+                "minecraft:beacon", 3,
+                "minecraft:soul_sand", 3,
+                "minecraft:oak_leaves", 2,
+                "minecraft:cake", 2,
+                "minecraft:spruce_sign", 2,
+                "minecraft:armor_stand", 2,
+                "minecraft:sculk_catalyst", 1,
+                "minecraft:dispenser", 1,
+                "minecraft:composter", 1);
         bom("sdzjz:rail_machine", "", "minecraft:iron_ingot", 16, "minecraft:stick", 8, "minecraft:rail", 4,
                 FUR, 2, HOP, 4, CHE, 2);
         bom("sdzjz:sand_maker", "", "minecraft:tnt", 2, SND, 8, SST, 16, RSD, 4, HOP, 4, CHE, 2);
@@ -313,14 +395,62 @@ public final class SuperBenchRecipes {
         bom("sdzjz:sugarcane_farm", "", "minecraft:sugar_cane", 8, SND, 8, WB, 2, OSV, 8, PIS, 8, RSD, 8,
                 SST, 12, HOP, 4, CHE, 2);
         bom("sdzjz:super_smelter", "", FUR, 16, HOP, 16, CHE, 8, "minecraft:coal_block", 4); // 原版超级熔炉阵=炉与漏斗海
-        // m173 1728熔炉阵：对表用户"1728熔炉背包版"蓝图（54×28×63，20076 块：白玻璃5673/
-        // 漏斗4760=漏斗海/动力铁轨3839/熔炉1728/投掷器866/蓝冰130冰道/漏斗矿车9），÷≈200 蒸馏；
-        // 煤炭块4=燃料税照基础款。
-        bom("sdzjz:mega_super_smelter", "", "minecraft:white_stained_glass", 28, HOP, 24,
-                "minecraft:powered_rail", 19, FUR, 9, "minecraft:dropper", 4, WB, 3,
-                "minecraft:smooth_stone_slab", 3, "minecraft:oak_leaves", 1, "minecraft:white_concrete", 1,
-                "minecraft:redstone_block", 1, "minecraft:slime_block", 1, "minecraft:blue_ice", 1,
-                "minecraft:composter", 1, "minecraft:coal_block", 4, CHE, 2);
+        // m247 全量过账：1728熔炉背包版.litematic 20076 块（他模组背包×2 剔除；漏斗矿车×9=实体入料）；计料实测 19510→BOM 20475（溢价 4.9%），保守槽位 80。
+        bomPacked("sdzjz:mega_super_smelter", "",
+                "minecraft:white_stained_glass", 5696,
+                "minecraft:hopper", 4800,
+                "minecraft:powered_rail", 4096,
+                "minecraft:furnace", 1728,
+                "minecraft:dropper", 896,
+                "minecraft:smooth_stone_slab", 576,
+                "minecraft:oak_leaves", 320,
+                "minecraft:white_concrete", 192,
+                "minecraft:redstone_block", 192,
+                "minecraft:slime_block", 192,
+                "minecraft:blue_ice", 192,
+                "minecraft:composter", 128,
+                "minecraft:white_stained_glass_pane", 128,
+                "minecraft:rail", 128,
+                "minecraft:redstone_torch", 128,
+                "minecraft:moss_block", 128,
+                "minecraft:lever", 128,
+                "minecraft:white_carpet", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:iron_trapdoor", 60,
+                "minecraft:piston", 51,
+                "minecraft:activator_rail", 49,
+                "minecraft:light_gray_carpet", 48,
+                "minecraft:observer", 47,
+                "minecraft:redstone", 41,
+                "minecraft:repeater", 33,
+                "minecraft:chest", 30,
+                "minecraft:note_block", 30,
+                "minecraft:oak_fence_gate", 26,
+                "minecraft:mud", 25,
+                "minecraft:detector_rail", 24,
+                "minecraft:stone_pressure_plate", 24,
+                "minecraft:dead_bubble_coral_fan", 24,
+                "minecraft:stone_brick_stairs", 14,
+                "minecraft:lava_bucket", 12,
+                "minecraft:stone_button", 12,
+                "minecraft:magma_block", 12,
+                "minecraft:stonecutter", 12,
+                "minecraft:sticky_piston", 11,
+                "minecraft:comparator", 10,
+                "minecraft:hopper_minecart", 9,
+                "minecraft:glow_lichen", 7,
+                "minecraft:lantern", 7,
+                "minecraft:spruce_trapdoor", 5,
+                "minecraft:soul_sand", 2,
+                "minecraft:scaffolding", 2,
+                "minecraft:cauldron", 1,
+                "minecraft:stone_brick_wall", 1,
+                "minecraft:dispenser", 1,
+                "minecraft:redstone_lamp", 1,
+                "minecraft:honey_block", 1,
+                "minecraft:oak_sign", 1,
+                "minecraft:daylight_detector", 1,
+                "minecraft:target", 1);
         bom("sdzjz:swamp_spawner", "minecraft:bogged", "minecraft:mud", 16, TRAP, 4, WB, 1,
                 "minecraft:arrow", 4, HOP, 4, CHE, 2);
         bom("sdzjz:tree_farm", "", "minecraft:oak_sapling", 8, DRT, 16, BM, 16, "minecraft:apple", 2, HOP, 4, CHE, 2);
@@ -328,23 +458,66 @@ public final class SuperBenchRecipes {
                 "minecraft:string", 4, HOP, 4, CHE, 2);
         bom("sdzjz:witch_tower", "minecraft:witch", PLK, 24, "minecraft:cauldron", 1, TRAP, 4, WB, 2, // 锅=原版女巫小屋标配
                 BOT, 4, HOP, 4, CHE, 2);
-        // m171 沼泽刷怪塔：对表用户 v2 蓝图（litematic 实测 6013 块：平滑石台阶2746/平滑石1159铺台/
-        // 白玻璃528/石砖楼梯344/樱花活板门180/岩浆块124击杀层/灵魂营火22/矿车62收集车队/漏斗矿车2，
-        // ÷≈50 取整）——83 件 17 种，女巫笼照基础款、锅=女巫身份件。
-        bom("sdzjz:mega_witch_tower", "minecraft:witch", "minecraft:smooth_stone_slab", 24, SST, 12,
-                "minecraft:white_stained_glass", 8, "minecraft:stone_brick_stairs", 6, RSD, 4, HOP, 4,
-                "minecraft:cherry_trapdoor", 4, "minecraft:magma_block", 3, WB, 3, OSV, 2,
-                "minecraft:minecart", 2, CHE, 2, "minecraft:white_concrete", 1, "minecraft:soul_campfire", 1,
-                "minecraft:packed_ice", 1, "minecraft:cauldron", 1);
+        // m247 全量过账：沼泽刷怪塔v2.litematic 6013 块（收集车队 矿车62+漏斗矿车2、展示框 3+荧光5=实体入料）；计料实测 5833→BOM 6038（溢价 3.5%），保守槽位 57。
+        bomPacked("sdzjz:mega_witch_tower", "minecraft:witch",
+                "minecraft:smooth_stone_slab", 2752,
+                "minecraft:smooth_stone", 1216,
+                "minecraft:white_stained_glass", 576,
+                "minecraft:stone_brick_stairs", 384,
+                "minecraft:redstone", 256,
+                "minecraft:cherry_trapdoor", 192,
+                "minecraft:magma_block", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:minecart", 62,
+                "minecraft:hopper", 58,
+                "minecraft:white_concrete", 56,
+                "minecraft:observer", 36,
+                "minecraft:cherry_fence_gate", 26,
+                "minecraft:dropper", 23,
+                "minecraft:soul_campfire", 22,
+                "minecraft:packed_ice", 18,
+                "minecraft:comparator", 18,
+                "minecraft:redstone_torch", 16,
+                "minecraft:powered_rail", 15,
+                "minecraft:cherry_pressure_plate", 14,
+                "minecraft:note_block", 11,
+                "minecraft:cherry_button", 8,
+                "minecraft:repeater", 7,
+                "minecraft:white_stained_glass_pane", 7,
+                "minecraft:composter", 7,
+                "minecraft:cherry_sign", 6,
+                "minecraft:slime_block", 6,
+                "minecraft:sticky_piston", 6,
+                "minecraft:dispenser", 5,
+                "minecraft:piston", 5,
+                "minecraft:shulker_box", 5,
+                "minecraft:glow_item_frame", 5,
+                "minecraft:scaffolding", 4,
+                "minecraft:powder_snow_bucket", 4,
+                "minecraft:crafter", 4,
+                "minecraft:chest", 4,
+                "minecraft:soul_sand", 3,
+                "minecraft:barrel", 3,
+                "minecraft:item_frame", 3,
+                "minecraft:hopper_minecart", 2,
+                "minecraft:iron_trapdoor", 1);
         bom("sdzjz:wither_skeleton_farm", "minecraft:wither_skeleton", NBK, 32, "minecraft:soul_sand", 4,
                 "minecraft:coal", 4, "minecraft:bone", 2, HOP, 4, CHE, 2);
-        // m172 凋零骷髅农场（工程款）：对表用户蓝图（41×21×34，5365 块：凋灵玫瑰2166+土2162=
-        // 玫瑰击杀层、铁傀儡×15仇恨、传送门80格、龟蛋1诱饵），÷≈80 蒸馏；玫瑰27=击杀层主料
-        // （进度自咬合：先有凋灵玫瑰农场量产玫瑰，才铺得起这张击杀层）。
-        bom("sdzjz:mega_wither_skeleton_farm", "minecraft:wither_skeleton",
-                "minecraft:wither_rose", 27, DRT, 27, "minecraft:smooth_stone_slab", 5,
-                "minecraft:cherry_trapdoor", 2, OBSI, 2, "minecraft:glass_pane", 1,
-                "minecraft:turtle_egg", 1, "minecraft:flint_and_steel", 1, HOP, 4, CHE, 2);
+        // m247 全量过账：凋零骷髅农场.litematic 5260 块（铁傀儡×15仇恨=铁块60+雕刻南瓜15 按召唤仪式入料）；计料实测 5255→BOM 5481（溢价 4.3%），保守槽位 17。
+        bomPacked("sdzjz:mega_wither_skeleton_farm", "minecraft:wither_skeleton",
+                "minecraft:wither_rose", 2176,
+                "minecraft:dirt", 2176,
+                "minecraft:smooth_stone_slab", 448,
+                "minecraft:cherry_trapdoor", 192,
+                "minecraft:white_stained_glass", 128,
+                "minecraft:cobblestone_wall", 128,
+                "minecraft:obsidian", 128,
+                "minecraft:iron_block", 60,
+                "minecraft:glass_pane", 24,
+                "minecraft:carved_pumpkin", 15,
+                "minecraft:grass_block", 4,
+                "minecraft:turtle_egg", 1,
+                "minecraft:cherry_sign", 1);
         // m174 凋灵玫瑰农场：对表用户"26k凋灵玫瑰农场"蓝图（53×53×69，3632 块：末地石砖1562/
         // 白玻璃1359/白地毯332/箱64/漏斗48/冰道30；实体=铁傀儡+凋灵+矿车），÷≈40 蒸馏；
         // 灵魂沙4+凋骷头3=凋灵召唤料（与凋骷农场自咬合），铁傀儡笼=受害者。102件15种。
@@ -482,11 +655,12 @@ public final class SuperBenchRecipes {
     }
 
     /** m244 打包版 BOM（工程款全量总数用）：kv 仍为 (原版物品id, 原版总数) 交替——匹配/缺料全按
-     *  原版计数（m242 内核认包），数字直接写 litematic 全量过账后的取整值（策略：二级向上取整溢价≤15%
-     *  或一级包要超 32 格→全二级，否则全一级，一律向上取整）。layout=null 即"打包填料"标记：
+     *  原版计数（m242 内核认包），数字直接写 litematic 全量过账后的取整值（m247 修正策略：二级仅在
+     *  向上取整溢价≤15% 时用，否则一级向上取整——旧"一级超32格→全二级"的前提是 1格1件排包，
+     *  已被包堆叠 64/格 淘汰，中等量级会造 46%~96% 虚溢价）。layout=null 即"打包填料"标记：
      *  填料钮不铺蓝图，改从背包按内容物贪心搬压缩包（二级→一级→散件），见 Handler.pullPacked。
      *  离线断言（类加载即炸，宁可开不了游戏不可带病上线）：①大宗(≥64)须 64 整倍；
-     *  ②一级要超 32 格(>2048)须 4096 整倍（策略"全二级"）；③保守槽位账 Σceil(包数/64)+小件件数 ≤144。 */
+     *  ②保守槽位账 Σceil(一级包数/64)+小件件数/16 ≤144（一级最密口径，二级只会更省）。 */
     private static void bomPacked(String result, String mobsCsv, Object... kv) {
         List<String> mobs = mobsCsv.isEmpty() ? java.util.List.<String>of() : List.of(mobsCsv.split(","));
         Map<String, Integer> ing = new java.util.LinkedHashMap<>();
@@ -498,12 +672,7 @@ public final class SuperBenchRecipes {
             int n = e.getValue();
             if (n < 64) { slots += (n + 15) / 16; continue; } // 小件按 16/格 保守计（若引入 maxCount=1 的小件需另行过账）
             if (n % 64 != 0) throw new IllegalStateException(result + " 大宗 " + e.getKey() + "×" + n + " 非64整倍");
-            int packs = n / 64;
-            if (packs > 32) {
-                if (n % 4096 != 0) throw new IllegalStateException(result + " " + e.getKey() + "×" + n + " 一级超32格须全二级(4096整倍)");
-                packs = n / 4096;
-            }
-            slots += (packs + 63) / 64; // 同内容包堆到 64/格
+            slots += (n / 64 + 63) / 64; // 一级包 64/格 最密口径
         }
         if (slots > SLOTS) throw new IllegalStateException(result + " 打包槽位账 " + slots + " > 144");
         ALL.add(new Recipe(result, null, ing, mobs, 1, tierOf(result)));
