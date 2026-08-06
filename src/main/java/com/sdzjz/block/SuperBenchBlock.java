@@ -16,7 +16,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /** 超大工作台：12×12 合成站（无形状匹配机器配方）。网格仍随开关暂存在 Handler；
- *  m249 升级 BlockWithEntity——BE 零数据，只给客户端动画渲染器当挂点（悬浮全息合成网格）。
+ *  m249 升级 BlockWithEntity——BE 零数据当渲染挂点；m277 全息 BER 退役改贴图帧动画后
+ *  BE 暂留（撤 BlockWithEntity 会让旧档已放置方块丢 BE 报孤儿告警，退役议题挂待办池）。
  *  注意 BlockWithEntity 默认渲染型 INVISIBLE，必须覆写回 MODEL（结构核心同款雷）。 */
 public class SuperBenchBlock extends BlockWithEntity {
 
