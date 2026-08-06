@@ -135,6 +135,35 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
 
     public int tier() { return tier; }
     public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
+    // ===== m295 精确账本内存索引（外部审计 P2：账本自身仍是 List 线性找）=====
+    // 列表仍是唯一权威与落盘格式（undo 语义/存档零改动），旁挂 transient ItemVariant→下标索引：
+    // 查找 逐条组件深比 O(n) → 哈希 O(1)（ItemVariant equals=物品+组件，与 areItemsAndComponentsEqual
+    // 同口径，m267 展示聚合在树先例）；追加 O(1)；删除 O(n) 但只平移整数下标（无组件比较，常数便宜
+    // 一两个量级）；**事务回滚重放/NBT 读回直接置脏懒重建**（abort/读档罕见，正确性优先）。
+    private transient java.util.HashMap<ItemVariant, Integer> exactIdx; // null=脏
+
+    private int exactIndexOf(ItemStack probe) {
+        var m = exactIdx;
+        if (m == null) {
+            m = new java.util.HashMap<>();
+            for (int i = 0; i < exactTpl.size(); i++) m.put(ItemVariant.of(exactTpl.get(i)), i);
+            exactIdx = m;
+        }
+        Integer i = m.get(ItemVariant.of(probe));
+        return i == null ? -1 : i;
+    }
+
+    private void exactIdxAppended() { // append 之后调（新条目下标=size-1）
+        if (exactIdx != null) exactIdx.put(ItemVariant.of(exactTpl.get(exactTpl.size() - 1)), exactTpl.size() - 1);
+    }
+
+    private void exactIdxRemoved(int i, ItemStack tpl) { // remove(i) 之后调：删键+平移
+        var m = exactIdx;
+        if (m == null) return;
+        m.remove(ItemVariant.of(tpl));
+        for (var e : m.entrySet()) if (e.getValue() > i) e.setValue(e.getValue() - 1);
+    }
+
     public int usedTypes() { return store.size() + exactTpl.size(); } // m130：精确条目同占类型额度
 
     /** m293 插入闸口径（外部审计 P2：默认无限类型=最大的存档/NBT/GUI 排序压力源没有技术保险）：
@@ -187,17 +216,17 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     /** m130：精确存入——按「物品+组件」找同款条目并账；新类型受同一类型上限（拒收时栈原样保留）。 */
     public void depositExact(ItemStack stack) {
         if (stack.isEmpty()) return;
-        for (int i = 0; i < exactTpl.size(); i++) {
-            if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), stack)) {
-                exactN.set(i, satAdd(exactN.get(i), stack.getCount())); // m273 饱和加法
-                stack.setCount(0);
-                markDirty();
-                return;
-            }
+        int hit = exactIndexOf(stack); // m295 索引直查（等价旧 areItemsAndComponentsEqual 扫描）
+        if (hit >= 0) {
+            exactN.set(hit, satAdd(exactN.get(hit), stack.getCount())); // m273 饱和加法
+            stack.setCount(0);
+            markDirty();
+            return;
         }
         if (usedTypes() >= typeGate()) return; // m293
         exactTpl.add(stack.copyWithCount(1));
         exactN.add((long) stack.getCount());
+        exactIdxAppended(); // m295
         stack.setCount(0);
         markDirty();
     }
@@ -205,15 +234,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     /** m130：精确取出——按「物品+组件」匹配模板，返回实际取出数量。 */
     public int withdrawExact(ItemStack template, int amount) {
         if (template == null || template.isEmpty() || amount <= 0) return 0;
-        for (int i = 0; i < exactTpl.size(); i++) {
-            if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), template)) {
-                long have = exactN.get(i);
-                int take = (int) Math.min((long) amount, have);
-                long left = have - take;
-                if (left <= 0) { exactTpl.remove(i); exactN.remove(i); } else exactN.set(i, left);
-                if (take > 0) markDirty();
-                return take;
-            }
+        int i = exactIndexOf(template); // m295 索引直查
+        if (i >= 0) {
+            long have = exactN.get(i);
+            int take = (int) Math.min((long) amount, have);
+            long left = have - take;
+            if (left <= 0) { ItemStack t = exactTpl.get(i); exactTpl.remove(i); exactN.remove(i); exactIdxRemoved(i, t); }
+            else exactN.set(i, left);
+            if (take > 0) markDirty();
+            return take;
         }
         return 0;
     }
@@ -296,24 +325,24 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 storeRev++; // m218
                 return accept;
             }
-            for (int i = 0; i < exactTpl.size(); i++) { // 带组件走精确账本（m130 同款匹配）
-                if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) {
-                    long cur = exactN.get(i);
-                    long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
-                    if (accept <= 0) return 0;
-                    updateSnapshots(tx);
-                    final int idx = i; // m278 前像：循环变量非等效 final，取别名入日志
-                    undoJournal.add(() -> exactN.set(idx, cur));
-                    exactN.set(i, cur + accept);
-                    return accept;
-                }
+            int hit = exactIndexOf(one); // m295 索引直查（带组件走精确账本，m130 同款口径）
+            if (hit >= 0) {
+                long cur = exactN.get(hit);
+                long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
+                if (accept <= 0) return 0;
+                updateSnapshots(tx);
+                final int idx = hit; // m278 前像
+                undoJournal.add(() -> exactN.set(idx, cur));
+                exactN.set(hit, cur + accept);
+                return accept;
             }
             if (usedTypes() >= typeGate()) return 0; // m293
             updateSnapshots(tx);
-            undoJournal.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）
-                int last = exactTpl.size() - 1; exactTpl.remove(last); exactN.remove(last); });
+            undoJournal.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）；m295 动列表即置脏索引
+                int last = exactTpl.size() - 1; exactTpl.remove(last); exactN.remove(last); exactIdx = null; });
             exactTpl.add(one); // toStack(1) 即模板规格（count=1，组件原样）
             exactN.add(maxAmount);
+            exactIdxAppended(); // m295
             return maxAmount;
         }
 
@@ -331,23 +360,23 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 storeRev++; // m218
                 return take;
             }
-            for (int i = 0; i < exactTpl.size(); i++) {
-                if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) {
-                    long have = exactN.get(i);
-                    long take = Math.min(have, maxAmount);
-                    if (take <= 0) return 0;
-                    updateSnapshots(tx);
-                    final int idx = i;
-                    if (have - take <= 0) {
-                        final ItemStack ptpl = exactTpl.get(i); // m278 结构前像：原下标插回（模板从不被原地改，存引用即安全）
-                        undoJournal.add(() -> { exactTpl.add(idx, ptpl); exactN.add(idx, have); });
-                        exactTpl.remove(i); exactN.remove(i);
-                    } else {
-                        undoJournal.add(() -> exactN.set(idx, have));
-                        exactN.set(i, have - take);
-                    }
-                    return take;
+            int i = exactIndexOf(one); // m295 索引直查
+            if (i >= 0) {
+                long have = exactN.get(i);
+                long take = Math.min(have, maxAmount);
+                if (take <= 0) return 0;
+                updateSnapshots(tx);
+                final int idx = i;
+                if (have - take <= 0) {
+                    final ItemStack ptpl = exactTpl.get(i); // m278 结构前像：原下标插回（模板从不被原地改，存引用即安全）
+                    undoJournal.add(() -> { exactTpl.add(idx, ptpl); exactN.add(idx, have); exactIdx = null; }); // m295 动列表即置脏
+                    exactTpl.remove(i); exactN.remove(i);
+                    exactIdxRemoved(i, ptpl); // m295
+                } else {
+                    undoJournal.add(() -> exactN.set(idx, have));
+                    exactN.set(i, have - take);
                 }
+                return take;
             }
             return 0;
         }
@@ -382,9 +411,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             @Override public long getAmount() {
                 if (id != null) return store.getOrDefault(id, 0L);
                 ItemStack one = v.toStack(1);
-                for (int i = 0; i < exactTpl.size(); i++)
-                    if (ItemStack.areItemsAndComponentsEqual(exactTpl.get(i), one)) return exactN.get(i);
-                return 0;
+                int i = exactIndexOf(one); // m295 索引直查（管道每 tick 模拟就打它，收益最大的一处）
+                return i >= 0 ? exactN.get(i) : 0;
             }
 
             @Override public long getCapacity() { return Long.MAX_VALUE; }
@@ -452,6 +480,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         }
         if (dropped > 0) com.sdzjz.Sdzjz.LOGGER.warn("存储核心 {} 账本读入丢弃 {} 条非法条目（空id或非正计数）", pos, dropped);
         storeRev++; // m218（NBT 读回=整本换血，记一次）
+        exactIdx = null; // m295 读档置脏（懒重建）
         exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
         exactN.clear();
         NbtList ex = nbt.getList("exact", NbtElement.COMPOUND_TYPE);

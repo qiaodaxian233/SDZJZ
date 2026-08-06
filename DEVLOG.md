@@ -4493,3 +4493,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **修法**：ServerPlayConnectionEvents.DISCONNECT 下线即 remove(uuid)；SERVER_STOPPED 顺入既有
   清理块 clear()。yarn 核名：ServerPlayNetworkHandler 无 getPlayer()，走公开字段 player(field_14140)。
 - 单条目几十字节本无大碍（m269 注释原判），但修起来两行——审计说得对，便宜的债当场清。
+
+## m295 精确账本内存索引（外部审计 P2：账本自身仍是 List 线性找）
+
+- **方案**：列表仍是唯一权威与落盘格式（undo 语义/存档**零改动**——这是全模组最怕出复制 bug 的地带，
+  不动权威结构），旁挂 transient `ItemVariant→下标` HashMap：查找从逐条组件深比 O(n) 变哈希 O(1)
+  （ItemVariant equals=物品+组件，与 areItemsAndComponentsEqual 同口径，m267 在树先例）；追加 O(1)；
+  删除仍 O(n) 但只平移整数下标，无组件比较，常数便宜一两个量级；**事务回滚重放/NBT 读回一律置脏
+  懒重建**（abort/读档罕见，正确性优先于省一次重建）。
+- **换装五处**：depositExact、withdrawExact、Fabric insert/extract 精确分支、StorageView.getAmount
+  （管道每 tick 模拟就打它，收益最大）。两个动列表的 undo lambda 内嵌 exactIdx=null。
+  areItemsAndComponentsEqual(exactTpl…) 全库残留 0。
+- **验证**：冒烟真错 0；python 双实现模拟 5 万步（存/取/**回滚置脏**混打，每步全物品索引 vs 线性
+  逐一对账）全等。实机脚本：附魔书/药水灌几百种进核心，管道抽取/JEI 填料照常；事务型管道
+  （Create 传送带怼脸）反复启停无账目漂移。
