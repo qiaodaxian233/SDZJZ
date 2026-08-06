@@ -56,6 +56,7 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             if (hasInner) {
                 ItemStack inner = new ItemStack(innerItem);
                 var innerModel = ir.getModel(inner, mc.world, null, 0);
+                sheen(inner, innerModel); // m285 扁平件扫光
                 matrices.push();
                 matrices.scale(0.8F, 0.8F, 0.8F);
                 if (spd > 0 && innerModel.hasDepth())
@@ -81,6 +82,7 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             if (hasInner) {
                 ItemStack inner = new ItemStack(innerItem);
                 var innerModel = ir.getModel(inner, mc.world, null, 0);
+                sheen(inner, innerModel); // m285 扁平件扫光
                 matrices.push();
                 matrices.scale(0.5F, 0.5F, 0.5F);
                 if (spd > 0 && innerModel.hasDepth())
@@ -96,6 +98,17 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
         }
 
         matrices.pop();
+    }
+
+    /** m285 扁平内容物扫光（作者："旋转可以加一个扫光，给那些不能旋转的用"）：3D 方块有自转动效，
+     *  扁平物品（剑/锭/粉）静止太素——给展示栈开原版附魔流光组件（ENCHANTMENT_GLINT_OVERRIDE，
+     *  1.20.5+ 数据组件，在树 CUSTOM_DATA/POTION_CONTENTS 同命名律），流光贴图按物品 alpha 裁形
+     *  =天然只扫在物品像素上不糊框，GUI/手持/掉落全模式同效零自定义几何。展示栈是本渲染器现造的
+     *  临时栈，不碰真实物品组件。可能与真附魔物观感混淆——包内容物按构造只会是原版散件、tooltip
+     *  写明内容物，可接受；不喜欢一键关配置。 */
+    private static void sheen(ItemStack inner, net.minecraft.client.render.model.BakedModel innerModel) {
+        if (!innerModel.hasDepth() && com.sdzjz.config.SdzjzConfig.get().compressedPackFlatSheen)
+            inner.set(net.minecraft.component.DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, Boolean.TRUE);
     }
 
     /** m280 自转角：时间源 Util.getMeasuringTimeMs()（m148 在树先例）与 tick 无关恒匀速，按整圈周期取模防浮点漂移。 */

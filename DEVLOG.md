@@ -4339,3 +4339,15 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **API 核名**：yarn 1.21.1 BakedModel#method_4709→getTransformation()、ModelTransformation#method_3503
   →getTransformation(class_811)、Transformation#method_23075→apply(Z,MatrixStack) 三处逐一核到。
 - 实机脚本：手持压缩冰块一/三人称看方块居中框内自转不出框；掉落/展示框同看；GUI 图标与此前一致。
+
+## m285 扁平内容物扫光（作者："旋转可以加一个扫光（给那些不能旋转的用）"）
+
+- **修法**：给包展示栈按需开原版附魔流光组件 ENCHANTMENT_GLINT_OVERRIDE（1.20.5+ 数据组件，
+  在树 CUSTOM_DATA/POTION_CONTENTS 同命名律=组件 id 大写，高置信；待编译复核）。原版流光就是现成的
+  斜向扫光语言，且按物品贴图 alpha 裁形=只扫在物品像素上不糊到框外，GUI/手持/掉落全模式同效、
+  零自定义几何零新渲染层。只给 !hasDepth() 的扁平件（3D 方块有自转不叠光）。展示栈是渲染器现造
+  临时栈，不碰真实物品组件。
+- **边界**：观感可能与真附魔物混淆——包内容物按构造只会是原版散件且 tooltip 写明内容物，可接受；
+  介意一键关 `compressedPackFlatSheen=false`。
+- **配置**：compressedPackFlatSheen=true，configVersion 28→29。冒烟真错 0，sheen/配置键定向检零真错。
+- 实机脚本：压缩铁锭包=锭面流光扫动、压缩圆石包=只自转不上光；关配置流光消失。
