@@ -516,8 +516,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         boolean hovAny = hovN >= 0 || hovEnd != Long.MIN_VALUE;
 
-        ctx.enableScissor(0, 24, workRight(), botTop()); // m159 画布剪刀：drawItem自带z偏移(~150)
-        // 会穿透后画的底栏平面填充（用户截图：状态栏上叠机器/升级图标）——整段机器区裁到工作视口
+        // m263 总线带底缘（收起=44，展开随端点行数走）——机器层剪刀顶缘用它：drawItem 自带 z 偏移(~150)，
+        // 卡片滑进带下时图标会穿透后画的 z0 带填充（m159 底栏同病，作者截图：物品图穿模顶部栏）。
+        // 机器层直接裁到带底 = 带区内不再有任何机器像素可穿；带本体改在机器层之后按原 24 剪刀单独画。
+        int bandBot = Math.min(busVisible()
+                ? busCardTop() + Math.max(1, (ends.size() + busCols() - 1) / busCols()) * busRowStep() + 2
+                : 44, botTop());
+        ctx.enableScissor(0, bandBot, workRight(), botTop()); // m159 画布剪刀（m263 顶缘 24→带底）
         // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）
         java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
                 groupsOn() ? groupMembers(be) : new java.util.LinkedHashMap<>();
@@ -691,11 +696,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(bx2 - 1, by1, bx2, by2, boxC);
         }
         m.pop();
+        ctx.disableScissor(); // m263 机器层剪刀到此为止（顶缘=带底）
 
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
+        ctx.enableScissor(0, 24, workRight(), botTop()); // m263 带本体沿用原 24 剪刀（库存条图标顶 2px 照旧裁掉，视觉零漂移）
         {
-            int rows = Math.max(1, (ends.size() + busCols() - 1) / busCols());
-            int bot = busVisible() ? busCardTop() + rows * busRowStep() + 2 : 44; // 收起=只留头部行（内容底缘41），两模式同高
+            int bot = bandBot; // m263 与机器层剪刀同源（收起=只留头部行，内容底缘41，两模式同高）
             SciSkin.termBand(ctx, 8, 24, workRight() - 8, bot); // m203 总线带换浅色主题（旧半透深底字面量退役）
             SciSkin.termBandLine(ctx, 8, workRight() - 8, bot - 2); // m203 底轨随主题（旧轨道色字面量退役）
             ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SciSkin.termInk(), false); // m203 浅带写墨字
@@ -728,7 +734,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 cx += cw;
             }
         }
-        ctx.disableScissor(); // m159 机器区裁剪到此为止——拖线预览/总线卡/小地图要全屏可见
+        ctx.disableScissor(); // m263 带剪刀到此为止——拖线预览/总线卡/小地图要全屏可见（m159 语义不变）
         // 定向连线本体已前移到节点卡片之前绘制（m136 走下层）；此处只留拖线预览（反馈要压最上层）
         if (linking && linkStor != Long.MIN_VALUE) {
             int j = endpointIndex(ends, linkStor);
