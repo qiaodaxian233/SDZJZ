@@ -174,11 +174,11 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
 
     /** m212 JEI"+"填料（服务端权威）：仓储优先取料、背包兜底；网格里不匹配的先退回背包（原版清格语义）。
      *  自家 C2S 包驱动（JeiFillPayload），不依赖 JEI 的服务端搬运——专用服务器无需装 JEI。 */
-    public void jeiFill(net.minecraft.server.network.ServerPlayerEntity player, net.minecraft.util.Identifier rid, boolean max) {
-        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return; // 服务端权威（m95 口径）
+    public int jeiFill(net.minecraft.server.network.ServerPlayerEntity player, net.minecraft.util.Identifier rid, boolean max) {
+        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return 0; // 服务端权威（m95 口径）
         var w = panel.getWorld();
         var entry = w.getRecipeManager().get(rid).orElse(null);
-        if (entry == null || !(entry.value() instanceof net.minecraft.recipe.CraftingRecipe cr)) return;
+        if (entry == null || !(entry.value() instanceof net.minecraft.recipe.CraftingRecipe cr)) return 0;
         var ings = cr.getIngredients();
         net.minecraft.recipe.Ingredient[] want = new net.minecraft.recipe.Ingredient[9]; // 展平 3×3：有形按宽高左上对齐，无形顺排
         if (cr instanceof net.minecraft.recipe.ShapedRecipe sr) {
@@ -262,7 +262,8 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         }
         updateCraftResult();
         sendContentUpdates();
-        if (missing > 0) player.sendMessage(net.minecraft.text.Text.literal("JEI 填料：缺 " + missing + " 格材料（仓储+背包都没有）"), true);
+        if (missing > 0) player.sendMessage(net.minecraft.text.Text.literal("填料：缺 " + missing + " 格材料（仓储+背包都没有）"), true);
+        return missing; // m281 配方书路径按它决定是否回发 ghost 包
     }
 
     /** m212 取料原语：仓储按 id 取（只对无组件候选，与 m106 补料同口径）→ 背包同款无组件兜底。 */
@@ -594,6 +595,21 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     @Override
     public boolean canInsertIntoSlot(int index) { // 原版语义：清格时哪些前排格该移回背包
         return index != RESULT;
+    }
+
+    /** m281 原版配方书点配方的服务端落点：客户端 RecipeBookWidget 点配方发 CraftRequestC2SPacket →
+     *  ServerPlayNetworkHandler 查到配方后调本方法（学 Tom's Simple Storage 的机制，代码自写）。
+     *  原版默认体 = InputSlotFiller 只会从【玩家背包】搬料——终端语义必须仓储优先，
+     *  所以整体换成 m212 的 jeiFill（清不匹配→仓储取料→背包兜底→同料均分→余量回流仓储，语义完全同 JEI"+"）。
+     *  缺料时回发原版 CraftFailedResponseS2CPacket：客户端配方书在网格画半透明 ghost 配方（原版工作台同款观感）。
+     *  craftAll(shift点配方)=装满一组，单击=每格 1 个——与 jeiFill 的 max 参数语义一一对应。
+     *  【待编译验证】形参按原版源写 RecipeEntry<?>（网络处理器传入的是未定型 entry）；若 CI 红改 RecipeEntry<CraftingRecipe> 重试。 */
+    @Override
+    public void fillInputSlots(boolean craftAll, net.minecraft.recipe.RecipeEntry<?> recipe,
+                               net.minecraft.server.network.ServerPlayerEntity player) {
+        int missing = jeiFill(player, recipe.id(), craftAll);
+        if (missing > 0) player.networkHandler.sendPacket(
+                new net.minecraft.network.packet.s2c.play.CraftFailedResponseS2CPacket(this.syncId, recipe));
     }
 
     @Override

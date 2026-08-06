@@ -15,10 +15,22 @@ import net.minecraft.util.math.BlockPos;
  *  m200 照作者设计稿整体重铺：浅灰+紫主题（7 色全走 SciSkin.termXxx 配置出口）、分区卡片（标题栏/搜索/
  *  存储网格/背包/经验库/合成终端/回收）、圆角细边+受光渐变质感；标题栏"主题"钮开游戏内调色面板，
  *  打字实时换肤（m199 同款 live 写配置 + SciSkin 串比缓存）。全屏 BG 贴图退役，改程序化卡片。 */
-public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
+public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
+        implements net.minecraft.client.gui.screen.recipebook.RecipeBookProvider {
 
     private TextFieldWidget search;
     private int scroll = 0;
+
+    // ===== m281 原版配方书（学 Tom's Simple Storage 的机制自写）：handler 侧 m201 已继承
+    // AbstractRecipeScreenHandler=协议地基早备好，本次补上屏端三件：RecipeBookWidget 实体、
+    // 绿书开关钮（原版 BUTTON_TEXTURES 同款贴图）、RecipeBookProvider 接口（ghost 回包找得到书）。
+    // 点配方的服务端落点在 handler.fillInputSlots（已改仓储优先），客户端零新协议。
+    private final net.minecraft.client.gui.screen.recipebook.RecipeBookWidget recipeBook =
+            new net.minecraft.client.gui.screen.recipebook.RecipeBookWidget();
+    private boolean narrow;
+    private boolean bookOn; // 配置开关快照（init 时读一次，terminalRecipeBook=false 整套隐身）
+    private net.minecraft.client.gui.widget.TexturedButtonWidget bookBtn;
+    private static final int BOOK_BTN_DX = 328, BOOK_BTN_DY = 82; // 合成终端卡标题行右端（几何唯一口径）
 
     // ===== m200 主题调色面板（modal，照 m199 画布设置面板刀法）=====
     private boolean themeOpen = false;
@@ -39,6 +51,23 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     @Override
     protected void init() {
         super.init();
+        // ===== m281 配方书先行：findLeftEdge 会在书打开时把窗体右移，必须先定 this.x 再摆自家控件 =====
+        this.bookOn = com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook;
+        if (bookOn) {
+            this.narrow = this.width < 563; // 原版 379=176窗+203书区，同比例换算 360+203
+            this.recipeBook.initialize(this.width, this.height, this.client, this.narrow, this.handler);
+            this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
+            this.bookBtn = new net.minecraft.client.gui.widget.TexturedButtonWidget(
+                    this.x + BOOK_BTN_DX, this.y + BOOK_BTN_DY, 20, 18,
+                    net.minecraft.client.gui.screen.recipebook.RecipeBookWidget.BUTTON_TEXTURES, b -> {
+                recipeBook.toggleOpen();
+                this.x = recipeBook.findLeftEdge(this.width, this.backgroundWidth); // 开合即时挪窗（原版 CraftingScreen 同款）
+                b.setPosition(this.x + BOOK_BTN_DX, this.y + BOOK_BTN_DY);
+                if (search != null) search.setX(this.x + 16); // 自家绝对坐标控件跟着窗体走
+            });
+            this.addDrawableChild(bookBtn);
+            this.addSelectableChild(this.recipeBook); // 书的搜索框走原版焦点派发链吃键盘
+        }
         // m161b 搜索框去黑壳（setDrawsBackground(false)，卡片接管观感）；resize 保留已输入文字（pickerField 惯例）。
         String keep = this.search != null ? this.search.getText() : "";
         this.search = new TextFieldWidget(this.textRenderer, this.x + 16, this.y + 30, 176, 12, Text.literal("搜索"));
@@ -268,6 +297,11 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
             qtySlot = -1;
             return true;
         }
+        // m281 配方书点击（原版 CraftingScreen 同款）：命中即夺焦；窄屏开书=书外点击全吞防误操作底下窗
+        if (bookOn) {
+            if (this.recipeBook.mouseClicked(mx, my, button)) { this.setFocused(this.recipeBook); return true; }
+            if (this.narrow && this.recipeBook.isOpen()) return true;
+        }
         // m107b：滚动条命中——点轨道跳页并开始拖拽（浮层打开时不抢，见上）
         int sbx = this.x + 181;
         if (button == 0 && mx >= sbx - 1 && mx <= sbx + 7 && my >= this.y + 52 && my <= this.y + 160) {
@@ -389,6 +423,37 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
     public void removed() {
         if (themeOpen) com.sdzjz.config.SdzjzConfig.save(); // m200 主题窗开着直接关屏也落盘（m199 同款兜底）
         super.removed();
+    }
+
+    // ===== m281 配方书四件收尾（全按原版 CraftingScreen 刀法）=====
+    @Override
+    protected void handledScreenTick() {
+        super.handledScreenTick();
+        if (bookOn) this.recipeBook.update(); // 背包变动→"可合成"筛选/ghost 跟着刷
+    }
+
+    @Override
+    protected void onMouseClick(net.minecraft.screen.slot.Slot slot, int slotId, int button,
+                                net.minecraft.screen.slot.SlotActionType actionType) {
+        super.onMouseClick(slot, slotId, button, actionType);
+        if (bookOn) this.recipeBook.slotClicked(slot); // 手动动格=清 ghost（原版语义）
+    }
+
+    @Override
+    protected boolean isClickOutsideBounds(double mx, double my, int left, int top, int button) {
+        boolean out = mx < left || my < top || mx >= left + this.backgroundWidth || my >= top + this.backgroundHeight;
+        if (!bookOn) return out;
+        // 书区不算"窗外"——否则拿着东西点书=误丢地上（原版同款合取）
+        return this.recipeBook.isClickOutsideBounds(mx, my, this.x, this.y,
+                this.backgroundWidth, this.backgroundHeight, button) && out;
+    }
+
+    @Override
+    public void refreshRecipeBook() { this.recipeBook.refresh(); } // 数据包重载(/reload)后原版回调
+
+    @Override
+    public net.minecraft.client.gui.screen.recipebook.RecipeBookWidget getRecipeBookWidget() {
+        return this.recipeBook; // CraftFailedResponse 回包经它把 ghost 配方摆进网格
     }
 
     // ===== m200 主题调色面板 =====
@@ -561,8 +626,19 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler> {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
+        // m281 渲染次序照原版 CraftingScreen：窄屏开书=书盖窗只画底；常规=窗→书→网格 ghost；tooltip 殿后
+        if (bookOn && this.recipeBook.isOpen() && this.narrow) {
+            this.renderBackground(ctx, mouseX, mouseY, delta);
+            this.recipeBook.render(ctx, mouseX, mouseY, delta);
+        } else {
+            super.render(ctx, mouseX, mouseY, delta);
+            if (bookOn) {
+                this.recipeBook.render(ctx, mouseX, mouseY, delta);
+                this.recipeBook.drawGhostSlots(ctx, this.x, this.y, true, delta); // 缺料半透明配方影
+            }
+        }
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
+        if (bookOn) this.recipeBook.drawTooltip(ctx, this.x, this.y, mouseX, mouseY);
         if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行（m200 换终端主题皮；m202 抬 z=400 防槽物品穿透）
             ctx.getMatrices().push();
             ctx.getMatrices().translate(0, 0, 400);

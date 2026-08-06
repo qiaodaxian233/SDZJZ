@@ -4270,3 +4270,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：全库冒烟真错 0；新符号 compressedPackSpinDegPerSec 定向 grep 报错=0。
   实机脚本：创造拿一级/二级压缩包（内容物选石头等方块）——GUI 格子里、手持、掉落三视角中间方块匀速慢转、
   边框静止；内容物换成剑/锭等扁平物品不转；配置改 0 后全部静止。
+
+## m281 存储终端接原版配方书（作者点名"Tom's 的面板怎么调用这个书，咱们的合成终端为什么不能"——学机制自己写）
+
+- **机制账（Tom's/原版工作台同一条链）**：客户端 `RecipeBookWidget` 点配方 → 原版 `CraftRequestC2SPacket` →
+  `ServerPlayNetworkHandler` 查到配方 → 调当前 `AbstractRecipeScreenHandler.fillInputSlots`。Tom's 的终端能用书，
+  就是因为它的 handler 继承了这个抽象类、screen 挂了这个部件。咱们 m201 早已继承（populateRecipeFinder 等
+  九个覆写全备），缺的只有屏端三件——本次补齐，零新协议零抄码。
+- **屏端**（DataPanelScreen，全按原版 CraftingScreen 刀法）：implements RecipeBookProvider；绿书钮
+  TexturedButtonWidget+RecipeBookWidget.BUTTON_TEXTURES（合成终端卡标题行右端 328,82，几何常量收口）；
+  init 先 findLeftEdge 定 x 再摆自家控件（开书窗体右移，搜索框 setX 跟走）；render 次序=窄屏开书书盖窗/常规
+  窗→书→drawGhostSlots→双 tooltip；mouseClicked 书命中夺焦+窄屏开书吞穿透（排 modal/浮层之后自家区域之前）；
+  handledScreenTick→update、onMouseClick→slotClicked、isClickOutsideBounds 书区不算窗外（防拿物点书误丢）。
+  narrow 阈值 563=原版 379-176+360 同比例换算。
+- **服务端**（DataPanelScreenHandler）：覆写 fillInputSlots——原版默认体 InputSlotFiller 只从玩家背包搬料，
+  终端语义换成 m212 jeiFill（清不匹配→**仓储优先取料**→背包兜底→同料均分→余量回流），craftAll↔max 语义一一对应；
+  jeiFill 返回缺料数，>0 回发原版 CraftFailedResponseS2CPacket=网格画半透明 ghost（原版工作台同款观感）。
+- **边界**：书内"可合成"筛选按原版口径=玩家背包+网格（客户端不知全网库存）；点配方后由仓储真填料，
+  所以"不可合成"灰名单里的配方点了也可能填成功——属预期，挂待办池（要精准需同步网络库存摘要给客户端）。
+- **API 核名**：RecipeBookWidget 11 方法/BUTTON_TEXTURES、RecipeBookProvider 2 方法、fillInputSlots(Z,RecipeEntry,ServerPlayerEntity)、
+  CraftFailedResponseS2CPacket(int,RecipeEntry) 全按 yarn 1.21.1 官方映射核过；【待编译验证】fillInputSlots 形参
+  RecipeEntry<?>（照原版源，网络层传未定型 entry），CI 红则改 RecipeEntry<CraftingRecipe> 重试。
+- **配置**：terminalRecipeBook=true（false=整套隐身），configVersion 26→27。
+- **验证**：冒烟真错 0；terminalRecipeBook/bookOn/BOOK_BTN 定向 grep 报错=0；dup_method/取色巡检/文档同步/资源审计/配方校验五道闸全绿。
+  实机脚本：开存储终端→合成终端卡标题行见绿书钮→点开出原版配方书面板→点熔炉配方=仓储自动填料出结果；
+  shift 点配方=填满一组；仓储+背包都缺料=网格现半透明 ghost+actionbar 报缺；配置关掉后书钮消失一切如旧。
