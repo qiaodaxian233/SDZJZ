@@ -478,21 +478,31 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         ItemStack stack = slot.getStack();
 
         if (index >= DISP0 && index < INV0) { // m201 展示区=10..63
-            // 展示格 → 玩家背包：先试塞（真身副本），按实际塞入量扣账。
-            // 顺序绝不能反：先扣后塞时背包满/塞一半 = 物品凭空消失。
+            // m266 P0 复制窗修复（外部审计报告）：**先取账本、再按实取量塞背包**。
+            // 旧序=先塞背包→按塞入量补扣账本，忽略 withdraw 实际返回值——展示格是 10t 节拍的
+            // 缓存快照，账本已被别人取空时（两个面板/两个玩家同 tick 抢最后一组，各有各的缓存）
+            // 玩家照样先拿到 64 个，账本只扣得到 0~10=凭空复制。普通单击路径当年查了实取量，
+            // shift 路径没查。现在改成账本权威：取多少给多少，塞不下的原路退回账本绝不落地。
+            // 顺序安全性：先扣后塞的老风险（背包满=物品消失）由末尾 deposit 回退兜住。
             ItemStack clean = stack.copy(); // m130：剥 amt 即真身——精确件保留组件，普通件归零组件（双端同算）
             stripAmt(clean);
-            int before = clean.getCount();
-            this.insertItem(clean, INV0, TRASH, true);
-            int inserted = before - clean.getCount();
-            if (inserted > 0 && panel != null && !player.getWorld().isClient) { // m112 账本只在服务端扣
-                ItemStack tpl = stack.copy();
-                stripAmt(tpl);
-                if (tpl.getComponentChanges().isEmpty())
-                    panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), inserted);
-                else panel.withdrawExact(tpl, inserted);
-                panel.refreshDisplay(); // 余量立刻回显
+            if (player.getWorld().isClient || panel == null) { // 客户端不预测（m95 教训）：账本只在服务端
+                slot.setStack(ItemStack.EMPTY);
+                return ItemStack.EMPTY;
             }
+            int want = Math.min(clean.getCount(), clean.getMaxCount()); // 展示数已是一格量，再钳一道
+            int got = clean.getComponentChanges().isEmpty()
+                    ? panel.withdraw(Registries.ITEM.getId(stack.getItem()).toString(), want)
+                    : panel.withdrawExact(clean.copy(), want);
+            if (got <= 0) { // 账本已空：什么都不给，立刻刷新让展示缓存跟上真相
+                panel.refreshDisplay();
+                slot.setStack(ItemStack.EMPTY);
+                return ItemStack.EMPTY;
+            }
+            ItemStack giving = clean.copyWithCount(got);
+            this.insertItem(giving, INV0, TRASH, true);
+            if (!giving.isEmpty()) panel.deposit(giving); // 背包塞不下的余量原路退回账本（绝不落地）
+            panel.refreshDisplay(); // 余量立刻回显
             slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
         } else if (index >= CRAFT0 && index < RESULT) {
