@@ -4295,3 +4295,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：冒烟真错 0；terminalRecipeBook/bookOn/BOOK_BTN 定向 grep 报错=0；dup_method/取色巡检/文档同步/资源审计/配方校验五道闸全绿。
   实机脚本：开存储终端→合成终端卡标题行见绿书钮→点开出原版配方书面板→点熔炉配方=仓储自动填料出结果；
   shift 点配方=填满一组；仓储+背包都缺料=网格现半透明 ghost+actionbar 报缺；配置关掉后书钮消失一切如旧。
+
+## m282 存储终端搜索拼音首字母匹配（作者点名"搜索要支持首字母匹配"）
+
+- **修法**：新 `client/PinyinInitials.java`（零外部依赖零新协议，纯客户端）——中文逐字取声母首字母、
+  ASCII 取词首字母（"zs"→钻石、"xjhjd"→下界合金锭、"ii"→Iron Ingot）。matchByLocalName 同循环并建
+  `initIndex`（随语言探针同弃重建），纯 ASCII 字母查询才开首字母通道，与子串通道**取并集**不抢不挡；
+  结果照旧走 m267 的 matchedIds 管道，服务端 `id.contains(q) || matchedIds` 本就并集口径，零服务端改动。
+- **算法账**：一级字库（3755 常用字，GB2312 按拼音排序）走经典区位边界法（GBK 双字节码位落 23 段）；
+  **二级字库（3008 字按部首排序，边界法必漏——"燧石/鹦鹉螺壳"实测漏字）走硬表**：pypinyin 离线全量生成
+  两串等长常量（17KB 源码）。GBK 扩展罕见字不产键静默跳过；运行时无 GBK 字符集=整通道静默降级。
+  多音字取字库排序音（行业通行口径，检索足够）。
+- **验证**：新回归尺 `docs/tools_pinyin_check.py`（自锚定路径）三道断言全过=边界表逐值对经典表/二级字符集
+  与 GB2312 二级全集逐位同序+首字母全 a-z/端到端 15 例；该类零 MC 依赖，沙箱 javac 真编译+真跑 6 例全过
+  （含燧/鹦/鹉二级字实锤位）；全库冒烟真错 0，PinyinInitials/terminalSearchInitials/initIndex 定向检 0。
+- **配置**：`terminalSearchInitials=true`，configVersion 27→28；搜索框提示改"搜索物品，中文/首字母…"。
+- 实机脚本：终端搜"zs"出钻石、"ss"出燧石、"fmjpg"出附魔金苹果；中文搜索原样；配置关掉后纯字母只走子串。

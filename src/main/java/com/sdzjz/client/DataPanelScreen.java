@@ -143,6 +143,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     // m107a：此前每敲一个字全注册表逐项 new ItemStack+本地化(1400+项)——改静态索引一次构建。
     // 语言切换探针：石头的本地化名变了=换了语言，重建索引（不引入 LanguageManager 新接口，复用已有 getName 路径）。
     private static java.util.LinkedHashMap<String, String> nameIndex;
+    private static java.util.LinkedHashMap<String, String> initIndex; // m282 id→拼音/词首字母键（与 nameIndex 同建同弃）
     private static String nameProbe;
 
     private static java.util.List<String> matchByLocalName(String q) {
@@ -150,16 +151,24 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         String probe = new net.minecraft.item.ItemStack(net.minecraft.item.Items.STONE).getName().getString();
         if (nameIndex == null || !probe.equals(nameProbe)) {
             java.util.LinkedHashMap<String, String> idx = new java.util.LinkedHashMap<>();
-            for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM)
-                idx.put(net.minecraft.registry.Registries.ITEM.getId(item).toString(),
-                        new net.minecraft.item.ItemStack(item).getName().getString().toLowerCase());
+            java.util.LinkedHashMap<String, String> ini = new java.util.LinkedHashMap<>();
+            for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM) {
+                String id = net.minecraft.registry.Registries.ITEM.getId(item).toString();
+                String nm = new net.minecraft.item.ItemStack(item).getName().getString();
+                idx.put(id, nm.toLowerCase());
+                ini.put(id, PinyinInitials.of(nm)); // m282：一次同建，语言切换随探针同弃重建
+            }
             nameIndex = idx;
+            initIndex = ini;
             nameProbe = probe;
         }
         String lower = q.toLowerCase();
+        // m282 首字母通道：纯 ASCII 字母查询才开（"zs"→钻石/"xjhjd"→下界合金锭），与子串通道取并集不抢不挡
+        boolean byInit = com.sdzjz.config.SdzjzConfig.get().terminalSearchInitials && PinyinInitials.applicable(lower);
         java.util.List<String> out = new java.util.ArrayList<>();
         for (java.util.Map.Entry<String, String> e : nameIndex.entrySet()) {
-            if (e.getValue().contains(lower)) {
+            if (e.getValue().contains(lower)
+                    || (byInit && initIndex.get(e.getKey()).contains(lower))) {
                 out.add(e.getKey());
                 if (out.size() >= 200) break;
             }
@@ -192,7 +201,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         // ===== 左列：搜索卡 =====
         SciSkin.termPanel(ctx, x + 8, y + 24, 191, 20);
         if (search != null && search.getText().isEmpty()) // m216 自绘默认提示：坐标=控件文字原位(x+16,y+30)，subdued 色不与输入争眼
-            ctx.drawText(this.textRenderer, "搜索物品，支持中文…", x + 16, y + 30, SciSkin.termSub(), false);
+            ctx.drawText(this.textRenderer, "搜索物品，中文/首字母…", x + 16, y + 30, SciSkin.termSub(), false);
         if (search != null && search.isFocused()) { // 聚焦=紫描边（四边 1px）
             int a = SciSkin.termAccent();
             ctx.fill(x + 9, y + 25, x + 198, y + 26, a);
