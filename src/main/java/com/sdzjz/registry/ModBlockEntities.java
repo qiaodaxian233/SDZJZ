@@ -23,6 +23,11 @@ public class ModBlockEntities {
                     FabricBlockEntityTypeBuilder.create(DataPanelBlockEntity::new,
                             ModBlocks.DATA_PANEL).build());
 
+    public static final BlockEntityType<com.sdzjz.block.SuperBenchBlockEntity> SUPER_BENCH_BE = // m249 动画挂点
+            Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("super_bench"),
+                    FabricBlockEntityTypeBuilder.create(com.sdzjz.block.SuperBenchBlockEntity::new,
+                            ModBlocks.SUPER_BENCH).build());
+
     public static final BlockEntityType<StorageCoreBlockEntity> STORAGE_CORE_BE =
             Registry.register(Registries.BLOCK_ENTITY_TYPE, Sdzjz.id("storage_core"),
                     FabricBlockEntityTypeBuilder.create(StorageCoreBlockEntity::new,

@@ -24,6 +24,10 @@ public class SdzjzClient implements ClientModInitializer {
         BlockEntityRendererRegistry.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
         BlockEntityRendererRegistry.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
         BlockEntityRendererRegistry.register(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
+        // m249 三块静态方块动画化（作者点名"存储核心和线都是动态的，它们不动就不好看"）
+        BlockEntityRendererRegistry.register(ModBlockEntities.STRUCTURE_CORE_BE, com.sdzjz.client.StructureCoreHoloRenderer::new); // 扫描环
+        BlockEntityRendererRegistry.register(ModBlockEntities.DATA_PANEL_BE, com.sdzjz.client.DataPanelHoloRenderer::new);         // 数据流
+        BlockEntityRendererRegistry.register(ModBlockEntities.SUPER_BENCH_BE, com.sdzjz.client.SuperBenchHoloRenderer::new);       // 悬浮网格
         // m243 压缩包动态图标：内容物模型缩0.8 + 档位边框叠层（模型 parent=builtin/entity 触发本渲染器）
         net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(
                 com.sdzjz.registry.ModItems.COMPRESSED_PACK,
