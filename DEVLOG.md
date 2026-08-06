@@ -4351,3 +4351,14 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   介意一键关 `compressedPackFlatSheen=false`。
 - **配置**：compressedPackFlatSheen=true，configVersion 28→29。冒烟真错 0，sheen/配置键定向检零真错。
 - 实机脚本：压缩铁锭包=锭面流光扫动、压缩圆石包=只自转不上光；关配置流光消失。
+
+## m286 合成终端书钮主题化+对齐（作者截图：原版绿书贴图在卡上突兀、没对齐）
+
+- **根因**：m281 用原版 TexturedButtonWidget+BUTTON_TEXTURES（20×18 灰底绿书），与终端主题皮不是
+  一个视觉语言；且 (328,82) 压着卡顶又盖到网格头 4px（网格顶 y+96、钮到 y+100）。
+- **修法**：换 SciSkin.termBtn 自绘"配方"钮（与存入经验/清空回仓同语言）：右缘对齐卡内容右缘 x+346
+  （=清空回仓右端）、纵向落标题行 83..95<网格顶 96；开书=主紫态、悬停=亮。TexturedButtonWidget 退场，
+  渲染画在书之后（窄屏开书浮在书上仍可一键关）、命中排在书处理之前，开合动作抽 toggleBook()
+  （翻书→findLeftEdge 挪窗→search 跟走，原版 CraftingScreen 同款不变）。
+- **验证**：冒烟真错 0，toggleBook/BOOK_BTN/bookBtn 定向检零真错。实机脚本：钮与清空回仓右缘齐、
+  不碰网格；点开书窗右移钮跟走；窄屏开书点钮可关；关 terminalRecipeBook 整套隐身。

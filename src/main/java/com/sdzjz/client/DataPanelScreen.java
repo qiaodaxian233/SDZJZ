@@ -29,8 +29,9 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
             new net.minecraft.client.gui.screen.recipebook.RecipeBookWidget();
     private boolean narrow;
     private boolean bookOn; // 配置开关快照（init 时读一次，terminalRecipeBook=false 整套隐身）
-    private net.minecraft.client.gui.widget.TexturedButtonWidget bookBtn;
-    private static final int BOOK_BTN_DX = 328, BOOK_BTN_DY = 82; // 合成终端卡标题行右端（几何唯一口径）
+    // m286 主题化书钮（作者：原版绿书贴图在卡上突兀+没对齐）：SciSkin.termBtn 同语言自绘"配方"钮，
+    // 右缘与卡内容右缘 x+346（清空回仓右端）对齐、纵向落在标题行（83..95 < 网格顶 96），渲染/命中同一套常量。
+    private static final int BOOK_BTN_DX = 314, BOOK_BTN_DY = 83, BOOK_BTN_W = 32, BOOK_BTN_H = 12;
 
     // ===== m200 主题调色面板（modal，照 m199 画布设置面板刀法）=====
     private boolean themeOpen = false;
@@ -57,16 +58,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
             this.narrow = this.width < 563; // 原版 379=176窗+203书区，同比例换算 360+203
             this.recipeBook.initialize(this.width, this.height, this.client, this.narrow, this.handler);
             this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
-            this.bookBtn = new net.minecraft.client.gui.widget.TexturedButtonWidget(
-                    this.x + BOOK_BTN_DX, this.y + BOOK_BTN_DY, 20, 18,
-                    net.minecraft.client.gui.screen.recipebook.RecipeBookWidget.BUTTON_TEXTURES, b -> {
-                recipeBook.toggleOpen();
-                this.x = recipeBook.findLeftEdge(this.width, this.backgroundWidth); // 开合即时挪窗（原版 CraftingScreen 同款）
-                b.setPosition(this.x + BOOK_BTN_DX, this.y + BOOK_BTN_DY);
-                if (search != null) search.setX(this.x + 16); // 自家绝对坐标控件跟着窗体走
-            });
-            this.addDrawableChild(bookBtn);
-            this.addSelectableChild(this.recipeBook); // 书的搜索框走原版焦点派发链吃键盘
+            this.addSelectableChild(this.recipeBook); // 书的搜索框走原版焦点派发链吃键盘（m286 书钮改自绘见 render/mouseClicked）
         }
         // m161b 搜索框去黑壳（setDrawsBackground(false)，卡片接管观感）；resize 保留已输入文字（pickerField 惯例）。
         String keep = this.search != null ? this.search.getText() : "";
@@ -308,6 +300,11 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         }
         // m281 配方书点击（原版 CraftingScreen 同款）：命中即夺焦；窄屏开书=书外点击全吞防误操作底下窗
         if (bookOn) {
+            if (button == 0 && mx >= this.x + BOOK_BTN_DX && mx < this.x + BOOK_BTN_DX + BOOK_BTN_W
+                    && my >= this.y + BOOK_BTN_DY && my < this.y + BOOK_BTN_DY + BOOK_BTN_H) {
+                toggleBook(); // m286 自绘钮命中在书之前：窄屏开书时钮浮在书上仍可一键关
+                return true;
+            }
             if (this.recipeBook.mouseClicked(mx, my, button)) { this.setFocused(this.recipeBook); return true; }
             if (this.narrow && this.recipeBook.isOpen()) return true;
         }
@@ -458,6 +455,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
+    /** m286 书开合（原版 CraftingScreen 同款挪窗）：翻书→重算左缘→自家绝对坐标控件跟着窗体走。 */
+    private void toggleBook() {
+        recipeBook.toggleOpen();
+        this.x = recipeBook.findLeftEdge(this.width, this.backgroundWidth);
+        if (search != null) search.setX(this.x + 16);
+    }
+
     public void refreshRecipeBook() { this.recipeBook.refresh(); } // 数据包重载(/reload)后原版回调
 
     @Override
@@ -645,6 +649,12 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
                 this.recipeBook.render(ctx, mouseX, mouseY, delta);
                 this.recipeBook.drawGhostSlots(ctx, this.x, this.y, true, delta); // 缺料半透明配方影
             }
+        }
+        if (bookOn) { // m286 主题书钮（书之后画=窄屏开书浮在书上可关；开=主紫态）
+            int bbx = this.x + BOOK_BTN_DX, bby = this.y + BOOK_BTN_DY;
+            SciSkin.termBtn(ctx, this.textRenderer, bbx, bby, BOOK_BTN_W, BOOK_BTN_H, "配方",
+                    mouseX >= bbx && mouseX < bbx + BOOK_BTN_W && mouseY >= bby && mouseY < bby + BOOK_BTN_H,
+                    this.recipeBook.isOpen());
         }
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
         if (bookOn) this.recipeBook.drawTooltip(ctx, this.x, this.y, mouseX, mouseY);
