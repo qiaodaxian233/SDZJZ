@@ -59,6 +59,13 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         this.blockPos = (be != null) ? be.getPos() : null;
         this.player = playerInv.player;
         this.craft = (be != null) ? be.craftGrid : new CraftGridInventory(); // 客户端 BE 同样有实例，槽位同步写它
+        // m300 并发语义立此存照（审计 P1 问询"共享网格是否有意"）：**有意——公共工作台**。
+        // AE2 式模板常驻 BE 是核心卖点（配方摆一次永远在，m126a），代价是同面板多人看到并操作同一网格：
+        // ① 网格内容对全体观者实时一致（各 handler 槽同步同一 Inventory）；② 结果格/缓存配方各 handler
+        // 自持（craftResult 每人一份，监听器 onClosed 注销不泄漏）；③ 服务端主线程串行=每次 consumeCraft
+        // 读的都是"点击落地那一刻"的网格与配方，扣料按当刻结果算，无错扣无复制——但 A 点击途中 B 改格，
+        // A 合出的是 B 的新配方（与两人共用一张真实工作台同感受，last-writer-wins）；④ 想要 AE2 每人独立
+        // 网格=模板不再常驻，与设计冲突，不做。双人实测脚本见 DEVLOG m300。
         this.display = new SimpleInventory(DataPanelBlockEntity.PAGE); // m292 每玩家自持展示页（此前挂 be.display=全体共享）
         // ===== m201 合成区排前排（0..8 + 结果9，原版填料器口径）=====
         craft.addListener(craftListener);
@@ -476,7 +483,15 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
 
     @Override
     public boolean canUse(PlayerEntity player) {
-        return panel != null;
+        // m299（审计 P2 生命周期）：手持终端支持跨维度远程开屏（TerminalItem K_DIM），
+        // 故**不做**距离/维度判定；判的是面板本体存活——被拆/被同坐标新 BE 顶替/区块卸载
+        // 任一发生即关屏（stale BE 的账本 BFS 在卸载区块上本就取不到真数据，关屏是诚实行为）。
+        // 原版只在服务端 tick 里执行 canUse（客户端远程时 BE 本就可能不在），实例核对只走服务端。
+        if (panel == null || panel.isRemoved()) return false;
+        var w = panel.getWorld();
+        if (w == null) return false;
+        if (!w.isClient) return w.getBlockEntity(panel.getPos()) == panel;
+        return true;
     }
 
     // m127b：双击收集(PICKUP_ALL)绝缘名单——原版该路径走 takeStack 直取，绕过 tryTakeStackRange 的整取防线：
@@ -591,7 +606,11 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     }
 
     /** m289 客户端：摘要包到货灌入（TerminalStockPayload 接收器调）。 */
-    public void applyStock(java.util.List<String> ids, java.util.List<Integer> counts) {
+    private boolean stockTruncated; // m298 摘要被截：可合成灰名单仅供参考（缺席≠0）
+    public boolean stockTruncated() { return stockTruncated; }
+
+    public void applyStock(java.util.List<String> ids, java.util.List<Integer> counts, boolean truncated) {
+        this.stockTruncated = truncated;
         this.stockIds = ids;
         this.stockCounts = counts;
     }
@@ -692,13 +711,20 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         // m290 修性能倒退：此前这里每秒裸 BFS（connectedCores 4096 上限逐格查）——m108c 专治过的病。
         // 改蹭 BE 的 aggregate()（内部 cores() 40t 缓存 + m279 空间索引），每秒只剩 map 合并。
         java.util.Map<String, Long> agg = panel.aggregate();
+        // m298（审计 P1"假不可合成"）：先过合成原料筛——配方书只按原料判定，非原料物品占 2048 名额
+        // 纯属浪费还挤掉真原料。筛后仍超额才截断，并把 truncated 告知客户端（摘要缺席≠0，见书旁提示）。
+        java.util.Set<String> ing = craftIngredientIds(panel.getWorld());
+        java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>();
         long fp = 0;
-        for (var e : agg.entrySet()) // 序无关混合：HashMap 迭代序不稳也不误触发
+        for (var e : agg.entrySet()) { // 序无关混合：HashMap 迭代序不稳也不误触发（指纹=过滤后口径，非原料变动不空发）
+            if (!ing.contains(e.getKey())) continue;
+            top.add(e);
             fp += (e.getKey().hashCode() * 1000003L) ^ (Math.min(e.getValue(), 9999) * 0x9E3779B97F4A7C15L);
+        }
         if (fp == stockFp) return;
         stockFp = fp;
-        java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
-        if (top.size() > 2048) top.sort((x, y) -> Long.compare(y.getValue(), x.getValue()));
+        boolean trunc = top.size() > 2048;
+        if (trunc) top.sort((x, y) -> Long.compare(y.getValue(), x.getValue())); // 截断时保存量最大的（最可能被用到的原料）
         int n = Math.min(top.size(), 2048);
         java.util.List<String> ids = new java.util.ArrayList<>(n);
         java.util.List<Integer> cnts = new java.util.ArrayList<>(n);
@@ -707,7 +733,25 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
             cnts.add((int) Math.min(top.get(i).getValue(), 9999));
         }
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
-                new com.sdzjz.net.TerminalStockPayload(this.syncId, ids, cnts));
+                new com.sdzjz.net.TerminalStockPayload(this.syncId, ids, cnts, trunc));
+    }
+
+    // m298 合成原料 id 全集（配方书摘要的筛子）。静态跨 handler 共享；数据包重载换 RecipeManager
+    // 实例，键失配即重建。CraftPlanner 同款遍历（listAllOfType+getIngredients+getMatchingStacks 在树先例）。
+    private static java.util.Set<String> craftIngredientCache;
+    private static Object craftIngredientCacheKey;
+
+    private static java.util.Set<String> craftIngredientIds(net.minecraft.world.World w) {
+        var rm = w.getRecipeManager();
+        if (craftIngredientCache != null && craftIngredientCacheKey == rm) return craftIngredientCache;
+        java.util.HashSet<String> out = new java.util.HashSet<>();
+        for (var e : rm.listAllOfType(net.minecraft.recipe.RecipeType.CRAFTING))
+            for (var ig : e.value().getIngredients())
+                for (var st : ig.getMatchingStacks())
+                    if (!st.isEmpty()) out.add(Registries.ITEM.getId(st.getItem()).toString());
+        craftIngredientCache = out;
+        craftIngredientCacheKey = rm;
+        return out;
     }
 
     @Override

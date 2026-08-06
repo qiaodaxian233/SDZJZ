@@ -56,7 +56,7 @@ public class SdzjzClient implements ClientModInitializer {
                     var pl = context.client().player;
                     if (pl != null && pl.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h
                             && h.syncId == payload.syncId()) {
-                        h.applyStock(payload.ids(), payload.counts());
+                        h.applyStock(payload.ids(), payload.counts(), payload.truncated()); // m298
                         if (context.client().currentScreen instanceof com.sdzjz.client.DataPanelScreen ds)
                             ds.onStockSync();
                     }

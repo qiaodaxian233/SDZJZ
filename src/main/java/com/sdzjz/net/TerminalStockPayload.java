@@ -16,7 +16,7 @@ import java.util.List;
  * 摘要按存量取前 2048 种、计数封顶 9999（判定/整组填料足够，精确数在服务端），
  * 服务端指纹节流：内容没变不发（见 DataPanelScreenHandler.sendContentUpdates）。
  */
-public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> counts) implements CustomPayload {
+public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> counts, boolean truncated) implements CustomPayload { // m298 truncated=摘要超额被截，客户端"缺席≠0"
 
     public static final CustomPayload.Id<TerminalStockPayload> ID =
             new CustomPayload.Id<>(Identifier.of("sdzjz", "terminal_stock"));
@@ -25,6 +25,7 @@ public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> c
             PacketCodecs.VAR_INT, TerminalStockPayload::syncId,
             PacketCodecs.collection(ArrayList::new, PacketCodecs.STRING), TerminalStockPayload::ids,
             PacketCodecs.collection(ArrayList::new, PacketCodecs.VAR_INT), TerminalStockPayload::counts,
+            PacketCodecs.BOOL, TerminalStockPayload::truncated, // m298
             TerminalStockPayload::new
     );
 

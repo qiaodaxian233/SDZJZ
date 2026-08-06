@@ -661,6 +661,16 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
             SciSkin.termBtn(ctx, this.textRenderer, bbx, bby, BOOK_BTN_W, BOOK_BTN_H, "配方",
                     mouseX >= bbx && mouseX < bbx + BOOK_BTN_W && mouseY >= bby && mouseY < bby + BOOK_BTN_H,
                     this.recipeBook.isOpen());
+            // m298 摘要截断的诚实提示（审计"缺席≠0"）：仓储原料种数超摘要额度时，可合成灰名单只是参考——
+            // 点红配方照样发服务端填料，真缺不缺以实际填料为准。0.62 缩放小字贴书钮下沿，不碰点击区。
+            if (this.recipeBook.isOpen() && this.handler.stockTruncated()) {
+                ctx.getMatrices().push();
+                ctx.getMatrices().translate(bbx + BOOK_BTN_W, bby + BOOK_BTN_H + 2, 0);
+                ctx.getMatrices().scale(0.62F, 0.62F, 1F);
+                String warn = "库存摘要超额，灰名单仅供参考";
+                ctx.drawText(this.textRenderer, warn, -this.textRenderer.getWidth(warn), 0, SciSkin.termAccentDeep(), false);
+                ctx.getMatrices().pop();
+            }
         }
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
         if (bookOn) this.recipeBook.drawTooltip(ctx, this.x, this.y, mouseX, mouseY);
