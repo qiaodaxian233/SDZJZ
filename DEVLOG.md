@@ -3770,3 +3770,14 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：一次性巡检写成回归尺才算销账——m239 的病是"作用域只在渲染帧开"这个结构性前提，
   以后任何人往事件路径加取色都会现行，让尺子盯着比让记忆盯着可靠。
 - **实机验证**：无行为变更；`python3 docs/tools_color_scope_audit.py` 输出 ✓ 即可。
+
+## m256 CI 启用二次尝试（失败留痕）+ 暂存工作流挂第四道闸
+- **尝试**：把 docs/ci/ci.yml git mv 进 .github/workflows/ 推送——远端整推被拒：
+  `refusing to allow a Personal Access Token to create or update workflow ... without 'workflow' scope`。
+  当前对接文档里这枚 PAT 与 m175 那枚同病，**workflow 权限仍缺**。已回滚，工作流继续暂存 docs/ci/ci.yml。
+- **两条启用路（作者任选其一）**：①重发一枚勾选 `workflow` scope 的 PAT 贴对话里，AI 一笔搬完；
+  ②GitHub 网页端手动把 docs/ci/ci.yml 内容建到 `.github/workflows/ci.yml`（网页端不受 PAT 限制），
+  建完 CI 即自动跑。启用后 AI 可轮询 actions/runs 自主查编译结果按报错修。
+- **顺手**：暂存版工作流 offline-checks 挂第四步=tools_color_scope_audit.py（m255 回归尺），
+  启用时即带上。
+- **实机验证**：无行为变更。
