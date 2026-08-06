@@ -195,8 +195,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     // 管道/机器怼在存储核心方块任意面即可存取（Create/Modern Industrialization/Tech Reborn/AE2
     // 等一切走 fabric-transfer-api 的模组；注册在 Sdzjz.onInitialize）。双账本全量暴露：普通账本按
     // id、精确账本连组件（附魔书可被管道按模板抽走）。类型上限与 deposit 同一道闸——满员拒收新类型。
-    // 事务安全：SnapshotParticipant 整本快照（账本典型几百条，浅拷微秒级；模板栈从不被原地改，
-    // 浅拷即安全）；markDirty 推迟到 onFinalCommit——事务中动世界状态是 FTA 明令禁区，回滚回不掉
+    // 事务安全：m278 起增量 undo 日志（旧版整本浅拷 O(全账本)/带写事务，见 FabricLedger 内注释）；
+    // markDirty 推迟到 onFinalCommit——事务中动世界状态是 FTA 明令禁区，回滚回不掉
     // dirty 标记。防长整溢出：管道惯用 Long.MAX_VALUE 试探性 insert，累加前先钳余量。
     // 【盲写 API 对表备忘（沙箱无 MC 依赖，编译报错按此四点改）】：
     //  ① Storage#iterator 为无参（1.19.3 起去掉 TransactionContext 参数）——报错就补参；
@@ -210,22 +210,26 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         return fabricLedger;
     }
 
-    public class FabricLedger extends SnapshotParticipant<FabricLedger.Snap> implements Storage<ItemVariant> {
+    public class FabricLedger extends SnapshotParticipant<Integer> implements Storage<ItemVariant> {
 
-        record Snap(LinkedHashMap<String, Long> store, List<ItemStack> tpl, List<Long> n) {}
+        // m278 增量事务日志：快照=日志位点(int)，回滚=从尾到位点逆序重放 undo——逆序保证精确账本
+        // add/remove 的按下标前像恢复正确（每步 undo 都把状态退回到该步之前，下标必然对得上）。
+        // 旧版整本浅拷 O(全账本) 每带写事务一次；管道模组每口每 tick 开事务，大仓库=纯拷贝+GC 风暴。
+        // 现在 O(实际触碰条目)，典型管道操作=1 条。嵌套事务天然支持：每层快照各记自己的位点。
+        // 附带更稳：事务窗口内若有非事务路径（withdraw/deposit 手账）动过账本，旧整本回滚会把
+        // 那些改动一起冲掉，增量日志只撤自己记过的条目。日志不变量：事务外恒为空
+        // （最外层 commit 走 onFinalCommit 清空 / 最外层 abort 截断回位点 0）。
+        private final ArrayList<Runnable> undoJournal = new ArrayList<>();
 
-        @Override protected Snap createSnapshot() {
-            return new Snap(new LinkedHashMap<>(store), new ArrayList<>(exactTpl), new ArrayList<>(exactN));
+        @Override protected Integer createSnapshot() { return undoJournal.size(); }
+
+        @Override protected void readSnapshot(Integer pos) {
+            for (int i = undoJournal.size() - 1; i >= pos; i--) undoJournal.get(i).run();
+            undoJournal.subList(pos, undoJournal.size()).clear();
+            storeRev++; // m218（回滚也是变更；口径同旧版=每次回滚记一次）
         }
 
-        @Override protected void readSnapshot(Snap s) {
-            store.clear(); store.putAll(s.store());
-            storeRev++; // m218（回滚也是变更）
-            exactTpl.clear(); exactTpl.addAll(s.tpl());
-            exactN.clear(); exactN.addAll(s.n());
-        }
-
-        @Override protected void onFinalCommit() { markDirty(); }
+        @Override protected void onFinalCommit() { undoJournal.clear(); markDirty(); }
 
         @Override public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
             if (resource.isBlank() || maxAmount <= 0) return 0;
@@ -237,6 +241,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
                 if (accept <= 0) return 0;
                 updateSnapshots(tx);
+                final boolean had = store.containsKey(id); // m278 前像：键此前是否存在
+                undoJournal.add(() -> { if (had) store.put(id, cur); else store.remove(id); });
                 store.put(id, cur + accept);
                 storeRev++; // m218
                 return accept;
@@ -247,12 +253,16 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                     long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
                     if (accept <= 0) return 0;
                     updateSnapshots(tx);
+                    final int idx = i; // m278 前像：循环变量非等效 final，取别名入日志
+                    undoJournal.add(() -> exactN.set(idx, cur));
                     exactN.set(i, cur + accept);
                     return accept;
                 }
             }
             if (usedTypes() >= maxTypes()) return 0;
             updateSnapshots(tx);
+            undoJournal.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）
+                int last = exactTpl.size() - 1; exactTpl.remove(last); exactN.remove(last); });
             exactTpl.add(one); // toStack(1) 即模板规格（count=1，组件原样）
             exactN.add(maxAmount);
             return maxAmount;
@@ -267,6 +277,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 long take = Math.min(have, maxAmount);
                 if (take <= 0) return 0;
                 updateSnapshots(tx);
+                undoJournal.add(() -> store.put(id, have)); // m278 前像（take>0 ⇒ 键此前必存在）
                 if (have - take <= 0) store.remove(id); else store.put(id, have - take);
                 storeRev++; // m218
                 return take;
@@ -277,8 +288,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                     long take = Math.min(have, maxAmount);
                     if (take <= 0) return 0;
                     updateSnapshots(tx);
-                    if (have - take <= 0) { exactTpl.remove(i); exactN.remove(i); }
-                    else exactN.set(i, have - take);
+                    final int idx = i;
+                    if (have - take <= 0) {
+                        final ItemStack ptpl = exactTpl.get(i); // m278 结构前像：原下标插回（模板从不被原地改，存引用即安全）
+                        undoJournal.add(() -> { exactTpl.add(idx, ptpl); exactN.add(idx, have); });
+                        exactTpl.remove(i); exactN.remove(i);
+                    } else {
+                        undoJournal.add(() -> exactN.set(idx, have));
+                        exactN.set(i, have - take);
+                    }
                     return take;
                 }
             }
