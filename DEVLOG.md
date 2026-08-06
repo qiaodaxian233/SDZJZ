@@ -4530,3 +4530,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 实机脚本：①核心钉住区块 → 管理员 /forceload add 同区块 → 拆核心 → `/forceload query` 该区块
   **仍在**（审计场景正向验证）；②反向：管理员先 forceload → 核心进驻又拆除 → 仍在；③重启后
   远处核心机器不停机（声明表自举）；④旧档升级后核心区块照常常载、原 forced 旗被换轨撤下。
+
+## m297 GameTest 六用例（外部审计四建议之④，最后一件）
+
+- **新 com.sdzjz.gametest.SdzjzGameTests**（fabric-gametest 入口挂 fabric.mod.json；build.gradle 配
+  `gradlew runGametest`=临时服务器跑完即退，报告 build/junit.xml；生产端入口不激活零开销）。
+- **六用例对审计清单**：two_withdraw_last_stack_no_dupe（twoPlayersShiftTakeLastStack 的账本
+  不变量版——两路抢最后一组取和恒=库存，handler"先扣账按实收给"正建立在它上；不用假人：
+  TestContext mock 玩家口径跨版漂移大，测不变量比测点击链稳）；fabric_abort_restores_normal_entry；
+  fabric_nested_abort_restores_exact_entry（内层提净+外层回滚，m278 结构前像与 m295 索引置脏
+  懒重建一条链全过）；oversized_panel_view_payload_rejected（手搓 RegistryByteBuf 声明一百万条
+  匹配 id，必须解码期 DecoderException——m291 验收）；type_safety_limit_rejects_new_types
+  （m293 验收：硬顶只闸新类型、被拒栈原样保留、已有类型照常并账，配置用后自还原）；
+  exact_index_survives_middle_removal（m295 验收：删中间条目下标平移后直查/并账逐一命中）。
+- **未覆盖照实说**：双人 shift 取物的**界面链路**（假人+handler 点击）与 renderSnapshot 客户端项
+  没写——前者等 mock 玩家口径核实后补，后者 GameTest 框架不跑客户端。
+- 沙箱跑不了 runGametest：用例编译由 gradle 构建验证（作者机器构建链路已证通），**六用例首跑
+  结果待实机**——若有红，报错贴回来按用例修。

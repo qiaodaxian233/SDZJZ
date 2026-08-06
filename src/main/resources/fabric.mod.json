@@ -16,6 +16,9 @@
     "main": [
       "com.sdzjz.Sdzjz"
     ],
+    "fabric-gametest": [
+      "com.sdzjz.gametest.SdzjzGameTests"
+    ],
     "client": [
       "com.sdzjz.SdzjzClient"
     ],
