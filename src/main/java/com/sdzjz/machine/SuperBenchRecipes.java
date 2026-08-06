@@ -685,14 +685,45 @@ public final class SuperBenchRecipes {
                 "minecraft:comparator", 1, "minecraft:sticky_piston", 1);
         bom("sdzjz:crop_farm", "", DRT, 16, WB, 1, "minecraft:wheat_seeds", 8, "minecraft:carrot", 4,
                 "minecraft:potato", 4, "minecraft:composter", 1, HOP, 5, "minecraft:minecart", 1, CHE, 2); // 漏斗5+矿车=漏斗矿车收菜
-        // m173 多种植物农业塔：对表用户"多种植物农村"蓝图（21×51×21 塔楼，15193 块：白玻璃3406/
-        // 玻璃3232/耕地1968格（耕地无物品形态→土）/苔藓1256/南瓜灯352照明/四作物各316+瓜南瓜茎
-        // 各351+仙人掌81），÷≈100 蒸馏；堆肥桶照基础款、南瓜灯3=塔楼照明梗。
-        bom("sdzjz:mega_crop_farm", "", "minecraft:white_stained_glass", 34, GL, 32, DRT, 20,
-                "minecraft:moss_block", 12, "minecraft:glowstone", 4, "minecraft:slime_block", 4,
-                SST, 4, "minecraft:jack_o_lantern", 3, "minecraft:oak_fence", 1, SND, 1,
-                "minecraft:cactus", 1, "minecraft:chain", 1, WB, 6, "minecraft:sticky_piston", 1,
-                "minecraft:composter", 1, HOP, 4, CHE, 2);
+        // m252 全量过账：多种植物农村.litematic 15193 块（21×51×21 塔楼；耕地1968→土并原生24=1992、裸wall_torch32+torch16=48、四作物/瓜茎归一成种子）；实体账[minecraft:item×16掉落物不计]；计料实测 14575→BOM 15258（溢价 4.7%），保守槽位 45。
+        bomPacked("sdzjz:mega_crop_farm", "",
+                "minecraft:white_stained_glass", 3456,
+                "minecraft:glass", 3264,
+                "minecraft:dirt", 2048,
+                "minecraft:moss_block", 1280,
+                "minecraft:glowstone", 448,
+                "minecraft:slime_block", 448,
+                "minecraft:smooth_stone", 448,
+                "minecraft:jack_o_lantern", 384,
+                "minecraft:melon_seeds", 384,
+                "minecraft:pumpkin_seeds", 384,
+                "minecraft:smooth_stone_slab", 384,
+                "minecraft:carrot", 320,
+                "minecraft:wheat_seeds", 320,
+                "minecraft:potato", 320,
+                "minecraft:beetroot_seeds", 320,
+                "minecraft:oak_fence", 128,
+                "minecraft:redstone_torch", 128,
+                "minecraft:sticky_piston", 128,
+                "minecraft:sand", 128,
+                "minecraft:cactus", 128,
+                "minecraft:chain", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:oak_leaves", 60,
+                "minecraft:torch", 48,
+                "minecraft:redstone_lamp", 36,
+                "minecraft:composter", 16,
+                "minecraft:oak_trapdoor", 16,
+                "minecraft:repeater", 12,
+                "minecraft:redstone", 6,
+                "minecraft:observer", 6,
+                "minecraft:oak_fence_gate", 4,
+                "minecraft:comparator", 4,
+                "minecraft:hopper", 4,
+                "minecraft:note_block", 2,
+                "minecraft:redstone_block", 2,
+                "minecraft:pumpkin", 1,
+                "minecraft:melon", 1);
         bom("sdzjz:deep_mining_platform", "", "minecraft:diamond", 2, "minecraft:ancient_debris", 2, // 引子:先亲手挖到样本
                 "minecraft:tnt", 8, OBSI, 8, "minecraft:rail", 8, "minecraft:minecart", 1, TCH, 8, HOP, 4, CHE, 4);
         // m174 弱加载盾构机：对表 Dark牌2025版蓝图（86×86×11，269 块：平滑石71/侦测器33/
@@ -826,12 +857,30 @@ public final class SuperBenchRecipes {
                 PIS, 4, OSV, 4, SST, 8, "minecraft:basalt", 2, HOP, 4, CHE, 2);
         bom("sdzjz:fishing_machine", "", "minecraft:fishing_rod", 1, WB, 2, TRAP, 2, "minecraft:note_block", 1,
                 "minecraft:string", 8, PLK, 8, HOP, 4, CHE, 2);
-        // m172 鳕鱼鲑鱼农场：对表用户蓝图（83×69×83，86533 块：沙74112=巨型环形水槽壳/水4000+
-        // 气泡柱3667/玻璃2937/岩浆块288击杀/实体鳕鱼12鲑鱼8鱿鱼8），沙对齐取 24、其余 ÷≈600；
-        // 鳕鱼+鲑鱼双笼（m166 多生物），灵魂沙=气泡柱电梯件。
-        bom("sdzjz:mega_fishing_machine", "minecraft:cod,minecraft:salmon", SND, 24, GL, 5, WB, 6,
-                SST, 2, "minecraft:magma_block", 1, "minecraft:powered_rail", 1,
-                "minecraft:glowstone", 1, "minecraft:soul_sand", 1, HOP, 4, CHE, 2);
+        // m252 全量过账：鳕鱼鲑鱼农场.litematic 86533 块（沙74112全量=19超级包、水4000→64桶税、气泡柱=水形态剔除、他模组背包件×1剔除）；实体账[鳕鱼12/鲑鱼8/鱿鱼8/流浪商人+羊驼=活体不入; minecraft:hopper_minecart×1入料; minecraft:item×128掉落物不计]；计料实测 78930→BOM 82779（溢价 4.9%），保守槽位 48。
+        bomPacked("sdzjz:mega_fishing_machine", "minecraft:cod,minecraft:salmon",
+                "minecraft:sand", 77824,
+                "minecraft:glass", 2944,
+                "minecraft:smooth_stone", 896,
+                "minecraft:powered_rail", 576,
+                "minecraft:magma_block", 320,
+                "minecraft:water_bucket", 64,
+                "minecraft:redstone_block", 47,
+                "minecraft:rail", 45,
+                "minecraft:glowstone", 36,
+                "minecraft:smooth_stone_slab", 9,
+                "minecraft:oak_trapdoor", 3,
+                "minecraft:soul_sand", 3,
+                "minecraft:packed_ice", 2,
+                "minecraft:hopper", 2,
+                "minecraft:iron_block", 1,
+                "minecraft:white_stained_glass", 1,
+                "minecraft:comparator", 1,
+                "minecraft:dispenser", 1,
+                "minecraft:observer", 1,
+                "minecraft:cauldron", 1,
+                "minecraft:amethyst_cluster", 1,
+                "minecraft:hopper_minecart", 1);
         bom("sdzjz:disc_machine", "minecraft:creeper,minecraft:skeleton", "minecraft:jukebox", 1, // 骷髅射爬行者=原版唱片机制,俩都要抓
                 "minecraft:note_block", 1, COB, 16, TRAP, 4, HOP, 4, CHE, 2);
         addSmall("sdzjz:auto_feeder", "minecraft:bread"); // m80d 自动喂食器
