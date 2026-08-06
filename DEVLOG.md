@@ -4394,3 +4394,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   首个声明若是 private/static 方法即判死刑（Java 里这两类永远不可能覆写，纯静态可判）；
   对 m286 坏样本自证能抓（退出码 1），字段初始化括号不误报，全库现零命中。
 - **教训**：str_replace 锚必须带上方法前的注解行——光锚签名行会把插入物楔进注解和方法之间。
+
+## m289 配方书"可合成"计入仓储库存（m281 挂账清偿：灰名单原只认背包+网格）
+
+- **链路**：新 S2C `TerminalStockPayload(syncId, ids, counts)`（CanvasEndsPayload 并行列表同律）。
+  服务端 handler 覆写 sendContentUpdates：每 20tick 聚合全网 storeView→算序无关指纹（HashMap 迭代序
+  不稳也不误触发），**变了才发包**（开屏首帧必发）；摘要按存量取前 2048 种、计数封顶 9999。
+  客户端接收器按 syncId 路由灌进 handler.applyStock，并催屏 onStockSync→recipeBook.refresh()
+  （method_2592）全量重算——书自己的 update() 只认玩家背包 changeCount，机器进出料不动背包，不催就陈灰。
+- **喂判定**：populateRecipeFinder 网格之外把摘要逐条 finder.addInput(栈,上限)（method_20478 核到）。
+  字段两组各在各端有效：stockIds/Counts 只客户端有数据，stockFp/Tick 只服务端走。
+- **口径**：精确件（exactTemplates 带组件）不入摘要——配方原料按物品匹配、jeiFill 取料也不动精确件，
+  判定与填料口径一致不会"亮了填不上"。前 2048 之外的长尾种类不计入=极端仓库下个别配方可能仍灰，
+  点了照样能填（fillInputSlots 服务端权威不看灰名单），只灰不误。
+- **配置**：terminalBookStock=true（连同 terminalRecipeBook 双开关都管发包），configVersion 29→30。
+- **验证**：冒烟真错 0（TerminalStockPayload 报错与在树 CanvasEndsPayload 同款=MC 依赖噪音），
+  applyStock/onStockSync/stockFp 定向检零真错，override/dup 两闸绿。
+  实机复核点：①摘要到货后灰名单是否即刻转亮（赌 refresh() 内部重建输入；若陈灰=动一下背包必刷，
+  症状轻，报我改成手动 refreshInputs 路径）；②大仓库开终端 F3 带宽无异常（指纹节流应静默）。
+  实机脚本：仓储放 64 圆石背包空手→开书"可合成"页出熔炉配方且点击能填；把圆石抽走→约 1 秒后转灰。

@@ -26,7 +26,13 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
 
     private final DataPanelBlockEntity panel;
     private final BlockPos blockPos;
-    private final PlayerEntity player;                                  // m201 matches() 要世界；onButtonClick 的 player 形参不与此混用
+    private final PlayerEntity player;
+    // m289 全网库存摘要：客户端侧由 TerminalStockPayload 灌入（喂 populateRecipeFinder）；
+    // 服务端侧 stockFp/stockTick 做指纹节流（内容没变不发包）。两组字段各在各端有效互不相扰。
+    private java.util.List<String> stockIds;
+    private java.util.List<Integer> stockCounts;
+    private long stockFp = Long.MIN_VALUE;
+    private int stockTick;                                  // m201 matches() 要世界；onButtonClick 的 player 形参不与此混用
     private final Inventory display;                                    // m201 身份判定用（canInsertIntoSlot 撤下标依赖）
     private final CraftGridInventory craft;                             // m126a：BE 常驻网格（AE2 式模板）；m201 换挂 RecipeInputInventory
     private final SimpleInventory craftResult = new SimpleInventory(1);
@@ -562,6 +568,54 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     @Override
     public void populateRecipeFinder(net.minecraft.recipe.RecipeMatcher finder) {
         craft.provideRecipeInputs(finder); // CraftGridInventory 照原版 CraftingInventory 逐格 addUnenchantedInput
+        // m289：仓储摘要一并计入（此前书的"可合成"只认背包+网格，仓储有料的配方被错灰）。
+        // 只在客户端有数据（payload 灌入）；addInput(栈,上限)=method_20478，计数封顶随摘要 9999。
+        if (stockIds != null && com.sdzjz.config.SdzjzConfig.get().terminalBookStock) {
+            for (int i = 0; i < stockIds.size() && i < stockCounts.size(); i++) {
+                var it = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(stockIds.get(i)));
+                int c = stockCounts.get(i);
+                if (it != net.minecraft.item.Items.AIR && c > 0)
+                    finder.addInput(new ItemStack(it, c), c);
+            }
+        }
+    }
+
+    /** m289 客户端：摘要包到货灌入（TerminalStockPayload 接收器调）。 */
+    public void applyStock(java.util.List<String> ids, java.util.List<Integer> counts) {
+        this.stockIds = ids;
+        this.stockCounts = counts;
+    }
+
+    /** m289 服务端：每秒对全网库存算序无关指纹，变了才直发摘要包（开屏首帧必发）。
+     *  摘要=各存储核心 storeView 聚合，按存量取前 2048 种、计数封顶 9999；
+     *  精确件(exactTemplates,带组件)不入摘要——配方原料按物品匹配、jeiFill 取料也不动精确件，口径一致。 */
+    @Override
+    public void sendContentUpdates() {
+        super.sendContentUpdates();
+        if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity sp) || panel == null
+                || panel.getWorld() == null || panel.getWorld().isClient) return;
+        if (!com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook
+                || !com.sdzjz.config.SdzjzConfig.get().terminalBookStock) return;
+        if (stockTick++ % 20 != 0) return;
+        java.util.HashMap<String, Long> agg = new java.util.HashMap<>();
+        for (var core : com.sdzjz.block.StorageCoreBlockEntity.connectedCores(panel.getWorld(), blockPos))
+            for (var e : core.storeView().entrySet()) agg.merge(e.getKey(), e.getValue(), Long::sum);
+        long fp = 0;
+        for (var e : agg.entrySet()) // 序无关混合：HashMap 迭代序不稳也不误触发
+            fp += (e.getKey().hashCode() * 1000003L) ^ (Math.min(e.getValue(), 9999) * 0x9E3779B97F4A7C15L);
+        if (fp == stockFp) return;
+        stockFp = fp;
+        java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
+        if (top.size() > 2048) top.sort((x, y) -> Long.compare(y.getValue(), x.getValue()));
+        int n = Math.min(top.size(), 2048);
+        java.util.List<String> ids = new java.util.ArrayList<>(n);
+        java.util.List<Integer> cnts = new java.util.ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            ids.add(top.get(i).getKey());
+            cnts.add((int) Math.min(top.get(i).getValue(), 9999));
+        }
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+                new com.sdzjz.net.TerminalStockPayload(this.syncId, ids, cnts));
     }
 
     @Override

@@ -49,6 +49,18 @@ public class SdzjzClient implements ClientModInitializer {
                     if (w != null && w.getBlockEntity(payload.pos()) instanceof com.sdzjz.block.StructureCoreBlockEntity be)
                         be.applyRenderSnapshot(payload.nbt(), w.getRegistryManager());
                 }));
+        // m289：终端库存摘要 → 灌进正开着的终端 handler 并催书重算"可合成"
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+                com.sdzjz.net.TerminalStockPayload.ID,
+                (payload, context) -> context.client().execute(() -> {
+                    var pl = context.client().player;
+                    if (pl != null && pl.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h
+                            && h.syncId == payload.syncId()) {
+                        h.applyStock(payload.ids(), payload.counts());
+                        if (context.client().currentScreen instanceof com.sdzjz.client.DataPanelScreen ds)
+                            ds.onStockSync();
+                    }
+                }));
         // m80：全模组物品 tooltip 水印
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))

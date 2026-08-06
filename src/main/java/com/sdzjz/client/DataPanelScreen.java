@@ -464,6 +464,12 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     @Override
     public void refreshRecipeBook() { this.recipeBook.refresh(); } // 数据包重载(/reload)后原版回调
 
+    /** m289 库存摘要到货：催书全量重算（refresh=method_2592 重建输入与结果；书没开着字段也安全）。
+     *  书的 update() 只认玩家背包 changeCount，仓储侧机器进出料不动背包——不催就一直陈灰。 */
+    public void onStockSync() {
+        if (bookOn) this.recipeBook.refresh();
+    }
+
     @Override
     public net.minecraft.client.gui.screen.recipebook.RecipeBookWidget getRecipeBookWidget() {
         return this.recipeBook; // CraftFailedResponse 回包经它把 ghost 配方摆进网格
