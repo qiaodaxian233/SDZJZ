@@ -193,10 +193,39 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     private java.util.Set<String> matchedIds = java.util.Set.of();
 
+    // m267 视图包 DoS 护栏（外部审计第二条）：入包边界钳制 + 变化检测 + 每玩家节流。
+    public static final int VIEW_SEARCH_MAX = 128;   // 搜索词最长
+    public static final int VIEW_MATCHED_MAX = 256;  // 匹配 id 列表最长
+    public static final int VIEW_ID_MAX = 128;       // 单个 id 最长
+    private long lastViewTick = Long.MIN_VALUE;      // 上次真刷新的世界刻（≥2t 才接下一次）
+
+    /** m267：越界即钳（不是拒收——正常长搜索词照样能用，只是不给无限长），返回清洗后的集合。
+     *  合法性交给 Identifier.tryParse：非法 id 直接丢，不进 Set 也不参与后续比对。 */
+    private static java.util.Set<String> sanitizeMatched(java.util.List<String> matched) {
+        if (matched == null || matched.isEmpty()) return java.util.Set.of();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        for (String id : matched) {
+            if (out.size() >= VIEW_MATCHED_MAX) break;
+            if (id == null || id.isEmpty() || id.length() > VIEW_ID_MAX) continue;
+            if (net.minecraft.util.Identifier.tryParse(id) == null) continue; // 非法 id 丢弃
+            out.add(id);
+        }
+        return out.isEmpty() ? java.util.Set.of() : java.util.Set.copyOf(out);
+    }
+
     public void setView(String search, int scroll, java.util.List<String> matched) {
-        this.searchFilter = (search == null) ? "" : search;
-        this.scrollRow = Math.max(0, scroll);
-        this.matchedIds = (matched == null || matched.isEmpty()) ? java.util.Set.of() : java.util.Set.copyOf(matched);
+        String sf = search == null ? "" : (search.length() > VIEW_SEARCH_MAX ? search.substring(0, VIEW_SEARCH_MAX) : search);
+        int sr = Math.max(0, Math.min(scroll, 1_000_000)); // 包处理阶段就钳（审计点名）
+        java.util.Set<String> ms = sanitizeMatched(matched);
+        boolean same = sf.equals(this.searchFilter) && sr == this.scrollRow && ms.equals(this.matchedIds);
+        if (same) return; // 值没变=一次全量 refreshDisplay 都不欠（刷屏包最大的一刀）
+        this.searchFilter = sf;
+        this.scrollRow = sr;
+        this.matchedIds = ms;
+        long now = this.world != null ? this.world.getTime() : 0L;
+        if (this.world != null && now - lastViewTick < 2L) return; // 每玩家 ≥2t 一次真刷新；
+        // 值已落字段，下一拍的 10t 节拍刷新会带上（不丢更新，只是最坏晚半秒）
+        lastViewTick = now;
         refreshDisplay();
     }
 
@@ -216,17 +245,23 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         LinkedHashMap<String, Long> agg = aggregate();
         for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
         // m130：精确条目跨核心按「物品+组件」合并后并入同一张列表
-        java.util.List<DispEnt> exacts = new java.util.ArrayList<>();
+        // m267 性能（外部审计第 4 条）：旧法对每个模板线性扫已合并列表=O(n²)，带组件物品一多就塌。
+        // 改 ItemVariant 作哈希键（Fabric Transfer 的物品+组件不可变键，equals/hashCode 现成、
+        // 在树先例 DataCableBlockEntity）——平均 O(n)。合并顺序仍按首见先后（LinkedHashMap），
+        // 与旧版一致，排序键不变故展示顺序零漂移。
+        java.util.LinkedHashMap<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant, DispEnt> exactMap =
+                new java.util.LinkedHashMap<>();
         for (StorageCoreBlockEntity core : cores()) {
             java.util.List<ItemStack> tpls = core.exactTemplates();
             for (int k = 0; k < tpls.size(); k++) {
                 ItemStack t = tpls.get(k); long n = core.exactCount(k);
-                boolean merged = false;
-                for (DispEnt d : exacts) if (ItemStack.areItemsAndComponentsEqual(d.tpl, t)) { d.n += n; merged = true; break; }
-                if (!merged) exacts.add(new DispEnt(Registries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
+                var key = net.fabricmc.fabric.api.transfer.v1.item.ItemVariant.of(t);
+                DispEnt d = exactMap.get(key);
+                if (d != null) d.n += n;
+                else exactMap.put(key, new DispEnt(Registries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
             }
         }
-        all.addAll(exacts);
+        all.addAll(exactMap.values());
         java.util.List<DispEnt> filtered = new java.util.ArrayList<>();
         String q = searchFilter == null ? "" : searchFilter.toLowerCase();
         for (DispEnt d : all)
