@@ -16,7 +16,7 @@ public record NodeFilterPayload(BlockPos pos, int index, String entry) implement
     public static final PacketCodec<RegistryByteBuf, NodeFilterPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, NodeFilterPayload::pos,
             PacketCodecs.INTEGER, NodeFilterPayload::index,
-            PacketCodecs.STRING, NodeFilterPayload::entry,
+            Bounded.string(128), NodeFilterPayload::entry, // m291
             NodeFilterPayload::new
     );
 

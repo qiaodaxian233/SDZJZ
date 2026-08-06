@@ -26,8 +26,8 @@ public record NodeGroupPayload(BlockPos pos, int gid, String name, List<Integer>
     public static final PacketCodec<RegistryByteBuf, NodeGroupPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, NodeGroupPayload::pos,
             PacketCodecs.INTEGER, NodeGroupPayload::gid,
-            PacketCodecs.STRING, NodeGroupPayload::name,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.INTEGER), NodeGroupPayload::members,
+            Bounded.string(64), NodeGroupPayload::name, // m291 组名(UI setMaxLength 24，协议留余量)
+            Bounded.intList(4096), NodeGroupPayload::members, // m291 协议硬顶(玩法上限 maxNodes 可调，协议顶只防分配放大)
             NodeGroupPayload::new
     );
 

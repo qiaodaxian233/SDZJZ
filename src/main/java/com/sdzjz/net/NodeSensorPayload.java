@@ -16,7 +16,7 @@ public record NodeSensorPayload(BlockPos pos, int index, String item, long thres
     public static final PacketCodec<RegistryByteBuf, NodeSensorPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, NodeSensorPayload::pos,
             PacketCodecs.INTEGER, NodeSensorPayload::index,
-            PacketCodecs.STRING, NodeSensorPayload::item,
+            Bounded.string(128), NodeSensorPayload::item, // m291
             PacketCodecs.VAR_LONG, NodeSensorPayload::threshold,
             PacketCodecs.BOOL, NodeSensorPayload::less,
             NodeSensorPayload::new

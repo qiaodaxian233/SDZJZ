@@ -4432,3 +4432,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **边界立档不修**：①m284 后 GROUND/FIXED 从"地面光照组"变"手持组"（renderItem 内部 bl 分支），
   掉落物观感可能有细微差——实机看，介意再给 ground 单开路径；②m286 自绘书钮无 widget=丢 Tab 键盘
   焦点可达性，鼠标/触控不受影响。
+
+## m291 C2S 有界 Codec（外部审计复查 P1 首位：长度限制发生在解码之后）
+
+- **病根**：DataPanelViewPayload 等用裸 PacketCodecs.STRING/toList——超长串/超长表必须先被网络层
+  完整解码分配成 String/List，业务层 sanitize 才截断。业务层 CPU 放大前轮已防，但解码线程的
+  分配放大与瞬时 GC 没关门。
+- **修法**：新 net/Bounded（string/stringList/intList 三件）——**解码期先读声明长度，越界立即
+  DecoderException 拒收断连**，预分配按夹紧值走不给分配放大留口；编码期静默截断自保。
+  换装 7 个 C2S 包：panel_view(搜索128/匹配表256×128)、node_add/filter/sensor(128)、
+  node_target(256)、node_group(名64+成员表4096 协议硬顶)、storage_link(维度256)。
+  上限对齐服务端业务层 sanitize，双层防御并存；S2C 包不动（服务端可信）。
+  API 核名：readString(int)=method_10800、writeString(String,int)=method_10788、
+  PacketCodec.of=method_56438（编码器值先行）。
+- **回归尺**：新 tools_bounded_codec_check.py（从 Sdzjz.java 抓 playC2S 注册名单，逐包禁裸
+  STRING/collection/toList——新增 C2S 包忘挂界=CI 红），挂第八道闸，现 17 包全过。
+- **事故记录**：首版替换把结构逗号留在行注释后被吞（26 处语法错），冒烟当场抓住归位重烟 0。
+- 实机脚本：正常搜索/建组/选目标全链路照旧；（有条件的话）伪造 length=100 万的 panel_view 包
+  应见解码期断连而非服务端卡顿。

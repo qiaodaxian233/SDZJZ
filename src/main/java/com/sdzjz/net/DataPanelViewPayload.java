@@ -17,9 +17,9 @@ public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow, L
 
     public static final PacketCodec<RegistryByteBuf, DataPanelViewPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, DataPanelViewPayload::pos,
-            PacketCodecs.STRING, DataPanelViewPayload::search,
+            Bounded.string(128), DataPanelViewPayload::search, // m291 有界解码，上限对齐服务端 sanitize
             PacketCodecs.INTEGER, DataPanelViewPayload::scrollRow,
-            PacketCodecs.STRING.collect(PacketCodecs.toList()), DataPanelViewPayload::matchedIds,
+            Bounded.stringList(128, 256), DataPanelViewPayload::matchedIds, // m291 越界包解码期拒收
             DataPanelViewPayload::new
     );
 

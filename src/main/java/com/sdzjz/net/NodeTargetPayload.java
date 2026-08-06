@@ -16,7 +16,7 @@ public record NodeTargetPayload(BlockPos pos, int index, String target) implemen
     public static final PacketCodec<RegistryByteBuf, NodeTargetPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, NodeTargetPayload::pos,
             PacketCodecs.INTEGER, NodeTargetPayload::index,
-            PacketCodecs.STRING, NodeTargetPayload::target,
+            Bounded.string(256), NodeTargetPayload::target, // m291 目标串(附魔/药水/交易键)给宽些
             NodeTargetPayload::new
     );
 

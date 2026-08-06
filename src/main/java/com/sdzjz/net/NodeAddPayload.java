@@ -15,7 +15,7 @@ public record NodeAddPayload(BlockPos pos, String itemId) implements CustomPaylo
 
     public static final PacketCodec<RegistryByteBuf, NodeAddPayload> CODEC = PacketCodec.tuple(
             BlockPos.PACKET_CODEC, NodeAddPayload::pos,
-            PacketCodecs.STRING, NodeAddPayload::itemId,
+            Bounded.string(128), NodeAddPayload::itemId, // m291 物品 id 上限
             NodeAddPayload::new
     );
 

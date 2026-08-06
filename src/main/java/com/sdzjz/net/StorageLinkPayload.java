@@ -18,7 +18,7 @@ public record StorageLinkPayload(BlockPos pos, int machineIndex, long storagePos
             PacketCodecs.INTEGER, StorageLinkPayload::machineIndex,
             PacketCodecs.VAR_LONG, StorageLinkPayload::storagePos,
             PacketCodecs.INTEGER, StorageLinkPayload::dir,
-            PacketCodecs.STRING, StorageLinkPayload::dim,
+            Bounded.string(256), StorageLinkPayload::dim, // m291 维度 id
             StorageLinkPayload::new
     );
 
