@@ -4325,3 +4325,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   实机脚本：仓库放圆石+铁矿+泥土→熔炉组"选择烧什么"只出圆石/铁矿（泥土不可烧不出现）且铁矿存量多则排前；
   断开数据线或空仓开选择器=回退全表；选择器面板整面不再被底下画布机器图标透出来（m131b 药水/m132 附魔/
   m146 交易/m93 作物各模式同治）。
+
+## m284 压缩包手持不居中（作者截图：旋转的冰块挂在框外）
+
+- **根因**：m243 起内容物与边框各走【自己的】display 变换——GUI 里两者变换恰好同锚看不出事，
+  手持/掉落里方块 display（三人称 t=(0,2.5/16,0)·s0.375）与扁平件 display（t=(0,3/16,1/16)·s0.55）
+  锚点/缩放都不同=内容物整体offset挂框外，m280 一转起来更扎眼。
+- **修法**：非 GUI 模式整组统一套【边框】的 display 变换（BakedModel#getTransformation(mode) 取
+  Transformation 一次 apply，左手模式走镜像位），内外皆以 NONE 嵌套渲染=同一锚点必然居中；
+  内容物在框平面内绕 Y 自转。GUI 老路不动（作者验过）。
+- **几何账**：边框贴图 PIL 实测 2px border→内孔半宽 0.375；内容物缩 0.5 水平旋转半径 0.25√2≈0.354<0.375
+  =旋转全程不进边框环带，边框只需前移 0.05 防中孔 z-fight，无穿插无视差。裸包路径不变。
+- **API 核名**：yarn 1.21.1 BakedModel#method_4709→getTransformation()、ModelTransformation#method_3503
+  →getTransformation(class_811)、Transformation#method_23075→apply(Z,MatrixStack) 三处逐一核到。
+- 实机脚本：手持压缩冰块一/三人称看方块居中框内自转不出框；掉落/展示框同看；GUI 图标与此前一致。
