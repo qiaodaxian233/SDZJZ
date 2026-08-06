@@ -322,14 +322,20 @@ public final class SuperBenchRecipes {
         bom("sdzjz:iron_farm", "minecraft:villager,minecraft:zombie", DRT, 26, PLK, 24, TRAP, 2, BED, 4,
                 "minecraft:oak_sign", 3, TCH, 8, GL, 1, "minecraft:oak_boat", 1, WB, 1, CHE, 2, HOP, 1,
                 "minecraft:campfire", 2);
-        // m169 40核刷铁机：对表用户 40 核蓝图（litematic 实测 11044 块：白桦栅栏门1856/白桦台阶1804+橡木280/
-        // 水源1924/玻璃1010/白桦楼梯968/闪长岩墙952/白桦栅栏680/床120张=3床×40核/村民实体120=3×40核/
-        // 火把229/岩浆60击杀舱/船10，÷≈100 取整，床÷10=12 撑核心身份）——119 件 18 种，村民+僵尸双笼照单核。
-        bom("sdzjz:mega_iron_farm", "minecraft:villager,minecraft:zombie",
-                "minecraft:birch_fence_gate", 18, "minecraft:birch_slab", 18, BED, 12, GL, 10,
-                "minecraft:birch_stairs", 10, "minecraft:diorite_wall", 10, "minecraft:birch_fence", 7,
-                WB, 6, "minecraft:birch_planks", 5, TRAP, 4, TCH, 3, OSV, 2, LB, 1,
-                "minecraft:oak_boat", 1, HOP, 4, CHE, 2);
+        // m253 粗账过账（摘录截断=下限账）：40核刷铁机 11044 块；床120张=item120、水1924→64桶税、岩浆60桶、船10=载具入料、村民120活体不入；摘录覆盖 10003/11044 块（未点名 1041 块≈9% 无从入账，重传投影后走 m172 管线精账重跑）；计料实测 8033→BOM 8262（溢价 2.9%），保守槽位 17。
+        bomPacked("sdzjz:mega_iron_farm", "minecraft:villager,minecraft:zombie",
+                "minecraft:birch_fence_gate", 1856,
+                "minecraft:birch_slab", 1856,
+                "minecraft:glass", 1024,
+                "minecraft:birch_stairs", 1024,
+                "minecraft:diorite_wall", 960,
+                "minecraft:birch_fence", 704,
+                "minecraft:oak_slab", 320,
+                "minecraft:torch", 256,
+                "minecraft:white_bed", 128,
+                "minecraft:water_bucket", 64,
+                "minecraft:lava_bucket", 60,
+                "minecraft:oak_boat", 10);
         // m248 全量过账：160核刷铁机+合成收集 20103+644 块合账（村民573实体=活体不入料，双笼口径照旧）；实体账[minecraft:villager×573不入; minecraft:minecart×10入料]；计料实测 18628→BOM 19138（溢价 2.7%），保守槽位 71（m251：farmland 128 归一成 dirt 销死料）。
         bomPacked("sdzjz:iron_farm_160", "minecraft:villager,minecraft:zombie",
                 "minecraft:white_stained_glass", 6016,
@@ -388,14 +394,18 @@ public final class SuperBenchRecipes {
         bom("sdzjz:magma_farm", "minecraft:magma_cube", "minecraft:magma_block", 8, "minecraft:iron_bars", 8,
                 NBK, 12, "minecraft:magma_cream", 2, HOP, 4, CHE, 2);
         bom("sdzjz:mob_tower", "minecraft:zombie", COB, 48, WB, 4, TRAP, 8, TCH, 8, HOP, 4, CHE, 4); // 通用大黑塔=堆料最多
-        // m170 920万船吸刷怪塔：对表用户蓝图（litematic 实测 133507 块：平滑石台阶26494/黑曜石23678+
-        // 传送门20064格=门阵运怪/灵魂沙23618/白玻璃16089/云杉告示牌10032/发射器3344+船实体3345=船吸本体/
-        // 凋灵玫瑰674击杀/龟蛋150诱饵，÷≈1000 取整，打火石=点门仪式）——116 件 16 种。
-        bom("sdzjz:mega_mob_tower", "minecraft:zombie", "minecraft:smooth_stone_slab", 24, OBSI, 20,
-                "minecraft:soul_sand", 20, "minecraft:white_stained_glass", 14, "minecraft:spruce_sign", 8,
-                HOP, 4, CHE, 4, "minecraft:oak_leaves", 3, "minecraft:dispenser", 3, OSV, 3,
-                "minecraft:oak_boat", 3, "minecraft:stone_brick_stairs", 1, "minecraft:wither_rose", 1,
-                "minecraft:birch_trapdoor", 1, "minecraft:turtle_egg", 1, "minecraft:flint_and_steel", 1);
+        // m253 粗账过账（摘录截断=下限账）：920万船吸刷怪塔 133507 块；传送门20064格=点火产物剔除、船实体3345=载具入料、打火石=点门仪式；摘录覆盖 104079/133507 块（未点名 9364 块≈7% 无从入账，重传投影后走 m172 管线精账重跑）；计料实测 107425→BOM 111937（溢价 4.2%），保守槽位 33。
+        bomPacked("sdzjz:mega_mob_tower", "minecraft:zombie",
+                "minecraft:smooth_stone_slab", 28672,
+                "minecraft:obsidian", 24576,
+                "minecraft:soul_sand", 24576,
+                "minecraft:white_stained_glass", 16384,
+                "minecraft:spruce_sign", 10048,
+                "minecraft:oak_boat", 3392,
+                "minecraft:dispenser", 3392,
+                "minecraft:wither_rose", 704,
+                "minecraft:turtle_egg", 192,
+                "minecraft:flint_and_steel", 1);
         bom("sdzjz:nether_tree_farm", "", "minecraft:crimson_fungus", 2, "minecraft:warped_fungus", 2,
                 "minecraft:netherrack", 16, BM, 16, PIS, 2, HOP, 4, CHE, 2);
         bom("sdzjz:nether_wart_farm", "", "minecraft:nether_wart", 8, "minecraft:soul_sand", 16, PIS, 4,
@@ -407,13 +417,16 @@ public final class SuperBenchRecipes {
                 "minecraft:rail", 2, TRAP, 8, "minecraft:ender_pearl", 2, HOP, 4, CHE, 2);
         bom("sdzjz:piglin_barter", "minecraft:piglin", OBSI, 10, "minecraft:gold_ingot", 16, // 黑曜石10=原版下界门最省砌法
                 "minecraft:flint_and_steel", 1, HOP, 4, CHE, 4);
-        // m170 140猪灵交易场：对表用户蓝图（litematic 实测 2972 块：白混凝土740/白玻璃450/漏斗235/
-        // 侦测器159/平滑石131/红石火把153/比较器62，÷≈30 取整，金块4=140猪灵的交易本钱标志件）——68 件 15 种。
-        bom("sdzjz:mega_piglin_barter", "minecraft:piglin", "minecraft:white_concrete", 12,
-                "minecraft:white_stained_glass", 8, HOP, 8, OSV, 5, SST, 4, CHE, 4, RSD, 4,
-                "minecraft:gold_block", 4, "minecraft:repeater", 3, "minecraft:dropper", 3,
-                "minecraft:redstone_torch", 3, "minecraft:comparator", 2, "minecraft:powered_rail", 2,
-                "minecraft:note_block", 1);
+        // m253 粗账过账（摘录截断=下限账）：140猪灵交易场 2972 块；金块4=交易本钱标志件(不在蓝图,口径照旧)；摘录覆盖 1930/2972 块（未点名 1042 块≈35% 无从入账，重传投影后走 m172 管线精账重跑）；计料实测 1934→BOM 2178（溢价 12.6%），保守槽位 13。
+        bomPacked("sdzjz:mega_piglin_barter", "minecraft:piglin",
+                "minecraft:white_concrete", 768,
+                "minecraft:white_stained_glass", 512,
+                "minecraft:hopper", 256,
+                "minecraft:observer", 192,
+                "minecraft:redstone_torch", 192,
+                "minecraft:smooth_stone", 192,
+                "minecraft:comparator", 62,
+                "minecraft:gold_block", 4);
         bom("sdzjz:pigman_tower", "minecraft:zombified_piglin", "minecraft:turtle_egg", 4, OBSI, 16, // 龟蛋=原版仇恨诱饵
                 TRAP, 8, "minecraft:gold_nugget", 8, HOP, 4, CHE, 4);
         // m248 全量过账：80w猪人塔+收集背包 149679+2005 块合账（传送门98208格=点火产物剔除、黑曜石门阵全量入料）；实体账[他模组sophisticatedbackpacks:diamond_backpack×1剔除; minecraft:armor_stand×12入料; minecraft:item_frame×1入料]；计料实测 53455→BOM 55901（溢价 4.6%），保守槽位 63。
@@ -527,14 +540,17 @@ public final class SuperBenchRecipes {
                 GL, 8, "minecraft:shulker_shell", 2, HOP, 4, CHE, 2);
         bom("sdzjz:slime_farm", "minecraft:slime", COB, 40, "minecraft:iron_block", 4, "minecraft:carved_pumpkin", 1, // 铁块4+南瓜=原版铁傀儡诱饵
                 TCH, 8, "minecraft:slime_ball", 2, HOP, 4, CHE, 2);
-        // m170 200万史莱姆农场：对表用户双维度蓝图 by tuzier（litematic 实测 5860 块：白玻璃2681/漏斗790/
-        // 投掷器400/动力铁轨248/侦测器220/合成器111打包/蓝冰108冰道/凋灵玫瑰36击杀/灵魂沙60，÷≈50 取整；
-        // 蓝图内 repeating_command_block×5 属放置辅助不入料）——82 件 17 种。
-        bom("sdzjz:mega_slime_farm", "minecraft:slime", "minecraft:white_stained_glass", 24, HOP, 16,
-                "minecraft:dropper", 8, "minecraft:powered_rail", 5, OSV, 4, CHE, 4, "minecraft:oak_leaves", 2,
-                "minecraft:repeater", 2, "minecraft:crafter", 2, "minecraft:blue_ice", 2,
-                "minecraft:white_concrete", 2, "minecraft:wither_rose", 2, "minecraft:composter", 1,
-                "minecraft:soul_sand", 1, "minecraft:note_block", 1, "minecraft:slime_block", 1);
+        // m253 粗账过账（摘录截断=下限账）：200万史莱姆农场 5860 块；repeating_command_block×5=放置辅助剔除；摘录覆盖 4654/5860 块（未点名 1201 块≈20% 无从入账，重传投影后走 m172 管线精账重跑）；计料实测 4654→BOM 4832（溢价 3.8%），保守槽位 16。
+        bomPacked("sdzjz:mega_slime_farm", "minecraft:slime",
+                "minecraft:white_stained_glass", 2688,
+                "minecraft:hopper", 832,
+                "minecraft:dropper", 448,
+                "minecraft:powered_rail", 256,
+                "minecraft:observer", 256,
+                "minecraft:crafter", 128,
+                "minecraft:blue_ice", 128,
+                "minecraft:soul_sand", 60,
+                "minecraft:wither_rose", 36);
         bom("sdzjz:sugarcane_farm", "", "minecraft:sugar_cane", 8, SND, 8, WB, 2, OSV, 8, PIS, 8, RSD, 8,
                 SST, 12, HOP, 4, CHE, 2);
         bom("sdzjz:super_smelter", "", FUR, 16, HOP, 16, CHE, 8, "minecraft:coal_block", 4); // 原版超级熔炉阵=炉与漏斗海
