@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 23; // m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 24; // m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -33,6 +33,7 @@ public class SdzjzConfig {
     public int coreBufferSlots = 27;          // 生产核心输出缓存槽数（满则按面板设置停机/喷射）
     public int storageTypesPerTier = 0;       // 存储核心每级类型数：0=无限类型(默认,m98)；>0=旧成长机制(原27,存储升级+1级)
     public boolean sleepWhenIdle = true;      // 无红石/缺料/堵塞/无人加载时休眠停tick（§15.3）
+    public int packetWriteBudgetPerTick = 40; // m269 每玩家每tick画布/面板C2S写包预算（防洪泛：每个写包都触发全量同步，无闸=同步风暴；正常UI交互每tick至多几包，40远够）；0=关闭护栏
     public boolean coreChunkLoading = true;   // m133 结构核心开机=强制加载自身区块(重启自恢复)+存储端点区块(有期票)；关=离开即停产(旧行为)
     public boolean canvasEndsPlaceable = true; // m265 总线端点卡可拖下画布钉在图上；关=拖拽禁用+一律按停靠栏渲染（已落位数据保留不丢，重开即恢复）
     public int structureBlocksPerTick = 1024;         // 一键建造每tick摆放方块数(分批防卡顿)
@@ -153,6 +154,7 @@ public class SdzjzConfig {
             cfg.configVersion = 22;
         }
         if (cfg.configVersion < 23) cfg.configVersion = 23; // m265 纯加键（canvasEndsPlaceable 端点卡可拖下画布开关），缺键走字段初值
+        if (cfg.configVersion < 24) cfg.configVersion = 24; // m269 纯加键（packetWriteBudgetPerTick 每玩家每tick写包预算），缺键走字段初值
 
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件

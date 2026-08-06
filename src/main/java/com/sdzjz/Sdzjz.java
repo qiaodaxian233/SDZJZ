@@ -228,7 +228,7 @@ public class Sdzjz implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(NodeAddPayload.ID, (payload, context) -> { // m88 机器库侧栏
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
-                if (!viewingCore(p, payload.pos())) return;
+                if (payload.itemId().length() > 128 || !viewingCore(p, payload.pos())) return; // m269 长度闸与其余字符串包对齐
                 if (!(p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core)) return;
                 var inv = p.getInventory();
                 for (int i = 0; i < inv.size(); i++) {
@@ -269,14 +269,28 @@ public class Sdzjz implements ModInitializer {
         LOGGER.info("[生电终结者] 已加载：结构核心画布 + 机器 + 升级 + 连接系统。");
     }
 
-    /** 玩家当前打开的是不是该坐标的结构核心画布。 */
-    private static boolean viewingCore(ServerPlayerEntity p, net.minecraft.util.math.BlockPos pos) {
-        return p.currentScreenHandler instanceof StructureCoreScreenHandler h && pos.equals(h.blockPos());
+    /** m269 每玩家每 tick C2S 写包预算（外部审计"速率限制"）：全部画布/面板写包都触发
+     *  markDirty+syncToClient 全量同步，伪造包洪泛=同步风暴打卡主线程。正常 UI 交互每 tick
+     *  至多几包，默认预算 40 绝不伤手感；超限静默丢弃（客户端下一次交互重发即生效）。
+     *  服务端主线程内调用（各接收器 execute 里），无并发问题；下线残留条目为几十字节可忽略。 */
+    private static final java.util.HashMap<java.util.UUID, long[]> WRITE_BUDGET = new java.util.HashMap<>();
+    private static boolean writeBudget(ServerPlayerEntity p) {
+        int cap = SdzjzConfig.get().packetWriteBudgetPerTick;
+        if (cap <= 0) return true; // 0=关闭护栏
+        long tick = p.getWorld().getTime();
+        long[] e = WRITE_BUDGET.computeIfAbsent(p.getUuid(), k -> new long[]{Long.MIN_VALUE, 0});
+        if (e[0] != tick) { e[0] = tick; e[1] = 0; }
+        return ++e[1] <= cap;
     }
 
-    /** 玩家当前打开的是不是该坐标的数据面板（含手持终端远程打开）。 */
+    /** 统一入包闸（资格+预算）：玩家当前打开的是不是该坐标的结构核心画布。全部画布类 C2S 接收器走此口。 */
+    private static boolean viewingCore(ServerPlayerEntity p, net.minecraft.util.math.BlockPos pos) {
+        return writeBudget(p) && p.currentScreenHandler instanceof StructureCoreScreenHandler h && pos.equals(h.blockPos());
+    }
+
+    /** 统一入包闸（资格+预算）：玩家当前打开的是不是该坐标的数据面板（含手持终端远程打开）。 */
     private static boolean viewingPanel(ServerPlayerEntity p, net.minecraft.util.math.BlockPos pos) {
-        return p.currentScreenHandler instanceof DataPanelScreenHandler h && pos.equals(h.blockPos());
+        return writeBudget(p) && p.currentScreenHandler instanceof DataPanelScreenHandler h && pos.equals(h.blockPos());
     }
 
     public static Identifier id(String path) {

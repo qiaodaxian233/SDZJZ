@@ -3980,3 +3980,37 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （/forceload query 确认还在）；②核心自己 force 的区块拆核心后正常解除（不泄漏）；③重启服务器后
   停机核心的孤儿区块被回收解除，而管理员 forceload 的区块重启后仍在；④同区块多核心共存时，
   拆掉其中一台其余仍钉住。
+
+## m269 C2S 包全面护栏收官（外部审计第一批第二条余账 + "坐标没有范围限制"条）
+- **现象/风险**：m267 只治了视图包，审计要求"所有 C2S 包加长度、数量、范围和速率限制"。
+  全 17 个接收器逐个复核后确认四缺口：
+  ① `setNodePos` 单节点移动坐标**无钳制**（审计原文点名"直接接受任意 32 位整数并写入 NBT"）；
+  ② `moveGroup` 单次 dx/dy 虽钳 ±1e5，但**终值 int 加法可溢出**——反复发包每次+1e5，两万多包后
+  加爆 int 变负天文坐标（审计原文点名"使用安全加法"）；
+  ③ `NodeAddPayload.itemId` 无长度闸（其余字符串包均 ≤128）；
+  ④ **全部写类包零速率限制**——每个写包都触发 markDirty+syncToClient **全量 NBT 广播**，
+  伪造包洪泛=同步风暴打卡主线程（与审计第三条 NBT 同步问题互为放大器）。
+- **复核无恙项**（留痕防重查）：全部 index 方法有边界检查（fuseNode/togglePause/toggleSwitch/
+  toggleFilterEntry/removeNodeAt/setNodePos/toggleConnection/setSensorConfig/setNodeTarget）；
+  sensor 阈值已钳 0..1e12；toggleStorageEdge 只认服务端端点表+dir 0..1+维度服务端权威；
+  StorageNodeMove m265 已钳；NodeUpgrade count 钳 1..64；JeiFill 走 Identifier.PACKET_CODEC 自带校验；
+  NodeGroup name≤64/members≤512。C2S 自定义包 vanilla 层有 32767 字节封顶，解码侧分配天然有界，
+  语义闸放接收器侧即可。
+- **修法**：
+  - `clampCanvas` 升 long 入参（int 实参自动拓宽，原 6 处调用零改动）；`setNodePos` 两坐标过钳；
+    `moveGroup` 改 long 加法后过钳（±1e6 与 m265 存储节点同幅）。
+  - `NodeAddPayload` 接收器加 itemId≤128 长度闸。
+  - **统一入包闸**：`viewingCore`/`viewingPanel`（全部 17 个接收器的必经资格判断）前置
+    `writeBudget(p)` ——每玩家每 tick 写包预算，HashMap<UUID,long[]{tick,count}>，
+    计时口径照 m267 用 world.getTime()，服务端主线程内调用无并发问题。超限静默丢弃
+    （客户端下一次交互重发即生效，不是丢状态）。放两个谓词里而非 17 处各插一行：
+    改动面 2 处且**未来新增接收器自动被闸覆盖**，不会漏。
+  - 配置 `packetWriteBudgetPerTick`（默认 40，0=关）：正常 UI 交互每 tick 至多几包，
+    40 绝不伤手感（拖动=1包/帧≈3包/tick 封顶）；configVersion 23→24 纯加键迁移。
+- **教训**：审计说"所有包"就逐包过堂列清单销账，不能修一个代表就算——本次 17 收 4 改 13 核实，
+  复核清单落 DEVLOG 防下次重查。速率闸放在必经谓词而非逐接收器插桩，覆盖面靠结构保证。
+- **实机验证**：①画布正常拖动节点/组/端点卡、连线、换目标、加撤升级——手感零差异；
+  ②单节点拖到画布边缘极限位置存档重进坐标仍在 ±1e6 内；③（可选，需改客户端发包代码模拟）
+  同 tick 洪泛 100 个 NodeMove 包→仅前 40 生效无同步风暴，`/sdzjz profile core` 对表主线程无尖峰；
+  ④组反复移动到坐标墙（±1e6）后节点不消失不闪跳，往回拖正常；⑤config 设 packetWriteBudgetPerTick=0
+  后护栏关闭行为复旧。

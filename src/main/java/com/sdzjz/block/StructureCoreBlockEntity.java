@@ -1606,8 +1606,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-        n.putInt("nx", nx);
-        n.putInt("ny", ny);
+        n.putInt("nx", clampCanvas(nx)); // m269 与存储节点(m265)同幅钳制——审计点名"单节点移动直接接受任意32位整数写入NBT"
+        n.putInt("ny", clampCanvas(ny));
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         markDirty();
         syncToClient();
@@ -1763,8 +1763,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (ItemStack s : machineNodes) {
             if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
             NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-            n.putInt("nx", (n.contains("nx") ? n.getInt("nx") : 0) + dx);
-            n.putInt("ny", (n.contains("ny") ? n.getInt("ny") : 0) + dy);
+            // m269 long 加法+终值钳幅：单次 dx 虽已钳 ±1e5，但反复发包每次+1e5 累加 int 会溢出（审计点名）
+            n.putInt("nx", clampCanvas((n.contains("nx") ? (long) n.getInt("nx") : 0L) + dx));
+            n.putInt("ny", clampCanvas((n.contains("ny") ? (long) n.getInt("ny") : 0L) + dy));
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
             any = true;
         }
@@ -2185,8 +2186,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 设置存储节点画布坐标。 */
-    /** m265 画布落位坐标钳制（±1,000,000，防伪造包写极端值进 NBT/参与几何运算溢出）。 */
-    private static int clampCanvas(int v) { return Math.max(-1_000_000, Math.min(1_000_000, v)); }
+    /** m265 画布落位坐标钳制（±1,000,000，防伪造包写极端值进 NBT/参与几何运算溢出）。
+     *  m269 升 long 入参：moveGroup 用 long 加法防 int 溢出后直接喂进来；原 int 调用点自动拓宽零改动。 */
+    private static int clampCanvas(long v) { return (int) Math.max(-1_000_000L, Math.min(1_000_000L, v)); }
 
     /** m265 语义升级：写入即"放置到画布"——值升三元 {x, y, 1}，第三位=放置标记。
      *  历史二元值（m80 前遗留 + 旧整理布局写入的死数据）没有标记位=仍视为停靠，老档不惊动。 */
