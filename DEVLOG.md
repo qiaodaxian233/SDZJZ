@@ -4115,3 +4115,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   给存储核心 store 塞一条 n=-100 条目→载入日志告警一次、终端不显示该条目、其余账目完好；
   ③给 internalBuffer 塞负值→载入告警、`/sdzjz profile core` 无异常、分发不再出现负计数；
   ④（可选）xpBank 手改到 Long.MAX-10 后反复存经验→停在 Long.MAX 不翻负，取用正常。
+
+## m274 全量 NBT 同步拆分·方案稿（外部审计第一批第 3 条，先出方案再动手）
+- **调查结论**（全链路实测）：syncToClient=updateListeners(NOTIFY_ALL)→vanilla BE 更新包→
+  **完整 writeNbt**（存档级全量：512 节点栈+图数据+双缓存+背包+强载表…）广播给**所有追踪
+  区块的玩家**；触发点 30 处（29 事件+1 周期）；m269 writeBudget 只治入口频率，出口成本仍
+  O(全量×追踪者)。客户端消费面 grep 收全：画布屏 be() 直读客户端 BE 的渲染字段子集，
+  items/forceChunks/chunkOwned/boundPanel 确定不需要；画布 handler 无槽位、BER 只读时间、
+  m89 CanvasEnds 即"定向 payload 写客户端 BE"在树先例——三处兼容点全干净。
+- **方案**（`docs/同步拆分方案_m274.md`，待作者拍板）：A=观众定向渲染快照+标脏聚合
+  （writeRenderNbt 子集收口防漂移、syncToClient 内部换标脏 29 调用点零改动、tick 末合并
+  1 包/观众、开屏首包兜底、toInitialChunkDataNbt 瘦身、200t 周期改快照自愈、prof 对表）；
+  B=分段 rev 增量，按 A 对表数据决定立不立项（已知坐标在节点栈里的高频化风险，动数据模型
+  是红线不轻碰）。验收标准+m275/276/277 切分见方案文档。
+- **教训**：大工程先把"谁在收、收什么、真消费什么"三本账摸平再切方案——消费面清单是快照
+  内容边界的唯一依据，靠猜必漏（xpPool/running/nodeBufs 三项列为实施首步定向核对项而非拍脑袋）。
+- **实机验证**：本笔纯文档零代码，无验证项；实施验收标准见方案第六节。
