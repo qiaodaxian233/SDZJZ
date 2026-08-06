@@ -1409,6 +1409,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return new int[]{x1 - GPAD, y1 - GPAD - GBAND, x2 + GPAD, y2 + GPAD};
     }
 
+    /** m264 连通分量：从 idx 出发沿机器连线（connections 纯 {from,to} 下标、按无向走）BFS 收齐
+     *  "连在一起"的全部节点，升序返回。存储边不算（组是机器下标集合，端点不是节点）。 */
+    private java.util.List<Integer> connectedComponent(StructureCoreBlockEntity be, int idx) {
+        int n = be.nodes().size();
+        java.util.LinkedHashSet<Integer> seen = new java.util.LinkedHashSet<>();
+        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
+        seen.add(idx); q.add(idx);
+        while (!q.isEmpty()) {
+            int cur = q.poll();
+            for (int[] c : be.connections()) { // 双端防越界口径与渲染侧一致
+                if (c[0] >= n || c[1] >= n || c[0] < 0 || c[1] < 0) continue;
+                int other = c[0] == cur ? c[1] : c[1] == cur ? c[0] : -1;
+                if (other >= 0 && seen.add(other)) q.add(other);
+            }
+        }
+        java.util.List<Integer> out = new ArrayList<>(seen);
+        java.util.Collections.sort(out);
+        return out;
+    }
+
     /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
     private void createGroupFromSelection() {
         StructureCoreBlockEntity be = be();
@@ -1850,6 +1870,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int tfN = StructureCoreBlockEntity.filterList(st).size();
             addMenu("吞噬白名单" + (tfN > 0 ? "(" + tfN + ")" : "·全吞") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
+        }
+        if (groupsOn()) { // m264 组合两入口（作者点名：Shift左键多选后能组合，相连的也能组合）——纯客户端拼成员集走 m191 建组包
+            java.util.LinkedHashSet<Integer> selPlus = new java.util.LinkedHashSet<>(selected);
+            selPlus.removeIf(k -> k < 0 || k >= be.nodes().size());
+            selPlus.add(idx); // 右键的这台自动并入，Shift 选完不必再补选它
+            if (selPlus.size() >= 2 && selPlus.size() <= 512) { // 512=服务端伪造包熔断上限，超限不给静默哑口（m99 教训）
+                final java.util.List<Integer> msSel = new ArrayList<>(selPlus);
+                addMenu("组合所选(" + msSel.size() + "台)", mi(net.minecraft.item.Items.LEAD), 2, () -> {
+                    if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", msSel)); selected.clear(); }
+                });
+            }
+            final java.util.List<Integer> comp = connectedComponent(be, idx); // 沿连线收齐"连在一起"的整串
+            if (comp.size() >= 2 && comp.size() <= 512)
+                addMenu("组合相连(" + comp.size() + "台)", mi(net.minecraft.item.Items.CHAIN), selPlus.size() >= 2 ? 0 : 2, () -> {
+                    if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", comp)); selected.clear(); }
+                });
         }
         addMenu("取出机器", mi(net.minecraft.item.Items.HOPPER), 1,
                 () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显
