@@ -4507,3 +4507,26 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：冒烟真错 0；python 双实现模拟 5 万步（存/取/**回滚置脏**混打，每步全物品索引 vs 线性
   逐一对账）全等。实机脚本：附魔书/药水灌几百种进核心，管道抽取/JEI 填料照常；事务型管道
   （Create 传送带怼脸）反复启停无账目漂移。
+
+## m296 强加载所有权换轨（外部审计复查 P1 第三位：核心先钉、管理员后叠 /forceload、核心释放误伤）
+
+- **病根**：原版 forced 是布尔集合，本 MOD 与管理员共用一条通道——后加入者的所有权无从表达，
+  m268 只能把这种叠加称"可接受近似"。公开服不该保留已知误伤。
+- **修法（换通道，不再打补丁）**：核心自身区块弃用 setChunkForced，改自定义**无期票** sdzjz_core
+  （create 二参重载=不过期，method_14291 yarn 核过）+ 每维度 PersistentState 声明表
+  （NbtLongArray）。/forceload 的 FORCED 票与本票**两条互不相干的通道**：管理员叠旗撤旗、核心
+  钉住释放，互相都碰不到——误伤场景从根上消失，m268 的 EXTERNAL 运行时表整个退役。
+- **重启死锁的老命门**：无期票不落盘 → ServerWorldEvents.LOAD 逐声明重发票（复刻原版
+  ForcedChunkState 的自举戏法），核心苏醒后 ≤20t 重登记引用计数。声明表带世界边界防线
+  （±187.5万 拒发并剔除，m142 毒票末端防线同款）。radius=2 → 目标区块 31 级与 /forceload
+  完全同级，实体照 tick（刷怪塔/漏斗矿车零回退；旧版 forced 也是 31 级，行为零变化）。
+- **旧档迁移**：核心 chunkOwned=true（m268 旧通道所有权）→ force 首登记时撤一次旧旗换轨。
+  一次性注意：管理员恰好也叠过 /forceload 的区块会被连带撤（重跑一次即恢复）——旧版这是
+  **永久性**缺陷，现在只是迁移瞬间的一次性近似，此后永久互不干涉。reclaimOrphan 降级为
+  旧通道遗旗清理。force/release/reclaimOrphan **签名全保持**（force 恒回 true），调用方零改动。
+- **待编译验证**：PersistentState.Type 三参记录（构造/反序列化 BiFunction/DataFixTypes=null）——
+  getOrCreate/getPersistentStateManager/removeTicket 均 yarn 核名，null 第三参是 1.21.1 模组通行
+  写法但沙箱编不了 MC 依赖，CI gradle 见分晓。
+- 实机脚本：①核心钉住区块 → 管理员 /forceload add 同区块 → 拆核心 → `/forceload query` 该区块
+  **仍在**（审计场景正向验证）；②反向：管理员先 forceload → 核心进驻又拆除 → 仍在；③重启后
+  远处核心机器不停机（声明表自举）；④旧档升级后核心区块照常常载、原 forced 旗被换轨撤下。
