@@ -193,6 +193,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         || !pos.equals(h.blockPos())) continue;
                 if (pk == null) pk = be.buildEndsPayload(pos);
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, be.buildHomesPayload(pos)); // m265 放置落位姊妹包（同拍同通道，只含已放置项通常极小）
                 if (be.prof != null) { be.prof.endsPackets++; be.prof.endsEntries += pk.endPos().size(); } // m177
             }
         }
@@ -2182,10 +2183,40 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 设置存储节点画布坐标。 */
+    /** m265 画布落位坐标钳制（±1,000,000，防伪造包写极端值进 NBT/参与几何运算溢出）。 */
+    private static int clampCanvas(int v) { return Math.max(-1_000_000, Math.min(1_000_000, v)); }
+
+    /** m265 语义升级：写入即"放置到画布"——值升三元 {x, y, 1}，第三位=放置标记。
+     *  历史二元值（m80 前遗留 + 旧整理布局写入的死数据）没有标记位=仍视为停靠，老档不惊动。 */
     public void setStorageNodePos(long storagePos, int nx, int ny) {
-        storageNodePos.put(storagePos, new int[]{nx, ny});
+        storageNodePos.put(storagePos, new int[]{clampCanvas(nx), clampCanvas(ny), 1});
         markDirty();
         syncToClient();
+    }
+
+    /** m265 收回总线：删除画布落位（回停靠栏）。 */
+    public void dockStorageNode(long storagePos) {
+        if (storageNodePos.remove(storagePos) == null) return;
+        markDirty();
+        syncToClient();
+    }
+
+    /** m265 该端点是否已放置到画布（三元且标记位=1；二元遗留=否）。 */
+    public boolean storageNodePlaced(long pl) {
+        int[] v = storageNodePos.get(pl);
+        return v != null && v.length >= 3 && v[2] == 1;
+    }
+
+    /** m265 打包已放置端点落位（并行列表，只发已放置项；与 buildEndsPayload 同拍走 m89 通道）。 */
+    public com.sdzjz.net.StorageNodeHomePayload buildHomesPayload(BlockPos pos) {
+        java.util.List<Long> ep = new java.util.ArrayList<>();
+        java.util.List<Integer> hx = new java.util.ArrayList<>();
+        java.util.List<Integer> hy = new java.util.ArrayList<>();
+        for (long[] e : storageEndpoints) {
+            int[] v = storageNodePos.get(e[0]);
+            if (v != null && v.length >= 3 && v[2] == 1) { ep.add(e[0]); hx.add(v[0]); hy.add(v[1]); }
+        }
+        return new com.sdzjz.net.StorageNodeHomePayload(pos, ep, hx, hy);
     }
 
     public java.util.List<long[]> storageEndpointsView() { return storageEndpoints; }
@@ -2967,7 +2998,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         NbtCompound spn = nbt.getCompound("storNodePos");
         for (String k : spn.getKeys()) {
             int[] v = spn.getIntArray(k);
-            if (v.length == 2) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {}
+            if (v.length == 2 || v.length == 3) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
         }
     }
 

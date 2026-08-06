@@ -129,6 +129,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private static java.util.List<String> busIdsCache = java.util.List.of();
     private static java.util.List<Long> busCountsCache = java.util.List.of();
 
+    // m265 端点画布落位缓存（与 endsCache 同通道同拍；posLong→{x,y}，不在表=停靠）
+    private static final java.util.Map<Long, int[]> homesCache = new java.util.HashMap<>();
+    private static long homesCachePos = Long.MIN_VALUE;
+    // m265 松手本地回声：40t 同步节奏下发包后卡会被旧包打回停靠闪 ≤2s（m196 同类同步打架），
+    // 短时压住服务器旧值，到期自动让位——服务器 2s 内必然带着新值追上。
+    private static final java.util.Map<Long, int[]> homesHold = new java.util.HashMap<>();
+    private static final java.util.Map<Long, Long> homesHoldUntil = new java.util.HashMap<>();
+
+    public static void applyHomesPayload(com.sdzjz.net.StorageNodeHomePayload p) {
+        homesCache.clear();
+        for (int i = 0; i < p.endPos().size() && i < p.nx().size() && i < p.ny().size(); i++)
+            homesCache.put(p.endPos().get(i), new int[]{p.nx().get(i), p.ny().get(i)});
+        homesCachePos = p.pos().asLong();
+    }
+
     public static void applyEndsPayload(com.sdzjz.net.CanvasEndsPayload p) {
         java.util.List<long[]> e = new java.util.ArrayList<>();
         for (int i = 0; i < p.endPos().size() && i < p.endKind().size(); i++)
@@ -160,8 +175,39 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private java.util.List<Long> busCountsOf(StructureCoreBlockEntity be) {
         return cacheHit() ? busCountsCache : be.busTopCountsView();
     }
+
+    // ===== m265 端点画布落位：读取口（回声 hold > 服务器缓存 > BE 后备；总开关关=全停靠）=====
+    private boolean endsPlaceableOn() { return com.sdzjz.config.SdzjzConfig.get().canvasEndsPlaceable; }
+
+    /** 已放置端点的画布(世界)坐标；null=停靠在总线带。 */
+    private int[] endHome(StructureCoreBlockEntity be, long pl) {
+        if (!endsPlaceableOn()) return null;
+        Long until = homesHoldUntil.get(pl);
+        if (until != null) {
+            if (System.currentTimeMillis() <= until) return homesHold.get(pl); // hold 值为 null=按住"停靠"
+            homesHoldUntil.remove(pl); homesHold.remove(pl);
+        }
+        BlockPos p = this.handler.blockPos();
+        if (p != null && p.asLong() == homesCachePos) return homesCache.get(pl);
+        return be != null && be.storageNodePlaced(pl)
+                ? new int[]{be.storageNodeX(pl, 0), be.storageNodeY(pl, 0)} : null; // 缓存未热身走 BE 后备（m89 口径）
+    }
+
+    private boolean endPlaced(StructureCoreBlockEntity be, long pl) { return endHome(be, pl) != null; }
+
+    /** 松手本地回声（2.5s > 40t 同步周期）：home=null 表示按住"已收回停靠"。 */
+    private static void holdHome(long pl, int[] home) {
+        homesHold.put(pl, home);
+        homesHoldUntil.put(pl, System.currentTimeMillis() + 2500L);
+    }
     private int dragIndex = -1;
     private long dragStor = Long.MIN_VALUE;
+    // m265 端点卡拖拽（拖出总线带=放置画布 / 拖回带内=收回停靠）
+    private long dragEnd = Long.MIN_VALUE;   // 拖动中的端点 posLong
+    private double dragEndOffX, dragEndOffY; // 按下点相对卡左上角的屏幕偏移
+    private int dragEndX, dragEndY;          // 拖动中的屏幕坐标（渲染/命中唯一真源，m196 口径）
+    private double dragEndPressX, dragEndPressY; // 按下点（<4px 视为点击不动卡）
+    private boolean dragEndWasPlaced;        // 起手时是否已放置（决定微动=原样归位语义）
     private double dragOffX, dragOffY;
     private int dragCurX, dragCurY; // m196 拖动中的屏幕本地坐标（渲染/发包唯一真源）——BE 坐标拖动中会被服务器全量同步打回旧值，读它=闪跳；从它回读发包=同步恰好盖掉就把旧坐标发回去=永久漂移
     private boolean linking = false;
@@ -463,8 +509,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
     private int busCols() { return Math.max(1, (workRight() - 24) / (bw() + 14)); }
-    private int snx(StructureCoreBlockEntity be, long pl, int j) { return 14 + (j % busCols()) * (bw() + 14); }
-    private int sny(StructureCoreBlockEntity be, long pl, int j) { return busCardTop() + (j / busCols()) * busRowStep(); }
+    // m265 端点卡屏幕坐标三态：拖动中=本地覆盖坐标（m196 口径，防同步打架）＞已放置=世界坐标投影
+    // （卡体尺寸恒定不随缩放，锚点跟着画布平移/缩放走）＞停靠=总线带排位（m80 原样）。
+    // 全部连线/命中/绘制统一走这两口，放置态自动全链路生效。
+    private int snx(StructureCoreBlockEntity be, long pl, int j) {
+        if (dragEnd != Long.MIN_VALUE && pl == dragEnd) return dragEndX;
+        int[] h = endHome(be, pl);
+        if (h != null) return (int) Math.round(panX + h[0] * zoom);
+        return 14 + (j % busCols()) * (bw() + 14);
+    }
+    private int sny(StructureCoreBlockEntity be, long pl, int j) {
+        if (dragEnd != Long.MIN_VALUE && pl == dragEnd) return dragEndY;
+        int[] h = endHome(be, pl);
+        if (h != null) return (int) Math.round(panY + h[1] * zoom);
+        return busCardTop() + (j / busCols()) * busRowStep();
+    }
 
     @Override
     protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
@@ -509,7 +568,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 int nxH = wnx(be, nodes, i), nyH = wny(be, nodes, i);
                 if (hx >= nxH && hx <= nxH + NW && hy >= nyH && hy <= nyH + NH + 26) { hovN = i; break; }
             }
-            if (hovN < 0 && busVisible()) for (int j = 0; j < ends.size(); j++) {
+            if (hovN < 0) for (int j = 0; j < ends.size(); j++) { // m265 放置卡收起态也参与悬停
+                if (!busVisible() && !endPlaced(be, ends.get(j)[0])) continue;
                 int sxH = snx(be, ends.get(j)[0], j), syH = sny(be, ends.get(j)[0], j);
                 if (mouseX >= sxH && mouseX <= sxH + bw() && mouseY >= syH && mouseY <= syH + bh()) { hovEnd = ends.get(j)[0]; break; }
             }
@@ -741,8 +801,27 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             int sx = snx(be, linkStor, Math.max(j, 0)), sy = sny(be, linkStor, Math.max(j, 0));
             drawWireFree(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mouseX, mouseY, SciSkin.wireIn(), 1f); // m198 预览随进线色
         }
-        if (busVisible()) for (int j = 0; j < ends.size(); j++)
-            drawStorageNode(ctx, be, ends.get(j), j, j < endDimsOf(be).size() ? endDimsOf(be).get(j) : "");
+        { // m265 端点卡三态绘制：放置卡剪到工作视口（不盖上下栏）→停靠卡随总线显隐→拖动中的卡最后无剪刀压顶
+            java.util.List<String> dimsE = endDimsOf(be);
+            int bandBotE = Math.min(busVisible()
+                    ? busCardTop() + Math.max(1, (ends.size() + busCols() - 1) / busCols()) * busRowStep() + 2
+                    : 44, botTop()); // m263 同式
+            ctx.enableScissor(0, bandBotE, workRight(), botTop());
+            for (int j = 0; j < ends.size(); j++) {
+                long pl = ends.get(j)[0];
+                if (pl != dragEnd && endPlaced(be, pl))
+                    drawStorageNode(ctx, be, ends.get(j), j, j < dimsE.size() ? dimsE.get(j) : "");
+            }
+            ctx.disableScissor();
+            if (busVisible()) for (int j = 0; j < ends.size(); j++) {
+                long pl = ends.get(j)[0];
+                if (pl != dragEnd && !endPlaced(be, pl))
+                    drawStorageNode(ctx, be, ends.get(j), j, j < dimsE.size() ? dimsE.get(j) : "");
+            }
+            if (dragEnd != Long.MIN_VALUE) for (int j = 0; j < ends.size(); j++)
+                if (ends.get(j)[0] == dragEnd)
+                    drawStorageNode(ctx, be, ends.get(j), j, j < dimsE.size() ? dimsE.get(j) : "");
+        }
         if (mapOpen) renderMinimap(ctx); // m110a
     }
 
@@ -2009,8 +2088,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
             ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i / rows) * stepX, 20 + (i % rows) * stepY));
         List<long[]> ends = endsOf(be);
-        for (int j = 0; j < ends.size(); j++)
-            ClientPlayNetworking.send(new StorageNodeMovePayload(p, ends.get(j)[0], 760, 20 + j * 72));
+        for (int j = 0; j < ends.size(); j++) { // m265 只整理已放置的卡（右列竖排）；停靠卡不被强行拖下画布
+            long pl = ends.get(j)[0];
+            if (!endPlaced(be, pl)) continue;
+            holdHome(pl, new int[]{760, 20 + j * 72});
+            be.setStorageNodePos(pl, 760, 20 + j * 72);
+            ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, 760, 20 + j * 72, false));
+        }
     }
 
     @Override
@@ -2194,13 +2278,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
                 if (button == 1) {
-                    // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标；m91 总线收起时跳过）
-                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
+                    // 停靠栏优先：右键端点节点 → 菜单（屏幕坐标；m265 停靠卡仍随总线收起跳过，放置卡永在）
+                    for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
+                        if (!busVisible() && !endPlaced(be, pl)) continue;
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
                             clearMenu();
                             menuTitle = "存储连线"; // m148
+                            if (endPlaced(be, pl) && endsPlaceableOn()) { // m265 放置卡多一条：收回总线（拖回带内同义）
+                                BlockPos pDock = this.handler.blockPos();
+                                addMenu("收回总线", mi(net.minecraft.item.Items.ENDER_PEARL), () -> {
+                                    if (pDock != null) {
+                                        holdHome(pl, null);
+                                        StructureCoreBlockEntity beD = be();
+                                        if (beD != null) beD.dockStorageNode(pl); // 客户端 BE 顺手同写（后备读一致）
+                                        ClientPlayNetworking.send(new StorageNodeMovePayload(pDock, pl, 0, 0, true));
+                                    }
+                                });
+                            }
                             addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 1, () -> clearLinksOfStorage(pl));
                             addMenu("取消", () -> {});
                             openMenu((int) mouseX, (int) mouseY);
@@ -2238,19 +2334,30 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 }
                 if (button == 0) {
                     // 停靠栏优先（屏幕坐标）：供料口(绿) → 存储/面板→机器 供料连线；面板供料=取自它聚合的网络
-                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
+                    for (int j = ends.size() - 1; j >= 0; j--) { // m265 放置卡收起态也可拉线
                         if (ends.get(j)[1] == 6) continue; // 输出接口无供料口
                         long pl = ends.get(j)[0];
+                        if (!busVisible() && !endPlaced(be, pl)) continue;
                         int oxp = snx(be, pl, j) + bw() - 14, oyp = sny(be, pl, j) + bh();
                         if (Math.abs(mouseX - oxp) <= 12 && Math.abs(mouseY - oyp) <= 12) { // m122 抓取半径放宽
                             linking = true; linkStor = pl; linkFrom = -1; return true;
                         }
                     }
-                    // 停靠栏节点体：吞掉点击，防误触其下的机器/画布拖动（m91 收起时跳过）
-                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
+                    // 停靠栏节点体：起手拖拽（m265 拖出带=钉到画布/拖回带=收回停靠/微动=原地不动）——
+                    // 旧版仅吞点击防误触其下机器与画布平移，语义完整保留（微动即等价旧吞）。
+                    for (int j = ends.size() - 1; j >= 0; j--) {
                         long pl = ends.get(j)[0];
+                        if (!busVisible() && !endPlaced(be, pl)) continue;
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
-                        if (mouseX >= sx - 4 && mouseX <= sx + bw() + 6 && mouseY >= sy && mouseY <= sy + bh()) return true;
+                        if (mouseX >= sx - 4 && mouseX <= sx + bw() + 6 && mouseY >= sy && mouseY <= sy + bh()) {
+                            if (endsPlaceableOn()) {
+                                dragEnd = pl; dragEndWasPlaced = endPlaced(be, pl);
+                                dragEndOffX = mouseX - sx; dragEndOffY = mouseY - sy;
+                                dragEndX = sx; dragEndY = sy;
+                                dragEndPressX = mouseX; dragEndPressY = mouseY;
+                            }
+                            return true; // 开关关=照旧只吞
+                        }
                     }
                     // 开关节点：点按钮切换 开/关
                     for (int i = nodes.size() - 1; i >= 0; i--) {
@@ -2345,6 +2452,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
         if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
         if (linking) return true;
+        if (button == 0 && dragEnd != Long.MIN_VALUE) { // m265 端点卡拖拽：本地覆盖坐标（m196 口径）
+            dragEndX = (int) (mouseX - dragEndOffX);
+            dragEndY = (int) (mouseY - dragEndOffY);
+            return true;
+        }
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
             if (be != null && dragIndex < be.nodes().size()) {
@@ -2384,6 +2496,32 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         busScaleDrag = false; // m93
         if (mapDragging) { mapDragging = false; mapGeomDrag = null; } // m110a
+        if (button == 0 && dragEnd != Long.MIN_VALUE) { // m265 端点卡收拖：拖出带=钉画布/拖回带=收回/微动=不动
+            long pl = dragEnd;
+            boolean moved = Math.abs(mouseX - dragEndPressX) >= 4 || Math.abs(mouseY - dragEndPressY) >= 4;
+            int relX = dragEndX, relY = dragEndY;
+            dragEnd = Long.MIN_VALUE; // 先清，snx/sny 回真源
+            StructureCoreBlockEntity be = be();
+            BlockPos p = this.handler.blockPos();
+            if (be != null && p != null && moved && endsPlaceableOn()) {
+                List<long[]> ends = endsOf(be);
+                int bandBot = Math.min(busVisible()
+                        ? busCardTop() + Math.max(1, (ends.size() + busCols() - 1) / busCols()) * busRowStep() + 2
+                        : 44, botTop()); // m263 同式
+                if (relY + bh() / 2 > bandBot) { // 卡心落带下=放置/移动（世界坐标=屏幕反投影，双端 ±1e6 钳）
+                    int wx = Math.max(-1_000_000, Math.min(1_000_000, (int) Math.round((relX - panX) / zoom)));
+                    int wy = Math.max(-1_000_000, Math.min(1_000_000, (int) Math.round((relY - panY) / zoom)));
+                    holdHome(pl, new int[]{wx, wy});
+                    be.setStorageNodePos(pl, wx, wy); // 客户端 BE 顺手同写（缓存未热身的后备读一致）
+                    ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, wx, wy, false));
+                } else if (dragEndWasPlaced) { // 拖回带内=收回停靠
+                    holdHome(pl, null);
+                    be.dockStorageNode(pl);
+                    ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, 0, 0, true));
+                }
+            }
+            return true;
+        }
         if (button == 0 && linking) {
             StructureCoreBlockEntity be = be();
             BlockPos p = this.handler.blockPos();
@@ -2395,8 +2533,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (linkFrom >= 0) {
                     // 优先看是否落在存储节点上 → 机器→存储 定向产出
                     boolean done = false;
-                    if (busVisible()) for (int j = ends.size() - 1; j >= 0; j--) {
+                    for (int j = ends.size() - 1; j >= 0; j--) { // m265 放置卡收起态也可作落点
                         long pl = ends.get(j)[0]; // 数据面板也可连（存进它聚合的整个网络）
+                        if (!busVisible() && !endPlaced(be, pl)) continue;
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx - 6 && mouseX <= sx + bw() + 6 && mouseY >= sy - 4 && mouseY <= sy + bh() + 10) { // m122 覆盖下缘凸出的收料口
                             ClientPlayNetworking.send(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));

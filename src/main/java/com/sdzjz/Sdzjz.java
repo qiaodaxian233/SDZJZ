@@ -74,6 +74,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
+        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.StorageNodeHomePayload.ID, com.sdzjz.net.StorageNodeHomePayload.CODEC); // m265 端点画布落位（CanvasEnds 姊妹包）
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
@@ -175,7 +176,8 @@ public class Sdzjz implements ModInitializer {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
-                    core.setStorageNodePos(payload.storagePos(), payload.nx(), payload.ny());
+                    if (payload.dock()) core.dockStorageNode(payload.storagePos()); // m265 收回总线
+                    else core.setStorageNodePos(payload.storagePos(), payload.nx(), payload.ny()); // m265 放置/移动（服务端钳幅）
                 }
             });
         });
