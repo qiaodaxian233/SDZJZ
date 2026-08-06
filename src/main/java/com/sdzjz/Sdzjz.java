@@ -57,7 +57,10 @@ public class Sdzjz implements ModInitializer {
         });
 
         // 服务器停止时清空存储核心登记表（防跨存档幽灵坐标）
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> WRITE_BUDGET.remove(handler.player.getUuid())); // m294 下线清预算条目（yarn 核过：field_14140 公开字段，无 getPlayer()）
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            WRITE_BUDGET.clear(); // m294 停服清空（单机反复进出存档不留残）
             StorageCoreBlockEntity.clearAll();
             com.sdzjz.block.CoreChunkLoading.clearAll(); // m133 强加载登记表（不解除forced——持久化正是重启自恢复的根基）
             CraftPlanner.clearCache();

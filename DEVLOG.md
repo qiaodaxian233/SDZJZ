@@ -4479,3 +4479,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：冒烟真错 0；be.display/panel.setView/filteredRows/refreshDisplay 全库残留零；八闸全绿。
   实机脚本：**双人开同一面板各搜各的词各自翻页互不干扰**（审计建议的 twoPanelViewersHaveIndependentSearch
   手工版）；单人取物/存入即时回显；机器进出料 ≤0.5s 上屏；滚动条行数随各自过滤词正确。
+
+## m293 存储类型绝对安全上限（外部审计 P2：最大的存档膨胀源没有技术保险）
+
+- **修法**：新 typeGate()=玩法额度(maxTypes)与 absoluteStorageTypeSafetyLimit(默认 8192,≤0=关)取小，
+  **只换四个插入闸位**（普通存/精确存/Fabric 事务两路）；maxTypes()/聚合/属性展示口径一字不动——
+  审计原话"即使玩法层仍显示无限"。已有超限存档不裁账（load 不走闸），只是加不了新类型。
+- 配置 configVersion 30→31。实机脚本：typesPerTier=0 无限仓 UI 照旧显示无限；单核心灌到 8192 种后
+  第 8193 种拒收、已有种类继续进出正常。
+
+## m294 每玩家写包预算表清理（外部审计 P2：公网长跑 Map 只增不减）
+
+- **修法**：ServerPlayConnectionEvents.DISCONNECT 下线即 remove(uuid)；SERVER_STOPPED 顺入既有
+  清理块 clear()。yarn 核名：ServerPlayNetworkHandler 无 getPlayer()，走公开字段 player(field_14140)。
+- 单条目几十字节本无大碍（m269 注释原判），但修起来两行——审计说得对，便宜的债当场清。
