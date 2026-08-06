@@ -176,8 +176,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.scanStorageEndpoints(world, pos);
         }
         // m88 兜底：每10秒强制同步（治"changed判否漏同步"的一切边角）。m181 瘦身两刀：
-        // ① pos 哈希错峰——多核心不再同一全局 tick 齐发全量包；② 无人看画布不发——事件同步(23处 syncToClient)照旧，
+        // ① pos 哈希错峰——多核心不再同一全局 tick 齐发；② 无人看画布不发——事件同步照旧，
         // 开画布首帧鲜度由 createMenu 即时强刷保证，观众在场后 ≤10s 内兜底节奏恢复，最坏陈旧窗与旧行为等长。
+        // m276 起本行=标脏→flushCanvasSnapshot 升版本重发渲染快照给观众（自愈兜底防标脏遗漏类 bug 永久失同步）。
         if (Math.floorMod(world.getTime() + pos.hashCode(), 200) == 0 && be.hasCanvasViewer(world)) be.syncToClient();
         // m115 过载保护：平均 tick >45ms 全线自动暂停（<40ms 恢复，滞回防抖）；>60ms 清理本核心喷出的掉落物
         if (be.ticks % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw115) {
@@ -3117,8 +3118,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     @Override
     public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup lookup) {
+        // m276：区块追踪初始同步瘦身——路过玩家（含 vanilla BlockEntityUpdateS2CPacket.create 默认取数）
+        // 只收渲染子集，不再收存档级全量（items/双缓存/强载/所有权客户端从不消费）；
+        // 客户端 readNbt 对缺键全容忍：Inventories 缺键=空、双缓存空表、running/xpPool/chunkOwned 走默认。
         NbtCompound nbt = new NbtCompound();
-        writeNbt(nbt, lookup);
+        writeRenderNbt(nbt, lookup);
         return nbt;
     }
 
