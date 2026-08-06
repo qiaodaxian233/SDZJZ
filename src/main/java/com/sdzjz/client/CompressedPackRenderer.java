@@ -113,7 +113,7 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
 
     /** m280 自转角：时间源 Util.getMeasuringTimeMs()（m148 在树先例）与 tick 无关恒匀速，按整圈周期取模防浮点漂移。 */
     private static float spinDeg(int spd) {
-        long periodMs = 360_000L / spd;
+        long periodMs = Math.max(1L, 360_000L / spd); // m290 夹紧：配置 spd>360000 时整除得 0，%0=ArithmeticException 崩渲染线程
         return (net.minecraft.util.Util.getMeasuringTimeMs() % periodMs) * spd / 1000.0F;
     }
 }

@@ -597,9 +597,9 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         if (!com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook
                 || !com.sdzjz.config.SdzjzConfig.get().terminalBookStock) return;
         if (stockTick++ % 20 != 0) return;
-        java.util.HashMap<String, Long> agg = new java.util.HashMap<>();
-        for (var core : com.sdzjz.block.StorageCoreBlockEntity.connectedCores(panel.getWorld(), blockPos))
-            for (var e : core.storeView().entrySet()) agg.merge(e.getKey(), e.getValue(), Long::sum);
+        // m290 修性能倒退：此前这里每秒裸 BFS（connectedCores 4096 上限逐格查）——m108c 专治过的病。
+        // 改蹭 BE 的 aggregate()（内部 cores() 40t 缓存 + m279 空间索引），每秒只剩 map 合并。
+        java.util.Map<String, Long> agg = panel.aggregate();
         long fp = 0;
         for (var e : agg.entrySet()) // 序无关混合：HashMap 迭代序不稳也不误触发
             fp += (e.getKey().hashCode() * 1000003L) ^ (Math.min(e.getValue(), 9999) * 0x9E3779B97F4A7C15L);

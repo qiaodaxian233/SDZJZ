@@ -4413,3 +4413,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   实机复核点：①摘要到货后灰名单是否即刻转亮（赌 refresh() 内部重建输入；若陈灰=动一下背包必刷，
   症状轻，报我改成手动 refreshInputs 路径）；②大仓库开终端 F3 带宽无异常（指纹节流应静默）。
   实机脚本：仓储放 64 圆石背包空手→开书"可合成"页出熔炉配方且点击能填；把圆石抽走→约 1 秒后转灰。
+
+## m290 全量体检（作者点名"全量检查BUG"）：修 2 真 BUG + 12 项复审清白 + 2 边界立档
+
+- **BUG①（m289 性能倒退，修）**：库存摘要的 sendContentUpdates 每秒裸 BFS（connectedCores 4096 上限
+  逐格 getBlockEntity）——m108c 专治过的病在新代码里复发。改蹭 DataPanelBlockEntity.aggregate()
+  （升 public，内部 cores() 40t 缓存+m279 空间索引；副作用只是刷新 types/xp 三缓存为真值，多调无害），
+  每秒只剩 map 合并。教训：新代码接旧数据源前先查在树是不是已有缓存口，DEVLOG 里 m108c/m267 都写着。
+- **BUG②（m280 崩溃级，修）**：spinDeg 里 360000/spd 整除，配置手滑填 >360000 得 periodMs=0，
+  %0=ArithmeticException 崩渲染线程。Math.max(1,·) 夹紧（极大值转速封顶不崩）。教训：配置项进除法
+  必须夹域——本次全库扫过，配置参与除法仅此一处。
+- **机器项全绿**：七道闸（配方/资源/文档/取色/dup/拼音/override）+冒烟真错 0+本轮改动文件矩阵
+  push/pop 全配平+bookBtn/TexturedButtonWidget 残留引用零。
+- **人工复审清白**（逐项过）：终端点击路由次序 theme→qty→书钮→书体；m287 BOM 边界（cap=1 时 show=0
+  只画+N、空 BOM、溢出尾格坐标）；m289 指纹与 payload 同用封顶值不空发、双端字段隔离、双 size 防御、
+  syncId 路由；m283 空仓/未同步回退与已选置顶；m282 探针同建同弃；jeiFill 空核回流防御；
+  m286 两渲染分支书钮都画、qty 浮层 z400 压钮次序正确。
+- **边界立档不修**：①m284 后 GROUND/FIXED 从"地面光照组"变"手持组"（renderItem 内部 bl 分支），
+  掉落物观感可能有细微差——实机看，介意再给 ground 单开路径；②m286 自绘书钮无 widget=丢 Tab 键盘
+  焦点可达性，鼠标/触控不受影响。

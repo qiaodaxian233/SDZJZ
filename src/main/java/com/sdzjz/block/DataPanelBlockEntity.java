@@ -72,7 +72,9 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         return coresCache;
     }
 
-    private LinkedHashMap<String, Long> aggregate() {
+    /** m290 升 public：m289 库存摘要蹭这条缓存链路（cores() 40t 缓存），别再裸 BFS——
+     *  m108c 治过的病不许复发。副作用=顺手刷新 typesUsed/typesCap/xp 三缓存为真值，多调无害。 */
+    public LinkedHashMap<String, Long> aggregate() {
         LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
         int used = 0, coreCount = 0; long cap = 0; boolean unlimited = false; // m97/m98
         long xp = 0; // m107a：经验总量顺手统计（复用同一次 BFS）
