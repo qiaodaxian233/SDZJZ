@@ -44,6 +44,14 @@ public class SdzjzClient implements ClientModInitializer {
                 com.sdzjz.net.StorageNodeHomePayload.ID,
                 (payload, context) -> context.client().execute(() ->
                         com.sdzjz.client.StructureCoreScreen.applyHomesPayload(payload)));
+        // m275：观众定向渲染快照 → 写回客户端 BE 渲染字段（画布屏 be() 读法零改动）
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+                com.sdzjz.net.CanvasSnapshotPayload.ID,
+                (payload, context) -> context.client().execute(() -> {
+                    var w = context.client().world;
+                    if (w != null && w.getBlockEntity(payload.pos()) instanceof com.sdzjz.block.StructureCoreBlockEntity be)
+                        be.applyRenderSnapshot(payload.nbt(), w.getRegistryManager());
+                }));
         // m80：全模组物品 tooltip 水印
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))

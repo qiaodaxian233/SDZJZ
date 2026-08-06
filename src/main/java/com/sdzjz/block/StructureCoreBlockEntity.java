@@ -163,6 +163,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         be.recipesThisTick = 0; // m270 全核tick周期预算复位（cyclesThisTick 共享额度）
+        be.flushCanvasSnapshot(world); // m275：上一拍标脏的渲染快照在此聚合、定向发观众（每 tick 至多 1 份/核心）
         // m218c 多核心错峰：周期性大活（ends包/区块票/拉料拍/端点扫描）按 pos 哈希移相——频率逐核不变，
         // 只是不同核心不再挤同一全局 tick（m181 给 m88 兜底同步用过的同款药方，推广到其余四拍）。
         int ph = SdzjzConfig.get().coreTickStagger ? pos.hashCode() : 0;
@@ -2517,14 +2518,41 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return false;
     }
 
+    // ===== m275 观众定向渲染快照（审计第一批第3条：全量NBT同步拆分，方案 docs/同步拆分方案_m274.md）=====
+    private boolean canvasDirty = false;                 // 事件标脏：同 tick N 次写合并成 1 份快照
+    private long snapshotRev = 0;                        // 快照版本：观众 lastSent != rev 即补发（开屏首包与标脏聚合同一机制）
+    private final java.util.Map<java.util.UUID, Long> snapshotSent = new java.util.HashMap<>(); // 每观众已发版本
+
+    /** 原 m88/m181 事件同步/周期兜底语义保留，实现 m275 起改标脏——不再走 vanilla 全量 NBT 区块广播
+     *  （原路径=完整 writeNbt × 所有追踪区块的玩家；现=渲染子集 × 仅观众 × 每 tick 至多 1 份）。 */
     private void syncToClient() {
-        if (world != null && !world.isClient) {
-            if (prof != null) { // m177 同步账单：包数+NBT 编码字节（增量同步改造前后在此对表）
-                prof.syncPackets++;
-                try { prof.syncBytes += com.sdzjz.debug.CoreProfiler.nbtSize(createNbt(world.getRegistryManager())); } catch (Exception ignored) {}
+        if (world != null && !world.isClient) canvasDirty = true;
+    }
+
+    /** tickInner 顶部每 tick 调用：脏则升版本；对正在看画布的玩家（m89 管线同款判定）按版本差补发渲染快照。
+     *  快照每 tick 至多编码一次；版本对齐的观众不重发；无观众清表=重开屏必得首包（createMenu 强刷照旧标脏兜底）。 */
+    private void flushCanvasSnapshot(World world) {
+        if (!(world instanceof net.minecraft.server.world.ServerWorld sw)) return;
+        if (canvasDirty) { snapshotRev++; canvasDirty = false; }
+        com.sdzjz.net.CanvasSnapshotPayload pk = null;
+        boolean anyViewer = false;
+        for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+            if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
+                    || !pos.equals(h.blockPos())) continue;
+            anyViewer = true;
+            Long sent = snapshotSent.get(sp.getUuid());
+            if (sent != null && sent == snapshotRev) continue;
+            if (pk == null) {
+                NbtCompound snap = new NbtCompound();
+                writeRenderNbt(snap, sw.getRegistryManager());
+                pk = new com.sdzjz.net.CanvasSnapshotPayload(pos, snap);
+                if (prof != null) { try { prof.syncBytes += com.sdzjz.debug.CoreProfiler.nbtSize(snap); } catch (Exception ignored) {} } // m177 对表尺随刀迁移
             }
-            world.updateListeners(pos, getCachedState(), getCachedState(), net.minecraft.block.Block.NOTIFY_ALL);
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+            if (prof != null) prof.syncPackets++; // m275 起口径=真实发出的快照包数（原=updateListeners 调用数）
+            snapshotSent.put(sp.getUuid(), snapshotRev);
         }
+        if (!anyViewer && !snapshotSent.isEmpty()) snapshotSent.clear();
     }
 
     /** m177 /sdzjz dumpgraph：整图转储（节点+连线+运行态），进服务器日志用。 */
@@ -2894,16 +2922,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
+        // m275：以下为存档专属字段（画布客户端从不消费：items=画布handler无槽位、双缓存/绑定/运行池/强载/所有权纯服务端）
         Inventories.writeNbt(nbt, items, lookup);
-        NbtList mn = new NbtList();
-        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.encode(lookup));
-        nbt.put("machineNodes", mn);
-        int[] flat = new int[connections.size() * 2];
-        for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
-        nbt.putIntArray("connections", flat);
-        NbtCompound grp = new NbtCompound(); // m191 分组元数据 id→名（成员归属在各节点栈里随 machineNodes 落盘）
-        for (var ge : groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
-        nbt.put("groups", grp);
         NbtCompound buf = new NbtCompound();
         for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
         nbt.put("internalBuffer", buf);
@@ -2929,6 +2949,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             flc.add(fc);
         }
         nbt.put("forceChunks", flc);
+        nbt.putBoolean("chunkOwned", chunkOwned); // m268 强加载所有权（管理员 /forceload 撞同区块=false，重启后据此判断该不该解除）
+        // m275：渲染子集与观众定向同步快照共用同一编码函数——加渲染字段只改 writeRenderNbt，存档/同步自动同拍不漂移
+        writeRenderNbt(nbt, lookup);
+    }
+
+    /** m275：渲染快照子集=画布客户端消费面全集（清单依据 docs/同步拆分方案_m274.md §2 grep 实测：
+     *  节点栈/连线/分组/状态灯/阻塞原因/存储端点三件套/总线库存/实测产量）。
+     *  存档 writeNbt 与 flushCanvasSnapshot 共用。 */
+    private void writeRenderNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+        NbtList mn = new NbtList();
+        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.encode(lookup));
+        nbt.put("machineNodes", mn);
+        int[] flat = new int[connections.size() * 2];
+        for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
+        nbt.putIntArray("connections", flat);
+        NbtCompound grp = new NbtCompound(); // m191 分组元数据 id→名（成员归属在各节点栈里随 machineNodes 落盘）
+        for (var ge : groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
+        nbt.put("groups", grp);
         int[] nst = new int[machineNodes.size()];
         for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
         nbt.putIntArray("nodeStat", nst);
@@ -2966,30 +3004,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nbt.put("busTop", bt);
         nbt.putLong("prodPM", prodPerMin); // m86 实测产量
-        nbt.putBoolean("chunkOwned", chunkOwned); // m268 强加载所有权（管理员 /forceload 撞同区块=false，重启后据此判断该不该解除）
     }
 
     @Override
     protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         Inventories.readNbt(nbt, items, lookup);
-        machineNodes.clear();
-        bumpTopo(); // m179
-        NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < mn.size(); i++) {
-            NbtCompound mc = mn.getCompound(i);
-            String mid = MERGED_IDS.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
-            if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
-            ItemStack.fromNbt(lookup, mc).ifPresent(machineNodes::add);
-        }
-        connections.clear();
-        int[] flat = nbt.getIntArray("connections");
-        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
-        groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
-        NbtCompound grp = nbt.getCompound("groups");
-        for (String k : grp.getKeys()) {
-            try { groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
-        }
+        readRenderNbt(nbt, lookup); // m275：渲染子集先读——下方 nodeBufs 循环依赖 machineNodes.size()
         internalBuffer.clear();
         NbtCompound buf = nbt.getCompound("internalBuffer");
         int droppedBuf = 0; // m273：缓存读入校验——写路径 left<=0 即 remove，零/负值从不合法落盘；负数毒化计数算术且可绕封顶
@@ -3029,6 +3050,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             forceChunks.add(new long[]{c, fc.getInt("m")});
             forceDims.add(fc.getString("d"));
         }
+        chunkOwned = nbt.getBoolean("chunkOwned"); // m268 缺键=false（老档/新核心默认无所有权，force 首拍会重新判定并落盘）
+    }
+
+    /** m275：渲染子集读入（与 writeRenderNbt 严格对偶）——存档 readNbt 与客户端 applyRenderSnapshot 共用。 */
+    private void readRenderNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+        machineNodes.clear();
+        bumpTopo(); // m179
+        NbtList mn = nbt.getList("machineNodes", NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < mn.size(); i++) {
+            NbtCompound mc = mn.getCompound(i);
+            String mid = MERGED_IDS.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
+            if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
+            ItemStack.fromNbt(lookup, mc).ifPresent(machineNodes::add);
+        }
+        connections.clear();
+        int[] flat = nbt.getIntArray("connections");
+        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
+        NbtCompound grp = nbt.getCompound("groups");
+        for (String k : grp.getKeys()) {
+            try { groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
+        }
         nodeStatus.clear();
         for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
         nodeReason.clear(); // m178
@@ -3051,6 +3094,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             storageEdgeDims.add(c.getString("d"));
         }
         storageNodePos.clear();
+        NbtCompound spn = nbt.getCompound("storNodePos");
+        for (String k : spn.getKeys()) {
+            int[] v = spn.getIntArray(k);
+            if (v.length == 2 || v.length == 3) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
+        }
         busTopIds.clear();
         busTopCounts.clear();
         NbtList btr = nbt.getList("busTop", NbtElement.COMPOUND_TYPE); // m85
@@ -3059,12 +3107,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             busTopCounts.add(btr.getCompound(i).getLong("n"));
         }
         prodPerMin = nbt.getLong("prodPM"); // m86
-        chunkOwned = nbt.getBoolean("chunkOwned"); // m268 缺键=false（老档/新核心默认无所有权，force 首拍会重新判定并落盘）
-        NbtCompound spn = nbt.getCompound("storNodePos");
-        for (String k : spn.getKeys()) {
-            int[] v = spn.getIntArray(k);
-            if (v.length == 2 || v.length == 3) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
-        }
+    }
+
+    /** m275：客户端收到观众定向渲染快照时调用（SdzjzClient 收端）——只写渲染字段，
+     *  存档专属字段（items/双缓存/强载等）客户端本就不消费不触碰。 */
+    public void applyRenderSnapshot(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+        readRenderNbt(nbt, lookup);
     }
 
     @Override

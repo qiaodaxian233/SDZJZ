@@ -4131,3 +4131,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：大工程先把"谁在收、收什么、真消费什么"三本账摸平再切方案——消费面清单是快照
   内容边界的唯一依据，靠猜必漏（xpPool/running/nodeBufs 三项列为实施首步定向核对项而非拍脑袋）。
 - **实机验证**：本笔纯文档零代码，无验证项；实施验收标准见方案第六节。
+
+## m275 观众定向渲染快照 + 标脏聚合（审计第一批第 3 条·方案 A 核心刀，m274 方案已拍板）
+- **改动**：
+  1. **NBT 编码拆分**：writeNbt 拆出 `writeRenderNbt`（渲染子集=画布消费面全集：machineNodes/
+     connections/groups/nodeStat/nodeWhy/storEnds/storEdges/storNodePos/busTop/prodPM），
+     readNbt 对偶拆出 `readRenderNbt`；存档路径改"存档专属字段 + 调子集"，**键集拆分前后 18 键
+     逐键相等断言过、渲染子集写读对偶断言过**——存档格式零变化零迁移。
+  2. **新 S2C 包** `CanvasSnapshotPayload(BlockPos, NbtCompound)`：codec=BlockPos.PACKET_CODEC +
+     `PacketCodecs.UNLIMITED_NBT_COMPOUND`（yarn 1.21.1 官方映射核到 field_49677；ByteBuf 系
+     编解码器混 RegistryByteBuf tuple 有 m89 在树先例）。收端写回客户端 BE（applyRenderSnapshot
+     →readRenderNbt），**画布屏 be() 读法零改动**。
+  3. **syncToClient 换实现**：updateListeners 全量区块广播 → `canvasDirty = true` 标脏——
+     **29 个调用点零改动**，m88/m181 事件同步/周期兜底语义原样保留。
+  4. **flushCanvasSnapshot**（tickInner 顶部每 tick）：脏则 snapshotRev++；对观众（m89 同款
+     currentScreenHandler 判定）按"每观众已发版本 != 当前版本"补发——**开屏首包与标脏聚合
+     同一机制**（createMenu 的 m181 强刷照旧标脏，开屏者无版本记录下一拍必得快照）；快照每 tick
+     至多编码一次；无观众清版本表=重开屏必补发。外层 tick 无早退，flush 逐 tick 必达。
+  5. prof 对表尺随刀迁移：syncPackets 口径 m275 起=真实发出的快照包数，syncBytes=快照编码字节。
+- **量级**：O(存档级全量 × 所有追踪玩家 × 每写一包) → O(渲染快照 × 仅观众 × 每 tick ≤1 份)。
+  路过不开屏的玩家事件同步归零（区块初始同步瘦身在 m276）。
+- **待编译验证**：`PacketCodecs.UNLIMITED_NBT_COMPOUND` 的泛型值型（映射只核到字段名，
+  按命名约定应为 NbtCompound）；CI 真编译判官，若红改用 PacketCodec.of 手写编解码兜底。
+- **教训**：拆共用编码函数时"键集前后相等 + 子集写读对偶"两道脚本断言比肉眼比对可靠——
+  18 个键手挪三段极易漏一键（漏写=客户端字段静默清空，漏读=快照白发）。
+- **实机验证**：①开画布：首帧即有节点/连线/状态灯（≤1 tick 首包）；②拖动节点/连线/换目标/
+  分组增删改手感零差异，状态灯与徽章照常刷新；③双人对表：A 开画布狂操作，B 站旁边不开屏，
+  B 侧 F3 流量无尖峰（改造前每次操作 B 都收全量）；④`/sdzjz profile core` 前后对表 syncBytes
+  应降一个量级以上；⑤存档重进：产线/缓存/强载/画布布局全数还原（存档键集断言的实机复核）；
+  ⑥端点卡/总线库存照常显示（m89 双轨并行仍在，m276 收拢）。

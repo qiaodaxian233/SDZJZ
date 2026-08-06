@@ -75,6 +75,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.StorageNodeHomePayload.ID, com.sdzjz.net.StorageNodeHomePayload.CODEC); // m265 端点画布落位（CanvasEnds 姊妹包）
+        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasSnapshotPayload.ID, com.sdzjz.net.CanvasSnapshotPayload.CODEC); // m275 观众定向渲染快照（审计第3条：取代 vanilla 全量 NBT 区块广播）
         PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
