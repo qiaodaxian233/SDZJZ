@@ -399,16 +399,20 @@ public class SuperBenchScreenHandler extends ScreenHandler {
         }
     }
 
-    /** 拆包：二级→一级→原物逐包拆，只落网格；拆前查网格容量，装不下就停并提示（不落地不丢件）。 */
+    /** 拆包（m246 重做，作者实测"压得了拆不了"）：二级→一级→原物逐包拆，产物**先落网格、
+     *  溢出进背包**（旧版只落网格，网格一满整体罢工=看着像拆不了），两边都装不下才停；
+     *  每次点击必报账（拆了多少/剩多少/为什么停），网格没包但背包有包时明说"把包放进网格"。 */
     private void unpackGrid(PlayerEntity player) {
-        boolean did = false, blocked = false;
+        long t2Opened = 0, t1Opened = 0;
+        boolean spaceOut = false;
         Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
         for (int pass = 0; pass < 2; pass++) {
             Item packItem = pass == 0 ? t2 : t1;
+            boolean passOut = false; // 空间账按层各算：超级包层堵住不连坐一级层（产物不同容量不同）
             boolean any = true;
-            while (any) {
+            while (any && !passOut) {
                 any = false;
-                for (int i = 0; i < GRID_SLOTS; i++) {
+                for (int i = 0; i < GRID_SLOTS && !passOut; i++) {
                     ItemStack s = input.getStack(i);
                     if (s.getItem() != packItem) continue;
                     String in = com.sdzjz.item.CompressedPackItem.innerId(s);
@@ -416,27 +420,65 @@ public class SuperBenchScreenHandler extends ScreenHandler {
                     ItemStack proto = pass == 0
                             ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
                             : new ItemStack(Registries.ITEM.get(Identifier.of(in)), 1);
-                    if (gridCapacityFor(proto) < 64) { blocked = true; continue; }
+                    if (capacityFor(player, proto) < 64) { passOut = true; spaceOut = true; break; } // 网格+背包合计
                     s.decrement(1);
                     if (s.isEmpty()) input.setStack(i, ItemStack.EMPTY);
                     int left = 64;
                     while (left > 0) {
                         int chunk = Math.min(left, proto.getMaxCount());
                         ItemStack rem = insertToGrid(proto.copyWithCount(chunk));
-                        if (!rem.isEmpty()) { // 容量刚查过理论到不了；兜底还给玩家不落地
-                            if (!player.getInventory().insertStack(rem)) player.dropItem(rem, false);
-                        }
+                        if (!rem.isEmpty() && !player.getInventory().insertStack(rem)) player.dropItem(rem, false); // 容量已核，兜底
                         left -= chunk;
                     }
-                    did = true; any = true;
+                    if (pass == 0) t2Opened++; else t1Opened++;
+                    any = true;
                 }
             }
         }
         input.markDirty();
-        if (blocked) player.sendMessage(net.minecraft.text.Text.literal(
-                "网格空间不足，部分包未拆——先取走一些再点").formatted(net.minecraft.util.Formatting.RED), false);
-        else if (!did) player.sendMessage(net.minecraft.text.Text.literal("网格里没有材料包")
-                .formatted(net.minecraft.util.Formatting.GRAY), false);
+        // 每击必报账（旧版拆成功一声不吭，出问题只剩猜）
+        long t2Left = 0, t1Left = 0;
+        for (int i = 0; i < GRID_SLOTS; i++) {
+            ItemStack s = input.getStack(i);
+            if (s.getItem() == t2) t2Left += s.getCount();
+            else if (s.getItem() == t1) t1Left += s.getCount();
+        }
+        if (t2Opened + t1Opened > 0) {
+            String msg = "已拆开: " + (t2Opened > 0 ? "超级包×" + t2Opened + "→一级包×" + (t2Opened * 64) : "")
+                    + (t2Opened > 0 && t1Opened > 0 ? "、" : "")
+                    + (t1Opened > 0 ? "一级包×" + t1Opened + "→原物×" + (t1Opened * 64) : "")
+                    + (spaceOut ? "；网格+背包已满，剩 超级包×" + t2Left + "/一级包×" + t1Left + " 未拆" : "");
+            player.sendMessage(net.minecraft.text.Text.literal(msg)
+                    .formatted(spaceOut ? net.minecraft.util.Formatting.YELLOW : net.minecraft.util.Formatting.GREEN), false);
+        } else if (spaceOut) {
+            player.sendMessage(net.minecraft.text.Text.literal("网格和背包都装不下拆出来的东西——先腾地方再点")
+                    .formatted(net.minecraft.util.Formatting.RED), false);
+        } else {
+            // 网格没包——背包里有包的话明说（作者实测最容易踩的坑：包放在背包区点拆开）
+            boolean invHasPack = false;
+            PlayerInventory pinv = player.getInventory();
+            for (int i = 0; i < pinv.size() && !invHasPack; i++) {
+                Item it = pinv.getStack(i).getItem();
+                if (it == t1 || it == t2) invHasPack = true;
+            }
+            player.sendMessage(net.minecraft.text.Text.literal(invHasPack
+                    ? "拆开只认网格里的包——把背包里的包放进左边网格再点"
+                    : "网格里没有材料包").formatted(net.minecraft.util.Formatting.GRAY), false);
+        }
+    }
+
+    /** 网格+玩家背包合计还能容纳多少件与 proto 同物同组件的东西（m246：拆包产物两级承接）。 */
+    private int capacityFor(PlayerEntity player, ItemStack proto) {
+        int cap = gridCapacityFor(proto);
+        if (cap >= 64) return cap;
+        PlayerInventory pinv = player.getInventory();
+        for (int i = 0; i < pinv.main.size(); i++) { // 只数主背包 36 格（盔甲/副手不收料）
+            ItemStack s = pinv.main.get(i);
+            if (s.isEmpty()) cap += proto.getMaxCount();
+            else if (ItemStack.areItemsAndComponentsEqual(s, proto)) cap += Math.max(0, s.getMaxCount() - s.getCount());
+            if (cap >= 64) return cap;
+        }
+        return cap;
     }
 
     /** 从网格取走 n 件指定 id 的"普通物品"（无组件差异；调用方已核总量足够）。 */
