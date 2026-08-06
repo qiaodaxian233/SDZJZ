@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 21; // m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 22; // m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数
@@ -73,7 +73,7 @@ public class SdzjzConfig {
     public boolean canvasCompactChrome = true; // 紧凑模式：底栏78→56(钮20→16/三行字收紧)、总线行距12→8；false=旧版尺寸（改后重开画布生效）
     public double canvasBusScale = 0.75;       // 总线卡尺寸倍率持久化（0.55~1.25，画布"尺寸"滑块同款；m93 原为会话内静态不落盘）
     // m217 画布背景四项（作者点名"背景要根据配色调整、要看得清、全部进设置可调"）：
-    public String canvasBgColor        = "";   // 工作区底色RRGGBB；空/非法=跟随主题墨色（canvasInk），设了就覆盖
+    public String canvasBgColor        = "000000"; // 工作区底色RRGGBB；空/非法=跟随主题墨色（canvasInk）。m261 默认纯黑（作者点名 RGB 0 0 0；设色即 m220 自动隐装饰底图，清空可回随主题）
     public String canvasGridColor      = "";   // 网格线颜色RRGGBB；空/非法=跟随主题强调色（canvasAccent）
     public double canvasGridStrength   = 1.0;  // 网格浓度倍率 0.0~3.0（细线10%/主线19%基准上乘，0=隐藏网格）
     public double canvasVignetteStrength = 1.0;// 四缘暗角强度倍率 0.0~2.0（0=关暗角，浅色主题看不清可调低）
@@ -147,6 +147,10 @@ public class SdzjzConfig {
         if (cfg.configVersion < 19) cfg.configVersion = 19; // m220 纯加键（canvasBgDecor 装饰底图开关），缺键走字段初值
         if (cfg.configVersion < 20) cfg.configVersion = 20; // m221 纯加键（canvasLayoutRows/GapX/GapY 整理布局排布三键），缺键走字段初值
         if (cfg.configVersion < 21) cfg.configVersion = 21; // m225 纯加键（extractPortPeriodTicks/Batch 抽取口两键），缺键走字段初值
+        if (cfg.configVersion < 22) { // m261 背景默认纯黑：仅"仍是旧默认（空=随主题）"才替换，用户自定义值不动（m207 先例）
+            if (cfg.canvasBgColor == null || cfg.canvasBgColor.isBlank()) cfg.canvasBgColor = "000000";
+            cfg.configVersion = 22;
+        }
 
         INSTANCE = cfg;
         save(); // 回写补齐缺键 / 生成默认文件
