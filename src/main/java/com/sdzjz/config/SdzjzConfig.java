@@ -111,11 +111,28 @@ public class SdzjzConfig {
     public static void load() {
         Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
         SdzjzConfig cfg = null;
+        boolean skipWriteBack = false; // m272：读没成功且原文件还在原位时置真——本次不回写，防 save() 用默认值覆盖没读到的用户内容
         if (Files.exists(path)) {
             try (Reader r = Files.newBufferedReader(path)) {
-                cfg = GSON.fromJson(r, SdzjzConfig.class);
+                cfg = GSON.fromJson(r, SdzjzConfig.class); // 空文件 Gson 返回 null 不抛异常：无内容可保，走下方默认+回写重生成
             } catch (IOException e) {
+                // IO 层读失败（权限/占用等）：文件保留原样、日志出声、回落默认继续启动；本次不回写
                 cfg = null;
+                skipWriteBack = true;
+                com.sdzjz.Sdzjz.LOGGER.error("配置文件读取失败（IO），本次使用默认配置且不回写，原文件保留: {}，原因: {}", path, e.toString());
+            } catch (RuntimeException e) {
+                // m272：Gson 的 JsonSyntaxException/JsonIOException 等运行时解析异常——旧版完全没兜，
+                // 配置里一个多余逗号就中断 MOD 初始化。坏档改名 .broken-时间戳 留证
+                // （防 load 尾部 save() 回写默认值覆盖用户手改内容），然后回落默认继续启动。
+                cfg = null;
+                try {
+                    Path broken = path.resolveSibling(FILE_NAME + ".broken-" + System.currentTimeMillis());
+                    Files.move(path, broken);
+                    com.sdzjz.Sdzjz.LOGGER.error("配置文件解析失败（JSON 损坏），已改名留证 {}，回落默认配置继续启动。原因: {}", broken.getFileName(), e.toString());
+                } catch (IOException mv) {
+                    skipWriteBack = true; // 改名留证也失败：原文件保留原位，本次不回写防覆盖
+                    com.sdzjz.Sdzjz.LOGGER.error("配置文件解析失败且改名留证失败，原文件保留，本次使用默认配置且不回写: {}，解析原因: {}，改名原因: {}", path, e.toString(), mv.toString());
+                }
             }
         }
         if (cfg == null) cfg = new SdzjzConfig();
@@ -163,7 +180,7 @@ public class SdzjzConfig {
         if (cfg.configVersion < 25) cfg.configVersion = 25; // m270 纯加键（maxNodesPerCore/maxEdgesPerCore/maxEdgesPerNode/maxBufferTypesPerNode 服务器硬上限），缺键走字段初值
 
         INSTANCE = cfg;
-        save(); // 回写补齐缺键 / 生成默认文件
+        if (!skipWriteBack) save(); // 回写补齐缺键 / 生成默认文件（m272：IO 读失败或改名留证失败时跳过，防覆盖未读到的用户内容）
     }
 
     public static void save() {
@@ -174,7 +191,8 @@ public class SdzjzConfig {
             try (Writer w = Files.newBufferedWriter(path)) {
                 GSON.toJson(INSTANCE, w);
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            com.sdzjz.Sdzjz.LOGGER.error("配置文件保存失败: {}，原因: {}", path, e.toString()); // m272：旧版静默吞掉，磁盘满/只读时用户改的配置默默丢
         }
     }
 }

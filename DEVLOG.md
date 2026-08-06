@@ -4064,3 +4064,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：冒烟盲区已三种，共性=**"没报错"≠"没错误"，缺依赖环境的静默漏报只能靠定向回归尺补**；
   每逢 CI 红先自审最近 diff 的"纯文本可见"问题（重复/漏删/半截粘贴），再怀疑 API。
 - **实机验证**：本笔 CI 应全绿出 jar（若仍红按新报告逐修）；`/forceload` 所有权行为验证项见 m268。
+
+## m272 配置加载健壮性（外部审计"配置损坏可能阻止启动"条）
+- **现象/风险**：`SdzjzConfig.load()` 只兜 IOException——Gson 的 JsonSyntaxException 等**运行时解析
+  异常完全没兜**，配置文件一个多余逗号就中断 MOD 初始化（在 Fabric 注册链上抛=整个游戏起不来）；
+  且旧 IOException 路径回落默认后 load 尾部 save() 会用默认值**覆盖用户原文件**，坏档证据直接销毁；
+  save() 的 `catch (IOException ignored){}` 静默吞——磁盘满/只读时用户改的配置默默丢。
+- **修法**（三处）：
+  1. load() 异常分流：**IOException**（读失败）=文件保留原位+日志出声+回落默认，本次跳过回写
+     （防覆盖没读到的内容）；**RuntimeException**（Gson 解析异常）=坏档改名
+     `sdzjz.json.broken-时间戳` 留证后回落默认+回写重生成默认文件；改名也失败则退保守路径
+     （原文件不动+跳过回写）。全程日志出声，启动绝不中断。
+  2. load() 尾部 save() 按新局部量 skipWriteBack 判定。
+  3. save() 静默吞异常改 LOGGER.error 出声（照 SatelliteNodeRenderer 在树先例走
+     `com.sdzjz.Sdzjz.LOGGER` 全限定 + e.toString()）。
+- **空文件语义**：Gson 对空文件返回 null 不抛异常——无内容可保，照旧走默认+回写重生成，不算坏档不改名。
+- **调查结论**（顺手核，留痕防重查）：数值配置字段使用点大多自带 Math.max/Math.min 守卫
+  （extractPortPeriodTicks/Batch、canvasGridStrength/VignetteStrength、canvasBusScale 抽查成立），
+  负数/异常值不炸只钳——**统一读入钳制暂不铺开**，待真实炸点再逐个补。零新配置键，configVersion 不动。
+- **教训**：①异常兜底按"能不能救回用户数据"分流——解析失败=内容还在（改名留证），IO 失败=内容
+  读不到（原地保留别碰）；两条路共同铁律=**回落默认后绝不许 save() 覆盖没读成功的原文件**；
+  ②`catch(ignored)` 落在用户数据持久化路径上就是数据丢失伏笔，一律出声。
+- **实机验证**：①正常配置启动无感、日志无新增；②手改配置塞个多余逗号→启动不崩、日志报解析失败、
+  config 目录出现 `.broken-时间戳` 文件、新 sdzjz.json 为默认值；③把 .broken 文件修好改回
+  sdzjz.json→重启配置生效；④（可选）配置文件设只读→启动不崩、日志报保存失败、原文件未被覆盖；
+  ⑤删除配置文件→启动重生成默认，与旧行为一致。
