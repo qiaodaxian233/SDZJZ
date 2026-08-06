@@ -24,6 +24,13 @@ public class SdzjzClient implements ClientModInitializer {
         BlockEntityRendererRegistry.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
         BlockEntityRendererRegistry.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
         BlockEntityRendererRegistry.register(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
+        // m243 压缩包动态图标：内容物模型缩0.8 + 档位边框叠层（模型 parent=builtin/entity 触发本渲染器）
+        net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(
+                com.sdzjz.registry.ModItems.COMPRESSED_PACK,
+                new com.sdzjz.client.CompressedPackRenderer(com.sdzjz.registry.ModItems.COMPRESSED_PACK_FRAME));
+        net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(
+                com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK,
+                new com.sdzjz.client.CompressedPackRenderer(com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK_FRAME));
         // m89：画布端点直发包 → 静态缓存（画布优先读缓存，BE 数据后备）
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
                 com.sdzjz.net.CanvasEndsPayload.ID,

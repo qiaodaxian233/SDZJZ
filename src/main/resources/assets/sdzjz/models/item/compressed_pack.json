@@ -1,1 +1,1 @@
-{ "parent": "item/generated", "textures": { "layer0": "sdzjz:item/compressed_pack" } }
+{ "parent": "minecraft:builtin/entity", "gui_light": "front" }

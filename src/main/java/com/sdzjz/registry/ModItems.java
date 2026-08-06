@@ -30,6 +30,9 @@ public class ModItems {
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Settings().maxCount(1)));
     public static final Item COMPRESSED_PACK       = reg("compressed_pack",       new com.sdzjz.item.CompressedPackItem(new Item.Settings(), 64));   // m241 方案A 一级 64:1
     public static final Item SUPER_COMPRESSED_PACK = reg("super_compressed_pack", new com.sdzjz.item.CompressedPackItem(new Item.Settings(), 4096)); // m241 方案A 二级 64²:1
+    // m243 边框渲染件（压缩包动态图标的叠层素材）：只为客户端渲染注册模型/贴图，不进创造栏属设计
+    public static final Item COMPRESSED_PACK_FRAME       = reg("compressed_pack_frame",       new Item(new Item.Settings()));
+    public static final Item SUPER_COMPRESSED_PACK_FRAME = reg("super_compressed_pack_frame", new Item(new Item.Settings()));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
     public static final Item LOGO = reg("logo", new Item(new Item.Settings())); // m93 创造栏标签图标(不入栏)
