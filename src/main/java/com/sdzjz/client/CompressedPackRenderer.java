@@ -48,10 +48,21 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             Item innerItem = Registries.ITEM.get(Identifier.of(id));
             if (innerItem != Items.AIR && !(innerItem instanceof CompressedPackItem)) {
                 ItemStack inner = new ItemStack(innerItem);
+                var innerModel = ir.getModel(inner, mc.world, null, 0); // BakedModel，先取出来问 hasDepth
                 matrices.push();
                 matrices.scale(0.8F, 0.8F, 0.8F); // 内容物缩一圈，给边框留视觉呼吸
-                ir.renderItem(inner, mode, false, matrices, vcp, light, overlay,
-                        ir.getModel(inner, mc.world, null, 0));
+                // m280 内容物自转（作者：\"可以让中间的方块旋转吗\"）：只转 3D 方块模型（hasDepth），
+                // 扁平物品绕 Y 转会有侧棱瞬间隐形的观感，保持静止；边框永远不转。
+                // 旋转叠在 renderItem 的 display 变换之外=GUI 里绕屏幕竖轴展台式旋转，手持绕物品自身竖轴，
+                // 姿态语义各模式天然正确。时间源 Util.getMeasuringTimeMs()（m148 在树先例）与 tick 无关恒匀速，
+                // 按周期取模防长时运行浮点精度漂移。GUI 深度账复核：0.8×gui0.625 方块水平半对角≈0.354<边框前移0.4，不穿插。
+                int spd = com.sdzjz.config.SdzjzConfig.get().compressedPackSpinDegPerSec;
+                if (spd > 0 && innerModel.hasDepth()) {
+                    long periodMs = 360_000L / spd; // 一整圈毫秒数
+                    float deg = (net.minecraft.util.Util.getMeasuringTimeMs() % periodMs) * spd / 1000.0F;
+                    matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(deg));
+                }
+                ir.renderItem(inner, mode, false, matrices, vcp, light, overlay, innerModel);
                 matrices.pop();
             }
         }
