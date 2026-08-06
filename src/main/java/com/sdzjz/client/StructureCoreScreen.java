@@ -2769,7 +2769,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 for (var e : mc.world.getRecipeManager().listAllOfType(net.minecraft.recipe.RecipeType.SMELTING))
                     for (var ing : e.value().getIngredients())
                         for (ItemStack ms : ing.getMatchingStacks()) set.add(ms.getItem());
-            pickerTitleOverride = "选择烧什么（空=全烧·点选=加/移·Esc完成）";
+            // m283 候选=仓库现有可烧（作者点名"读取存储终端里有什么可以烧的，不是全选出来"）——
+            // m163b 同款刀法：busIds 通道(m85/m163b,含精确条目,零新协议)∩可熔炼输入集，按仓库存量序排列
+            // （busTopIds 本就多者在前=常烧的矿在最前）。端点没同步到（列表空）回退全表不堵人；
+            // 仓里确实没可烧的=空网格+标题说明；旧名单里已烧空的项照样走 m116 已选置顶可移除。
+            java.util.List<String> busM = busIdsOf(beM);
+            if (!busM.isEmpty()) {
+                LinkedHashSet<Item> inStore = new LinkedHashSet<>();
+                for (String id : busM) {
+                    Item it = Registries.ITEM.get(net.minecraft.util.Identifier.of(id));
+                    if (it != net.minecraft.item.Items.AIR && set.contains(it)) inStore.add(it);
+                }
+                set = inStore;
+                pickerTitleOverride = "选择烧什么（候选=仓库可烧·空=全烧·Esc完成）";
+            } else {
+                pickerTitleOverride = "选择烧什么（空=全烧·点选=加/移·Esc完成）";
+            }
         } else {
             for (var d : mif.def().outputs())
                 set.add(Registries.ITEM.get(net.minecraft.util.Identifier.of(d.item())));
@@ -2912,6 +2927,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     private void renderPicker(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        // m283 整体抬 z=400（m202 同病同刀）：画布节点物品/数量角标画在 z100~200 带深度测试，
+        // 选择器 z0 后画的填充会被剔除=底下机器图标穿透面板（作者点名"面板会透出来层级"）。
+        // 面板内 drawItem 自带 +150 落在 ~550，仍低于原版 tooltip 常规带之上无冲突；命中判定全用屏幕坐标不受影响。
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0, 0, 400);
         int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
         float easeP = SciSkin.easeOut((net.minecraft.util.Util.getMeasuringTimeMs() - pickerOpenMs) / 130f); // m148 淡入
         ctx.fill(0, 0, this.width, this.height, SciSkin.withAlpha(0xA0000000, 0.35f + 0.65f * easeP));
@@ -3021,6 +3041,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 : hoveredStack != null ? hoveredStack.getName().getString()
                 : hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
         ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
+        ctx.getMatrices().pop(); // m283 与顶部 translate(0,0,400) 配对
     }
 
     @Override

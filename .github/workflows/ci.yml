@@ -23,6 +23,8 @@ jobs:
         run: python3 docs/tools_color_scope_audit.py
       - name: 重复方法定义检查(m271 回归尺,冒烟盲区#3=参数类型不可解析时javac不报already defined)
         run: python3 docs/tools_dup_method_check.py
+      - name: 拼音首字母回归尺(m282,护边界表/二级硬表/端到端口径)
+        run: python3 docs/tools_pinyin_check.py
 
   build:
     name: Gradle 编译出包
