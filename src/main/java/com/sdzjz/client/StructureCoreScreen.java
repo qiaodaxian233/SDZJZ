@@ -201,12 +201,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private TextFieldWidget bgField, gridColField;       // m217 背景色/网格色 RRGGBB：空=跟随主题；live 写实例即时预览
     private TermButton[] bottomBtns;                      // m219 底部五钮存引用："状态"钮切换后就地重摆（botTop 变高矮）
     private boolean helpOpen = false;                     // m219 帮助卡（操作提示行迁入，modal 同吞穿透口径）
-    private static final int SETT_W = 236, SETT_H = 334, SETT_ROW = 20; // m239 紧凑化：行距 24→20/滑杆内距 17→14/间距收紧，394→334（作者视口出屏）
+    private static final int SETT_W = 236, SETT_H = 300, SETT_ROW = 18; // m262 再紧凑：行距 20→18/行区起点 24→20/滑杆内距 14→13/预设与按钮间距各收 2~3/底注释挪标题行，334→300（作者点名还是太大；m239 首轮 394→334）
+    private static final int SETT_ROW0 = 20;                       // 行区起点 y 偏移（m262 收口：渲染/点击原各硬编码 24）
     // m223 颜色行 RGB 滑杆调节区（作者点名照终端主题编辑器"图六那样，不能让我自己输入"；渲染/点击几何共用以下常量，改必同改）
-    private static final int SETT_SL_Y = 24 + 10 * SETT_ROW + 2;  // 调节区头行 y 偏移（=226）
-    private static final int SETT_SL_SP = 14;                     // m239 滑杆内距收口常量（渲染/点击同源，原硬编码 17 两处）
-    private static final int SETT_PRESET_Y = SETT_SL_Y + 14 + 3 * SETT_SL_SP + 10; // 主题预设行 y 偏移（=292）
-    private static final int SETT_RESET_Y = SETT_PRESET_Y + 22;   // 恢复默认钮 y 偏移（=314；钮 16 高+4 底距=334 收口）
+    private static final int SETT_SL_Y = SETT_ROW0 + 10 * SETT_ROW + 2; // 调节区头行 y 偏移（=202）
+    private static final int SETT_SL_SP = 13;                     // 滑杆内距（m239 收口常量 17→14，m262 再收 13：轨高 12+1px 间隙）
+    private static final int SETT_PRESET_Y = SETT_SL_Y + 14 + 3 * SETT_SL_SP + 7; // 主题预设行 y 偏移（=262）
+    private static final int SETT_RESET_Y = SETT_PRESET_Y + 19;   // 恢复默认钮 y 偏移（=281；钮 16 高+3 底距=300 收口）
     private static final int SETT_SL_X = 32, SETT_SL_W = 146;     // 滑轨 x 偏移/宽（照 m202 终端滑杆工艺）
     private static final String[] SETT_COLOR_NAMES = {"出线颜色", "进线颜色", "背景色", "网格色"}; // 调节目标名（序=setFs 序）
     private int settColSel = 2;   // m223 调节目标：0出线 1进线 2背景 3网格（默认背景色，作者截图点名的行）
@@ -1535,7 +1536,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 "背景色(空=随主题)", "网格色(空=随主题)", "网格浓度", "暗角强度"}; // m217 背景四行
         boolean[] tog = {c.canvasSmoothZoom, c.canvasWireScaleWithZoom, false, false, false, c.canvasGroupBundleWires, false, false, false, false};
         for (int r = 0; r < 10; r++) {
-            int ry = py + 24 + r * SETT_ROW;
+            int ry = py + SETT_ROW0 + r * SETT_ROW; // m262 行区起点收口
             ctx.drawText(this.textRenderer, labels[r], px + 10, ry + 3, SciSkin.TXT, false);
             if (r == 0 || r == 1 || r == 5) { // 开关药丸（开=运行绿族，关=离线灰）
                 boolean on = tog[r];
@@ -1602,7 +1603,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
         ctx.drawText(this.textRenderer, "恢复默认", rx + 32 - this.textRenderer.getWidth("恢复默认") / 2, rby + 4,
                 rh ? SciSkin.TXT_MAX : SciSkin.TXT, false);
-        ctx.drawText(this.textRenderer, "即改即存 config/sdzjz.json · Esc/点窗外=关", px + 8, py + SETT_H - 13, SciSkin.SUB, false);
+        String tip = "即改即存 · Esc/点外=关"; // m262 挪标题行右侧（原底行与恢复默认钮重叠且占高）
+        ctx.drawText(this.textRenderer, tip, px + SETT_W - 8 - this.textRenderer.getWidth(tip), py + 7, SciSkin.SUB, false);
         ctx.getMatrices().pop();
     }
 
@@ -1649,7 +1651,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (button != 0) return true;
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
         for (int r = 0; r < 10; r++) { // m217 6→10 行
-            int ry = py + 24 + r * SETT_ROW;
+            int ry = py + SETT_ROW0 + r * SETT_ROW; // m262 行区起点收口
             if (mouseY < ry || mouseY > ry + 14) continue;
             if ((r == 0 || r == 1 || r == 5) && mouseX >= px + SETT_W - 56 && mouseX <= px + SETT_W - 10) {
                 if (r == 0) c.canvasSmoothZoom = !c.canvasSmoothZoom;
