@@ -2,7 +2,15 @@
   "required": true,
   "package": "com.sdzjz.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
-  "client": [],
-  "injectors": { "defaultRequire": 1 }
+  "mixins": [
+    "ItemStackCodecMixin",
+    "ItemStackMaxCountMixin",
+    "SlotMaxCountMixin"
+  ],
+  "client": [
+    "client.DrawContextCountMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

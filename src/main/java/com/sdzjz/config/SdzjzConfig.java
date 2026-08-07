@@ -16,12 +16,15 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 31; // m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 32; // m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
     public long maxRecipesPerChunkTick = 262_144L;      // 【遗留,m270核实未接线】每区块每tick上限——跨核记账需全局表；核心级+节点级(upgradeMaxCyclesPerTick)双层预算已封顶，待真实需求再接
-    public long maxRecipesPerNetworkTick = 1_048_576L;  // m302 真接线：**全服**每tick生产周期总预算（跨核心共享,0或负=无限;耗尽只欠不丢,饥饿名单保底=没吃到的核心下tick先食1周期,见 machine/CoreScheduler）；默认极高不束缚纯作管理员旋钮
+    // ===== m310 原生大堆叠（替代 ItemStackProMax，模组自带）=====
+    public boolean bigStacks = true;              // 全局提升可堆叠物品的堆叠上限（原版不可堆叠的 maxCount=1 物品不动，防工具/耐久合并出鬼）
+    public int bigStackMax = 1_073_741_823;       // 每格上限，默认 2^30。为何不是 2147483647：①int 是物理天花板任何模组都超不过；②原版合并算术 a+b 两栈相加在 >2^30 时会 int 溢出成负数吃物品——2^30 保证两栈相加 ≤2^31-2 永不溢出。更大量级走压缩包(×4096≈每格4.4万亿等效)或仓储 long 账本。加载时钳到 [64, 2^30]
+        public long maxRecipesPerNetworkTick = 1_048_576L;  // m302 真接线：**全服**每tick生产周期总预算（跨核心共享,0或负=无限;耗尽只欠不丢,饥饿名单保底=没吃到的核心下tick先食1周期,见 machine/CoreScheduler）；默认极高不束缚纯作管理员旋钮
     public int accelMinPeriodTicks = 1;                 // 【遗留,m99后不再参与计算】旧线性加速的最小周期下限
     public double upgradeSpeedGainPerLevel = 0.5;       // m99 速度升级每级增益(乘算,0.5=+50%,速率=1.5^级)，速率溢出折成同tick多周期，永不触底
     public int upgradeMaxCyclesPerTick = 20;            // m99 单节点每tick最多结算周期数(防极高速度级单tick天量运算卡服)
@@ -188,6 +191,8 @@ public class SdzjzConfig {
         if (cfg.configVersion < 23) cfg.configVersion = 23; // m265 纯加键（canvasEndsPlaceable 端点卡可拖下画布开关），缺键走字段初值
         if (cfg.configVersion < 24) cfg.configVersion = 24; // m269 纯加键（packetWriteBudgetPerTick 每玩家每tick写包预算），缺键走字段初值
         if (cfg.configVersion < 25) cfg.configVersion = 25; // m270 纯加键（maxNodesPerCore/maxEdgesPerCore/maxEdgesPerNode/maxBufferTypesPerNode 服务器硬上限），缺键走字段初值
+        if (cfg.configVersion < 32) cfg.configVersion = 32; // m310 纯加键（bigStacks/bigStackMax 原生大堆叠），缺键走字段初值
+        cfg.bigStackMax = Math.max(64, Math.min(1_073_741_823, cfg.bigStackMax)); // m310 钳位：上界 2^30 防原版合并 a+b 溢出吃物品
 
         INSTANCE = cfg;
         if (!skipWriteBack) save(); // 回写补齐缺键 / 生成默认文件（m272：IO 读失败或改名留证失败时跳过，防覆盖未读到的用户内容）

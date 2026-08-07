@@ -4784,3 +4784,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   判据绿；min≈0.5/拍恰为理论稳态（101 竞争者下全员每两拍轮转保底一次），产线核心吃余量
   120211、双方合计 240000=预算分毫不差；占空比 0.0%、忙时 11.4ms。**评审③矩阵公平性收官：
   防饥饿+有界轮转在真实 BE tick 序上成立。**
+
+## m310 原生大堆叠 + 计数简写（作者点名：模组自带，卸掉 ItemStackProMax）
+
+- **物理边界先立**（对作者原话"超过 2147483647"的如实答复）：①栈计数是 Java int，
+  2147483647 是任何模组都翻不过的天花板（ISPM 同顶）；②顶格 int max 时原版合并算术
+  a+b 会溢出成负数**吃物品**——安全顶=2^30=1,073,741,823（两栈相加 ≤2^31-2 永不溢出）。
+  更大量级的正确姿势本就存在：压缩包 ×4096≈每格 4.4 万亿等效、仓储 long 无限账本。
+- **修法（本模组首批 mixin，管线 fabric.mod.json 早已备好空转）**：
+  ①ItemStackCodecMixin：<clinit> Redirect Codecs.rangedInt——只把 (1,99) 常量组合放宽到 2^30
+  （存档/校验 Codec 的计数钳位，不放宽则 >99 的栈存档读回即被吃；require=0+九号用例当真裁判）。
+  ②ItemStackMaxCountMixin（行为核心）：getMaxCount RETURN 注入，配置开且原版可堆叠(>1)才抬到
+  bigStackMax——maxCount=1 的工具/盔甲/药水永不动（防耐久件合并出鬼，精确账本教训同源）；
+  全库自家代码 m163c 起全动态读 getMaxCount，本注入生效即全 MOD 界面白捡兼容。
+  ③SlotMaxCountMixin：无参 getMaxItemCount RETURN 抬格上限（inventory.getMaxCountPerStack=99
+  是第二道钳）；带参重载与结果格/燃料格子类覆写一律不动（业务收窄语义）。
+  ④client/DrawContextCountMixin：drawItemInSlot 五参版 ModifyVariable countOverride——
+  计数 >9999 且调用方没给覆写时代打 K/M/B（m232 DataPanelScreen.fmt 同口径）。
+  **弃案留痕**：组件 max_stack_size 的 1..99 钳位在 lambda 合成方法里 <clinit> Redirect
+  咬不中——且我们的机制从不把 >99 写进组件（运行时抬 getMaxCount），序列化永远原版范围，
+  该 mixin 不需要，已删防静默空转假安心。
+- **配置**：bigStacks=true / bigStackMax=2^30（load 钳 [64,2^30]），v32 纯加键。
+- **验证**：冒烟真语法错 0（mixin 报错全为 spongepowered/MC 包噪音）；十道闸全绿；
+  GameTest 九号用例=①cobble getMaxCount≥100 万+镐子纹丝不动 ②百万计数 ItemStack.CODEC
+  编解码往返（mixin① 没咬中此断言必红=真裁判）；CI 见推送 run。
+- **边界立档**：①关 bigStacks 前先把 >99 的栈拆小——关后 VALIDATED_CODEC 按原版口径校验，
+  超栈存档可能被判非法重置；②与 ItemStackProMax 同装=同靶点双补丁，装本版请卸 ISPM；
+  ③网络包计数为 VarInt 无 99 钳（int 安全），若实机发现同步钳位再补包码 mixin。
+- **实机三看点**：①背包/箱子里同物 shift 合并可过 99 直到 2^30，存档重进不缩；
+  ②格内 >9999 显示 12K/34M/1.0B 简写；③工具/药水仍 1 格 1 件不合并。

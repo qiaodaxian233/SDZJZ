@@ -216,4 +216,18 @@ public class SdzjzGameTests implements FabricGameTest {
             }
         });
     }
+
+    /** m310 原生大堆叠：①getMaxCount 抬到配置值（可堆叠物）且不可堆叠物纹丝不动；
+     *  ②百万计数过 ItemStack.CODEC 存档编解码往返不被 1..99 旧钳位吃掉（mixin ①生效验证）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void big_stacks_native(TestContext ctx) {
+        ItemStack big = new ItemStack(Items.COBBLESTONE, 1_000_000);
+        ctx.assertTrue(big.getMaxCount() >= 1_000_000, "大堆叠未生效：cobble getMaxCount=" + big.getMaxCount());
+        ctx.assertTrue(new ItemStack(Items.DIAMOND_PICKAXE).getMaxCount() == 1, "不可堆叠物被误抬（耐久合并风险）");
+        var ops = net.minecraft.registry.RegistryOps.of(net.minecraft.nbt.NbtOps.INSTANCE, ctx.getWorld().getRegistryManager());
+        var enc = ItemStack.CODEC.encodeStart(ops, big).getOrThrow();
+        ItemStack back = ItemStack.CODEC.parse(ops, enc).getOrThrow();
+        ctx.assertTrue(back.getCount() == 1_000_000, "计数存档往返丢失：读回 " + back.getCount() + "（Codec 钳位未放宽）");
+        ctx.complete();
+    }
 }
