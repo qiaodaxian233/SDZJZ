@@ -5085,7 +5085,7 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   profile reset 顺带清阶段账（resetAll 收口）。
 - **验证**：javac21 冒烟真语法错 0；壳→0号委托链符号级定向检零命中（symbol: method 口径，
   盲区#5 防法升级版）；dup_method/版本闸等全绿；版本跳 0.1.321。计时壳与打点为纯观测，
-  PHASES 默认关=行为零变化。
+  PHASES 默认关=行为零变化。**CI run #83 三 job 全绿——八个计时壳+六锚点打点首次真编译即过，十一 GameTest 用例照绿（观测层零行为变化验真）。**
 - **实机脚本**：①空载进服 `/sdzjz profile phase`——应见四段账与"细分：空"提示；
   ②`/sdzjz bench start` 跑默认档，报告应有 Top Hotspots 段、六项细分有数、bench 后
   PHASES 自动复原；③手动 phase on→满载 1 分钟→phase 看细分占比→off。
