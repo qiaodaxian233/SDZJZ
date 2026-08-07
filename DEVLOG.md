@@ -5189,3 +5189,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①同一区块摆 2 核心满载，maxRecipesPerChunkTick 调小（如 40）——两核合计
   产能被压到 40 周期/t 且 tick 序靠前核心占优（预期钝闸行为）；②把其中一核挪去邻区块——
   各吃各的 40；③键置 0——回无限；④调回默认 262144——行为与 m323 版无差。
+
+## m325 构建链收口（评审第八优先——非门控评审项就此清完）
+
+- **Loom 锁稳定版**：`1.7-SNAPSHOT`→`1.7.4`。锚点不是猜的：HANDOVER 在案的作者本地全绿构建
+  （2026-08-01）实测解析到的就是 Loom 1.7.4——SNAPSHOT 漂移风险归零，构建可复现。
+- **fabric-api 依赖收窄**：fabric.mod.json 的 `"*"`→`">=0.105.0"`（编译锁的正是
+  fabric_version=0.105.0+1.21.1；`minecraft ~1.21.1` 已限定大版本，此处只需下界防"任意旧版
+  也放行"）。评审原话：元数据接受任意版本与编译口径不符。
+- **Actions 升主版本**（评审提示 Node 迁移预警，Release 前统一）：checkout v4→v7 /
+  setup-java v4→v5 / gradle-actions/setup-gradle v4→v6 / upload-artifact v4→v7。
+  四家目标 tag 先经 api.github.com 逐一核实存在；工作流传参全查过=只用稳定输入
+  （distribution/java-version/name/path/retention-days 及裸调用），无被新主版删除的入参。
+- **验证**：fabric.mod.json 过 json.load；本笔不动 Java 零冒烟需求；version 闸绿。
+  **CI 本身被改，run 判决=三 job 全绿且 Gradle job 用 Loom 1.7.4 真解析真出包**（首跑缓存
+  可能失效变慢属预期）。版本跳 0.1.325。
+- **实机脚本**：作者"拉取并构建"工具照常跑一遍——Loom 显示 1.7.4、BUILD SUCCESSFUL、
+  jar 进测试实例即销账；另在装老版 fabric-api（<0.105.0）的实例装本 jar 应被 loader 拦下报
+  依赖不满足（收窄生效的手感验证，可选）。
