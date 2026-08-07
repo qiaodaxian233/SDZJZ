@@ -1,0 +1,96 @@
+package com.sdzjz.machine;
+
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * m302 全服生产预算 + 饥饿名单公平层（外部评审文档③ 唯一方向性建议，方案①）。
+ *
+ * 背景：各核心随区块 BE tick 序消费预算，序稳定=靠前核心恒占便宜；若只做全服硬顶，
+ * 预算耗尽时靠后核心会**恒饿**。本类把 maxRecipesPerNetworkTick 真接线成全服共享预算，
+ * 并叠饥饿名单：本 tick 一个周期都没吃到的核心记名，下一 tick 预算先切出保留额
+ * （每饿核保底 1 周期）只许名单内核心消费；核心到场即出名单（吃到与否都出——
+ * 幽灵核心/已卸载核心至多占一拍保留额，下拍名单重建自然过期，绝不永久堵门）。
+ * 无中央调度循环，仅两处挂钩：扣预算处（cyclesThisTick）+ 拍轮换处（rollTick，
+ * 由首个请求按 server.getTicks() 触发）。
+ *
+ * 语义要点：
+ * - 预算单位=逻辑配方周期数，与 m270 单核心预算（recipesThisTick）双层并存，先核内后全服。
+ * - 耗尽只欠不丢：调用方（cyclesThisTick）的工作量累积照旧，下 tick 续（m99/m270 口径）。
+ * - globalCap<=0 = 闸关无限：直接放行，名单机制整体旁路（默认 1_048_576 极高，
+ *   默认不束缚纯作管理员旋钮，与 maxRecipesPerCoreTick 同哲学）。
+ * - 仅服务端主线程调用（BE tick），零同步；SERVER_STOPPED 走 clearAll() 清态。
+ * - 保底的物理边界：饿核数 > 预算时保底也发不齐，没轮到的留名单下拍继续持先食权。
+ */
+public final class CoreScheduler {
+    private CoreScheduler() {}
+
+    /** 当前记账拍（MinecraftServer.getTicks()，全维度统一时钟——world.getTime() 会被 /time set 拨动，不用）。 */
+    private static long tickStamp = Long.MIN_VALUE;
+    /** 本拍全服已批准周期数。 */
+    private static long spent = 0;
+    /** 本拍剩余保留额 = 名单内尚未到场的饿核数 ×1（到场即释放，自用或并入公池）。 */
+    private static int reserveLeft = 0;
+    /** 本拍持保留额名单（上拍没吃到的核心，键式照 StorageCoreBlockEntity.CORES 在树先例）。 */
+    private static final Map<RegistryKey<World>, Set<BlockPos>> STARVED = new HashMap<>();
+    /** 本拍新增饿核（下拍生效）。 */
+    private static final Map<RegistryKey<World>, Set<BlockPos>> STARVED_NEXT = new HashMap<>();
+
+    /**
+     * 核心申请 want 个生产周期，返回实际批准数（0=本拍别结算，工作量自行留存）。
+     * 同一核心多节点会多次进来：首次到场消耗其名单身份，后续按普通请求走公池。
+     */
+    public static int request(ServerWorld world, BlockPos pos, int want, long globalCap) {
+        if (want <= 0) return 0;
+        if (globalCap <= 0) return want; // 闸关=无限，公平层无意义整体旁路
+        long now = world.getServer().getTicks();
+        if (now != tickStamp) rollTick(now);
+
+        long remain = globalCap - spent;
+        Set<BlockPos> dim = STARVED.get(world.getRegistryKey());
+        boolean wasStarved = dim != null && dim.remove(pos); // 到场即出名单（防幽灵核心堵门）
+        if (wasStarved) reserveLeft--;
+
+        long open = remain - Math.max(0, reserveLeft);        // 公池=余额扣掉他核保留额
+        long allow = wasStarved ? Math.max(open, Math.min(1L, remain)) // 饿核保底1（预算真见零除外）
+                                : open;                                // 普通核心只许动公池
+        int granted = (int) Math.min(want, Math.min(remain, Math.max(0L, allow)));
+        if (granted <= 0) {
+            STARVED_NEXT.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>())
+                        .add(pos.toImmutable()); // 一个周期没吃到才记名；吃到部分=有进展不记
+            return 0;
+        }
+        spent += granted;
+        return granted;
+    }
+
+    /** 新 server tick：饿名单换代（NEXT→当前），预算与保留额复位。 */
+    private static void rollTick(long now) {
+        tickStamp = now;
+        spent = 0;
+        STARVED.clear();
+        int n = 0;
+        for (Map.Entry<RegistryKey<World>, Set<BlockPos>> e : STARVED_NEXT.entrySet()) {
+            STARVED.put(e.getKey(), e.getValue());
+            n += e.getValue().size();
+        }
+        STARVED_NEXT.clear(); // 只清外层映射，内层 Set 已移交 STARVED 持有
+        reserveLeft = n;
+    }
+
+    /** 停服清态（单机反复进出存档不留残，挂 Sdzjz SERVER_STOPPED 既有清理块）。 */
+    public static void clearAll() {
+        tickStamp = Long.MIN_VALUE;
+        spent = 0;
+        reserveLeft = 0;
+        STARVED.clear();
+        STARVED_NEXT.clear();
+    }
+}

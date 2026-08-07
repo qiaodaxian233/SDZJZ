@@ -66,6 +66,7 @@ public class Sdzjz implements ModInitializer {
             WRITE_BUDGET.clear(); // m294 停服清空（单机反复进出存档不留残）
             StorageCoreBlockEntity.clearAll();
             com.sdzjz.block.CoreChunkLoading.clearAll(); // m133 强加载登记表（m296 起自恢复靠声明表 PersistentState+开服重发票）
+            com.sdzjz.machine.CoreScheduler.clearAll(); // m302 全服预算/饥饿名单清态
             CraftPlanner.clearCache();
             com.sdzjz.machine.BrewPlanner.clearCache();
             com.sdzjz.machine.EnchantPlanner.clearCache();

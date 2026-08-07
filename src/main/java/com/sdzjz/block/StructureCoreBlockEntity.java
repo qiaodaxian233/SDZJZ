@@ -1085,6 +1085,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (remain <= 0) cycles = 0;                    // 预算耗尽：本tick不结算，工作量照常累积下tick续（不静默蒸发,m99教训）
             else if (cycles > remain) cycles = (int) remain;
         }
+        // m302 全服共享预算真接线（maxRecipesPerNetworkTick）+ 饥饿名单公平层：先核内后全服双层封顶；
+        // 耗尽同 m270 口径只欠不丢（工作量累积下tick续），没吃到的核心下tick持保底1周期先食权。
+        if (cycles > 0 && cfg.maxRecipesPerNetworkTick > 0
+                && this.world instanceof net.minecraft.server.world.ServerWorld sw302) {
+            cycles = com.sdzjz.machine.CoreScheduler.request(sw302, this.pos, cycles, cfg.maxRecipesPerNetworkTick);
+        }
         acc -= (double) cycles * base;
         if (acc > (double) base * cap) acc = (double) base * cap; // 被cap/预算截断时不无限囤积
         workAcc.put(nodeIndex, acc);

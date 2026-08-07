@@ -4595,3 +4595,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：YAML 过 yaml.safe_load + 三 job 名/步骤/always 上传逐项断言；首跑结果轮询
   api.github.com actions/runs 回填于下。
 - **首跑结果（run #37, 169c2ee, 2026-08-07）**：全 run 绿。gametest job success（79 秒，缓存热）；runGametest 退出码 0=TestServer 必测用例零失败（空用例集会直接抛错，没发生）；junit.xml 已产出并上传 artifact（gametest-junit, 444B zip）。**残留一眼活**：沙箱够不到 Actions blob 域名看不了报告正文，"计数恰=6"请作者点开 run #37 日志或下载工件核一眼。**闸已跑通——调度公平性开刀前置条件满足。**
+
+## m302 全服生产预算真接线 + 饥饿名单公平层（外部评审文档③方案①，HANDOVER 待办销账）
+
+- **现象/根因**：待办说"各核心消费全服预算（maxRecipesPerNetworkTick）序稳定=靠后恒饿"——
+  但对表代码：预算实为 m270 的**单核心**实例字段 recipesThisTick，NetworkTick 键 m270 已核实
+  **未接线**，全服预算根本不存在。故本笔=两件事一刀：①把 maxRecipesPerNetworkTick 真接线成
+  全服共享预算（跨核心、跨维度，MinecraftServer.getTicks() 统一时钟——world.getTime() 会被
+  /time set 拨动不能用）；②叠方案①饥饿名单，否则①落地即制造"靠后恒饿"。
+- **修法**：新 machine/CoreScheduler（静态态，键式照 StorageCoreBlockEntity.CORES 在树先例
+  Map<RegistryKey<World>,Set<BlockPos>>）：本拍一个周期没吃到的核心记 STARVED_NEXT；换拍时
+  换代为 STARVED 并按名单数切保留额（每饿核保底 1 周期），非名单核心只许动公池
+  （open=余额-保留额）；核心**到场即出名单**（吃到与否都出）——幽灵/已卸载核心至多占一拍
+  保留额，下拍名单重建自然过期，绝不永久堵门。无中央循环，两处挂钩：cyclesThisTick 在 m270
+  核内预算之后加全服层（先核内后全服，耗尽同口径只欠不丢、工作量累积下 tick 续）；
+  Sdzjz SERVER_STOPPED 既有清理块挂 clearAll()。同核心多节点多次请求：首请求消耗名单身份，
+  后续走公池。配置零新键（NetworkTick 键注释改真接线），默认 1M 极高不束缚=默认行为零变化，
+  configVersion 不动。
+- **边界立档**：保底=1 周期/拍的**进展保证**，不是按需比例公平——重载核心与轻载核心的
+  份额差留方案②轮转相位（HANDOVER 远期候选）。饿核数>预算时保底物理发不齐，没轮到的留名单
+  下拍继续持先食权。
+- **验证**：算法尺 docs/tools_core_scheduler_sim.py（Java 逻辑逐行 Python 移植）60 种子×400 拍
+  四不变量（预算硬顶/饿核到场必得保底/幽灵不堵门/闸关旁路）+对照组（朴素先到先得同负载末核
+  100 拍颗粒无收、调度器下必得食）全过，已挂 CI；全库冒烟真语法错 0；新自家类定向检=
+  CoreScheduler 引用方零报错，调用点唯一命中为 this.pos 继承字段噪音（在树三先例+yarn
+  field_11867 双核实）；getTicks=method_3780、toImmutable/instanceof 模式变量均在树先例。
+- **实机脚本**：①默认配置产线读数与改前持平（1M 远高于实机负载，/sdzjz profile core 对表）；
+  ②压测：maxRecipesPerNetworkTick=100 + 多区块摆多个高速产线核心 → 全服总产出被压 ≈100 周期/t
+  且 profile core 各核心 recipes 都>0（轮流出活，不再前面吃满后面恒 0）；③设 0=无限复旧；
+  ④停服重进无残留态。

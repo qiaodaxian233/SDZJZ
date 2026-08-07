@@ -21,7 +21,7 @@ public class SdzjzConfig {
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
     public long maxRecipesPerChunkTick = 262_144L;      // 【遗留,m270核实未接线】每区块每tick上限——跨核记账需全局表；核心级+节点级(upgradeMaxCyclesPerTick)双层预算已封顶，待真实需求再接
-    public long maxRecipesPerNetworkTick = 1_048_576L;  // 【遗留,m270核实未接线】每玩家网络每tick上限——同上
+    public long maxRecipesPerNetworkTick = 1_048_576L;  // m302 真接线：**全服**每tick生产周期总预算（跨核心共享,0或负=无限;耗尽只欠不丢,饥饿名单保底=没吃到的核心下tick先食1周期,见 machine/CoreScheduler）；默认极高不束缚纯作管理员旋钮
     public int accelMinPeriodTicks = 1;                 // 【遗留,m99后不再参与计算】旧线性加速的最小周期下限
     public double upgradeSpeedGainPerLevel = 0.5;       // m99 速度升级每级增益(乘算,0.5=+50%,速率=1.5^级)，速率溢出折成同tick多周期，永不触底
     public int upgradeMaxCyclesPerTick = 20;            // m99 单节点每tick最多结算周期数(防极高速度级单tick天量运算卡服)
