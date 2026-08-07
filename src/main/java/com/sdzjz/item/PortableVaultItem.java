@@ -215,15 +215,8 @@ public class PortableVaultItem extends Item {
         tooltip.add(Text.literal(magnetOn(stack) ? "吸附: 开（潜行右键关闭）" : "吸附: 关（潜行右键开启）")
                 .formatted(net.minecraft.util.Formatting.AQUA));
         tooltip.add(Text.literal("账本: " + v.getKeys().size() + " 类 · " + fmt(vaultTotal(stack)) + " 件")
-                .formatted(net.minecraft.util.Formatting.GRAY));
-        java.util.List<String> ids = new java.util.ArrayList<>(v.getKeys());
-        ids.sort((a, b) -> Long.compare(v.getLong(b), v.getLong(a)));
-        for (int i = 0; i < Math.min(3, ids.size()); i++) {
-            String id = ids.get(i);
-            tooltip.add(Text.literal("  " + Registries.ITEM.get(Identifier.of(id)).getName().getString()
-                    + " ×" + fmt(v.getLong(id))).formatted(net.minecraft.util.Formatting.DARK_GRAY));
-        }
-        tooltip.add(Text.literal("右键存储核心/数据面板=整包入仓").formatted(net.minecraft.util.Formatting.DARK_GRAY));
+                .formatted(net.minecraft.util.Formatting.GRAY)); // m312：撤明细行（30 类会刷屏，用户点名）——明细进 GUI
+        tooltip.add(Text.literal("右键=打开仓库 · 右键核心/面板=整包入仓").formatted(net.minecraft.util.Formatting.DARK_GRAY));
     }
 
     private static void bar(PlayerEntity p, String s) {
