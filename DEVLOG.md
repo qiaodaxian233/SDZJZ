@@ -4682,4 +4682,4 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   归 /sdzjz profile sched 判据行 + 作者矩阵实测。
 - **验证**：冒烟真语法错 0、自家符号零命中（76 条报错全为 MC/Fabric 包噪音）；十道闸全绿；
   **本用例的首跑=推送后 CI gametest job**，结果回填于下。
-- **首跑结果**：（待回填）
+- **首跑结果（run #44, abcf91f）**：三 job 全绿——七号 soak 在真服务器时钟上首跑即过（预算硬顶+min≥30 两断言成立；gametest job 103s vs 上轮 79s，恰为多压的 120 拍），m304 观测代码同 run 真编译通过。CI job 名顺手改'GameTest 用例集'不再写死数量。

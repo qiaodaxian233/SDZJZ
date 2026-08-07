@@ -33,9 +33,9 @@ jobs:
         run: python3 docs/tools_core_scheduler_sim.py
 
   gametest:
-    # m301：第九道闸——真跑 m297 六用例（临时专用服务器，vanilla TestServer 免 EULA）。
-    # 报告 build/junit.xml 无论红绿都上传，红了按用例名回查 DEVLOG m297 修。
-    name: GameTest 六用例
+    # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；
+    # m297 六件 + m305 调度器 soak，后续新用例自动纳入）。报告 build/junit.xml 无论红绿都上传。
+    name: GameTest 用例集
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
