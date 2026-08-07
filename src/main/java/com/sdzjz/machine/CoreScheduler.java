@@ -43,6 +43,37 @@ public final class CoreScheduler {
     /** 本拍新增饿核（下拍生效）。 */
     private static final Map<RegistryKey<World>, Set<BlockPos>> STARVED_NEXT = new HashMap<>();
 
+    // ===== m304 压测观测（评审③复评"下一步是测不是重构"：granted 分布/饿核数得有处读）=====
+    /** 每核累计账 long[0]=累计批准周期 long[1]=零批准记名次数。仅 cap>0 路径更新；
+     *  reset 只清计数**绝不动名单**（名单是行为态，动了会扰动调度本身）。 */
+    private static final Map<RegistryKey<World>, Map<BlockPos, long[]>> STATS = new HashMap<>();
+    /** 上一完整拍的全服消费快照（rollTick 时定格，供 /sdzjz profile sched 读"上拍消费"）。 */
+    private static long prevTickSpent = 0;
+
+    /** 观测行（命令层展示用，dim 取 Identifier 串）。 */
+    public static final class Row {
+        public final String dim; public final BlockPos pos; public final long granted; public final long zeroEvents;
+        Row(String d, BlockPos p, long g, long z) { dim = d; pos = p; granted = g; zeroEvents = z; }
+    }
+
+    /** 自上次清零以来所有申请过预算的核心账目快照。 */
+    public static java.util.List<Row> statRows() {
+        java.util.List<Row> out = new java.util.ArrayList<>();
+        for (Map.Entry<RegistryKey<World>, Map<BlockPos, long[]>> e : STATS.entrySet())
+            for (Map.Entry<BlockPos, long[]> r : e.getValue().entrySet())
+                out.add(new Row(e.getKey().getValue().toString(), r.getKey(), r.getValue()[0], r.getValue()[1]));
+        return out;
+    }
+
+    public static long prevTickSpent() { return prevTickSpent; }
+
+    /** 当前持保底名单核数（本拍待优先喂）+ 本拍新记名核数。 */
+    public static int starvedPending() { int n = 0; for (Set<BlockPos> s : STARVED.values()) n += s.size(); return n; }
+    public static int starvedNew()     { int n = 0; for (Set<BlockPos> s : STARVED_NEXT.values()) n += s.size(); return n; }
+
+    /** 只清观测计数（/sdzjz profile reset 挂钩），名单与预算态原样。 */
+    public static void resetStats() { STATS.clear(); prevTickSpent = 0; }
+
     /**
      * 核心申请 want 个生产周期，返回实际批准数（0=本拍别结算，工作量自行留存）。
      * 同一核心多节点会多次进来：首次到场消耗其名单身份，后续按普通请求走公池。
@@ -62,17 +93,22 @@ public final class CoreScheduler {
         long allow = wasStarved ? Math.max(open, Math.min(1L, remain)) // 饿核保底1（预算真见零除外）
                                 : open;                                // 普通核心只许动公池
         int granted = (int) Math.min(want, Math.min(remain, Math.max(0L, allow)));
+        long[] st = STATS.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>())
+                         .computeIfAbsent(pos.toImmutable(), k -> new long[2]); // m304 观测账（每节点结算才进来,频率≈节点数/周期,开销可忽略）
         if (granted <= 0) {
+            st[1]++;
             STARVED_NEXT.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>())
                         .add(pos.toImmutable()); // 一个周期没吃到才记名；吃到部分=有进展不记
             return 0;
         }
+        st[0] += granted;
         spent += granted;
         return granted;
     }
 
     /** 新 server tick：饿名单换代（NEXT→当前），预算与保留额复位。 */
     private static void rollTick(long now) {
+        prevTickSpent = spent; // m304：上拍消费定格供观测
         tickStamp = now;
         spent = 0;
         STARVED.clear();
@@ -92,5 +128,6 @@ public final class CoreScheduler {
         reserveLeft = 0;
         STARVED.clear();
         STARVED_NEXT.clear();
+        resetStats(); // m304
     }
 }

@@ -4650,3 +4650,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   照开、走多远都不关；③远程屏开着按 Q 丢掉终端→屏即关；④远程屏开着把终端 shift 存进
   面板→屏即关、终端在精确账本可取回；⑤远程屏内把终端拿到光标上挪格→不误关；
   ⑥拆面板/区块卸载两模式都即关（m299 原有行为不回归）。
+
+## m304 调度器观测账 /sdzjz profile sched（评审③复评响应第一件）
+
+- **背景**：评审复评 m302 定性 anti-starvation 正确、评分 9→9.4、明确**不要**现改 Round Robin，
+  "下一步应该测，而不是继续凭感觉重构"，并点名要看 granted cycles / starved core 数量——
+  而 CoreScheduler 此前对外零读数，压测判据没处看。
+- **修法**：CoreScheduler 加观测账（仅 cap>0 路径，每节点结算才进来开销可忽略）：每核累计
+  long[0]=批准周期 long[1]=零批准记名次数（STATS 键式照 STARVED），rollTick 定格 prevTickSpent；
+  statRows/starvedPending/starvedNew/resetStats 四个读口。命令层新 `/sdzjz profile sched`：
+  头行 cap/上拍消费/待保底/本拍新记名/核数，统计行 granted 最低/中位/最高 + **判据直出**
+  （零吞吐核心数标红=防饥饿失效；否则报最高/最低倍数，评审原话"几倍内且无恒0=达标"），
+  尾列最低3+最高3核坐标明细。`/sdzjz profile reset` 顺清调度计数——**只清计数绝不动名单**
+  （名单是行为态，动了扰动调度本身）；clearAll 停服连观测一起清。granted 为累计口径，
+  看某段负载分布先 reset 再压。
+- **验证**：冒烟真语法错 0，自家新符号（statRows/prevTickSpent/starvedPending/starvedNew/
+  resetStats/Row）定向检零命中，SdzjzCommands 报错全为 MC 包噪音；十道闸全绿；CI 见推送 run。
+- **实机脚本**：评审矩阵（1/10/50/100 核 × 64/256/512 节点）跑法=压 maxRecipesPerNetworkTick=100
+  → /sdzjz profile reset → 满载跑 5~10 分钟 → /sdzjz profile sched 看判据行：无红字零吞吐、
+  倍数几倍内即达标；配 /sdzjz profile core 看 ms/tick 与编译数。

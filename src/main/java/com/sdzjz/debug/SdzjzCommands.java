@@ -14,7 +14,7 @@ import static net.minecraft.server.command.CommandManager.literal;
 /**
  * m177 调试命令（审查报告三之调试三件套，OP2 权限）：
  *   /sdzjz profile core    —— 本维度活跃核心逐个报：节点/边/tick 均值峰值/路由/供料/链查 速率
- *   /sdzjz profile network —— 全服同步账单：核心 NBT 包数与字节、端点直发包数与条目
+ *   /sdzjz profile network —— 全服同步账单：核心 NBT 包数与字节、端点直发包数与条目\n *   /sdzjz profile sched   —— m304 调度器账单：cap/上拍消费/名单数 + 各核 granted 分布（压测判据直出）
  *   /sdzjz profile reset   —— 计数窗清零（耗时环形窗自然滚动不用清）
  *   /sdzjz dumpgraph       —— 就近核心整图转储进服务器日志（节点/连线/状态），聊天给摘要
  */
@@ -27,8 +27,10 @@ public final class SdzjzCommands {
                         .then(literal("profile")
                                 .then(literal("core").executes(c -> profileCore(c.getSource())))
                                 .then(literal("network").executes(c -> profileNetwork(c.getSource())))
+                                .then(literal("sched").executes(c -> profileSched(c.getSource()))) // m304 调度器账单
                                 .then(literal("reset").executes(c -> {
                                     CoreProfiler.resetAll();
+                                    com.sdzjz.machine.CoreScheduler.resetStats(); // m304 只清计数不动名单
                                     c.getSource().sendFeedback(() -> Text.literal("§a[sdzjz] 剖析计数窗已清零"), false);
                                     return 1;
                                 })))
@@ -51,6 +53,47 @@ public final class SdzjzCommands {
             src.sendFeedback(() -> Text.literal(line), false);
         }
         return list.size();
+    }
+
+    /** m304 调度器账单（评审③复评压测判据直出：无长期零吞吐 + 最低最高差距）。
+     *  granted 为**累计**口径——想看某段负载的分布，先 /sdzjz profile reset 再压。 */
+    private static int profileSched(ServerCommandSource src) {
+        long cap = com.sdzjz.config.SdzjzConfig.get().maxRecipesPerNetworkTick;
+        if (cap <= 0) {
+            src.sendFeedback(() -> Text.literal("§7[sdzjz] 全服预算闸关（maxRecipesPerNetworkTick≤0=无限），调度器整体旁路无账可读"), false);
+            return 0;
+        }
+        java.util.List<com.sdzjz.machine.CoreScheduler.Row> rows = com.sdzjz.machine.CoreScheduler.statRows();
+        if (rows.isEmpty()) {
+            src.sendFeedback(() -> Text.literal("§7[sdzjz] 自上次清零以来无核心申请过预算（核心需在跑且有节点结算）"), false);
+            return 0;
+        }
+        rows.sort(java.util.Comparator.comparingLong(r -> r.granted));
+        long min = rows.get(0).granted, max = rows.get(rows.size() - 1).granted;
+        long median = rows.get(rows.size() / 2).granted;
+        long zeroCores = rows.stream().filter(r -> r.granted == 0).count();
+        final String head = String.format(
+                "§b[sdzjz] 调度器账单 §7cap=%d/tick 上拍消费=%d 待保底=%d 本拍新记名=%d 核数=%d",
+                cap, com.sdzjz.machine.CoreScheduler.prevTickSpent(),
+                com.sdzjz.machine.CoreScheduler.starvedPending(), com.sdzjz.machine.CoreScheduler.starvedNew(), rows.size());
+        src.sendFeedback(() -> Text.literal(head), false);
+        final String verdict = zeroCores > 0
+                ? "§c零吞吐核心 ×" + zeroCores + "（长期为 0 = 防饥饿失效，请贴报告）"
+                : (min > 0 ? String.format("§a最高/最低 = %.1f×（评审判据：几倍内且无恒 0 = 达标）", (double) max / min) : "§7样本尚少");
+        final String stat = String.format("§f granted 最低=%d 中位=%d 最高=%d  %s", min, median, max, verdict);
+        src.sendFeedback(() -> Text.literal(stat), false);
+        int show = Math.min(3, rows.size());
+        for (int i = 0; i < show; i++) {
+            com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
+            final String line = String.format("§7  低│%s %s granted=%d 记名=%d", r.dim, r.pos.toShortString(), r.granted, r.zeroEvents);
+            src.sendFeedback(() -> Text.literal(line), false);
+        }
+        for (int i = Math.max(show, rows.size() - 3); i < rows.size(); i++) {
+            com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
+            final String line = String.format("§7  高│%s %s granted=%d 记名=%d", r.dim, r.pos.toShortString(), r.granted, r.zeroEvents);
+            src.sendFeedback(() -> Text.literal(line), false);
+        }
+        return rows.size();
     }
 
     private static int profileNetwork(ServerCommandSource src) {
