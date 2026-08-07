@@ -5125,3 +5125,37 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   只在账本变动时重建快照；②往仓里塞带附魔/组件的精确件——两名观众的列表都即时刷新
   （exactRev 生效）；③经验泵持续入账、终端不动库存——经验读数照常走动（refreshMeta 保活）；
   ④配置 panelMasterSnapshotCache=false 重启——终端行为与 m321 版逐帧一致（回退闸有效）。
+
+## m323 端到端 GameTest 第一批（评审第四优先：账本级→完整链，四用例上真 handler/真玩家/真存档链路）
+
+- **立足点**：评审十条 E2E 清单到档；第二优先 Demand Cache 仍门控在作者 bench 数据后，按序
+  做第四优先。本批选清单中**不依赖版本漂移大的假人交互 API**的四条（#1/#2/#7+#8合刀/#9）；
+  剩余（共享网格并发/面板拆除后旧 handler 发包/手持终端换手/区块票重启/bigStacks 漏斗箱子链）
+  挂待办池做第二批。
+- **四用例**（十三~十六号，全部真 TestServer 跑）：
+  1. `two_players_shift_take_last_stack_via_handlers`（清单#1）：createMockCreativeServerPlayerInWorld
+     ×2 + 真 DataPanelScreenHandler×2，双 handler 各持陈旧展示页（10t 窗口）同 quickMove 抢最后
+     一组——m266 复制窗修复首次上 handler 级判官：实收和恒等 64、账本清零。
+  2. `two_players_search_independently`（清单#2）：双人同面板异词搜索，各自 54 格互不覆盖
+     （m292 E2E 回归；m322 快照共享后尤须验"共用 master ≠ 共用过滤"）。waitAndRun(3) 避开
+     ctor 首刷占用的 ≥2t 节流名额。
+  3. `ledger_nbt_roundtrip_reconciles_at_scale`（清单#7+#8 缩尺合刀）：普通账本 4096 类型
+     （合成 id 直灌 storeView——readNbt 按 m273 只验空id/非正数不验物品表，正好测字符串保真）
+     + 精确账本组件件 + **30 亿 long 计数走 FTA 长插**；"重启"在 GameTest 框架内=createNbt→
+     全新 BE.read（与存档同一条 writeNbt/readNbt 链路），普通逐条 equals+精确逐 index 组件相等。
+  4. `transaction_mix_preserves_manual_changes`（清单#9）：事务窗内手账改动（**异键**）在
+     abort 后存活——m278 增量 undo"只回滚自己碰过的键"的核心性质首次有判官；提交路+手账
+     串行算术精确。
+- **边界立档**：同键混部（事务 extract 某 id 未提交时手账 withdraw 同 id，随后 abort）=前像
+  覆盖手账、理论上是复制窗——但生产路径事务作用域均为"开→搬→提交"单方法原子（m225/m229/
+  m231），GUI 包处理无法插入他人事务窗内，自家代码只要不在开着的事务里调 withdraw 就到不了
+  这个形。立规矩：**事务作用域内禁调手账口（withdraw/deposit 系）**，后续审计项挂待办。
+- **API 核名**：createMockCreativeServerPlayerInWorld/waitAndRun/getWorld（TestContext）、
+  createNbt/read（BlockEntity）、Inventory#count、ScreenHandler#getSlot 全部 yarn 1.21.1 核到；
+  getRegistryManager 当 WrapperLookup 在树先例（本文件 m310 用例）。**待编译验证**：mock 玩家
+  两方法无在树先例，CI 真编译+真跑当判官。
+- **验证**：javac21 冒烟真语法错 0；新符号定向检——getSlot 5 处 symbol 属超类（MC 类）不可
+  解析的继承方法噪音（盲区#4 同族，yarn 已核真名 method_7611），其余自家符号零命中；
+  dup_method/override 尺绿。版本跳 0.1.323。
+- **实机脚本**：CI GameTest job 十六用例全绿即本批销账；另可实机双人开同一面板互搜（用例2
+  的手感版）与双人抢末组（用例1 的手感版）对照。

@@ -279,4 +279,126 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(a4.get(1).tpl == null && a4.get(1).n == 4, "普通件余量应为 4，实得 " + a4.get(1).n);
         ctx.complete();
     }
+
+    // ===== m323 端到端第一批（评审第四优先：网络包→ScreenHandler→玩家库存→BE→存档 完整链）=====
+
+    /** m323 评审清单#1：**真 ServerPlayerEntity 两人同时 Shift 取最后一组**——m266 复制窗修复的
+     *  handler 级判官（此前只有账本级 two_withdraw）。两 handler 各持 10t 陈旧展示页同抢 64 圆石，
+     *  账本权威=两人实收和恒等 64、账本清零，谁都不凭空得料。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void two_players_shift_take_last_stack_via_handlers(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0);
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        c.deposit(new ItemStack(Items.COBBLESTONE, 64)); // 最后一组
+        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
+        var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel); // 双 handler 构造即各刷首页——都看见 64
+        h1.quickMove(p1, com.sdzjz.screen.DataPanelScreenHandler.DISP0);
+        h2.quickMove(p2, com.sdzjz.screen.DataPanelScreenHandler.DISP0); // h2 展示页此刻仍是陈旧 64（10t 窗口）——复制窗正形
+        int g1 = p1.getInventory().count(Items.COBBLESTONE);
+        int g2 = p2.getInventory().count(Items.COBBLESTONE);
+        ctx.assertTrue(g1 + g2 == 64, "两人实收和必须=64（无复制无蒸发），实得 " + g1 + "+" + g2);
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "账本应取尽=0，实余 " + c.count("minecraft:cobblestone"));
+        h1.onClosed(p1); h2.onClosed(p2); // 注销监听/观众计数（m126a/m107a 口径）
+        ctx.complete();
+    }
+
+    /** m323 评审清单#2：两玩家同开同一面板各搜不同词——m292 视图迁 handler 的 E2E 回归
+     *  （m322 快照共享后尤须验：共用 master 不等于共用过滤）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void two_players_search_independently(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0);
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        c.deposit(new ItemStack(Items.IRON_INGOT, 32));
+        c.deposit(new ItemStack(Items.DIAMOND, 16));
+        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
+        var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
+        int d0 = com.sdzjz.screen.DataPanelScreenHandler.DISP0;
+        ctx.waitAndRun(3, () -> { // 构造首刷占了本 tick 名额（≥2t 节流），隔 3 拍再设视图=立即真刷
+            h1.setView("iron", 0, java.util.List.of());
+            h2.setView("diamond", 0, java.util.List.of());
+            ctx.assertTrue(h1.getSlot(d0).getStack().isOf(Items.IRON_INGOT), "玩家A搜iron首格应为铁锭");
+            ctx.assertTrue(h1.getSlot(d0 + 1).getStack().isEmpty(), "玩家A过滤后应只剩 1 条");
+            ctx.assertTrue(h2.getSlot(d0).getStack().isOf(Items.DIAMOND), "玩家B搜diamond首格应为钻石（若被A覆盖=m292回归）");
+            ctx.assertTrue(h2.getSlot(d0 + 1).getStack().isEmpty(), "玩家B过滤后应只剩 1 条");
+            ctx.assertTrue(h1.getSlot(d0).getStack().isOf(Items.IRON_INGOT), "B设视图后A的页面不许被动");
+            h1.onClosed(p1); h2.onClosed(p2);
+            ctx.complete();
+        });
+    }
+
+    /** m323 评审清单#7+#8（缩尺合刀）：大账本存档往返全量对账——普通账本 4096 类型（合成 id 直灌
+     *  storeView，readNbt 只验空id/非正数不验物品存在=m273 口径，正好测字符串保真）+ 真实存取 +
+     *  精确账本三件（CustomData 组件 / 30 亿 long 计数走 FTA 长插 / 组件相等逐index核）。
+     *  "重启"在 GameTest 框架内=createNbt→全新 BE.read（writeNbt/readNbt 同一条存档链路）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void ledger_nbt_roundtrip_reconciles_at_scale(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        for (int i = 0; i < 4096; i++) c.storeView().put("sdzjz_test:type_" + i, (long) (i + 1)); // 合成 id 直灌（readNbt 不裁不验物品表）
+        c.deposit(new ItemStack(Items.COBBLESTONE, 64));
+        c.depositExact(exactSample(1, 5));
+        try (Transaction tx = Transaction.openOuter()) { // 30 亿精确计数：FTA 长插一笔到位（deposit 的 int 形参到不了）
+            long ins = c.fabricStorage().insert(ItemVariant.of(exactSample(7, 1)), 3_000_000_000L, tx);
+            ctx.assertTrue(ins == 3_000_000_000L, "FTA 长插应收 30 亿，实收 " + ins);
+            tx.commit();
+        }
+        var lookup = ctx.getWorld().getRegistryManager();
+        NbtCompound saved = c.createNbt(lookup);
+        BlockPos rel2 = new BlockPos(2, 1, 0);
+        ctx.setBlockState(rel2, ModBlocks.STORAGE_CORE.getDefaultState());
+        if (!(ctx.getBlockEntity(rel2) instanceof StorageCoreBlockEntity c2)) {
+            ctx.throwGameTestException("对账用第二核心未生成"); return;
+        }
+        c2.read(saved, lookup);
+        ctx.assertTrue(c2.storeView().equals(c.storeView()),
+                "普通账本往返必须逐条相等：写 " + c.storeView().size() + " 读 " + c2.storeView().size());
+        ctx.assertTrue(c2.exactTemplates().size() == c.exactTemplates().size(),
+                "精确条目数不符：写 " + c.exactTemplates().size() + " 读 " + c2.exactTemplates().size());
+        for (int i = 0; i < c.exactTemplates().size(); i++) {
+            ctx.assertTrue(ItemStack.areItemsAndComponentsEqual(c.exactTemplates().get(i), c2.exactTemplates().get(i)),
+                    "精确模板第 " + i + " 条组件往返漂移");
+            ctx.assertTrue(c.exactCount(i) == c2.exactCount(i),
+                    "精确计数第 " + i + " 条不符：写 " + c.exactCount(i) + " 读 " + c2.exactCount(i));
+        }
+        ctx.complete();
+    }
+
+    /** m323 评审清单#9：Fabric 事务与同 tick 手账混部——m278 增量 undo 的核心性质 E2E：
+     *  事务只回滚**自己碰过的键**，事务窗内的手账改动（异键）不被冲掉；提交后与手账串行算术精确。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void transaction_mix_preserves_manual_changes(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        c.deposit(new ItemStack(Items.COBBLESTONE, 100));
+        c.deposit(new ItemStack(Items.DIRT, 40));
+        try (Transaction tx = Transaction.openOuter()) {
+            long ext = c.fabricStorage().extract(ItemVariant.of(Items.COBBLESTONE), 50, tx);
+            ctx.assertTrue(ext == 50, "事务内提取应报 50，实得 " + ext);
+            int manual = c.withdraw("minecraft:dirt", 10); // 事务窗内的手账改动（异键）
+            ctx.assertTrue(manual == 10, "手账取土应得 10，实得 " + manual);
+            // 不 commit → abort
+        }
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 100,
+                "回滚后圆石应还原 100，实余 " + c.count("minecraft:cobblestone"));
+        ctx.assertTrue(c.count("minecraft:dirt") == 30,
+                "手账改动不许被回滚冲掉（m278 整本深拷时代的病），实余 " + c.count("minecraft:dirt"));
+        try (Transaction tx = Transaction.openOuter()) { // 提交路 + 手账串行：算术精确
+            c.fabricStorage().extract(ItemVariant.of(Items.COBBLESTONE), 25, tx);
+            tx.commit();
+        }
+        int direct = c.withdraw("minecraft:cobblestone", 25);
+        ctx.assertTrue(direct == 25 && c.count("minecraft:cobblestone") == 50,
+                "事务提交+手账串行后应余 50，实余 " + c.count("minecraft:cobblestone"));
+        ctx.complete();
+    }
 }
