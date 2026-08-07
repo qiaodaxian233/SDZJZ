@@ -4988,6 +4988,7 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：纯 Gradle DSL 沙箱跑不了 gradle（Fabric maven 不可达），CI Gradle job 当真判官
   （build 生命周期任务会带起 purgeStaleJars，DSL 错/任务炸都会红）；十一道离线闸本地全绿；
   mod_version 随笔跳 0.1.318（m317 铁律首次自我执行，版本号对表闸绿）。
+  **CI run #75 三 job 全绿——Gradle job 带起 purgeStaleJars 实跑通过，DSL 验明。**
 - **实机脚本**：①拉取后先**手动删一次** F:\jar.1\SDZJZ\build\libs\sdzjz-0.0.1.jar（历史残留，
   本任务只在 build 后清扫，拉取当次构建若全 UP-TO-DATE 也会触发 finalizedBy 清掉它——
   但手删一次最稳）；②重跑工具：应"已选择构建产物：sdzjz-0.1.318.jar"；③mods 目录把旧
