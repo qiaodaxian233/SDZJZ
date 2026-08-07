@@ -34,6 +34,7 @@ public class Sdzjz implements ModInitializer {
     @Override
     public void onInitialize() {
         com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph
+        com.sdzjz.debug.BenchRunner.init(); // m306 一键压测（IDLE 时 tick 零开销）
         SdzjzConfig.load();
         ModBlocks.init();
         ModBlockEntities.init();
@@ -67,6 +68,7 @@ public class Sdzjz implements ModInitializer {
             StorageCoreBlockEntity.clearAll();
             com.sdzjz.block.CoreChunkLoading.clearAll(); // m133 强加载登记表（m296 起自恢复靠声明表 PersistentState+开服重发票）
             com.sdzjz.machine.CoreScheduler.clearAll(); // m302 全服预算/饥饿名单清态
+            com.sdzjz.debug.BenchRunner.reset(); // m306 压测状态机复位
             CraftPlanner.clearCache();
             com.sdzjz.machine.BrewPlanner.clearCache();
             com.sdzjz.machine.EnchantPlanner.clearCache();

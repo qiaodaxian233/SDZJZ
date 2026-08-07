@@ -16,7 +16,7 @@ import static net.minecraft.server.command.CommandManager.literal;
  *   /sdzjz profile core    —— 本维度活跃核心逐个报：节点/边/tick 均值峰值/路由/供料/链查 速率
  *   /sdzjz profile network —— 全服同步账单：核心 NBT 包数与字节、端点直发包数与条目\n *   /sdzjz profile sched   —— m304 调度器账单：cap/上拍消费/名单数 + 各核 granted 分布（压测判据直出）
  *   /sdzjz profile reset   —— 计数窗清零（耗时环形窗自然滚动不用清）
- *   /sdzjz dumpgraph       —— 就近核心整图转储进服务器日志（节点/连线/状态），聊天给摘要
+ *   /sdzjz dumpgraph       —— 就近核心整图转储进服务器日志（节点/连线/状态），聊天给摘要\n *   /sdzjz bench start [核数] [每核节点] [秒] [cap] / stop —— m306 一键压测：自动铺场→满载→\n *       报告落 <游戏目录>/sdzjz_bench_时间戳.txt →自动清场复原配置（默认 20×64×60s×cap100）
  */
 public final class SdzjzCommands {
     private SdzjzCommands() {}
@@ -34,7 +34,33 @@ public final class SdzjzCommands {
                                     c.getSource().sendFeedback(() -> Text.literal("§a[sdzjz] 剖析计数窗已清零"), false);
                                     return 1;
                                 })))
-                        .then(literal("dumpgraph").executes(c -> dumpGraph(c.getSource())))));
+                        .then(literal("dumpgraph").executes(c -> dumpGraph(c.getSource())))
+                        .then(literal("bench") // m306 一键压测
+                                .then(literal("start")
+                                        .executes(c -> benchStart(c.getSource(), 20, 64, 60, 100))
+                                        .then(net.minecraft.server.command.CommandManager.argument("核数", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 200))
+                                        .then(net.minecraft.server.command.CommandManager.argument("每核节点", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 4096))
+                                        .then(net.minecraft.server.command.CommandManager.argument("秒", com.mojang.brigadier.arguments.IntegerArgumentType.integer(5, 1200))
+                                        .then(net.minecraft.server.command.CommandManager.argument("cap", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 1_000_000))
+                                                .executes(c -> benchStart(c.getSource(),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "核数"),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "每核节点"),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap")))))))
+                                )
+                                .then(literal("stop").executes(c -> {
+                                    final String r = BenchRunner.stopNow();
+                                    c.getSource().sendFeedback(() -> Text.literal(r), false);
+                                    return 1;
+                                })))));
+    }
+
+    /** m306 一键压测入口：四参齐给才算自定义，否则默认 20核×64节点×60s×cap100（评审矩阵最小档）。 */
+    private static int benchStart(ServerCommandSource src, int cores, int nodes, int secs, int cap) {
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
+        final String r = BenchRunner.start(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, cores, nodes, secs, cap);
+        src.sendFeedback(() -> Text.literal(r), false);
+        return 1;
     }
 
     private static int profileCore(ServerCommandSource src) {

@@ -4683,3 +4683,31 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：冒烟真语法错 0、自家符号零命中（76 条报错全为 MC/Fabric 包噪音）；十道闸全绿；
   **本用例的首跑=推送后 CI gametest job**，结果回填于下。
 - **首跑结果（run #44, abcf91f）**：三 job 全绿——七号 soak 在真服务器时钟上首跑即过（预算硬顶+min≥30 两断言成立；gametest job 103s vs 上轮 79s，恰为多压的 120 拍），m304 观测代码同 run 真编译通过。CI job 名顺手改'GameTest 用例集'不再写死数量。
+
+## m306 一键压测 /sdzjz bench（作者点名：一条命令跑完+报告落游戏目录）
+
+- **命令**：`/sdzjz bench start [核数] [每核节点] [秒] [cap]`（缺省 20×64×60s×cap100=评审矩阵
+  最小档；四参齐给才算自定义）；`/sdzjz bench stop` 随时中止（跳到出报告+清场）。OP2。
+- **状态机**（debug/BenchRunner，全静态，IDLE 时 END_SERVER_TICK 零开销）：
+  ①SPAWN=玩家脚下 +60 高空按 64 格网格铺场（每站=结构核心+东侧贴邻存储核心+N 台刷石机节点，
+  cobble_maker 10t 无输入=天然满载；insertMachine(null,·) 空玩家安全 capMsg 已判 null；
+  core.running=true 开机顺带把 m296 强加载链路一起压），每拍 2 站防铺场冻服；铺完
+  resetAll+resetStats+临时压 cap（只改内存不落盘）。
+  ②RUN=自测每 tick 真实耗时（END_SERVER_TICK 间隔 nanoTime 差——不依赖任何 MC 内部 tickTimes
+  字段，P95 从此来），跑够秒数出报告。
+  ③报告落 `<游戏目录>/sdzjz_bench_<时间戳>.txt`（getRunDirectory=method_3831 核到）：参数/
+  服务器均值·P95·峰值 ms/调度器判据行（零吞吐标红、最高最低倍数，**只按本次压测核心算**，
+  同服真产线的消费单列剔除）/逐核明细（granted+记名+profile core 同窗 tick 均峰 µs+编译数）。
+  ④CLEANUP=每拍 4 站：SCBE 新 benchClearNodes()（与 dropAll 同清单去掉 ItemScatterer——
+  5 万节点走 dropAll=物品雨）→拆核心（票随 m133 释放）→拆存储（账本虚拟账零散落）；
+  cap 复原、方块零残留。
+- **边界立档**：①山体内铺场会替换方块、清场留空洞——建议空旷处执行；②压测中途停服=
+  orphan 方块，铺场坐标已 LOGGER 留痕按日志手清（SERVER_STOPPED 状态机复位、配置不落盘
+  重启自动回读）；③报告 P95 是**整服务器 tick**口径（评审矩阵原话），单核 P95 如需再立项
+  给 CoreProfiler 环形窗加分位数。
+- **验证**：冒烟真语法错 0；自家新符号（BenchRunner/benchClearNodes/stopNow）定向零命中，
+  两条可疑（Text/getDefaultState）核实均为超类不可解析噪音（m297 老代码同款且 CI 已验绿）；
+  十道闸全绿；CI 真编译见推送 run。
+- **实机脚本**：①空旷处 `/sdzjz bench start` 默认档→约 70s 后聊天报路径、游戏目录见 txt、
+  高空方块自动消失、config 文件对比无变化；②`start 100 512 300 100` 大档→报告判据行
+  无零吞吐；③RUN 中途 `stop`→立即出报告并清场；④故意站山里跑→留空洞属已立档边界。

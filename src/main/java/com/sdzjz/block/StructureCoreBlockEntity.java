@@ -1058,6 +1058,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return true;
     }
 
+    /** m306 压测收场专用：清空画布节点**不散落**（BenchRunner 自建自清；与 dropAll 同清单
+     *  去掉 ItemScatterer——一键压测 5 万节点若走 dropAll = 物品雨。绝不用于任何玩家路径）。 */
+    public void benchClearNodes() {
+        machineNodes.clear();
+        bumpTopo(); // m179
+        nodeStatus.clear();
+        nodeReason.clear(); // m178
+        markDirty();
+    }
+
     /** 读节点各类升级等级。 */
     public int nodeSpeed(ItemStack s) { return nodeInt(s, "spd"); }
     public int nodeCount(ItemStack s) { return nodeInt(s, "cnt"); }
