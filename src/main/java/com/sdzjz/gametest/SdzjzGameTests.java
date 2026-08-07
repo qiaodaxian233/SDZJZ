@@ -155,4 +155,33 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(k3 == 10, "k=3 应累计 10（5+5），实得 " + k3);
         ctx.complete();
     }
+
+    /** m305 调度器防饥饿 soak（评审③复评"下一步是测"）：100 个合成核心按**固定序**（有序不公平
+     *  最坏情形）每拍抢 cap=100 的全服预算、每核要 1000，压 120 拍。断言只对**设计保证**：
+     *  ①预算硬顶恒成立；②无长期饥饿——最坏交替节奏下饿核每 2 拍必得 1 周期，断 min≥拍数/4 留裕量。
+     *  比例公平（最高/最低几倍）是 anti-starvation **没承诺**的性质，属作者实机真负载矩阵口径
+     *  （/sdzjz profile sched 判据行），soak 不断。cap 走 request 形参不动配置；测试服无产线，
+     *  静态池零干扰；首尾 clearAll 不留残态。 */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void scheduler_no_core_starves_under_pressure(TestContext ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        final int CORES = 100, CAP = 100, TICKS = 120;
+        final long[] fed = new long[CORES];
+        final int[] ran = {0};
+        ctx.runAtEveryTick(() -> {
+            if (ran[0] >= TICKS) return;
+            ran[0]++;
+            for (int i = 0; i < CORES; i++) // 固定序=BE tick 序稳定的最坏形
+                fed[i] += com.sdzjz.machine.CoreScheduler.request(ctx.getWorld(), new BlockPos(i, 300, -300), 1000, CAP);
+            if (ran[0] == TICKS) {
+                long min = Long.MAX_VALUE, max = 0, sum = 0;
+                for (long f : fed) { min = Math.min(min, f); max = Math.max(max, f); sum += f; }
+                com.sdzjz.machine.CoreScheduler.clearAll();
+                ctx.assertTrue(sum <= (long) CAP * TICKS, "总批准 " + sum + " 超预算硬顶 " + ((long) CAP * TICKS));
+                ctx.assertTrue(min >= TICKS / 4, "存在长期饥饿核心：min=" + min + " < " + (TICKS / 4) + "（防饥饿保底失效）");
+                ctx.assertTrue(max > 0, "全体零批准（预算通道疑似全堵）");
+                ctx.complete();
+            }
+        });
+    }
 }

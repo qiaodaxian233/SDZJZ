@@ -4669,3 +4669,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：评审矩阵（1/10/50/100 核 × 64/256/512 节点）跑法=压 maxRecipesPerNetworkTick=100
   → /sdzjz profile reset → 满载跑 5~10 分钟 → /sdzjz profile sched 看判据行：无红字零吞吐、
   倍数几倍内即达标；配 /sdzjz profile core 看 ms/tick 与编译数。
+
+## m305 调度器防饥饿 soak GameTest（评审③复评响应第二件，七号用例）
+
+- **设计**：100 合成核心按**固定序**（BE tick 序稳定=有序不公平最坏情形）每拍向 cap=100 的
+  全服预算各要 1000，runAtEveryTick（method_36035 yarn 核到）压 120 拍（tickLimit=200 留裕）。
+  cap 走 request 形参**不碰配置**；测试服无生产核心=共享静态池零干扰；首尾 clearAll 不留残态。
+- **断言只对设计保证**：①预算硬顶 sum≤cap×拍数 恒成立；②无长期饥饿——最坏交替节奏下
+  （单核吃满拍与全员保底拍交替）饿核每 2 拍必得 1，断 min≥拍数/4=30（实际最坏 60，2× 裕量）。
+  **比例公平（最高/最低几倍）是 anti-starvation 没承诺的性质，soak 不断**——评审自己推演过
+  A99/B1/C0 的偏斜，判据"只差几倍"属实机真负载口径（want≈节点数/周期，非 1000 怪物），
+  归 /sdzjz profile sched 判据行 + 作者矩阵实测。
+- **验证**：冒烟真语法错 0、自家符号零命中（76 条报错全为 MC/Fabric 包噪音）；十道闸全绿；
+  **本用例的首跑=推送后 CI gametest job**，结果回填于下。
+- **首跑结果**：（待回填）
