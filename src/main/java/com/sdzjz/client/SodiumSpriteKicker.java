@@ -38,11 +38,21 @@ public final class SodiumSpriteKicker {
             Class<?> util = Class.forName("net.caffeinemc.mods.sodium.api.texture.SpriteUtil");
             for (java.lang.reflect.Method m : util.getMethods())
                 if (m.getName().equals("markSpriteActive") && m.getParameterCount() == 1) { mark = m; break; }
-            if (mark == null) { disabled = true; return; }
+            if (mark == null) {
+                disabled = true;
+                com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] SodiumSpriteKicker: 找到 SpriteUtil 但无 markSpriteActive(1参)——Sodium API 变脸，垫片停用（图标动画可能被其可见纹理优化冻结）");
+                return;
+            }
             if (!java.lang.reflect.Modifier.isStatic(mark.getModifiers()))
                 markTarget = util.getField("INSTANCE").get(null);
+            com.sdzjz.Sdzjz.LOGGER.info("[生电终结者] SodiumSpriteKicker: 已挂接 Sodium {} 式 markSpriteActive，四件动画物品精灵每tick保活",
+                    markTarget == null ? "0.5静态" : "0.6实例");
+        } catch (ClassNotFoundException e) {
+            disabled = true;
+            com.sdzjz.Sdzjz.LOGGER.info("[生电终结者] SodiumSpriteKicker: 未检测到 Sodium 兼容 API（未装 Sodium 属正常；装了但走到这=版本过老无该 API），垫片停用");
         } catch (Throwable t) {
-            disabled = true; // 未装 Sodium：正常路径，静默停用
+            disabled = true;
+            com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] SodiumSpriteKicker: 挂接异常已熔断：{}", t.toString());
         }
     }
 
@@ -60,6 +70,7 @@ public final class SodiumSpriteKicker {
             }
         } catch (Throwable t) {
             disabled = true; // 反射链任何一环炸=熔断，绝不拖客户端 tick
+            com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] SodiumSpriteKicker: 保活调用异常已熔断：{}", t.toString());
         }
     }
 }
