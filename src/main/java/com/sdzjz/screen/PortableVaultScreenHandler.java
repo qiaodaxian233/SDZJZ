@@ -19,9 +19,11 @@ import net.minecraft.util.Identifier;
  */
 public class PortableVaultScreenHandler extends ScreenHandler {
 
-    /** 列表几何唯一口径（屏同用，m215 教训：渲染与点击同源常量）。 */
+    /** 列表几何唯一口径（屏同用，m215 教训：渲染与点击同源常量）。
+     *  m315：PINV_Y 138→150——旧值下两行提示同落 y+126 逐字重叠（列表底 126 与 PINV_Y-12 撞车），
+     *  背包区下移 12 给两行提示各留一行位，屏高同步 224→236。 */
     public static final int LIST_Y = 32, ROW_H = 18, ROWS = 5;
-    public static final int PINV_X = 20, PINV_Y = 138;
+    public static final int PINV_X = 20, PINV_Y = 150;
 
     private final PlayerEntity player;
     private final Hand hand; // 开屏时定格：主手优先

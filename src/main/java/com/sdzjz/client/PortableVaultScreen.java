@@ -22,17 +22,54 @@ import net.minecraft.util.Identifier;
 public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandler> {
 
     private static final int LIST_X = 8, LIST_W = 184;
+    /** m315 搜索框几何（自绘底格与控件同源）。 */
+    private static final int SRCH_Y = 18, SRCH_W = 122, SRCH_H = 14;
     private int scroll = 0;
+    private net.minecraft.client.gui.widget.TextFieldWidget search; // m315：m216 去黑壳刀法
+    /** 名称/首字母检索键缓存（客户端只增不清，物品名不会变；≤类型上限 256 条）。 */
+    private final java.util.HashMap<String, String> nameLc = new java.util.HashMap<>();
+    private final java.util.HashMap<String, String> initKey = new java.util.HashMap<>();
 
     public PortableVaultScreen(PortableVaultScreenHandler handler, PlayerInventory inv, Text title) {
         super(handler, inv, title);
         this.backgroundWidth = 200;
-        this.backgroundHeight = 224;
+        this.backgroundHeight = 236; // m315：随 PINV_Y 138→150 同步 224→236（底边留 10px，m240 教训）
     }
 
-    /** 账本行快照（每帧重建，≤256 类开销可忽略；计数降序稳定）。 */
+    @Override
+    protected void init() {
+        super.init();
+        // m161b 去黑壳（setDrawsBackground(false)，自绘底格接管观感）；resize 保留已输入文字（pickerField 惯例）。
+        String keep = this.search != null ? this.search.getText() : "";
+        this.search = new net.minecraft.client.gui.widget.TextFieldWidget(
+                this.textRenderer, this.x + LIST_X + 4, this.y + SRCH_Y + 3, SRCH_W - 8, 10, Text.literal("搜索"));
+        this.search.setDrawsBackground(false);
+        this.search.setEditableColor(SciSkin.TXT_MAX);
+        this.search.setChangedListener(s -> scroll = 0); // 改词回顶，纯客户端过滤零新协议
+        this.search.setText(keep);
+        this.addDrawableChild(this.search);
+    }
+
+    /** 账本行快照（每帧重建，≤256 类开销可忽略；计数降序稳定）。
+     *  m315：叠搜索过滤——名称子串 / id 子串 / 拼音首字母（m282 PinyinInitials，纯字母查询才开通道）。 */
     private java.util.List<String> rows(NbtCompound v) {
         java.util.List<String> ids = new java.util.ArrayList<>(v.getKeys());
+        String q = search == null ? "" : search.getText().trim().toLowerCase(java.util.Locale.ROOT);
+        if (!q.isEmpty()) {
+            boolean ini = PinyinInitials.applicable(q);
+            ids.removeIf(id -> {
+                String name = nameLc.computeIfAbsent(id, k ->
+                        new ItemStack(Registries.ITEM.get(Identifier.of(k))).getName().getString()
+                                .toLowerCase(java.util.Locale.ROOT));
+                if (name.contains(q) || id.contains(q)) return false;
+                if (ini) {
+                    String key = initKey.computeIfAbsent(id, k ->
+                            PinyinInitials.of(new ItemStack(Registries.ITEM.get(Identifier.of(k))).getName().getString()));
+                    if (!key.isEmpty() && key.contains(q)) return false;
+                }
+                return true;
+            });
+        }
         ids.sort((a, b) -> {
             int c = Long.compare(v.getLong(b), v.getLong(a));
             return c != 0 ? c : a.compareTo(b);
@@ -52,6 +89,13 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
         long total = PortableVaultItem.vaultTotal(vault);
         String head = "类型 " + v.getKeys().size() + " · 总件 " + fmt(total);
         ctx.drawText(this.textRenderer, head, x + backgroundWidth - LIST_X - this.textRenderer.getWidth(head), y + 8, SciSkin.SUB, false);
+
+        // m315 搜索底格（m216 自绘刀法：CELL 底+细边，聚焦换 ACCENT 描边；占位提示两态都可见）
+        ctx.fill(x + LIST_X, y + SRCH_Y, x + LIST_X + SRCH_W, y + SRCH_Y + SRCH_H, SciSkin.CELL);
+        ctx.drawBorder(x + LIST_X, y + SRCH_Y, SRCH_W, SRCH_H,
+                search != null && search.isFocused() ? SciSkin.ACCENT : SciSkin.CELL_FRM);
+        if (search != null && search.getText().isEmpty())
+            ctx.drawText(this.textRenderer, "搜索：名称/首字母/id", x + LIST_X + 4, y + SRCH_Y + 3, SciSkin.SUB, false);
 
         java.util.List<String> ids = rows(v);
         int maxScroll = Math.max(0, ids.size() - PortableVaultScreenHandler.ROWS);
@@ -75,12 +119,15 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
                     x + LIST_X + LIST_W - 4 - this.textRenderer.getWidth(cnt), ry + 4, SciSkin.TXT_HI, false);
         }
         if (ids.isEmpty())
-            ctx.drawText(this.textRenderer, "空仓库——开吸附或 Shift 点背包物品入账",
+            ctx.drawText(this.textRenderer,
+                    (search != null && !search.getText().isEmpty()) ? "没有匹配的物品"
+                            : "空仓库——开吸附或 Shift 点背包物品入账",
                     x + LIST_X + 4, y + PortableVaultScreenHandler.LIST_Y + 4, SciSkin.SUB, false);
         if (maxScroll > 0) {
             String pg = (scroll + 1) + ".." + Math.min(scroll + PortableVaultScreenHandler.ROWS, ids.size()) + "/" + ids.size();
             ctx.drawText(this.textRenderer, pg, x + backgroundWidth - LIST_X - this.textRenderer.getWidth(pg), y + 20, SciSkin.SUB, false);
         }
+        // m315：旧版两行同落 y+126 逐字重叠（列表底+4 与 PINV_Y-12 撞车）；PINV_Y 下移后 126/138 各占一行
         ctx.drawText(this.textRenderer, "左键=取一组 · 右键=拿满一格 · Shift+左=取尽",
                 x + LIST_X, y + PortableVaultScreenHandler.LIST_Y + PortableVaultScreenHandler.ROWS * PortableVaultScreenHandler.ROW_H + 4,
                 SciSkin.SUB, false);
@@ -135,6 +182,22 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
     @Override
     protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
         // 标题自绘于 drawBackground，撤默认双份标题
+    }
+
+    /** m315：搜索框聚焦时截前吃键盘（否则打字撞背包键 E 直接关屏）；Esc(256) 放行照常关屏。 */
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (search != null && search.isFocused() && keyCode != 256) {
+            search.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (search != null && search.isFocused()) return search.charTyped(chr, modifiers);
+        return super.charTyped(chr, modifiers);
     }
 
     private static String fmt(long n) { // m232 口径
