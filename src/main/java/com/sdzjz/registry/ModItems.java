@@ -6,6 +6,7 @@ import com.sdzjz.item.AutoCrafterItem;
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.item.LinkerItem;
 import com.sdzjz.item.TerminalItem;
+import com.sdzjz.item.PortableVaultItem; // m311
 import com.sdzjz.machine.Machines;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
