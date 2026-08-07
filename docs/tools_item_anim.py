@@ -7,13 +7,18 @@
 (interpolate=true)。基础美术一像素不改。物品贴图动画原版原生支持（时钟/指南针同款），
 item/generated 与 Blockbench 元素模型的贴图都吃这一套。
 
-四件方案（作者点名：并发/数量/速度升级 + 核心模块，"类似上次做的"=m277）：
-  parallel_upgrade   并发升级(绿三叉分线器)：能量自根部沿枝干向上流，三枚端球错相闪烁
-  count_upgrade      数量升级(紫方块堆)：三块方块按 顶→左→右 轮流点亮（计数感）
-  speed_upgrade      速度升级(青齿轮+上箭头)：箭头亮波持续向上冲 + 齿轮环流转微光
-  core_module_model  核心模块(Blockbench 调色板贴图)：按调色格亮度分层脉冲=模型由内芯
-                     向外圈心跳（Blockbench 里那条 core_module_pulse 动画的物品端复活），
-                     橙色指示灯走 2 倍频快闪
+四件方案（m319 二轮返工：m314 的行波调制在 16px 图标下被降采样平均抵消——相位随像素
+位置连续变化的波，邻近像素明暗互补，缩到图标尺寸求和≈常数，肉眼=不动。数量升级/旧核心
+模块能看见动正因它们是"大块同相区域"。铁律：图标动画以大块同相区域为单位，工具自带
+16px 可读性断言把关）：
+  parallel_upgrade   并发升级(绿三叉分线器)：三条支路(枝干+端球)作为三个整体按 1/3 相位
+                     轮流点亮（并发本义），根部整体缓呼吸
+  count_upgrade      数量升级(紫方块堆)：三块方块整块按 顶→左→右 轮流点亮（m314 原案，
+                     本就是块状同相，16px 断言直接过）
+  speed_upgrade      速度升级(青齿轮+上箭头)：箭头整体强脉冲一循环两拍（提速感），
+                     齿轮环=120° 亮弧整体旋转（均值居中防漂移）
+  core_module        核心模块(作者原图 128²，m319 换回)：中央菱形芯整体心跳双峰、四向
+                     端口反相呼吸（芯暗港亮）、电路纹走半同相半曼哈顿流、金针 2 倍频齐闪
 
 跑法：python3 docs/tools_item_anim.py        # 生成 + 全部断言
 自带断言（m277 同款四道）：①条带尺寸=宽×宽·N ②每帧非发光像素与基础贴图逐位相等
@@ -90,28 +95,43 @@ def emit(name, size, frames_n, frametime, factor_fn, mask_pred):
     drift = max(abs(v / frames_n - 1.0) for v in sums.values()) if sums else 0.0
     assert drift <= 0.08, f'{name} 平均亮度漂移 {drift:.3f} 超 8%'
     json.load(open(out + '.mcmeta', encoding='utf-8'))
+    # ---- m319 新增：16px 可读性断言（教训=行波调制在图标尺寸被降采样平均抵消，肉眼不动）----
+    small = [strip.crop((0, size * t, size, size * (t + 1))).resize((16, 16), Image.BILINEAR)
+             for t in range(frames_n)]
+    op = [(x, y) for y in range(16) for x in range(16) if small[0].load()[x, y][3] >= 64]
+    def v16(im):
+        p = im.load()
+        return {xy: max(p[xy][0], p[xy][1], p[xy][2]) / 255.0 for xy in op}
+    vs = [v16(im) for im in small]
+    move = max(sum(abs(va[xy] - vb[xy]) for xy in op) / max(1, len(op))
+               for i, va in enumerate(vs) for vb in vs[i + 1:])
+    assert move >= 0.012, f'{name} 16px 可读性不足：帧间平均亮度位移 {move:.4f} < 0.012（行波抵消？改块状同相）'
     print(f'✓ {name}: {frames_n} 帧 × frametime {frametime} = {frames_n*frametime/20:.1f}s 循环，'
-          f'发光像素 {len(mask)}，平均亮度漂移 {drift:.3%}')
+          f'发光像素 {len(mask)}，漂移 {drift:.3%}，16px 位移 {move:.4f}')
 
 
 # ---------------------------------------------------------------- 四件语义
 
 def gen_parallel_upgrade():
-    """并发升级：能量沿枝干自下而上流(相位=高度)；端球(最亮件)叠 2 倍频、按横向位置错相
-    ——三条支路各闪各的，"并发"本义。"""
+    """并发升级：三条支路(枝干+端球)整块按 1/3 相位轮流点亮，根部整体缓呼吸。
+    分块几何：掩码包围盒上 62% 高度=支路区（按 x 三等分归属左/中/右支），其下=根部。
+    9 帧=3 拍整分。块状同相=16px 下可读（m319 铁律）。"""
     S = 128
+    base = load('parallel_upgrade', S); bp = base.load()
+    pred = lambda x, y, hv: 0.16 <= hv[0] <= 0.50 and hv[1] >= 0.25 and hv[2] >= 0.25
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    xs = [x for x, _ in mask]; ys = [y for _, y in mask]
+    split_y = min(ys) + 0.62 * (max(ys) - min(ys))
+    x0, x1 = min(xs), max(xs)
 
     def factor(x, y, u, hsv0):
-        h, s, v = hsv0
-        rise = (S - 1 - y) / S                       # 0=根部 1=顶端
-        amp = 0.10 + 0.22 * min(1.0, v)
-        f = 1.0 + amp * math.sin(2 * math.pi * (u - rise))
-        if v >= 0.72:                                # 端球/高光件：错相快闪
-            f += 0.12 * math.sin(2 * math.pi * (2 * u + x / S * 3.0))
-        return f
-    emit('parallel_upgrade', S, 8, 5, factor,
-         lambda x, y, hv: 0.16 <= hv[0] <= 0.50 and hv[1] >= 0.25 and hv[2] >= 0.25)
-
+        if y >= split_y:                              # 根部：整体缓呼吸
+            return 1.0 + 0.15 * math.sin(2 * math.pi * u)
+        unit = min(2, int((x - x0) / max(1, (x1 - x0 + 1)) * 3))  # 左/中/右支
+        amp = 0.14 + 0.30 * min(1.0, hsv0[2])
+        return 1.0 + amp * math.sin(2 * math.pi * (u - unit / 3.0))
+    emit('parallel_upgrade', S, 9, 5, factor, pred)
 
 def gen_count_upgrade():
     """数量升级：三块紫方块 顶→左→右 依次点亮（相位差 1/3 圈），一格一格数上去。
@@ -137,8 +157,8 @@ def gen_count_upgrade():
 
 
 def gen_speed_upgrade():
-    """速度升级：双通道——中央箭头=亮波持续向上冲(相位=高度、幅度大)；
-    齿轮环=沿角度流转的微光(整圈一周期，首尾无缝)。"""
+    """速度升级：中央箭头**整体**强脉冲、一循环两拍(提速感)；齿轮环=120° 亮弧整体
+    旋转(max(0,cos)² 窗、减均值 0.25 居中防漂移)。整块同相=16px 可读（m319 铁律）。"""
     S = 128
     C = (S - 1) / 2.0
     RIN = 0.34 * S                                    # 内外通道分界半径(箭头区实测在环内)
@@ -146,56 +166,45 @@ def gen_speed_upgrade():
     def factor(x, y, u, hsv0):
         h, s, v = hsv0
         r = math.hypot(x - C, y - C)
-        if r < RIN:                                   # 箭头：向上行波
-            rise = (S - 1 - y) / S
-            amp = 0.14 + 0.24 * min(1.0, v)
-            return 1.0 + amp * math.sin(2 * math.pi * (u - rise * 1.5))
-        ang = math.atan2(y - C, x - C) / (2 * math.pi)  # 齿轮环：角向流光
-        return 1.0 + 0.15 * math.sin(2 * math.pi * (u - ang))
+        if r < RIN:                                   # 箭头：整体双拍脉冲
+            return 1.0 + (0.15 + 0.28 * min(1.0, v)) * math.sin(4 * math.pi * u)
+        ang = math.atan2(y - C, x - C)                # 齿轮环：旋转亮弧
+        w = max(0.0, math.cos(2 * math.pi * u - ang)) ** 2
+        return 1.0 + 0.30 * (w - 0.25)                # 全周均值≈0.25，居中后漂移≈0
     emit('speed_upgrade', S, 8, 5, factor,
          lambda x, y, hv: 0.40 <= hv[0] <= 0.60 and hv[2] >= 0.28)
 
-
 def gen_core_module():
-    """核心模块：Blockbench 调色板贴图(64²=4×4 个 16px 色格，模型各层元素各取一格)。
-    按色格明度排相位=模型由最亮内芯向暗外圈逐层心跳（core_module_pulse 物品端复活）；
-    橙色格(指示灯)独走 2 倍频快闪。暗底格(v<0.2)纹丝不动。"""
-    S, CELL = 64, 16
-    base = load('core_module_model', S); bp = base.load()
-    cell_v, cell_orange = {}, {}
-    for cy in range(S // CELL):
-        for cx in range(S // CELL):
-            px = [(x, y) for y in range(cy * CELL, (cy + 1) * CELL)
-                  for x in range(cx * CELL, (cx + 1) * CELL) if bp[x, y][3] > 0]
-            if not px:
-                continue
-            hs = [hsv(bp[x, y]) for x, y in px]
-            v = sum(t[2] for t in hs) / len(hs)
-            orange = sum(1 for t in hs if t[0] < 0.17 and t[1] >= 0.5 and t[2] >= 0.35) > len(hs) * 0.5
-            cell_v[(cx, cy)] = v
-            cell_orange[(cx, cy)] = orange
-    lit = {c for c, v in cell_v.items() if v >= 0.20}          # 暗底格出局
-    vmax = max(cell_v[c] for c in lit); vmin = min(cell_v[c] for c in lit)
+    """核心模块（m319 作者点名换回原图）：中央菱形芯整体心跳双峰(带 0.2 微径向迟滞)、
+    四向端口/外缘蓝光**反相**呼吸(芯暗港亮，交替感 16px 极易读)、青电路纹=半同相半
+    曼哈顿流(近看有流动、缩图不抵消)、金针 2 倍频齐闪。暗底盘/描边逐位不动。"""
+    S = 128
+    C = (S - 1) / 2.0
+    R_CORE = 0.24 * S
+    R_PORT = 0.36 * S
 
-    def cell_of(x, y):
-        return (x // CELL, y // CELL)
+    def is_gold(hv):
+        return hv[0] < 0.17 and hv[1] >= 0.45 and hv[2] >= 0.35
 
     def factor(x, y, u, hsv0):
-        c = cell_of(x, y)
-        if cell_orange[c]:                            # 指示灯：快闪
-            return 1.0 + 0.28 * math.sin(2 * math.pi * (2 * u + 0.25))
-        vn = (cell_v[c] - vmin) / max(1e-6, vmax - vmin)       # 1=最亮内芯 0=最暗外圈
-        phase = 0.75 * (1.0 - vn)                     # 内芯先跳，波向外扩
-        amp = 0.12 + 0.24 * vn
-        w = 2 * math.pi * (u - phase)
-        return 1.0 + amp * (math.sin(w) + 0.3 * math.sin(2 * w)) / 1.3   # m277 心跳双峰波形
-    emit('core_module_model', S, 8, 5, factor,
-         lambda x, y, hv: cell_of(x, y) in lit)
-
+        h, s, v = hsv0
+        if is_gold(hsv0):                             # 金针：2 倍频齐闪
+            return 1.0 + 0.26 * math.sin(4 * math.pi * (u + 0.125))
+        r = math.hypot(x - C, y - C)
+        if r < R_CORE:                                # 中央芯：心跳双峰，整体同相+微迟滞
+            w = 2 * math.pi * (u - 0.2 * r / R_CORE)
+            return 1.0 + (0.15 + 0.25 * min(1.0, v)) * (math.sin(w) + 0.3 * math.sin(2 * w)) / 1.3
+        if r >= R_PORT and 0.52 <= h <= 0.66 and v >= 0.45:  # 四向端口/外缘：反相呼吸
+            return 1.0 - 0.24 * math.sin(2 * math.pi * u)
+        manh = (abs(x - C) + abs(y - C)) / (2 * C)    # 电路纹：半同相半流动
+        return 1.0 + 0.10 * math.sin(2 * math.pi * u) + 0.12 * math.sin(2 * math.pi * (u - manh))
+    emit('core_module', S, 8, 5, factor,
+         lambda x, y, hv: is_gold(hv) or (0.42 <= hv[0] <= 0.70 and hv[2] >= 0.30 and hv[1] >= 0.15)
+                          or (hv[2] >= 0.75 and hv[1] <= 0.45))   # 白热芯低饱和高亮也入列
 
 if __name__ == '__main__':
     gen_parallel_upgrade()
     gen_count_upgrade()
     gen_speed_upgrade()
-    gen_core_module()
+    gen_core_module()  # m319 起=作者原图 128²（Blockbench 调色板版已退役）
     print('全部生成+断言通过 ✓（改基础贴图后重跑本脚本即重出动画）')
