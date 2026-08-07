@@ -1448,7 +1448,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuOpen = false;
     }
 
-    private void addMenu(String label, Runnable action) { addMenu(label, null, 0, action); }
+    private void addMenu(String label, Runnable action) { addMenu(label, (ItemStack) null, 0, action); }
 
     private void addMenu(String label, ItemStack icon, Runnable action) { addMenu(label, icon, 0, action); }
 
@@ -1584,7 +1584,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         addMenu("重命名组…", mt("group_rename"), 0, () -> openRename(gid)); // m313 用户图标
         addMenu("解散该组", mt("group_disband"), 1,
                 () -> ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
-        addMenu("取消", null, 2, () -> {});
+        addMenu("取消", (ItemStack) null, 2, () -> {});
         openMenu(atX, atY);
     }
 
@@ -2027,7 +2027,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         addMenu("取出机器", mt("remove_machine"), 1,
                 () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显；m313 用户图标
-        addMenu("取消", null, 2, () -> {});
+        addMenu("取消", (ItemStack) null, 2, () -> {});
         openMenu(atX, atY);
     }
 
@@ -2392,7 +2392,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         addMenu("清除选择", mi(net.minecraft.item.Items.GLASS_PANE), selected::clear);
                     addMenu("整理布局", mi(net.minecraft.item.Items.COMPASS), this::autoLayout);
                     addMenu("重置视角", mi(net.minecraft.item.Items.SPYGLASS), () -> setViewInstant(0, 0, 1.0));
-                    addMenu("取消", null, 2, () -> {});
+                    addMenu("取消", (ItemStack) null, 2, () -> {});
                     openMenu((int) mouseX, (int) mouseY);
                     return true;
                 }
