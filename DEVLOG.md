@@ -4707,7 +4707,7 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   给 CoreProfiler 环形窗加分位数。
 - **验证**：冒烟真语法错 0；自家新符号（BenchRunner/benchClearNodes/stopNow）定向零命中，
   两条可疑（Text/getDefaultState）核实均为超类不可解析噪音（m297 老代码同款且 CI 已验绿）；
-  十道闸全绿；CI 真编译见推送 run。
+  十道闸全绿；**CI run #46 三 job 全绿=BenchRunner 首次真编译即通过**（GameTest 七用例带压测代码照绿）。
 - **实机脚本**：①空旷处 `/sdzjz bench start` 默认档→约 70s 后聊天报路径、游戏目录见 txt、
   高空方块自动消失、config 文件对比无变化；②`start 100 512 300 100` 大档→报告判据行
   无零吞吐；③RUN 中途 `stop`→立即出报告并清场；④故意站山里跑→留空洞属已立档边界。
