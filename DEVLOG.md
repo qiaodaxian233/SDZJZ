@@ -5021,3 +5021,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   CI 的 mcmeta 断言行(排包)→客户端日志搜 "texture atlas"/"sprite" 报错→资源包/OptiFine·
   Sodium 类渲染模组冲突（Sodium 对动画贴图有"仅可见时更新"优化，试关 animations 相关选项）。
   ③核心模块应显作者原图立绘且芯在跳。请把"数量升级动不动"这一个答案带回来。
+## m320 Sodium 物品动画精灵保活（作者实机二分实锤：方块动、物品图标不动、装了 Sodium）
+
+- **根因定案**：作者带回的二分答案（结构核心等方块动画正常、数量升级等物品图标全不动、
+  装有 Sodium）正中 Sodium "Animate Only Visible Textures"（默认开）指纹——该优化只逐帧
+  更新被渲染器标记"活跃"的动画精灵：方块精灵摆在世界里被**区块渲染器**标活跃所以会动
+  （m277 三块与其物品图标沾同一张精灵的光），四件升级/核心模块是**纯 GUI 物品精灵**，
+  没有任何渲染路径给它们标活跃 → 永远冻在第 0 帧。m319 的两个假说至此全清：观感/幅度
+  不是根因（但二轮加强照赚），打包缺失已被 CI mcmeta 断言排除。
+- **修法**：新 client/SodiumSpriteKicker（m229 ProjectEFCompat 反射软兼容同刀法，零编译
+  依赖）——每客户端 tick 经 Sodium 官方兼容 API `SpriteUtil.markSpriteActive` 给四件动画
+  物品精灵标活跃（0.6=INSTANCE 接口方法 / 0.5=静态方法，反射两式自适应）；未装 Sodium
+  或 API 变脸=一次熔断静默停用零开销。SdzjzClient 挂 END_CLIENT_TICK（Fabric API 稳定口）。
+  精灵取用链全核：getBakedModelManager(method_1554)→getAtlas(method_24153)→
+  getSprite(method_4608)，BLOCK_ATLAS_TEXTURE 在树先例=SatelliteNodeModel（1.21 物品精灵
+  同在方块图集）。配置 sodiumIconAnimFix=true 可关，v34 纯加键。
+- **边界立档**：①极老 Sodium 若无该 API 类→垫片熔断，用户侧退路=Sodium 设置→性能→关
+  "Animate Only Visible Textures"；②新增动画物品记得把精灵 id 进 SPRITES 表（表旁注释）。
+- **验证**：javac21 全库冒烟真语法错 0；新自家符号（SodiumSpriteKicker 跨文件委托/
+  sodiumIconAnimFix）定向检零命中（盲区#5 防法）；十一道闸+版本闸全绿；版本跳 0.1.320。
+  反射目标类名沙箱无从核（Sodium 非依赖），已按官方 API 文档口径写死并配熔断，标
+  「待实机验证」。
+- **实机脚本**：①装 Sodium 且"仅动画可见纹理"保持默认开：进背包看四件图标应全在动
+  （并发轮亮/数量轮亮/速度双拍/核心芯跳）；②Sodium 该选项手动关再开，动画不受影响；
+  ③卸 Sodium 纯原版：图标照动（垫片熔断路径）；④config 关 sodiumIconAnimFix：装 Sodium
+  时图标应回冻（证明是垫片在起作用）。若①仍不动，把 Sodium 版本号告诉我（API 类名对表）。

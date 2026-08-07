@@ -67,6 +67,10 @@ public class SdzjzClient implements ClientModInitializer {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))
                 lines.add(net.minecraft.text.Text.literal("DY：乔大仙").formatted(net.minecraft.util.Formatting.GOLD));
         });
+        // m320：Sodium"仅动画可见纹理"优化会冻结纯 GUI 物品动画精灵（方块精灵靠世界渲染保活不受累）
+        // ——每客户端 tick 给四件动画物品精灵标活跃；未装 Sodium 垫片自动熔断零开销。
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
+                .register(com.sdzjz.client.SodiumSpriteKicker::tick);
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }
 }
