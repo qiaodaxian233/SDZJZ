@@ -162,7 +162,7 @@ public class SdzjzGameTests implements FabricGameTest {
      *  比例公平（最高/最低几倍）是 anti-starvation **没承诺**的性质，属作者实机真负载矩阵口径
      *  （/sdzjz profile sched 判据行），soak 不断。cap 走 request 形参不动配置；测试服无产线，
      *  静态池零干扰；首尾 clearAll 不留残态。 */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "sdzjzSchedA") // m309:两条调度器用例共享静态池,分batch串行
     public void scheduler_no_core_starves_under_pressure(TestContext ctx) {
         com.sdzjz.machine.CoreScheduler.clearAll();
         final int CORES = 100, CAP = 100, TICKS = 120;
@@ -180,6 +180,38 @@ public class SdzjzGameTests implements FabricGameTest {
                 ctx.assertTrue(sum <= (long) CAP * TICKS, "总批准 " + sum + " 超预算硬顶 " + ((long) CAP * TICKS));
                 ctx.assertTrue(min >= TICKS / 4, "存在长期饥饿核心：min=" + min + " < " + (TICKS / 4) + "（防饥饿保底失效）");
                 ctx.assertTrue(max > 0, "全体零批准（预算通道疑似全堵）");
+                ctx.complete();
+            }
+        });
+    }
+
+    /** m309 回归：k>cap 恒饿修复（作者 100 核+1 产线 cap=100 实测：第 101 核 2400 拍颗粒无收——
+     *  旧语义逐请求记名把已进食核心也每拍打回名单，"先食权"人人持有等于没有，tick 序末核
+     *  在饿核数>预算时永远轮不到）。105 合成核心×4 请求/拍 抢 cap=100（固定序最坏形），
+     *  热身 20 拍达稳态后计 100 拍窗口：拍龄资历轮转下人人有进展。cap 走形参不碰配置，
+     *  首尾 clearAll，与七号用例分 batch 串行（共享静态池）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "sdzjzSchedB")
+    public void scheduler_rotates_when_starved_exceed_budget(TestContext ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        final int CORES = 105, CAP = 100, WARM = 20, RUN = 100;
+        final long[] fed = new long[CORES];
+        final int[] ran = {0};
+        ctx.runAtEveryTick(() -> {
+            if (ran[0] >= WARM + RUN) return;
+            ran[0]++;
+            boolean count = ran[0] > WARM;
+            for (int i = 0; i < CORES; i++) {
+                long got = 0;
+                for (int r = 0; r < 4; r++)
+                    got += com.sdzjz.machine.CoreScheduler.request(ctx.getWorld(), new BlockPos(i, 300, -600), 20, CAP);
+                if (count) fed[i] += got;
+            }
+            if (ran[0] == WARM + RUN) {
+                long min = Long.MAX_VALUE;
+                for (long f : fed) min = Math.min(min, f);
+                com.sdzjz.machine.CoreScheduler.clearAll();
+                ctx.assertTrue(min > 0, "k>cap 稳态仍有恒饿核心（资历轮转失效）");
+                ctx.assertTrue(min >= RUN / 8, "最低核窗口吞吐 " + min + " < " + (RUN / 8) + "（有界饥饿超界）");
                 ctx.complete();
             }
         });

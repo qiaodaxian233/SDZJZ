@@ -38,10 +38,18 @@ public final class CoreScheduler {
     private static long spent = 0;
     /** 本拍剩余保留额 = 名单内尚未到场的饿核数 ×1（到场即释放，自用或并入公池）。 */
     private static int reserveLeft = 0;
-    /** 本拍持保留额名单（上拍没吃到的核心，键式照 StorageCoreBlockEntity.CORES 在树先例）。 */
-    private static final Map<RegistryKey<World>, Set<BlockPos>> STARVED = new HashMap<>();
-    /** 本拍新增饿核（下拍生效）。 */
-    private static final Map<RegistryKey<World>, Set<BlockPos>> STARVED_NEXT = new HashMap<>();
+    /** 本拍持保留额名单：核心→**拍龄**（连续被完全拒绝的拍数）。m309：k>cap 时按拍龄资历轮转保底——
+     *  预算须先够所有比我更饿的核心各吃 1，否则本拍让贤、拍龄+1 继续攒资历，最饿者必先食，
+     *  任何核心的连续挨饿拍数有界 ≤O(k/cap)。键式照 StorageCoreBlockEntity.CORES 在树先例。 */
+    private static final Map<RegistryKey<World>, Map<BlockPos, Integer>> STARVED = new HashMap<>();
+    /** 本拍新增/续期饿核（下拍生效；值=拍龄，merge 取大保资历不回退）。 */
+    private static final Map<RegistryKey<World>, Map<BlockPos, Integer>> STARVED_NEXT = new HashMap<>();
+    /** m309 本拍已进食核心（吃到≥1 周期）——其余节点再吃零**不记名**："吃到部分=有进展不记"的
+     *  真实现。此前逐请求记名把全员每拍打回名单，"先食权"人人持有等于没有，k>cap 时 tick 序
+     *  末位核心恒饿（作者 100×64+1 产线实测：第 101 核 2400 拍颗粒无收）。 */
+    private static final Map<RegistryKey<World>, Set<BlockPos>> FED = new HashMap<>();
+    /** 本拍各拍龄尚未服务的饿核数（rollTick 重建，olderUnserved 资历闸查询用）。 */
+    private static final java.util.TreeMap<Integer, Integer> UNSERVED_BY_AGE = new java.util.TreeMap<>();
 
     // ===== m304 压测观测（评审③复评"下一步是测不是重构"：granted 分布/饿核数得有处读）=====
     /** 每核累计账 long[0]=累计批准周期 long[1]=零批准记名次数。仅 cap>0 路径更新；
@@ -68,8 +76,8 @@ public final class CoreScheduler {
     public static long prevTickSpent() { return prevTickSpent; }
 
     /** 当前持保底名单核数（本拍待优先喂）+ 本拍新记名核数。 */
-    public static int starvedPending() { int n = 0; for (Set<BlockPos> s : STARVED.values()) n += s.size(); return n; }
-    public static int starvedNew()     { int n = 0; for (Set<BlockPos> s : STARVED_NEXT.values()) n += s.size(); return n; }
+    public static int starvedPending() { int n = 0; for (Map<BlockPos, Integer> s : STARVED.values()) n += s.size(); return n; }
+    public static int starvedNew()     { int n = 0; for (Map<BlockPos, Integer> s : STARVED_NEXT.values()) n += s.size(); return n; }
 
     /** 只清观测计数（/sdzjz profile reset 挂钩），名单与预算态原样。 */
     public static void resetStats() { STATS.clear(); prevTickSpent = 0; }
@@ -85,40 +93,69 @@ public final class CoreScheduler {
         if (now != tickStamp) rollTick(now);
 
         long remain = globalCap - spent;
-        Set<BlockPos> dim = STARVED.get(world.getRegistryKey());
-        boolean wasStarved = dim != null && dim.remove(pos); // 到场即出名单（防幽灵核心堵门）
-        if (wasStarved) reserveLeft--;
-
-        long open = remain - Math.max(0, reserveLeft);        // 公池=余额扣掉他核保留额
-        long allow = wasStarved ? Math.max(open, Math.min(1L, remain)) // 饿核保底1（预算真见零除外）
-                                : open;                                // 普通核心只许动公池
-        int granted = (int) Math.min(want, Math.min(remain, Math.max(0L, allow)));
-        long[] st = STATS.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>())
+        RegistryKey<World> dimK = world.getRegistryKey();
+        long[] st = STATS.computeIfAbsent(dimK, k -> new HashMap<>())
                          .computeIfAbsent(pos.toImmutable(), k -> new long[2]); // m304 观测账（每节点结算才进来,频率≈节点数/周期,开销可忽略）
+        Map<BlockPos, Integer> dim = STARVED.get(dimK);
+        Integer age = dim != null ? dim.get(pos) : null;
+        int granted;
+        if (age != null) { // 饿核到场即出名单（防幽灵堵门）；拍龄经 NEXT 延续不丢资历
+            dim.remove(pos);
+            bucketDec(age);
+            reserveLeft--;
+            if (remain - olderUnserved(age) < 1) { // m309 资历闸：先保比我更饿的，本拍让贤、拍龄+1
+                STARVED_NEXT.computeIfAbsent(dimK, k -> new HashMap<>()).merge(pos.toImmutable(), age + 1, Math::max);
+                st[1]++;
+                return 0;
+            }
+            long open = remain - Math.max(0, reserveLeft); // 公池=余额扣掉他核保留额
+            long allow = Math.max(open, Math.min(1L, remain)); // 保底1（预算真见零除外）
+            granted = (int) Math.min(want, Math.min(remain, Math.max(0L, allow)));
+        } else {
+            long open = remain - Math.max(0, reserveLeft); // 普通核心只许动公池
+            granted = (int) Math.min(want, Math.max(0L, open));
+        }
         if (granted <= 0) {
             st[1]++;
-            STARVED_NEXT.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>())
-                        .add(pos.toImmutable()); // 一个周期没吃到才记名；吃到部分=有进展不记
+            if (!FED.computeIfAbsent(dimK, k -> new HashSet<>()).contains(pos)) // m309 有进展不记名（真实现——
+                STARVED_NEXT.computeIfAbsent(dimK, k -> new HashMap<>()).merge(pos.toImmutable(), 1, Math::max);
+                // 此前逐请求记名把已进食核心的其余节点也打回名单,全员每拍重列,资历永远清零
             return 0;
         }
+        FED.computeIfAbsent(dimK, k -> new HashSet<>()).add(pos.toImmutable());
         st[0] += granted;
         spent += granted;
         return granted;
     }
 
-    /** 新 server tick：饿名单换代（NEXT→当前），预算与保留额复位。 */
+    /** 新 server tick：饿名单换代（NEXT→当前，拍龄随迁），预算/保留额/进食集/拍龄桶复位重建。 */
     private static void rollTick(long now) {
         prevTickSpent = spent; // m304：上拍消费定格供观测
         tickStamp = now;
         spent = 0;
         STARVED.clear();
+        UNSERVED_BY_AGE.clear();
+        FED.clear(); // m309 本拍进食集换代
         int n = 0;
-        for (Map.Entry<RegistryKey<World>, Set<BlockPos>> e : STARVED_NEXT.entrySet()) {
+        for (Map.Entry<RegistryKey<World>, Map<BlockPos, Integer>> e : STARVED_NEXT.entrySet()) {
             STARVED.put(e.getKey(), e.getValue());
+            for (int a : e.getValue().values()) UNSERVED_BY_AGE.merge(a, 1, Integer::sum);
             n += e.getValue().size();
         }
-        STARVED_NEXT.clear(); // 只清外层映射，内层 Set 已移交 STARVED 持有
+        STARVED_NEXT.clear(); // 只清外层映射，内层 Map 已移交 STARVED 持有
         reserveLeft = n;
+    }
+
+    /** m309：比拍龄 a 更饿（严格更老）且本拍尚未服务的核心数。O(在场拍龄种数)，仅饿核首请求走到。 */
+    private static int olderUnserved(int a) {
+        int n = 0;
+        for (int v : UNSERVED_BY_AGE.tailMap(a, false).values()) n += v;
+        return n;
+    }
+
+    private static void bucketDec(int a) {
+        UNSERVED_BY_AGE.merge(a, -1, Integer::sum);
+        if (UNSERVED_BY_AGE.getOrDefault(a, 0) <= 0) UNSERVED_BY_AGE.remove(a);
     }
 
     /** 停服清态（单机反复进出存档不留残，挂 Sdzjz SERVER_STOPPED 既有清理块）。 */
@@ -128,6 +165,8 @@ public final class CoreScheduler {
         reserveLeft = 0;
         STARVED.clear();
         STARVED_NEXT.clear();
+        FED.clear();
+        UNSERVED_BY_AGE.clear(); // m309
         resetStats(); // m304
     }
 }
