@@ -911,6 +911,7 @@ public final class SuperBenchRecipes {
         addSmall9("sdzjz:trade_center",      1, E,I,E,   I,MM,I,   E,I,E);   // 原版为无序配方，多重集一致
         addSmall9("sdzjz:villager_contract", 1, P,P,P,   B,E,B,    P,P,P);
         addSmall9("sdzjz:terminal",          1, GP,GP,GP, EP,MM,EP, I,I,I);
+        addSmall9("sdzjz:portable_vault",    1, CH,EE,CH, EP,MM,EP, I,CH,I);   // m311 随身仓库：箱子×3+末影之眼+珍珠×2+铁×2+核心模块
         addSmall9("sdzjz:linker",            1, R,EP,R,  EP,MM,EP, R,EP,R);
         addSmall9("sdzjz:capture_cage",      1, IB,I,IB, I,MM,I,   IB,I,IB);
         addSmall9("sdzjz:data_panel",        1, G,L,G,   EP,CH,EP, G,MM,G);

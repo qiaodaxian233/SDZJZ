@@ -35,6 +35,7 @@ public class ModItems {
     public static final Item SUPER_COMPRESSED_PACK_FRAME = reg("super_compressed_pack_frame", new Item(new Item.Settings()));
     public static final Item LINKER = reg("linker", new LinkerItem(new Item.Settings().maxCount(1)));
     public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Settings().maxCount(1)));
+    public static final Item PORTABLE_VAULT = reg("portable_vault", new PortableVaultItem(new Item.Settings().maxCount(1))); // m311 随身仓库（long账本+吸附）
     public static final Item LOGO = reg("logo", new Item(new Item.Settings())); // m93 创造栏标签图标(不入栏)
     public static final Item AUTO_FEEDER = reg("auto_feeder", new com.sdzjz.item.AutoFeederItem(new Item.Settings().maxCount(1)));
 
@@ -197,6 +198,7 @@ public class ModItems {
             entries.add(SUPER_COMPRESSED_PACK); // m241
             entries.add(LINKER);
             entries.add(TERMINAL);
+            entries.add(PORTABLE_VAULT); // m311
             entries.add(AUTO_FEEDER);
             entries.add(WIRE_BRUSHER);
             entries.add(COBBLE_MAKER);

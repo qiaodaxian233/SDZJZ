@@ -151,5 +151,6 @@
   "item.sdzjz.compressed_pack": "压缩材料包",
   "item.sdzjz.super_compressed_pack": "超级压缩材料包",
   "item.sdzjz.compressed_pack_frame": "压缩包边框（渲染件）",
-  "item.sdzjz.super_compressed_pack_frame": "超级压缩包边框（渲染件）"
+  "item.sdzjz.super_compressed_pack_frame": "超级压缩包边框（渲染件）",
+  "item.sdzjz.portable_vault": "随身仓库"
 }

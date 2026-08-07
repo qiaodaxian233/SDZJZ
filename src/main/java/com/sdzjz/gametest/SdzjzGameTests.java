@@ -230,4 +230,21 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(back.getCount() == 1_000_000, "计数存档往返丢失：读回 " + back.getCount() + "（Codec 钳位未放宽）");
         ctx.complete();
     }
+
+    /** m311 随身仓库账本：跨 int 边界入账（30 亿）→整包倾倒进核心→逐 id 对账+包倒空。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void portable_vault_ledger_survives_int_boundary(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        ItemStack vault = new ItemStack(com.sdzjz.registry.ModItems.PORTABLE_VAULT);
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultAdd(vault, "minecraft:cobblestone", 3_000_000_000L), "入账被拒");
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultAdd(vault, "minecraft:dirt", 5L), "入账被拒");
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultTotal(vault) == 3_000_000_005L,
+                "账本总数错：" + com.sdzjz.item.PortableVaultItem.vaultTotal(vault));
+        com.sdzjz.item.PortableVaultItem.vaultDumpInto(vault, c);
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 3_000_000_000L,
+                "倾倒后核心账不符：" + c.count("minecraft:cobblestone") + "（int 边界切块有误）");
+        ctx.assertTrue(c.count("minecraft:dirt") == 5L, "小额账目丢失");
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultTypes(vault) == 0, "倾倒后包未清空");
+        ctx.complete();
+    }
 }

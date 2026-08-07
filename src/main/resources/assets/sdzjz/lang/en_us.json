@@ -151,5 +151,6 @@
   "item.sdzjz.compressed_pack": "Compressed Pack",
   "item.sdzjz.super_compressed_pack": "Super Compressed Pack",
   "item.sdzjz.compressed_pack_frame": "Pack Frame (render part)",
-  "item.sdzjz.super_compressed_pack_frame": "Super Pack Frame (render part)"
+  "item.sdzjz.super_compressed_pack_frame": "Super Pack Frame (render part)",
+  "item.sdzjz.portable_vault": "Portable Vault"
 }
