@@ -28,6 +28,22 @@ public final class SdzjzCommands {
                                 .then(literal("core").executes(c -> profileCore(c.getSource())))
                                 .then(literal("network").executes(c -> profileNetwork(c.getSource())))
                                 .then(literal("sched").executes(c -> profileSched(c.getSource()))) // m304 调度器账单
+                                .then(literal("phase") // m321 阶段账单：谁在吃时间
+                                        .executes(c -> {
+                                            for (String ln : CoreProfiler.phaseReport())
+                                                c.getSource().sendFeedback(() -> Text.literal("§7" + ln), false);
+                                            return 1;
+                                        })
+                                        .then(literal("on").executes(c -> {
+                                            CoreProfiler.PHASES = true;
+                                            c.getSource().sendFeedback(() -> Text.literal("§a[sdzjz] 细分计时已开（热路径逐调用计时，测完记得 off）"), false);
+                                            return 1;
+                                        }))
+                                        .then(literal("off").executes(c -> {
+                                            CoreProfiler.PHASES = false;
+                                            c.getSource().sendFeedback(() -> Text.literal("§a[sdzjz] 细分计时已关"), false);
+                                            return 1;
+                                        })))
                                 .then(literal("reset").executes(c -> {
                                     CoreProfiler.resetAll();
                                     com.sdzjz.machine.CoreScheduler.resetStats(); // m304 只清计数不动名单

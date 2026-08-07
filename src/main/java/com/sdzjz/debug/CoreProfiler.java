@@ -69,6 +69,7 @@ public final class CoreProfiler {
         if (s.filled < s.win.length) s.filled++;
         s.nodes = nodes; s.edges = edges; s.running = running;
         s.lastSeenMs = System.currentTimeMillis();
+        phaseTick(nanos); // m321：阶段账分母（同一份 nanos，零新采样）
     }
 
     /** 最近 5 秒内 tick 过的核心（=已加载在跑；dim 传 null 取全维度）。 */
@@ -81,7 +82,65 @@ public final class CoreProfiler {
         return out;
     }
 
-    public static void resetAll() { for (Stats s : MAP.values()) s.resetWindow(); }
+    public static void resetAll() { for (Stats s : MAP.values()) s.resetWindow(); resetPhases(); }
+
+    // ===== m321 阶段计时（m305 尾账在案的 profiler 细账缺口：优化前先量化谁在吃时间）=====
+    // 四大阶段：每核每 tick 各 2 次 nanoTime（~8 次/核·tick）常开可忽略；
+    // 六项细分：逐调用计时（chainWants 等热路径每 tick 数万调）——只在 PHASES=true 时累计
+    // （/sdzjz profile phase on|off 手动开，bench 期间自动开），平时零额外开销。
+    public static volatile boolean PHASES = false;
+    public static final int PH_MAINT = 0, PH_TICKET = 1, PH_SUPPLY = 2, PH_PROD = 3, PH_N = 4;
+    private static final String[] PH_NAME = {
+            "维护/同步(端点扫描·快照·m89包·看门狗)", "区块票(强加载/续票/孤儿回收)",
+            "逻辑供料(5t拍:仓视图扫描+链需求门控+精确支路)", "生产/转发/分发(全机器大循环)"};
+    public static final int SUB_CHAIN = 0, SUB_ENDPOINT = 1, SUB_DISTRIBUTE = 2,
+            SUB_DEPOSIT = 3, SUB_RESOLVE = 4, SUB_PLANNER = 5, SUB_N = 6;
+    private static final String[] SUB_NAME = {
+            "chainWants 链需求判定", "scanStorageEndpoints 端点扫描", "distribute/Even 分发路由",
+            "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划"};
+    private static final long[] phNs = new long[PH_N];
+    private static final long[] subNs = new long[SUB_N];
+    private static final long[] subCalls = new long[SUB_N];
+    private static long phTicks, phTotalNs;
+
+    public static void phase(int i, long ns) { phNs[i] += ns; }
+    public static void sub(int i, long ns) { subNs[i] += ns; subCalls[i]++; }
+    static void phaseTick(long totalNs) { phTicks++; phTotalNs += totalNs; }
+
+    public static void resetPhases() {
+        java.util.Arrays.fill(phNs, 0);
+        java.util.Arrays.fill(subNs, 0);
+        java.util.Arrays.fill(subCalls, 0);
+        phTicks = 0; phTotalNs = 0;
+    }
+
+    /** 阶段账单行（聊天与压测报告同源）。占比分母=全部核心 tick 总耗时。 */
+    public static List<String> phaseReport() {
+        List<String> out = new ArrayList<>();
+        if (phTicks == 0) { out.add("阶段账为空（还没有核心 tick 过，或刚 reset）"); return out; }
+        out.add(String.format("阶段计时：窗口 %d 核·tick，合计 %.1f ms，均 %.1f µs/核·tick",
+                phTicks, phTotalNs / 1e6, phTotalNs / 1000.0 / phTicks));
+        long sum = 0;
+        for (int i = 0; i < PH_N; i++) {
+            sum += phNs[i];
+            out.add(String.format("  %-26s %8.1f µs/核·tick  %5.1f%%",
+                    PH_NAME[i], phNs[i] / 1000.0 / phTicks, 100.0 * phNs[i] / Math.max(1, phTotalNs)));
+        }
+        out.add(String.format("  %-26s %8.1f µs/核·tick  %5.1f%%",
+                "其他(计划编译/账尾/未列拍)", Math.max(0, phTotalNs - sum) / 1000.0 / phTicks,
+                100.0 * Math.max(0, phTotalNs - sum) / Math.max(1, phTotalNs)));
+        boolean any = false;
+        for (long c : subCalls) if (c > 0) { any = true; break; }
+        out.add("细分（PHASES=" + (PHASES ? "开" : "关") + "，关时不累计）：");
+        if (!any) out.add("  （空——/sdzjz profile phase on 或跑 bench 后再看）");
+        for (int i = 0; i < SUB_N; i++) {
+            if (subCalls[i] == 0) continue;
+            out.add(String.format("  %-32s 总 %7.1f ms · %,d 次 · 均 %,d ns · 占总 %4.1f%%",
+                    SUB_NAME[i], subNs[i] / 1e6, subCalls[i], subNs[i] / Math.max(1, subCalls[i]),
+                    100.0 * subNs[i] / Math.max(1, phTotalNs)));
+        }
+        return out;
+    }
 
     /** NBT 编码字节数（计数流上真编码一遍，只在 syncToClient 时调用，量级同同步本身）。 */
     public static long nbtSize(NbtCompound nbt) {

@@ -40,7 +40,15 @@ public final class CraftPlanner {
     }
 
     /** m234 目标物品的全部合成候选（原版排前；不可变；无配方=空表）。 */
+    /** m321 计时壳（PHASES 关=直通零开销）。 */
     public static java.util.List<Plan> plans(World world, String targetId) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return plans0(world, targetId);
+        long __t = System.nanoTime();
+        try { return plans0(world, targetId); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_PLANNER, System.nanoTime() - __t); }
+    }
+
+    private static java.util.List<Plan> plans0(World world, String targetId) {
         return CACHE.computeIfAbsent(targetId, id -> resolveAll(world, id));
     }
 

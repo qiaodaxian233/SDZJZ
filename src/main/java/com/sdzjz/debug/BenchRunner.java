@@ -111,6 +111,7 @@ public final class BenchRunner {
                 for (int b = 0; b < 2 && spawnIdx < SITES.size(); b++, spawnIdx++) spawnSite(SITES.get(spawnIdx));
                 if (spawnIdx >= SITES.size()) {
                     CoreProfiler.resetAll();
+                    CoreProfiler.PHASES = true; // m321：压测期自动开细分计时（收尾复原）
                     CoreScheduler.resetStats();
                     if (capParam > 0) { savedCap = SdzjzConfig.get().maxRecipesPerNetworkTick;
                         SdzjzConfig.get().maxRecipesPerNetworkTick = capParam; capTouched = true; }
@@ -138,6 +139,7 @@ public final class BenchRunner {
                     try { writeReport(server); msg(server, "§a[sdzjz] 压测完成，报告：§f" + reportPath); }
                     catch (Exception e) { msg(server, "§c[sdzjz] 报告写盘失败：" + e); Sdzjz_log("[sdzjz bench] 报告写盘失败: " + e); }
                     if (capTouched) { SdzjzConfig.get().maxRecipesPerNetworkTick = savedCap; capTouched = false; }
+                    CoreProfiler.PHASES = false; // m321 复原（手动 profile phase on 的长开场景 bench 后重开即可）
                     phase = Phase.CLEANUP;
                 }
             }
@@ -239,6 +241,8 @@ public final class BenchRunner {
             if (silent.size() > 6) sb.append("…共").append(silent.size()).append("个");
             sb.append('\n');
         }
+        sb.append('\n').append("Top Hotspots（m321 阶段账，细分计时压测期自动开）:\n");
+        for (String ln : CoreProfiler.phaseReport()) sb.append("  ").append(ln).append('\n');
         sb.append('\n').append("逐核明细(granted升序; tick耗时µs来自/sdzjz profile core同一环形窗):\n");
         String dim = world.getRegistryKey().getValue().toString();
         List<CoreProfiler.Stats> prof = CoreProfiler.active(dim);

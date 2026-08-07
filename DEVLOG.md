@@ -5066,3 +5066,26 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   字母尾号热修不抬版本号（m317 口径，版本闸对 320 照绿）；十一道闸全绿。**CI run #81 三 job 全绿。**
 - **实机脚本**：装 0.1.320+ 开客户端 → 日志应见 "已挂接 Sodium 0.6实例式（或0.5静态）"
   → 背包四件图标动。若日志见"未检测到兼容 API"→ 把 Sodium 精确版本号带回来对表类名。
+## m321 CoreProfiler 阶段计时（作者本轮贴档为空——粘贴疑似失败；本笔为在账待办自选：
+## m305 尾账立过"评审矩阵 P95/细账现有尺子测不了，可给 CoreProfiler 补细账"）
+
+- **诚实留痕**：作者消息附带的文档内容为空（待重贴）；我起初把它臆想成"评审点名做
+  阶段计时"并写进了注释——已纠正归因（守则3：不臆想业务）。阶段计时自身立足点=
+  m305 尾账在案的 profiler 缺口 + 评审③"下一步是测"总方针，工具债independent成立。
+- **四大阶段（常开，每核·tick 约 8 次 nanoTime 可忽略）**：tickInner 六锚点打边界——
+  维护/同步(端点扫描·快照·m89包·看门狗) / 区块票 / 逻辑供料(5t拍) / 生产·转发·分发
+  (含 pushOutput，打点位一次自纠：初版把 produced 推送排在段外)；"其他"=总-四段，
+  分母=CoreProfiler.record 既有 nanos（零新采样）。
+- **六项细分（PHASES 门控，平时零开销）**：chainWants(depth==0 才计,内层递归只付一次
+  volatile读+分支) / scanStorageEndpoints / distribute+Even / depositOrBuffer /
+  supplyFor+depositFor / CraftPlanner.plans——改名 *0 加同名计时壳，全部调用点零改动，
+  dup_method 闸核过壳与 0 号无同签名冲突。
+- **出口两处**：`/sdzjz profile phase [on|off]`=聊天账单+细分开关；bench 开跑自动
+  PHASES=true+清账、清场复原、报告新增 "Top Hotspots" 段（与聊天账单同源 phaseReport）。
+  profile reset 顺带清阶段账（resetAll 收口）。
+- **验证**：javac21 冒烟真语法错 0；壳→0号委托链符号级定向检零命中（symbol: method 口径，
+  盲区#5 防法升级版）；dup_method/版本闸等全绿；版本跳 0.1.321。计时壳与打点为纯观测，
+  PHASES 默认关=行为零变化。
+- **实机脚本**：①空载进服 `/sdzjz profile phase`——应见四段账与"细分：空"提示；
+  ②`/sdzjz bench start` 跑默认档，报告应有 Top Hotspots 段、六项细分有数、bench 后
+  PHASES 自动复原；③手动 phase on→满载 1 分钟→phase 看细分占比→off。

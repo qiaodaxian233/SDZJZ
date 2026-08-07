@@ -162,6 +162,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
+        long __ph = System.nanoTime(); // m321 阶段计时游标（四段边界各 1 次 nanoTime，常开可忽略）
         be.recipesThisTick = 0; // m270 全核tick周期预算复位（cyclesThisTick 共享额度）
         be.flushCanvasSnapshot(world); // m275：上一拍标脏的渲染快照在此聚合、定向发观众（每 tick 至多 1 份/核心）
         // m218c 多核心错峰：周期性大活（ends包/区块票/拉料拍/端点扫描）按 pos 哈希移相——频率逐核不变，
@@ -201,6 +202,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (be.prof != null) { be.prof.endsPackets++; be.prof.endsEntries += pk.endPos().size(); } // m177
             }
         }
+        { long __n = System.nanoTime(); com.sdzjz.debug.CoreProfiler.phase(com.sdzjz.debug.CoreProfiler.PH_MAINT, __n - __ph); __ph = __n; } // m321
         // m133 强制加载：开机+配置开 → 钉住自身区块(FORCED,持久化,重启自恢复) + 每100t给端点区块续有期票；
         // 停机/配置关 → 解除；孤儿 forced（重启遗留：停机核心落盘前没来得及解除）每100t回收一次。
         if (Math.floorMod(wt, 20) == 0 && world instanceof net.minecraft.server.world.ServerWorld swf) { // m218c 错峰（内层%100同偏移，嵌套节奏不变）
@@ -219,6 +221,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
             }
         }
+        com.sdzjz.debug.CoreProfiler.phase(com.sdzjz.debug.CoreProfiler.PH_TICKET, System.nanoTime() - __ph); // m321
         if (!be.running) return;
 
         int tier = (state.getBlock() instanceof StructureCoreBlock scb) ? scb.tier : 1;
@@ -258,6 +261,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
         // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
         // 熔炉需求=可熔炼表、合成机需求=目标配方材料、消耗机需求=定义 inputs；支持逻辑节点串联（深度8+防环）。
+        long __ps = System.nanoTime(); // m321 供料拍起点
         if (Math.floorMod(be.ticks + ph, 5) == 0) { // m116：20t→5t 与逻辑节点转发同拍；m218c 多核心移相（此前 64/20t=64/秒天花板，用户熔炉组升到 50/50/54 也只吃到 100/秒）
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
             for (int i = 0; i < nSize; i++) {
@@ -331,6 +335,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
 
+        long __pp = System.nanoTime(); // m321：供料段收账+生产段起点
+        com.sdzjz.debug.CoreProfiler.phase(com.sdzjz.debug.CoreProfiler.PH_SUPPLY, __pp - __ps);
         boolean produced = false;
         StorageCoreBlockEntity src = null;
         boolean srcResolved = false;
@@ -1024,6 +1030,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.pushOutput(world, pos);
             be.markDirty();
         }
+        com.sdzjz.debug.CoreProfiler.phase(com.sdzjz.debug.CoreProfiler.PH_PROD, System.nanoTime() - __pp); // m321（pushOutput 计入生产段）
         if (!be.lagPause && be.ticks % 2 == 0) be.ejectOverflow(world, pos); // m114/m115 断网喷射：2t一组≈10组/秒；过载时停喷
         if (be.statusDirty && be.ticks % 20 == 0) { // 状态灯：有变化才同步，最多 1 次/秒
             be.statusDirty = false;
@@ -1831,7 +1838,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     // ===== 存储/终端接口节点：扫描 + 定向连线 =====
     /** 扫描本核心可达的存储核心/数据终端端点（绑定>有线>无线>卫星，封顶8个），变化才同步。 */
+    /** m321 计时壳。 */
     private void scanStorageEndpoints(World world, BlockPos corePos) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) { scanStorageEndpoints0(world, corePos); return; }
+        long __t = System.nanoTime();
+        try { scanStorageEndpoints0(world, corePos); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_ENDPOINT, System.nanoTime() - __t); }
+    }
+
+    private void scanStorageEndpoints0(World world, BlockPos corePos) {
         java.util.LinkedHashMap<Long, long[]> found = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<Long, String> dims = new java.util.LinkedHashMap<>();
         String selfDim = world.getRegistryKey().getValue().toString();
@@ -1982,7 +1997,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 该机器的定向产出目标（机器→存储 连线；不可用则 null 走默认路由）。 */
+    /** m321 计时壳。 */
     private com.sdzjz.machine.StorageAccess depositFor(World world, int machineIndex) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return depositFor0(world, machineIndex);
+        long __t = System.nanoTime();
+        try { return depositFor0(world, machineIndex); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_RESOLVE, System.nanoTime() - __t); }
+    }
+
+    private com.sdzjz.machine.StorageAccess depositFor0(World world, int machineIndex) {
         if (prof != null) prof.storageResolves++; // m177
         return edgeStorage(world, machineIndex, 0);
     }
@@ -2015,7 +2038,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private java.util.Set<Integer> wantsScratchCleared() { wantsScratch.clear(); return wantsScratch; }
     private java.util.Set<Integer> trashScratchCleared() { trashScratch.clear(); return trashScratch; }
 
+    /** m321 计时壳：PHASES 关或递归内层=直通（一次 volatile 读+分支）；顶层调用计入 SUB_CHAIN。 */
     private boolean chainWants(World world, int i, String id, int depth,
+                               java.util.Set<Integer> visited,
+                               java.util.Map<Integer, java.util.List<Integer>> outT,
+                               java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
+        if (depth != 0 || !com.sdzjz.debug.CoreProfiler.PHASES) return chainWants0(world, i, id, depth, visited, outT, crafterNeeds);
+        long __t = System.nanoTime();
+        try { return chainWants0(world, i, id, depth, visited, outT, crafterNeeds); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_CHAIN, System.nanoTime() - __t); }
+    }
+
+    private boolean chainWants0(World world, int i, String id, int depth,
                                java.util.Set<Integer> visited,
                                java.util.Map<Integer, java.util.List<Integer>> outT,
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
@@ -2145,7 +2179,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public boolean chunkForceActive() { return chunkForceOn; }
     public boolean chunkOwnedFlag() { return chunkOwned; } // m268 供拆核心时把所有权传给 release
 
+    /** m321 计时壳。 */
     private com.sdzjz.machine.StorageAccess supplyFor(World world, int machineIndex) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return supplyFor0(world, machineIndex);
+        long __t = System.nanoTime();
+        try { return supplyFor0(world, machineIndex); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_RESOLVE, System.nanoTime() - __t); }
+    }
+
+    private com.sdzjz.machine.StorageAccess supplyFor0(World world, int machineIndex) {
         if (prof != null) prof.storageResolves++; // m177
         return edgeStorage(world, machineIndex, 1);
     }
@@ -2344,7 +2386,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 均分分发（分配器）：在所有"吃得下"的目标间平分，余数轮转；装不下/没人要的走 定向存储/默认路由。 */
+    /** m321 计时壳。 */
     private void distributeEven(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) { distributeEven0(world, fromIndex, targets, id, amt); return; }
+        long __t = System.nanoTime();
+        try { distributeEven0(world, fromIndex, targets, id, amt); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DISTRIBUTE, System.nanoTime() - __t); }
+    }
+
+    private void distributeEven0(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
         if (prof != null) prof.routes++; // m177
         if (targets != null && !targets.isEmpty()) {
             java.util.List<Integer> ok = new java.util.ArrayList<>();
@@ -2373,7 +2423,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */
+    /** m321 计时壳。 */
     private void distribute(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) { distribute0(world, fromIndex, targets, id, amt); return; }
+        long __t = System.nanoTime();
+        try { distribute0(world, fromIndex, targets, id, amt); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DISTRIBUTE, System.nanoTime() - __t); }
+    }
+
+    private void distribute0(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
         if (prof != null) prof.routes++; // m177
         if (targets != null) {
             for (int pass = 0; pass < 2; pass++) { // m150 两轮：第一轮跳过垃圾桶，第二轮只喂垃圾桶——
@@ -2605,7 +2663,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 定向入库兜底：存储核心类型满被拒时回落输出缓存，绝不静默丢物品。 */
+    /** m321 计时壳。 */
     private void depositOrBuffer(com.sdzjz.machine.StorageAccess sc, ItemStack stack) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) { depositOrBuffer0(sc, stack); return; }
+        long __t = System.nanoTime();
+        try { depositOrBuffer0(sc, stack); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DEPOSIT, System.nanoTime() - __t); }
+    }
+
+    private void depositOrBuffer0(com.sdzjz.machine.StorageAccess sc, ItemStack stack) {
         if (stack.isEmpty()) return;
         sc.deposit(stack); // 收下会清空栈；类型满则原样留着
         if (!stack.isEmpty()) {
