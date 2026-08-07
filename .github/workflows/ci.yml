@@ -50,7 +50,8 @@ jobs:
       - name: 跑 GameTest
         run: |
           chmod +x gradlew
-          ./gradlew runGametest --stacktrace --no-daemon
+          set -o pipefail
+          ./gradlew runGametest --stacktrace --no-daemon 2>&1 | tee gradle-gametest.log
       - name: 上传测试报告
         if: always()
         uses: actions/upload-artifact@v4
@@ -68,7 +69,8 @@ jobs:
           cp build/junit.xml ci-junit.xml 2>/dev/null || echo "junit.xml 未产出" > ci-junit.xml
           LOG=$(ls build/gametest/logs/latest.log 2>/dev/null || true)
           if [ -n "$LOG" ]; then tail -c 400000 "$LOG" > ci-server-tail.log; else echo "无服务器日志" > ci-server-tail.log; fi
-          git add -f ci-junit.xml ci-server-tail.log
+          grep -E "error:|error |FAILED|Caused by" gradle-gametest.log > ci-gradle-errors.log 2>/dev/null || tail -c 60000 gradle-gametest.log > ci-gradle-errors.log 2>/dev/null || echo 无gradle日志 > ci-gradle-errors.log
+          git add -f ci-junit.xml ci-server-tail.log ci-gradle-errors.log
           git commit -m "gametest 失败报告 $GITHUB_SHA" || true
           git push -f origin ci-gametest-report
 
