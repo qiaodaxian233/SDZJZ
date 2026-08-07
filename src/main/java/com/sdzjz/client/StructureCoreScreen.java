@@ -241,7 +241,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private long pickerOpenMs = 0;                                 // m148 选择器淡入时钟
     private List<Item> pickerSrcOverride = null;                   // m149 机器加工过滤的候选源（null=常规）
     private String pickerTitleOverride = null;                     // m149 机器加工过滤的窗题
-    private static final int MENU_W = 136, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带
+    private static final int MENU_W = 144, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带；m316 136→144 容图标间距加宽后的最长行（抽取量挡位）
 
     // ===== m199 画布设置面板（游戏内可调画布客户端项；modal 照 renameField 在树写法）=====
     private boolean settingsOpen = false;
@@ -2050,6 +2050,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         float ease = SciSkin.easeOut((net.minecraft.util.Util.getMeasuringTimeMs() - menuOpenMs) / 110f);
         if (menuHoverP.length != menuLabels.size()) menuHoverP = new float[menuLabels.size()];
         ctx.getMatrices().push(); // 弹入：以菜单左上角为锚 0.92→1.0
+        // m316 整体抬 z=400（m202/m283 同病同刀）：画布节点的物品图标/升级角标由 drawItem 画在
+        // z100~200 带深度测试，菜单 z0 平面填充画得再晚也被穿透（作者截图实锤：节点端口图标叠在
+        // 菜单标题带上）。重命名/设置/帮助/选择器四浮层早已各自抬 400，唯菜单漏网，本笔补齐。
+        ctx.getMatrices().translate(0, 0, 400);
         ctx.getMatrices().translate(menuX, menuY, 0);
         float sc = 0.92f + 0.08f * ease;
         ctx.getMatrices().scale(sc, sc, 1f);
@@ -2093,7 +2097,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             net.minecraft.util.Identifier tex = menuTexs.get(i); // m313 贴图图标优先
             if (tex != null) {
                 ctx.drawTexture(tex, tx, y0 + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
-                tx += 16;
+                tx += 20; // m316：贴图满幅 16px，原 +16 零间隙文字贴脸（作者截图点名），补 4px 呼吸位
             }
             ItemStack ic = menuIcons.get(i);
             if (ic != null && !ic.isEmpty()) {
@@ -2102,7 +2106,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.getMatrices().scale(0.8f, 0.8f, 1f);
                 ctx.drawItem(ic, 0, 0);
                 ctx.getMatrices().pop();
-                tx += 16;
+                tx += 18; // m316：0.8×实占 12.8px，原 +16 只剩 3px，与贴图行对齐补到约 5px
             }
             int col = danger ? SciSkin.mix(SciSkin.RED_SOFT, SciSkin.RED, pv) : SciSkin.mix(TXT, SciSkin.TXT_MAX, pv);
             ctx.drawText(this.textRenderer, menuLabels.get(i), tx, y0 + 5,
