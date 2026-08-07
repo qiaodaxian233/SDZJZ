@@ -4972,3 +4972,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   **CI run #73 三 job 全绿——新"版本号对表"闸首跑即绿，jar 已按 sdzjz-0.1.317 出包。**
 - **实机脚本**：拉取构建后看 jar 名=sdzjz-0.1.317.jar、F3/ModMenu 版本号同显；下一笔
   里程碑若忘改版本，CI 应红在"版本号对表"闸。
+## m318 构建产物旧版清扫（作者实锤事故：源码最新、构建成功、进 mods 的却是 0.0.1.jar）
+
+- **现象**（作者工具日志实锤）：git pull 已在 ae7b347、Gradle 全任务 UP-TO-DATE、
+  BUILD SUCCESSFUL——但"已选择构建产物：sdzjz-0.0.1.jar"并同步进了 mods。
+- **根因**：版本号一笔一跳（m317）后 Gradle 换版本**不会删旧版本产物**，build/libs 里
+  0.0.1（旧）与 0.1.317（新，上次真编译已产出，所以本次全 UP-TO-DATE）并存；作者
+  "拉取并构建"工具从 build/libs 按文件名选产物，0.0.1 字典序排在 0.1.317 前被捡走。
+  三条反证收口：①pull "Already up to date"=检出即最新；②若工作区 gradle.properties
+  仍是旧值，processResources/jar 不可能 UP-TO-DATE（版本进 fabric.mod.json 与产物名，
+  输入输出都会变）；③故 0.1.317.jar 必已存在，选错=选择逻辑吃了脏目录。
+- **修法**：build.gradle 新 `purgeStaleJars`（Delete）——build 收尾 finalizedBy 自动删
+  build/libs 里**不含当前版本号**的 jar（当前版与其 -sources 保留，ant 模式点号为字面量，
+  目录不存在=空树无害）。工具想捡错都没得捡，也不必求作者改工具的选择逻辑。
+- **验证**：纯 Gradle DSL 沙箱跑不了 gradle（Fabric maven 不可达），CI Gradle job 当真判官
+  （build 生命周期任务会带起 purgeStaleJars，DSL 错/任务炸都会红）；十一道离线闸本地全绿；
+  mod_version 随笔跳 0.1.318（m317 铁律首次自我执行，版本号对表闸绿）。
+- **实机脚本**：①拉取后先**手动删一次** F:\jar.1\SDZJZ\build\libs\sdzjz-0.0.1.jar（历史残留，
+  本任务只在 build 后清扫，拉取当次构建若全 UP-TO-DATE 也会触发 finalizedBy 清掉它——
+  但手删一次最稳）；②重跑工具：应"已选择构建产物：sdzjz-0.1.318.jar"；③mods 目录把旧
+  sdzjz-0.0.1.jar 删掉再进游戏（新旧同装=重复模组 ID 启动崩）；④进游戏 F3/ModMenu 显
+  0.1.318，届时再验 m316 菜单两修（层级压住一切/图标文字 4px 间隙）。

@@ -57,3 +57,15 @@ loom {
 		}
 	}
 }
+
+// m318 旧版本产物自动清扫：版本号一笔一跳(m317)后 Gradle 不会删旧版 jar，build/libs 会
+// 新旧并存——作者"拉取并构建"工具按文件名从 build/libs 选产物，0.0.1 排序在 0.1.317 前
+// 被捡走（实锤事故：源码已最新、构建全 UP-TO-DATE、进 mods 的却是 sdzjz-0.0.1.jar）。
+// 每次 build 收尾把 libs 里不含当前版本号的 jar 全删，工具想捡错都没得捡。
+tasks.register('purgeStaleJars', Delete) {
+    delete fileTree('build/libs') {
+        include '*.jar'
+        exclude "*${project.version}*"   // 保当前版 jar 与 -sources.jar
+    }
+}
+build.finalizedBy 'purgeStaleJars'
