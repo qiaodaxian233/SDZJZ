@@ -5041,7 +5041,8 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：javac21 全库冒烟真语法错 0；新自家符号（SodiumSpriteKicker 跨文件委托/
   sodiumIconAnimFix）定向检零命中（盲区#5 防法）；十一道闸+版本闸全绿；版本跳 0.1.320。
   反射目标类名沙箱无从核（Sodium 非依赖），已按官方 API 文档口径写死并配熔断，标
-  「待实机验证」。
+  「待实机验证」。**CI run #79 三 job 全绿——SodiumSpriteKicker 首次真编译即过（yarn 三名
+  接线验明），反射链是否咬中 Sodium 待作者实机。**
 - **实机脚本**：①装 Sodium 且"仅动画可见纹理"保持默认开：进背包看四件图标应全在动
   （并发轮亮/数量轮亮/速度双拍/核心芯跳）；②Sodium 该选项手动关再开，动画不受影响；
   ③卸 Sodium 纯原版：图标照动（垫片熔断路径）；④config 关 sodiumIconAnimFix：装 Sodium
