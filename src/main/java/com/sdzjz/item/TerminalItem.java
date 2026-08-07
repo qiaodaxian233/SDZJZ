@@ -85,7 +85,15 @@ public class TerminalItem extends Item {
             msg(player, "面板不可达（区块未加载或已移除）");
             return TypedActionResult.fail(stack);
         }
-        player.openHandledScreen(panel);
+        // m303 AccessMode：远程开屏不再直走 openHandledScreen(panel)（那会进 BE.createMenu=方块模式），
+        // 自带工厂把 remote=true 塞进 handler 构造链；开屏数据仍发 BlockPos，客户端工厂零改动。
+        player.openHandledScreen(new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos>() {
+            @Override public BlockPos getScreenOpeningData(net.minecraft.server.network.ServerPlayerEntity sp) { return panel.getPos(); }
+            @Override public Text getDisplayName() { return panel.getDisplayName(); }
+            @Override public net.minecraft.screen.ScreenHandler createMenu(int syncId, net.minecraft.entity.player.PlayerInventory inv, PlayerEntity p) {
+                return new com.sdzjz.screen.DataPanelScreenHandler(syncId, inv, panel, true);
+            }
+        });
         return TypedActionResult.success(stack);
     }
 
@@ -161,6 +169,18 @@ public class TerminalItem extends Item {
             return true;
         }
         return false;
+    }
+
+    /** m303：该物品是否为绑定到指定面板的终端（远程屏 canUse 生命周期核对用；
+     *  K_POS/K_DIM 键保持私有，本方法是外部判定的唯一出口）。 */
+    public static boolean isBoundTo(ItemStack stack, BlockPos pos, World world) {
+        if (world == null || pos == null || !(stack.getItem() instanceof TerminalItem)) return false;
+        NbtComponent c = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (c == null) return false;
+        NbtCompound nbt = c.copyNbt();
+        return nbt.contains(K_POS)
+                && BlockPos.fromLong(nbt.getLong(K_POS)).equals(pos)
+                && world.getRegistryKey().getValue().toString().equals(nbt.getString(K_DIM));
     }
 
     /** 解析绑定的面板（可跨维度，区块须已加载）。 */

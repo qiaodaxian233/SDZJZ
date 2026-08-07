@@ -27,6 +27,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     private final DataPanelBlockEntity panel;
     private final BlockPos blockPos;
     private final PlayerEntity player;
+    private final boolean remote; // m303 AccessMode：true=手持终端远程开屏，false=右键面板方块开屏
     // m289 全网库存摘要：客户端侧由 TerminalStockPayload 灌入（喂 populateRecipeFinder）；
     // 服务端侧 stockFp/stockTick 做指纹节流（内容没变不发包）。两组字段各在各端有效互不相扰。
     // ===== m292 每玩家视图状态（自 DataPanelBlockEntity 迁入；节流从面板级改玩家级——审计 P1 原话）=====
@@ -54,7 +55,12 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
     }
 
     public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, DataPanelBlockEntity be) {
+        this(syncId, playerInv, be, false); // m303 缺省=方块开屏（BE.createMenu 与客户端工厂都走这，零调用点改动）
+    }
+
+    public DataPanelScreenHandler(int syncId, PlayerInventory playerInv, DataPanelBlockEntity be, boolean remote) {
         super(ModScreenHandlers.DATA_PANEL, syncId);
+        this.remote = remote; // m303 AccessMode：开屏方式进构造链（m299 立档余账）
         this.panel = be;
         this.blockPos = (be != null) ? be.getPos() : null;
         this.player = playerInv.player;
@@ -483,15 +489,37 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
 
     @Override
     public boolean canUse(PlayerEntity player) {
-        // m299（审计 P2 生命周期）：手持终端支持跨维度远程开屏（TerminalItem K_DIM），
-        // 故**不做**距离/维度判定；判的是面板本体存活——被拆/被同坐标新 BE 顶替/区块卸载
+        // m299（审计 P2 生命周期）：判面板本体存活——被拆/被同坐标新 BE 顶替/区块卸载
         // 任一发生即关屏（stale BE 的账本 BFS 在卸载区块上本就取不到真数据，关屏是诚实行为）。
-        // 原版只在服务端 tick 里执行 canUse（客户端远程时 BE 本就可能不在），实例核对只走服务端。
+        // 原版只在服务端 tick 里执行 canUse（客户端远程时 BE 本就可能不在），后续核对只走服务端。
         if (panel == null || panel.isRemoved()) return false;
         var w = panel.getWorld();
         if (w == null) return false;
-        if (!w.isClient) return w.getBlockEntity(panel.getPos()) == panel;
+        if (!w.isClient) {
+            if (w.getBlockEntity(panel.getPos()) != panel) return false;
+            if (remote) {
+                // m303 AccessMode（m299 立档余账：\"绑定终端仍存在/有效\"）：远程屏=验钥匙——
+                // 玩家身上仍持有绑定本面板的终端才许继续开着（丢弃/被改绑/存进仓库即关屏）；
+                // 光标栈也算\"身上\"（界面内挪动终端不误关）。判定唯一出口 TerminalItem.isBoundTo。
+                if (!carriesBoundTerminal(player)) return false;
+            } else {
+                // m303：方块开屏恢复原版触达语义——m299 为照顾远程把距离判一刀切全撤了，
+                // 方块路径不该跟着免检（同维度 + canInteractWithBlockAt=1.20.5 触达重做统一口径，
+                // 4.0 附加距离与原版容器 Inventory.canPlayerUse 同参）。
+                if (player.getWorld() != w || !player.canInteractWithBlockAt(blockPos, 4.0)) return false;
+            }
+        }
         return true;
+    }
+
+    /** m303：玩家身上（背包全槽+光标栈）是否仍有绑定本面板的终端——远程屏\"钥匙还在\"核对，
+     *  每 tick 41 槽 instanceof 粗筛、仅终端件读组件，开销可忽略。 */
+    private boolean carriesBoundTerminal(PlayerEntity p) {
+        var w = panel.getWorld();
+        var inv = p.getInventory();
+        for (int i = 0; i < inv.size(); i++)
+            if (com.sdzjz.item.TerminalItem.isBoundTo(inv.getStack(i), blockPos, w)) return true;
+        return com.sdzjz.item.TerminalItem.isBoundTo(this.getCursorStack(), blockPos, w);
     }
 
     // m127b：双击收集(PICKUP_ALL)绝缘名单——原版该路径走 takeStack 直取，绕过 tryTakeStackRange 的整取防线：

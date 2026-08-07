@@ -4626,3 +4626,27 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ②压测：maxRecipesPerNetworkTick=100 + 多区块摆多个高速产线核心 → 全服总产出被压 ≈100 周期/t
   且 profile core 各核心 recipes 都>0（轮流出活，不再前面吃满后面恒 0）；③设 0=无限复旧；
   ④停服重进无残留态。
+
+## m303 AccessMode：开屏方式进构造链（m299 立档余账收官）
+
+- **现象/根因**：方块右键与手持终端远程两条开屏路都走同一个 openHandledScreen(panel)→
+  BE.createMenu，handler 无从分辨开屏方式：①审计提的"绑定终端仍存在/有效"没处判——远程屏
+  开着后终端被丢弃/改绑/存进仓库，屏照旧开着；②m299 为照顾远程把距离判**一刀切全撤**，
+  方块开屏的玩家能走出一千格还开着屏（原版容器语义丢失）。
+- **修法**：handler 加 `boolean remote` 进构造链——新四参构造为主体，旧三参委托 remote=false
+  （BE.createMenu 与客户端 ExtendedScreenHandlerType 工厂零调用点改动）；TerminalItem.use 改
+  自带匿名 ExtendedScreenHandlerFactory<BlockPos>（三签名与 DataPanelBlockEntity 在树实现
+  逐字同形，盲区#4 已防）传 remote=true，开屏数据仍发 BlockPos。canUse 服务端分模式：
+  **远程=验钥匙**——背包全槽+光标栈仍持有绑定本面板的终端才许开着（判定唯一出口
+  TerminalItem.isBoundTo，K_POS/K_DIM 键保持私有）；**方块=恢复原版触达**——同维度+
+  canInteractWithBlockAt(pos,4.0)（method_56093 yarn 核到，4.0 与原版 Inventory.canPlayerUse
+  同参）。m299 存活三判原样保留在两模式之前。
+- **边界立档**：①远程屏内把终端 shift 存进面板仓=钥匙离身即关屏（诚实行为，终端是组件件
+  走精确账本不丢）；②方块模式距离关屏是**原版语义回归**而非新限制——作者若不喜欢这一下，
+  一行可撤或后续加配置键；③零新配置键 configVersion 不动；④客户端 canUse 分支行为一字未变。
+- **验证**：冒烟真语法错 0，新自家符号（isBoundTo/carriesBoundTerminal/四参构造）定向检=
+  全部命中均为 MC 形参类型噪音、引用方零符号错；十道闸全绿；CI 真编译见推送后 run。
+- **实机脚本**：①右键面板开屏→走远 >8 格自动关屏（原版箱子同感）；②终端远程开屏→跨维度
+  照开、走多远都不关；③远程屏开着按 Q 丢掉终端→屏即关；④远程屏开着把终端 shift 存进
+  面板→屏即关、终端在精确账本可取回；⑤远程屏内把终端拿到光标上挪格→不误关；
+  ⑥拆面板/区块卸载两模式都即关（m299 原有行为不回归）。
