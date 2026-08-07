@@ -4620,6 +4620,8 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   100 拍颗粒无收、调度器下必得食）全过，已挂 CI；全库冒烟真语法错 0；新自家类定向检=
   CoreScheduler 引用方零报错，调用点唯一命中为 this.pos 继承字段噪音（在树三先例+yarn
   field_11867 双核实）；getTicks=method_3780、toImmutable/instanceof 模式变量均在树先例。
+- **CI 结果（run #39, 3d13873）**：三 job 全绿——CoreScheduler+SCBE 挂钩**首次真编译即通过**
+  （待编译验证清账），GameTest 六用例带新调度层照绿，第十闸算法尺 CI 上绿。
 - **实机脚本**：①默认配置产线读数与改前持平（1M 远高于实机负载，/sdzjz profile core 对表）；
   ②压测：maxRecipesPerNetworkTick=100 + 多区块摆多个高速产线核心 → 全服总产出被压 ≈100 周期/t
   且 profile core 各核心 recipes 都>0（轮流出活，不再前面吃满后面恒 0）；③设 0=无限复旧；
