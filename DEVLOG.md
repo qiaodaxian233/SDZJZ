@@ -5235,3 +5235,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①双人同开面板：A 摆料 B 应立见、各自结果格出货、A 连合成 B 结果格跟清；
   ②A 开着远程屏时 B 拆面板——A 屏应立关不炸；③远程屏开着把终端塞进箱子/丢地上——屏立关；
   界面内拖着终端挪格——不关。
+
+## m326b 共享网格幻影结果格热修（CI run#89 二十用例抓获——测试第一跑就回本）
+
+- **现象**：新用例 shared_craft_grid_two_players 红在"网格空了 B 的结果格必须跟着清"——
+  A 扣料后 B 的服务端 craftResult 滞留 4 木棍。其余 19 用例全绿。
+- **根因**：consumeCraft 扣料/回填走 st.decrement(1)/cur.increment(1) **原地改栈**，
+  SimpleInventory 只在 setStack/removeStack 触发 markDirty——共享网格的其他观者监听器不响，
+  只有动手者尾部 updateCraftResult() 刷了自己。**不止显示错**：B 的幻影结果格可点——
+  takeStack 先把幻影产物交到手，随后 consumeCraft 对空网格找不到配方=一格料不扣直接返回，
+  B 白得 4 木棍=窄复制窗（触发形：A 合走最后一批后、任何人再碰网格前，B 点结果格）。
+- **修法**：consumeCraft 尾部改 craft.markDirty()——监听器注册表里全体观者（含自己）各自
+  updateCraftResult，是旧"只刷自己"的超集；craftResult/trash 各自独立无网格监听器，零递归。
+  setStack 路径（余料/回填/jeiFill）本就 markDirty，语义不重不漏。
+- **教训**：**共享 Inventory 上禁用原地改栈**——decrement/increment 绕开变更通知，单观者
+  时代看不出（自己手动重算掩盖），多观者语义（m292/m300）落地后就是幻影+复制窗。同类排查：
+  handler 内对 craft 的原地改仅 consumeCraft 一处（grep decrement/increment 核过），display/
+  trash 单观者自持不受累。
+- **验证**：javac 冒烟真语法错 0；CI run 判官=二十用例全绿（尤其 shared_craft_grid 的
+  "跟清"断言）。版本按 m317 热修口径不抬数字段，留 0.1.326。

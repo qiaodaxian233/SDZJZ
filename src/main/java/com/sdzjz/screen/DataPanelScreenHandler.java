@@ -198,7 +198,11 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
                 }
             }
         }
-        updateCraftResult();
+        // m326b（CI 二十用例抓获的真 bug）：扣料走 st.decrement/increment **原地改栈不触发 markDirty**，
+        // 共享网格的其他观者监听器不响——B 的服务端结果格滞留幻影产物，且可点：takeStack 先到手、
+        // consumeCraft 对空网格无配方=不扣料，= 窄复制窗。收口：这里统一 markDirty 通知全体观者
+        // （自家监听器同在注册表里，等价于旧 updateCraftResult() 只刷自己的超集；craftResult 无监听器不递归）。
+        craft.markDirty();
     }
 
     /** m212 JEI"+"填料（服务端权威）：仓储优先取料、背包兜底；网格里不匹配的先退回背包（原版清格语义）。
