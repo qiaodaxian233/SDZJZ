@@ -5207,3 +5207,31 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：作者"拉取并构建"工具照常跑一遍——Loom 显示 1.7.4、BUILD SUCCESSFUL、
   jar 进测试实例即销账；另在装老版 fabric-api（<0.105.0）的实例装本 jar 应被 loader 拦下报
   依赖不满足（收窄生效的手感验证，可选）。
+
+## m326 端到端 GameTest 第二批（评审清单 #3/#4/#5——handler 生命周期与共享网格上真链路）
+
+- **三用例（十八~二十号）**：
+  1. `shared_craft_grid_two_players`（#3）：m300"公共工作台"语义判官——A 经自家 handler 槽
+     摆两板，B 实时可见（同一 CraftGridInventory）；两 handler 结果格各算各的同出 4 木棍；
+     A shift 连续合成在仓无板材时**恰产一轮**（m106b"补料断即停"停机条件），扣料后网格与
+     B 的结果格经监听器同步清空。
+  2. `stale_handler_after_panel_broken`（#4）：真绑定（useOnBlock 走 ItemUsageContext 原路）
+     后开远程屏，拆面板→canUse 立刻假（m299 存活三判，服务端关屏依据）；关屏落地前迟到的
+     视图包（setView→完整 repage，waitAndRun(3) 避开 ctor 节流名额）在 removed BE 上不许抛。
+  3. `remote_terminal_key_lifecycle`（#5）：m303 钥匙语义四拍——背包持钥=真、离身=假、
+     **光标栈也算身上**（界面内挪终端不误关，m303 明文首判官）、彻底丢弃=假。
+- **口径说明**：#4 用远程屏而非方块屏——方块屏 canUse 带触达判（mock 玩家落点不可控），
+  远程路免距离判专测存活三判与钥匙，正是被拆场景的真实开屏方式（终端玩家在天边）。
+  绑定不手搓 NBT（K_POS/K_DIM 私有键不外泄），走 useOnBlock 真路径顺带验 ActionResult。
+- **评审清单余账**：#6 区块票"保存→重启"GameTest 框架内无法重启服务器（PersistentState
+  往返可做但等价性弱），留实机脚本口径；#10 bigStacks 漏斗/箱子/死亡链归第五优先兼容矩阵
+  （需 timing 断言与真模组环境），挂待办。E2E 十条至此 8 条有判官（1/2 在 m323，3/4/5/7/8/9
+  本批与 m323，6/10 立档）。
+- **验证**：javac21 冒烟真语法错 0；自家符号（TerminalItem/isBoundTo/useOnBlock/RESULT/
+  setCursorStack/canUse/onClosed/TERMINAL）定向检零命中，残余 37 处 symbol 全为 MC 超类不可
+  解析的继承方法噪音（getSlot/getInventory 等，yarn 已核）；dup_method/override 绿。
+  Slot#setStack=method_53512/Vec3d.ofCenter=method_24953 yarn 核到，setCursorStack/
+  ItemUsageContext 在树先例。版本跳 0.1.326。
+- **实机脚本**：①双人同开面板：A 摆料 B 应立见、各自结果格出货、A 连合成 B 结果格跟清；
+  ②A 开着远程屏时 B 拆面板——A 屏应立关不炸；③远程屏开着把终端塞进箱子/丢地上——屏立关；
+  界面内拖着终端挪格——不关。

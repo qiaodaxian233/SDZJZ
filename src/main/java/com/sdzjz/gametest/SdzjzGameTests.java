@@ -426,4 +426,103 @@ public class SdzjzGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    // ===== m326 端到端第二批（评审清单 #3/#4/#5）=====
+
+    /** m326 评审清单#3：共享 3×3 CraftGrid（m300 公共工作台语义判官）——A 摆料 B 实时可见、
+     *  两 handler 结果格各算各的同出 4 木棍、A shift 取走后网格/双方结果格同步清空且只产一轮
+     *  （核心无板材=网络补料断即停，m106b 停机条件）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void shared_craft_grid_two_players(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0);
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
+        var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
+        int r = com.sdzjz.screen.DataPanelScreenHandler.RESULT;
+        h1.getSlot(0).setStack(new ItemStack(Items.OAK_PLANKS)); // 竖排两板=木棍配方
+        h1.getSlot(3).setStack(new ItemStack(Items.OAK_PLANKS));
+        ctx.assertTrue(h2.getSlot(0).getStack().isOf(Items.OAK_PLANKS), "共享网格：A 摆料 B 必须实时可见");
+        ctx.assertTrue(h1.getSlot(r).getStack().isOf(Items.STICK) && h1.getSlot(r).getStack().getCount() == 4,
+                "A 结果格应出 4 木棍");
+        ctx.assertTrue(h2.getSlot(r).getStack().isOf(Items.STICK) && h2.getSlot(r).getStack().getCount() == 4,
+                "B 结果格各算各的，同网格应同出 4 木棍");
+        h1.quickMove(p1, r); // 连续合成：仓里无板材→补料断→恰好一轮
+        ctx.assertTrue(p1.getInventory().count(Items.STICK) == 4,
+                "无补料应恰产一轮 4 木棍，实得 " + p1.getInventory().count(Items.STICK));
+        ctx.assertTrue(h1.getSlot(0).getStack().isEmpty() && h1.getSlot(3).getStack().isEmpty(), "扣料后网格应清空");
+        ctx.assertTrue(h2.getSlot(r).getStack().isEmpty(), "网格空了 B 的结果格必须跟着清（监听器同步）");
+        ctx.assertTrue(c.count("minecraft:oak_planks") == 0, "核心从头到尾没板材（对照锚）");
+        h1.onClosed(p1); h2.onClosed(p2);
+        ctx.complete();
+    }
+
+    /** m326 评审清单#4：面板被拆后旧 handler 继续发包——canUse 立刻假（m299 存活三判触发
+     *  服务端关屏），关屏落地前迟到的视图包走完整 repage 也不许抛。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void stale_handler_after_panel_broken(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0);
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        c.deposit(new ItemStack(Items.COBBLESTONE, 64));
+        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        ItemStack term = new ItemStack(com.sdzjz.registry.ModItems.TERMINAL);
+        p1.getInventory().setStack(0, term); // 主手（selectedSlot=0）
+        var hitPos = panel.getPos();
+        var uctx = new net.minecraft.item.ItemUsageContext(p1, net.minecraft.util.Hand.MAIN_HAND,
+                new net.minecraft.util.hit.BlockHitResult(
+                        net.minecraft.util.math.Vec3d.ofCenter(hitPos), net.minecraft.util.math.Direction.UP, hitPos, false));
+        ctx.assertTrue(((com.sdzjz.item.TerminalItem) com.sdzjz.registry.ModItems.TERMINAL)
+                        .useOnBlock(uctx) == net.minecraft.util.ActionResult.SUCCESS, "真绑定路径应 SUCCESS");
+        var h = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel, true); // 远程屏（免距离判，专测存活）
+        ctx.assertTrue(h.canUse(p1), "面板在、钥匙在：canUse 应为真");
+        ctx.waitAndRun(3, () -> { // 隔开 ctor 首刷的 ≥2t 节流名额，让迟到包走完整 repage 路
+            ctx.getWorld().setBlockState(hitPos, net.minecraft.block.Blocks.AIR.getDefaultState());
+            ctx.assertTrue(panel.isRemoved(), "拆除后 BE 应已 removed");
+            ctx.assertTrue(!h.canUse(p1), "面板被拆：canUse 必须立刻为假（m299 存活三判）");
+            h.setView("stone", 0, java.util.List.of()); // 迟到视图包：完整 repage 在 removed BE 上不许抛
+            h.onClosed(p1);
+            ctx.complete();
+        });
+    }
+
+    /** m326 评审清单#5：手持终端开远程屏后丢掉/换手——钥匙语义（m303）：背包在=可用、
+     *  离身=关屏、**光标栈也算身上**（界面内挪动终端不误关）、彻底丢弃=关屏。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void remote_terminal_key_lifecycle(TestContext ctx) {
+        core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0);
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        p1.getInventory().setStack(0, new ItemStack(com.sdzjz.registry.ModItems.TERMINAL));
+        var hitPos = panel.getPos();
+        var uctx = new net.minecraft.item.ItemUsageContext(p1, net.minecraft.util.Hand.MAIN_HAND,
+                new net.minecraft.util.hit.BlockHitResult(
+                        net.minecraft.util.math.Vec3d.ofCenter(hitPos), net.minecraft.util.math.Direction.UP, hitPos, false));
+        ((com.sdzjz.item.TerminalItem) com.sdzjz.registry.ModItems.TERMINAL).useOnBlock(uctx);
+        ctx.assertTrue(com.sdzjz.item.TerminalItem.isBoundTo(p1.getInventory().getStack(0), hitPos, ctx.getWorld()),
+                "绑定后 isBoundTo 应为真");
+        var h = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel, true);
+        ctx.assertTrue(h.canUse(p1), "持钥匙：canUse 应为真");
+        ItemStack key = p1.getInventory().getStack(0);
+        p1.getInventory().setStack(0, ItemStack.EMPTY);
+        ctx.assertTrue(!h.canUse(p1), "钥匙离身：canUse 必须为假");
+        h.setCursorStack(key);
+        ctx.assertTrue(h.canUse(p1), "光标栈也算身上：界面内挪动终端不许误关（m303 明文）");
+        h.setCursorStack(ItemStack.EMPTY);
+        ctx.assertTrue(!h.canUse(p1), "彻底丢弃：canUse 必须为假");
+        h.onClosed(p1);
+        ctx.complete();
+    }
 }
