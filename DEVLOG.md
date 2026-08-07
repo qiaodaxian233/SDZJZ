@@ -5254,3 +5254,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   trash 单观者自持不受累。
 - **验证**：javac 冒烟真语法错 0；CI run 判官=二十用例全绿（尤其 shared_craft_grid 的
   "跟清"断言）。版本按 m317 热修口径不抬数字段，留 0.1.326。
+
+## m327 事务作用域手账审计尺（m323 边界立档的销账——规矩配上 CI 闸）
+
+- **规矩重述（m323 立档）**：事务的增量 undo 只记**自己碰过的键**的前像；作用域内混入手账
+  改动后 abort，同键前像整个覆盖手账——玩家已到手的物品+被还原的账本=复制窗。异键能存活
+  （m278 性质，十六号用例判官），但同键/异键静态不可判，故一刀切：**事务作用域内禁调
+  withdraw/withdrawExact/deposit/depositExact**，要混部先 commit 再手账。
+- **人工审计结论**：生产代码全库仅一处 try-with-resources 事务作用域
+  （DataCableBlockEntity.insertInto，m231）——开→insert→commit 三行干净；StorageUtil.move
+  等库内事务不含我方手账调用。**当前零违规**，尺子的价值在防将来（新代码/新人/新 AI 会话）。
+- **尺子（docs/tools_tx_scope_audit.py，CI 第十一闸）**：try(...Transaction.openOuter/Nested...)
+  花括号配平取块体，剥注释后（m291b 教训）命中四手账口即红；`tx手账豁免` 行尾标记可豁免
+  （须注明理由）；gametest/ 按档排除（测试有权故意踩边界验语义，十六号用例即是）。
+  **三重自证**：内置坏样本恰中 1/好样本零报；真文件投毒（往 m231 事务块注入 withdraw）
+  必红；复原全绿——m109 坏尺子/m137 审断言两课的标准动作。
+- **验证**：尺子本地绿（121 生产文件零命中）；纯 python+yml 零 Java 改动无冒烟需求；
+  version 闸绿。版本跳 0.1.327。
+- **实机脚本**：无行为变化无需实机；CI run 三 job 全绿即销账（第十一闸首跑）。
