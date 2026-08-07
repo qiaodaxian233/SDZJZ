@@ -220,6 +220,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         int hit = exactIndexOf(stack); // m295 索引直查（等价旧 areItemsAndComponentsEqual 扫描）
         if (hit >= 0) {
             exactN.set(hit, satAdd(exactN.get(hit), stack.getCount())); // m273 饱和加法
+            exactRev++; // m322
             stack.setCount(0);
             markDirty();
             return;
@@ -228,6 +229,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         exactTpl.add(stack.copyWithCount(1));
         exactN.add((long) stack.getCount());
         exactIdxAppended(); // m295
+        exactRev++; // m322
         stack.setCount(0);
         markDirty();
     }
@@ -242,7 +244,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             long left = have - take;
             if (left <= 0) { ItemStack t = exactTpl.get(i); exactTpl.remove(i); exactN.remove(i); exactIdxRemoved(i, t); }
             else exactN.set(i, left);
-            if (take > 0) markDirty();
+            if (take > 0) { exactRev++; markDirty(); } // m322
             return take;
         }
         return 0;
@@ -269,6 +271,12 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     // "无变更不重建"缓存——只增不减，跨核心求和作指纹（和相等⇔各核心都没动过，因为单调）。
     private long storeRev;
     public long storeRev() { return storeRev; }
+
+    // m322 精确账本修订号：storeRev 只罩普通账本（m218 面板 storeView 缓存只消费普通支路，当年够用），
+    // 但数据面板主快照（masterEntries）同时聚合精确条目——组件件变动若无修订号，快照缓存会陈旧。
+    // 口径同 storeRev：单调只增、跨核心求和作指纹；回滚/读档宁可多记（多失效=白重建一次，无害）。
+    private long exactRev;
+    public long exactRev() { return exactRev; }
 
     // ===== m161c 跨模组直连：Fabric Transfer API =====
     // 管道/机器怼在存储核心方块任意面即可存取（Create/Modern Industrialization/Tech Reborn/AE2
@@ -306,6 +314,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             for (int i = undoJournal.size() - 1; i >= pos; i--) undoJournal.get(i).run();
             undoJournal.subList(pos, undoJournal.size()).clear();
             storeRev++; // m218（回滚也是变更；口径同旧版=每次回滚记一次）
+            exactRev++; // m322：undo 可能碰过精确账本——宁可多记，白重建一次无害
         }
 
         @Override protected void onFinalCommit() { undoJournal.clear(); markDirty(); }
@@ -335,6 +344,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 final int idx = hit; // m278 前像
                 undoJournal.add(() -> exactN.set(idx, cur));
                 exactN.set(hit, cur + accept);
+                exactRev++; // m322
                 return accept;
             }
             if (usedTypes() >= typeGate()) return 0; // m293
@@ -344,6 +354,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             exactTpl.add(one); // toStack(1) 即模板规格（count=1，组件原样）
             exactN.add(maxAmount);
             exactIdxAppended(); // m295
+            exactRev++; // m322
             return maxAmount;
         }
 
@@ -377,6 +388,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                     undoJournal.add(() -> exactN.set(idx, have));
                     exactN.set(i, have - take);
                 }
+                exactRev++; // m322
                 return take;
             }
             return 0;
@@ -481,6 +493,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         }
         if (dropped > 0) com.sdzjz.Sdzjz.LOGGER.warn("存储核心 {} 账本读入丢弃 {} 条非法条目（空id或非正计数）", pos, dropped);
         storeRev++; // m218（NBT 读回=整本换血，记一次）
+        exactRev++; // m322：下方精确账本同被整本换血
         exactIdx = null; // m295 读档置脏（懒重建）
         exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
         exactN.clear();

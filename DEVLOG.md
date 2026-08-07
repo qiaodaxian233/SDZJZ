@@ -5089,3 +5089,39 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①空载进服 `/sdzjz profile phase`——应见四段账与"细分：空"提示；
   ②`/sdzjz bench start` 跑默认档，报告应有 Top Hotspots 段、六项细分有数、bench 后
   PHASES 自动复原；③手动 phase on→满载 1 分钟→phase 看细分占比→off。
+
+## m322 终端主快照缓存 + StorageCore 精确账本修订号（作者重贴评审到档，按其第三优先动刀）
+
+- **归因补正（m321 空档尾账销）**：作者本轮重贴的评审文档到档——第一优先=Profiler 阶段计时，
+  规格（四大阶段+细分+bench Top Hotspots）与 m321 已落地实现逐条对上，m321"待重贴"留痕就此
+  收口。第二优先 Logic Demand Cache 评审**自行门控在 bench 实测数据之后**（"先根据 profiler
+  验证"），故本笔跳做第三优先；bench 三档矩阵（logic/storage/viewer-heavy）等作者实机跑。
+- **现象（评审点名）**：m292 视图迁 handler 后，每个观众各自 repage（≤10t/人）都调
+  masterEntries()=完整聚合+精确合并+建表+排序。同一 8192 类型网络 5 人同看，**一样的
+  master 快照建 5 次**——多人终端的重复成本是评审静态判断的第二热点。
+- **根因（缓存为什么此前做不了）**：storeRev（m218）只罩普通账本——精确账本
+  （exactTpl/exactN）全部变更点零修订号，快照缓存无从判断组件件动没动。
+- **修法两件**：
+  1. **StorageCore 补 exactRev**（口径同 storeRev：单调只增、跨核心求和作指纹）：8 触点=
+     depositExact 并账/新条、withdrawExact（take>0 才记）、FTA insert 命中/新条、FTA extract
+     （删+减一处收口）、事务回滚（undo 可能碰过精确账本，宁可多记）、readNbt 整本换血。
+  2. **DataPanel 主快照缓存**：masterEntries 加 (normalRevSum, exactRevSum, coreN) 三元指纹
+     （m218 viewCache 同工艺），命中直接返回同一 List 引用；排序（m83 比较器逐行搬 BE 成
+     MASTER_ORDER）上移到快照构建期，handler 的 repage 撤本地排序只剩过滤/分页——
+     **稳定排序（TimSort）+过滤是子序列筛选 ⇒ 先筛后排与先排后筛逐元素同序**，语义零变化。
+     配套：aggregate() 拆出 refreshMeta()（O(核心数) 纯读），命中也刷——**xpBank 变动不进
+     修订号**，属性通道每 tick 读经验/类型三缓存，不拆则命中期间经验读数冻住；末观众离席
+     释放快照内存。量级=每观众每 repage 全建 → 账本每动一次全网共建 1 次。
+- **护栏**：配置 panelMasterSnapshotCache 默认 true，false=每调全量重建旧行为（v35 纯加键）；
+  快照全 handler 共享，调用方只读约定（不改 DispEnt.n/不增删/不跨 tick 持有）注释立牌。
+- **验证**：javac21 全库 122 文件冒烟真语法错 0；新符号七项（exactRev/refreshMeta/
+  MASTER_ORDER/masterCache/panelMasterSnapshotCache/…）定向检零命中（盲区#5 口径）；
+  dup_method/override/docs_sync/bounded_codec/取色巡检五尺全绿；**GameTest 十二号用例**
+  panel_master_snapshot_tracks_exact_ledger=命中同引用+只动精确账本必失效（exactRev 存在
+  理由的直接判官）+只动普通账本回归+预排序两帧断言，CI 真 TestServer 裁决。版本跳 0.1.322。
+- **教训**：给账本加缓存前先把"修订号罩不罩得全"数清楚——storeRev 名字像全账本，实际只罩
+  普通支路；m218 当年够用是因为 viewCache 只消费 storeView()，语义边界要在扩大消费面时重审。
+- **实机脚本**：①两名玩家同开一面板搜不同词——显示互不干扰（m292 语义不回退）且服务端
+  只在账本变动时重建快照；②往仓里塞带附魔/组件的精确件——两名观众的列表都即时刷新
+  （exactRev 生效）；③经验泵持续入账、终端不动库存——经验读数照常走动（refreshMeta 保活）；
+  ④配置 panelMasterSnapshotCache=false 重启——终端行为与 m321 版逐帧一致（回退闸有效）。

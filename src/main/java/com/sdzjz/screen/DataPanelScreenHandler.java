@@ -683,17 +683,8 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
         String q = searchFilter.toLowerCase();
         for (DataPanelBlockEntity.DispEnt d : all)
             if (q.isEmpty() || d.id.toLowerCase().contains(q) || matchedIds.contains(d.id)) filtered.add(d);
-        filtered.sort((x, y) -> { // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
-            int c = Long.compare(y.n, x.n);
-            if (c != 0) return c;
-            c = x.id.compareTo(y.id);
-            if (c != 0) return c;
-            c = Boolean.compare(x.tpl != null, y.tpl != null); // 同量同 id：普通在前
-            if (c != 0) return c;
-            String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
-            String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentChanges());
-            return ca.compareTo(cb);
-        });
+        // m322：本地排序撤销——masterEntries 快照已按 MASTER_ORDER（m83 口径原封搬 BE）排好，
+        // 稳定排序+子序列筛选 ⇒ 先筛后排与先排后筛逐元素同序；多观众只付一次排序。快照只读，不许改 d.n。
         filteredCount = filtered.size();
         int rows = (filteredCount + 8) / 9;
         int maxRow = Math.max(0, rows - 6);

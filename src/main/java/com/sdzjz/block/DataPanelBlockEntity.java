@@ -46,7 +46,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     // m107a：打开界面的玩家计数。handler 服务端构造 +1（并立即刷一次，打开不空白），onClosed -1。
     private int viewers = 0;
     public void addViewer() { viewers++; coresCacheTime = -1000; } // m108c 开界面强刷网络缓存；m292 首刷由 handler 构造时自 repage
-    public void removeViewer() { if (viewers > 0) viewers--; }
+    public void removeViewer() { if (viewers > 0) viewers--; if (viewers == 0) masterCache = null; } // m322 末观众离席释放快照内存
 
     // m108c：cores() 此前每次调用全新 BFS——机器供料/落库/熔炉扫描/经验/计数全走它，
     // 高产线（用户实测 104.8M/分）下一 tick 能打出几十趟 BFS。改 40t 缓存（与画布端点扫描同节奏）；
@@ -69,22 +69,31 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     /** m290 升 public：m289 库存摘要蹭这条缓存链路（cores() 40t 缓存），别再裸 BFS——
      *  m108c 治过的病不许复发。副作用=顺手刷新 typesUsed/typesCap/xp 三缓存为真值，多调无害。 */
     public LinkedHashMap<String, Long> aggregate() {
+        List<StorageCoreBlockEntity> cs = cores();
+        refreshMeta(cs); // m322 拆出（口径逐行同旧版；副作用语义不变，多调无害）
         LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
+        for (StorageCoreBlockEntity core : cs)
+            for (Map.Entry<String, Long> e : core.storeView().entrySet())
+                agg.merge(e.getKey(), e.getValue(), Long::sum);
+        return agg;
+    }
+
+    /** m322 从 aggregate() 拆出：类型用量/上限/经验三缓存刷新（O(核心数) 纯读 getter）。
+     *  单列的原因=主快照缓存命中时不再跑 aggregate()，但 xpBank 变动**不进账本修订号**——
+     *  属性通道每 tick 读这三缓存，必须与快照缓存脱钩保活，否则命中期间经验读数冻住。 */
+    private void refreshMeta(List<StorageCoreBlockEntity> cs) {
         int used = 0, coreCount = 0; long cap = 0; boolean unlimited = false; // m97/m98
         long xp = 0; // m107a：经验总量顺手统计（复用同一次 BFS）
-        for (StorageCoreBlockEntity core : cores()) {
+        for (StorageCoreBlockEntity core : cs) {
             coreCount++;
             used += core.usedTypes(); // m130：精确条目同占类型额度
             xp += core.xpBank();
             int mt = core.maxTypes();
             if (mt == Integer.MAX_VALUE) unlimited = true; else cap += mt; // 防 MAX_VALUE 求和溢出
-            for (Map.Entry<String, Long> e : core.storeView().entrySet())
-                agg.merge(e.getKey(), e.getValue(), Long::sum);
         }
         typesUsedCache = Math.min(used, 65534);
         typesCapCache = coreCount == 0 ? 0 : (unlimited ? 0xFFFF : (int) Math.min(cap, 65534L));
         xpCache = xp;
-        return agg;
     }
 
     /** m97/m98：全网类型用量缓存（属性走 16 位通道，故哨兵：cap 0=无存储核心，0xFFFF=无限，其余=上限和）。 */
@@ -202,15 +211,34 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     /** m292：全量条目快照（普通聚合 + 精确条目合并），**不含**过滤/排序/分页——那些是每玩家
      *  handler 自己的事（外部审计 P1：共享视图状态=多人搜索互相覆盖）。
      *  m112 保险丝原样保留：客户端 BE 账本恒空，禁跑聚合。 */
+    // m322 主快照缓存：同一面板多观众各自 repage（≤10t/人）时，此前 masterEntries 每人各建
+    // 一遍完整聚合+排序——同一网络 5 人同看 8192 类型=同样的快照建 5 次（评审第三优先点名）。
+    // 指纹=普通修订号和+精确修订号和+核心数（m218 viewCache 同工艺：rev 单调只增，和相等⇔全没动；
+    // 精确账本此前零修订号，正是本笔给 StorageCore 补 exactRev 的原因）。缓存值全 handler 共享，
+    // **调用方只读**：不许改 DispEnt.n、不许增删元素、不持有跨 tick。
+    private java.util.List<DispEnt> masterCache;
+    private long masterNormalRev = -1, masterExactRev = -1;
+    private int masterCoreN = -1;
+
     public java.util.List<DispEnt> masterEntries() {
         if (this.world == null || this.world.isClient) return java.util.List.of();
+        List<StorageCoreBlockEntity> cs = cores();
+        boolean useCache = com.sdzjz.config.SdzjzConfig.get().panelMasterSnapshotCache;
+        long nr = 0, er = 0;
+        if (useCache) {
+            for (StorageCoreBlockEntity core : cs) { nr += core.storeRev(); er += core.exactRev(); }
+            if (masterCache != null && nr == masterNormalRev && er == masterExactRev && cs.size() == masterCoreN) {
+                refreshMeta(cs); // 命中也刷元数据：xpBank 变动不进修订号（见 refreshMeta 注释）
+                return masterCache;
+            }
+        }
         java.util.List<DispEnt> all = new java.util.ArrayList<>();
         LinkedHashMap<String, Long> agg = aggregate();
         for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
         // m130：精确条目跨核心按「物品+组件」合并（m267 ItemVariant 哈希键 O(n)，在树先例 DataCableBlockEntity）
         java.util.LinkedHashMap<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant, DispEnt> exactMap =
                 new java.util.LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cores()) {
+        for (StorageCoreBlockEntity core : cs) {
             java.util.List<ItemStack> tpls = core.exactTemplates();
             for (int k = 0; k < tpls.size(); k++) {
                 ItemStack t = tpls.get(k); long n = core.exactCount(k);
@@ -221,8 +249,25 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             }
         }
         all.addAll(exactMap.values());
+        // m322 排序上移 BE：一次快照一次排序，handler 只过滤/分页。与旧"先筛后排"逐元素同序——
+        // List.sort 稳定（TimSort）+ 过滤是子序列筛选，序关系保持；useCache=false 也走此处（口径唯一）。
+        all.sort(MASTER_ORDER);
+        if (useCache) { masterCache = all; masterNormalRev = nr; masterExactRev = er; masterCoreN = cs.size(); }
         return all;
     }
+
+    /** m322：m83 存量降序比较器（原 DataPanelScreenHandler.repage 内联体逐行搬来，口径零改）。 */
+    public static final java.util.Comparator<DispEnt> MASTER_ORDER = (x, y) -> {
+        int c = Long.compare(y.n, x.n); // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
+        if (c != 0) return c;
+        c = x.id.compareTo(y.id);
+        if (c != 0) return c;
+        c = Boolean.compare(x.tpl != null, y.tpl != null); // 同量同 id：普通在前
+        if (c != 0) return c;
+        String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
+        String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentChanges());
+        return ca.compareTo(cb);
+    };
 
     @Override
     protected void writeNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup lookup) {

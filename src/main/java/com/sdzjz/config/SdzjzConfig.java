@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 34; // m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 35; // m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
@@ -113,6 +113,7 @@ public class SdzjzConfig {
     // m218 多核心性能（多个结构核心叠加时的服务端tick优化，两键独立可关便于线上二分定位）：
     public boolean coreTickStagger = true; // 错峰：ends包/区块票/拉料拍/端点扫描按核心pos哈希移相（逐核频率不变，只是不再挤同一tick）；false=旧同拍
     public boolean panelViewCache = true;  // 数据面板聚合视图revision缓存（账本没动不重建、同tick复用快照）；false=每调全量重建旧行为
+    public boolean panelMasterSnapshotCache = true; // m322 终端主快照缓存：多观众共用一次全仓聚合+排序（指纹=普通+精确修订号和+核心数）；false=每 handler 每次全量重建旧行为
     // m219 底带再瘦身（作者圈图点名：状态/提示两坨字收进顶栏按钮，底带只剩按钮排）：
     public boolean canvasStatusOpen = false;   // 状态区展开：true=底带显示两行运行统计（顶栏"状态"钮即点即存切换）；false=收起只剩按钮排
 
@@ -199,6 +200,7 @@ public class SdzjzConfig {
         if (cfg.configVersion < 32) cfg.configVersion = 32; // m310 纯加键（bigStacks/bigStackMax 原生大堆叠），缺键走字段初值
         if (cfg.configVersion < 33) cfg.configVersion = 33; // m311 纯加键（portableVaultMagnetRadius/portableVaultTypeCap 随身仓库），缺键走字段初值
         if (cfg.configVersion < 34) cfg.configVersion = 34; // m320 纯加键（sodiumIconAnimFix），缺键走字段初值
+        if (cfg.configVersion < 35) cfg.configVersion = 35; // m322 纯加键（panelMasterSnapshotCache 终端主快照缓存），缺键走字段初值
         cfg.bigStackMax = Math.max(64, Math.min(1_073_741_823, cfg.bigStackMax)); // m310 钳位：上界 2^30 防原版合并 a+b 溢出吃物品
 
         INSTANCE = cfg;

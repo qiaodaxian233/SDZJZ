@@ -247,4 +247,36 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultTypes(vault) == 0, "倾倒后包未清空");
         ctx.complete();
     }
+
+    /** m322 终端主快照缓存：账本没动=命中同一引用；**只动精确账本也必须失效**（本笔给
+     *  StorageCore 补 exactRev 的存在理由——storeRev 只罩普通账本，罩不住组件件变动）；
+     *  快照按 MASTER_ORDER 预排序（存量降序），handler 免排的前提在此验真。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void panel_master_snapshot_tracks_exact_ledger(TestContext ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos prel = new BlockPos(1, 1, 0); // 与核心贴邻，connectedCores BFS 直连
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
+            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+        }
+        c.deposit(new ItemStack(Items.COBBLESTONE, 64));
+        c.depositExact(exactSample(1, 5));
+        var a1 = panel.masterEntries();
+        ctx.assertTrue(a1.size() == 2, "首帧快照应 2 条（普通+精确），实得 " + a1.size());
+        ctx.assertTrue(a1.get(0).tpl == null && a1.get(0).n == 64, "预排序：64 普通件应排第一（存量降序）");
+        var a2 = panel.masterEntries();
+        ctx.assertTrue(a2 == a1, "账本未动应命中缓存（同一引用），实为重建");
+        c.depositExact(exactSample(1, 3)); // 只动精确账本
+        var a3 = panel.masterEntries();
+        ctx.assertTrue(a3 != a1, "精确账本变动必须打掉缓存（exactRev 未挂钩即在此现形）");
+        long ex = 0; for (var d : a3) if (d.tpl != null) ex = d.n;
+        ctx.assertTrue(ex == 8, "精确条目应并账 5+3=8，实得 " + ex);
+        int got = c.withdraw("minecraft:cobblestone", 60); // 只动普通账本（storeRev 支路回归）
+        ctx.assertTrue(got == 60, "普通取出应得 60，实得 " + got);
+        var a4 = panel.masterEntries();
+        ctx.assertTrue(a4 != a3, "普通账本变动必须打掉缓存");
+        ctx.assertTrue(a4.get(0).tpl != null && a4.get(0).n == 8, "重排序：精确件 8 > 普通件 4 应升第一");
+        ctx.assertTrue(a4.get(1).tpl == null && a4.get(1).n == 4, "普通件余量应为 4，实得 " + a4.get(1).n);
+        ctx.complete();
+    }
 }
