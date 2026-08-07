@@ -43,7 +43,16 @@ for f in sorted(os.listdir(mdir)):
         fails.append(f'非 PNG: {png}'); continue
     w, h = struct.unpack('>II', head[16:24])
     if w != h or w % 16 != 0:
-        fails.append(f'贴图尺寸异常 {w}x{h}: {png}')
+        # m314 口径：竖条帧动画=高为宽的整数倍(≥2帧)且旁挂 .png.mcmeta（json 可解析）才放行
+        anim_ok = (w % 16 == 0 and h % w == 0 and h // w >= 2
+                   and os.path.exists(png + '.mcmeta'))
+        if anim_ok:
+            try:
+                json.load(open(png + '.mcmeta', encoding='utf-8'))
+            except Exception:
+                anim_ok = False
+        if not anim_ok:
+            fails.append(f'贴图尺寸异常 {w}x{h}: {png}')
     n_tex += 1
 print(f'③⑥ 模型贴图配对+尺寸 ×{n_tex}' + ('' if not fails else ' …'))
 
