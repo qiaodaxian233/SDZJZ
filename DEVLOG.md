@@ -4581,3 +4581,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 换轨迁移补 WARN（维度+区块坐标+"请重跑 /forceload"），服主可循日志恢复叠旗。
 - 陈注释两处对齐：WRITE_BUDGET"残留可忽略"→m294 已清；storageTypesPerTier/m98 两处补
   "另受 8192 技术硬顶"引路 typeGate()。
+
+## m301 GameTest 挂 CI 第九道闸（解锁调度公平性前置）
+
+- **现象**：m297 六用例只被 CI 的 build job **编译**过，从未真正**运行**——沙箱够不着
+  Fabric maven 跑不了 `runGametest`，作者实机也还没跑；而 HANDOVER 待办明确"动 SCBE 最热
+  生产路径前必须先跑通 GameTests"，闸没落地。
+- **修法**：ci.yml 新增独立 `gametest` job（与 build 并行）：JDK21 + setup-gradle +
+  `./gradlew runGametest`（Fabric API 起 vanilla TestServer 专用测试服务器，免 EULA，
+  跑完即退）；`build/junit.xml` 报告 **if: always() 无论红绿都上传** artifact
+  （名 gametest-junit），红了按用例名回查 DEVLOG m297 定位；job 级 timeout 40 分钟防挂死。
+  纯 CI 改动，零游戏代码、零配置键。
+- **验证**：YAML 过 yaml.safe_load + 三 job 名/步骤/always 上传逐项断言；首跑结果轮询
+  api.github.com actions/runs 回填于下。
+- **首跑结果**：（待回填）

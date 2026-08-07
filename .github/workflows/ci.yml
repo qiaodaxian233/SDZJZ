@@ -30,6 +30,32 @@ jobs:
       - name: Override错挂检查(m288 回归尺,冒烟盲区#4=超类不可解析时javac跳过@Override校验)
         run: python3 docs/tools_override_check.py
 
+  gametest:
+    # m301：第九道闸——真跑 m297 六用例（临时专用服务器，vanilla TestServer 免 EULA）。
+    # 报告 build/junit.xml 无论红绿都上传，红了按用例名回查 DEVLOG m297 修。
+    name: GameTest 六用例
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 跑 GameTest
+        run: |
+          chmod +x gradlew
+          ./gradlew runGametest --stacktrace --no-daemon
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gametest-junit
+          path: build/junit.xml
+          retention-days: 30
+          if-no-files-found: ignore
+
   build:
     name: Gradle 编译出包
     runs-on: ubuntu-latest
