@@ -4807,7 +4807,7 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **配置**：bigStacks=true / bigStackMax=2^30（load 钳 [64,2^30]），v32 纯加键。
 - **验证**：冒烟真语法错 0（mixin 报错全为 spongepowered/MC 包噪音）；十道闸全绿；
   GameTest 九号用例=①cobble getMaxCount≥100 万+镐子纹丝不动 ②百万计数 ItemStack.CODEC
-  编解码往返（mixin① 没咬中此断言必红=真裁判）；CI 见推送 run。
+  编解码往返（mixin① 没咬中此断言必红=真裁判）。**CI 三轮闭环**：run #55 红=裁判咬中（[1;99]:1000000 实锤 Redirect 咬空）→m310b 失败报告回推通道（junit+日志尾推 ci-gametest-report 分支走 raw 域，破 artifact blob 域盲区）→定位=CODEC 是 lazyInitialized(lambda)，rangedInt 在 lambda 合成方法非 <clinit>（与弃案组件 mixin 同陷阱）→m310c Redirect 改 method="*" 通配→**run #57 三 job 全绿，九用例全过**。
 - **边界立档**：①关 bigStacks 前先把 >99 的栈拆小——关后 VALIDATED_CODEC 按原版口径校验，
   超栈存档可能被判非法重置；②与 ItemStackProMax 同装=同靶点双补丁，装本版请卸 ISPM；
   ③网络包计数为 VarInt 无 99 钳（int 安全），若实机发现同步钳位再补包码 mixin。
