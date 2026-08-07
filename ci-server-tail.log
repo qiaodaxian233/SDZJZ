@@ -1,0 +1,167 @@
+[23:13:55] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 1.21.1 with Fabric Loader 0.16.5
+[23:13:55] [main/INFO] (FabricLoader) Loading 43 mods:
+	- fabric-api 0.105.0+1.21.1
+	- fabric-api-base 0.4.42+6573ed8c19
+	- fabric-api-lookup-api-v1 1.6.68+b559734419
+	- fabric-biome-api-v1 13.0.29+5bd9f1bc19
+	- fabric-block-api-v1 1.0.22+0af3f5a719
+	- fabric-block-view-api-v2 1.0.10+6573ed8c19
+	- fabric-command-api-v1 1.2.49+f71b366f19
+	- fabric-command-api-v2 2.2.28+6ced4dd919
+	- fabric-commands-v0 0.2.66+df3654b319
+	- fabric-content-registries-v0 8.0.16+b559734419
+	- fabric-convention-tags-v1 2.0.23+7f945d5b19
+	- fabric-convention-tags-v2 2.8.0+9d22c5fd19
+	- fabric-crash-report-info-v1 0.2.29+0af3f5a719
+	- fabric-data-attachment-api-v1 1.1.28+1daea21519
+	- fabric-data-generation-api-v1 20.2.20+16c4ae2519
+	- fabric-dimensions-v1 4.0.0+6fc22b9919
+	- fabric-entity-events-v1 1.7.0+2122d82819
+	- fabric-events-interaction-v0 0.7.13+ba9dae0619
+	- fabric-game-rule-api-v1 1.0.53+6ced4dd919
+	- fabric-gametest-api-v1 2.0.4+6fc22b9919
+	- fabric-item-api-v1 11.1.0+d5debaed19
+	- fabric-item-group-api-v1 4.1.5+3fc0e55219
+	- fabric-lifecycle-events-v1 2.3.12+6c1df36019
+	- fabric-loot-api-v2 3.0.14+3f89f5a519
+	- fabric-loot-api-v3 1.0.2+3f89f5a519
+	- fabric-message-api-v1 6.0.13+6573ed8c19
+	- fabric-networking-api-v1 4.3.0+c7469b2119
+	- fabric-object-builder-api-v1 15.2.0+40875a9319
+	- fabric-particles-v1 4.0.2+6573ed8c19
+	- fabric-recipe-api-v1 5.0.13+6508971219
+	- fabric-registry-sync-v0 5.1.3+60c3209b19
+	- fabric-rendering-data-attachment-v1 0.3.48+73761d2e19
+	- fabric-rendering-fluids-v1 3.1.6+1daea21519
+	- fabric-resource-conditions-api-v1 4.3.0+8dc279b119
+	- fabric-resource-loader-v0 1.3.0+5659912919
+	- fabric-screen-handler-api-v1 1.3.87+b559734419
+	- fabric-transfer-api-v1 5.3.0+d831205f19
+	- fabric-transitive-access-wideners-v1 6.1.0+1daea21519
+	- fabricloader 0.16.5
+	- java 21
+	- minecraft 1.21.1
+	- mixinextras 0.4.1
+	- sdzjz 0.1.326
+[23:13:55] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/home/runner/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.15.3+mixin.0.8.7/51ee0a44ab05f6fddd66b09e66b3a16904f9c55d/sponge-mixin-0.15.3+mixin.0.8.7.jar Service=Knot/Fabric Env=SERVER
+[23:13:55] [main/INFO] (FabricLoader/Mixin) Loaded Fabric development mappings for mixin remapper!
+[23:13:55] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_17
+[23:13:55] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_21
+[23:13:56] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.4.1).
+[23:14:04] [main/INFO] (sdzjz) [生电终结者] 已加载：结构核心画布 + 机器 + 升级 + 连接系统。
+[23:14:04] [main/ERROR] (Minecraft) Failed to load properties from file: server.properties
+java.nio.file.NoSuchFileException: server.properties
+	at java.base/sun.nio.fs.UnixException.translateToIOException(UnixException.java:92) ~[?:?]
+	at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:106) ~[?:?]
+	at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:111) ~[?:?]
+	at java.base/sun.nio.fs.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:261) ~[?:?]
+	at java.base/java.nio.file.Files.newByteChannel(Files.java:380) ~[?:?]
+	at java.base/java.nio.file.Files.newByteChannel(Files.java:432) ~[?:?]
+	at java.base/java.nio.file.spi.FileSystemProvider.newInputStream(FileSystemProvider.java:420) ~[?:?]
+	at java.base/java.nio.file.Files.newInputStream(Files.java:160) ~[?:?]
+	at net.minecraft.server.dedicated.AbstractPropertiesHandler.loadProperties(AbstractPropertiesHandler.java:62) [minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.dedicated.ServerPropertiesHandler.load(ServerPropertiesHandler.java:141) [minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.dedicated.ServerPropertiesLoader.<init>(ServerPropertiesLoader.java:12) [minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.Main.main(Main.java:114) [minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider.launch(MinecraftGameProvider.java:480) [fabric-loader-0.16.5.jar:?]
+	at net.fabricmc.loader.impl.launch.knot.Knot.launch(Knot.java:74) [fabric-loader-0.16.5.jar:?]
+	at net.fabricmc.loader.impl.launch.knot.KnotServer.main(KnotServer.java:23) [fabric-loader-0.16.5.jar:?]
+	at net.fabricmc.devlaunchinjector.Main.main(Main.java:86) [dev-launch-injector-0.2.1+build.8.jar:?]
+[23:14:04] [main/WARN] (Minecraft) Failed to load eula.txt
+[23:14:04] [main/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[23:14:04] [main/INFO] (FabricGameTestHelper) Starting test server
+[23:14:06] [main/INFO] (Minecraft) Loaded 1315 recipes
+[23:14:06] [main/INFO] (Minecraft) Loaded 1400 advancements
+[23:14:06] [main/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 64 new biomes in 1.312 ms
+[23:14:07] [Server thread/INFO] (Minecraft) Preparing start region for dimension minecraft:overworld
+[23:14:07] [Worker-Main-3/INFO] (Minecraft) Preparing spawn area: 2%
+[23:14:07] [Server thread/INFO] (Minecraft) Time elapsed: 343 ms
+[23:14:07] [Server thread/INFO] (Minecraft) Started game test server
+[23:14:07] [Server thread/INFO] (Minecraft) 19 tests are now running at position 6768003, -59, -10105440!
+[23:14:08] [Server thread/INFO] (Minecraft) Running test batch 'sdzjzSchedB:0' (1 tests)...
+[23:14:08] [Server thread/INFO] (Minecraft) [                   ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:08] [Server thread/INFO] (Minecraft) [_                  ]
+[23:14:09] [Server thread/INFO] (Minecraft) Running test batch 'defaultBatch:0' (17 tests)...
+[23:14:09] [Server thread/INFO] (Minecraft) [+                  ]
+[23:14:09] [Server thread/INFO] (Minecraft) [++_+++             ]
+[23:14:09] [Server thread/INFO] (Minecraft) [+++++++  +         ]
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 1 at (8.5, -60.0, -7.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 2 at (3.5, -60.0, 8.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 3 at (9.5, -60.0, 9.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/ERROR] (FabricGameTestHelper) Exception occurred when invoking test method shared_craft_grid_two_players in (com.sdzjz.gametest.SdzjzGameTests)
+java.lang.reflect.InvocationTargetException: null
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[?:?]
+	at net.fabricmc.fabric.impl.gametest.FabricGameTestHelper.invokeTestMethod(FabricGameTestHelper.java:115) ~[fabric-gametest-api-v1-2.0.4+6fc22b9919.jar:?]
+	at net.fabricmc.fabric.api.gametest.v1.FabricGameTest.invokeTestMethod(FabricGameTest.java:44) ~[fabric-gametest-api-v1-2.0.4+6fc22b9919.jar:?]
+	at net.fabricmc.fabric.impl.gametest.FabricGameTestHelper.lambda$getTestMethodInvoker$1(FabricGameTestHelper.java:106) ~[fabric-gametest-api-v1-2.0.4+6fc22b9919.jar:?]
+	at net.minecraft.test.TestFunction.start(TestFunction.java:22) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.test.GameTestState.start(GameTestState.java:182) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.test.GameTestState.tickTests(GameTestState.java:146) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.test.GameTestState.tick(GameTestState.java:129) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.test.TestManager.method_56242(TestManager.java:42) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at java.base/java.util.concurrent.CopyOnWriteArrayList.forEach(CopyOnWriteArrayList.java:891) ~[?:?]
+	at net.minecraft.test.TestManager.tick(TestManager.java:42) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.MinecraftServer.handler$zgm000$fabric-gametest-api-v1$tickWorlds(MinecraftServer.java:3632) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.MinecraftServer.tickWorlds(MinecraftServer.java:1034) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.MinecraftServer.tick(MinecraftServer.java:912) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.test.TestServer.tick(TestServer.java:159) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:697) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+Caused by: net.minecraft.test.GameTestException: 网格空了 B 的结果格必须跟着清（监听器同步）
+	at net.minecraft.test.TestContext.assertTrue(TestContext.java:909) ~[minecraft-merged-d76b024f2e-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar:?]
+	at com.sdzjz.gametest.SdzjzGameTests.shared_craft_grid_two_players(SdzjzGameTests.java:459) ~[main/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[?:?]
+	... 18 more
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 4 at (8.5, -60.0, 1.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 5 at (-1.5, -60.0, -5.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 6 at (1.5, -60.0, 8.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 7 at (-6.5, -60.0, -8.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player[embedded] logged in with entity id 8 at (-8.5, -60.0, -8.5)
+[23:14:09] [Server thread/INFO] (Minecraft) test-mock-player joined the game
+[23:14:10] [Server thread/INFO] (Minecraft) test-mock-player has made the advancement [Stone Age]
+[23:14:10] [Server thread/INFO] (Minecraft) Running test batch 'sdzjzSchedA:0' (1 tests)...
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++ ]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X++++++_]
+[23:14:10] [Server thread/INFO] (Minecraft) [+++++++++++X+++++++]
+[23:14:10] [Server thread/INFO] (Minecraft) ========= 19 GAME TESTS COMPLETE IN 2.943 s ======================
+[23:14:10] [Server thread/INFO] (Minecraft) 1 required tests failed :(
+[23:14:10] [Server thread/INFO] (Minecraft)    - sdzjzgametests.shared_craft_grid_two_players
+[23:14:10] [Server thread/INFO] (Minecraft) ====================================================
+[23:14:10] [Server thread/INFO] (Minecraft) Stopping server
+[23:14:10] [Server thread/INFO] (Minecraft) Saving players
+[23:14:10] [Server thread/INFO] (Minecraft) test-mock-player lost connection: Server closed
+[23:14:10] [Server thread/INFO] (Minecraft) test-mock-player left the game
+[23:14:10] [Server thread/INFO] (Minecraft) test-mock-player lost connection: Server closed
+[23:14:10] [Server thread/INFO] (Minecraft) test-mock-player left the game
+[23:14:11] [Server thread/INFO] (Minecraft) test-mock-player lost connection: Server closed
+[23:14:11] [Server thread/INFO] (Minecraft) test-mock-player left the game
+[23:14:11] [Server thread/INFO] (Minecraft) test-mock-player lost connection: Server closed
+[23:14:11] [Server thread/INFO] (Minecraft) test-mock-player left the game
+[23:14:11] [Server thread/INFO] (Minecraft) Saving worlds
+[23:14:11] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Test Level]'/minecraft:overworld
+[23:14:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_nether
+[23:14:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Test Level]'/minecraft:the_end
+[23:14:12] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[23:14:12] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[23:14:12] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[23:14:12] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[23:14:12] [Server thread/INFO] (Minecraft) Game test server shutting down

@@ -1,0 +1,4 @@
+Caused by: net.minecraft.test.GameTestException: 网格空了 B 的结果格必须跟着清（监听器同步）
+> Task :runGametest FAILED
+Caused by: org.gradle.process.internal.ExecException: Process 'command '/usr/lib/jvm/temurin-21-jdk-amd64/bin/java'' finished with non-zero exit value 1
+BUILD FAILED in 45s
