@@ -232,6 +232,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private final List<String> menuLabels = new ArrayList<>();
     private final List<Runnable> menuActions = new ArrayList<>();
     private final List<ItemStack> menuIcons = new ArrayList<>();   // m148 行图标（可空）
+    private final List<net.minecraft.util.Identifier> menuTexs = new ArrayList<>(); // m313 用户设计贴图图标（可空，优先于物品图标）
+    private double lastMouseX, lastMouseY; // m313 快捷键悬停命中用（render 每帧缓存）
     private final List<Integer> menuStyles = new ArrayList<>();    // m148 0普通 1危险(红) 2组首(上加分隔线)
     private String menuTitle = null;                               // m148 标题带（节点菜单=机器名）
     private long menuOpenMs = 0;                                   // m148 开合动画时钟
@@ -1440,6 +1442,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuLabels.clear();
         menuActions.clear();
         menuIcons.clear();
+        menuTexs.clear(); // m313
         menuStyles.clear();
         menuTitle = null;
         menuOpen = false;
@@ -1454,10 +1457,24 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuLabels.add(label);
         menuActions.add(action);
         menuIcons.add(icon);
+        menuTexs.add(null);
+        menuStyles.add(style);
+    }
+
+    /** m313：贴图图标行（作者设计的 8 张按钮图，32² 源画 16×16）。 */
+    private void addMenu(String label, net.minecraft.util.Identifier tex, int style, Runnable action) {
+        menuLabels.add(label);
+        menuActions.add(action);
+        menuIcons.add(null);
+        menuTexs.add(tex);
         menuStyles.add(style);
     }
 
     private static ItemStack mi(net.minecraft.item.Item it) { return new ItemStack(it); }
+
+    private static net.minecraft.util.Identifier mt(String name) { // m313 菜单贴图路径唯一口径
+        return net.minecraft.util.Identifier.of("sdzjz", "textures/gui/menu/" + name + ".png");
+    }
 
     /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
     // ===== m192 画布分组：几何与操作 =====
@@ -1508,6 +1525,43 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         return out;
     }
 
+    /** m313 快捷键：当前鼠标悬停的机器节点（与右键命中同一套几何，倒序=上层先中）。 */
+    private int hoveredNode() {
+        StructureCoreBlockEntity be = be();
+        if (be == null) return -1;
+        var nodes = be.nodes();
+        double wx = wmx(lastMouseX), wy = wmy(lastMouseY);
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+            if (wx >= nx && wx <= nx + NW && wy >= ny && wy <= ny + NH) return i;
+        }
+        return -1;
+    }
+
+    /** m313：节点所属组（无组=-1）。 */
+    private int groupOfNode(int idx) {
+        StructureCoreBlockEntity be = be();
+        if (be == null || !groupsOn()) return -1;
+        for (var ge : groupMembers(be).entrySet())
+            if (ge.getValue().contains(idx)) return ge.getKey();
+        return -1;
+    }
+
+    /** m313 V 键：打开该机器的"主选择器"（与菜单同一套分派条件，取每类第一入口）。 */
+    private void openPrimaryPicker(int idx) {
+        StructureCoreBlockEntity be = be();
+        if (be == null || idx < 0 || idx >= be.nodes().size()) return;
+        ItemStack st = be.nodes().get(idx);
+        if (st.getItem() instanceof AutoCrafterItem) { openPicker(idx); return; }
+        if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) { openPotionPicker(idx); return; }
+        if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) { openEnchantPicker(idx); return; }
+        if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem) { openTradePicker(idx); return; }
+        if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) { openCropPicker(idx); return; }
+        if (StructureCoreBlockEntity.machineFilterable(st)) { openMachineFilterPicker(idx); return; }
+        if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isTrash(st)
+                || StructureCoreBlockEntity.isExtractor(st)) openFilterPicker(idx);
+    }
+
     /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
     private void createGroupFromSelection() {
         StructureCoreBlockEntity be = be();
@@ -1527,8 +1581,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (be == null || p == null) return;
         clearMenu();
         menuTitle = be.groupsView().getOrDefault(gid, "组" + gid);
-        addMenu("重命名组…", mi(net.minecraft.item.Items.NAME_TAG), () -> openRename(gid));
-        addMenu("解散该组", mi(net.minecraft.item.Items.SHEARS), 1,
+        addMenu("重命名组…", mt("group_rename"), 0, () -> openRename(gid)); // m313 用户图标
+        addMenu("解散该组", mt("group_disband"), 1,
                 () -> ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
         addMenu("取消", null, 2, () -> {});
         openMenu(atX, atY);
@@ -1715,7 +1769,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     /** m219 帮助卡：操作提示行迁入（原底带一行塞不下的内容摊开写；纯静态无交互，点哪都关）。 */
     private void renderHelp(DrawContext ctx) {
-        int hw = 236, hh = 96;
+        int hw = 236, hh = 124; // m313 快捷键两行加高
         int px = Math.max(8, Math.min(336, workRight() - hw - 8)), py = 22; // 锚"帮助"钮下方，窄屏向左让位
         ctx.getMatrices().push();
         ctx.getMatrices().translate(0, 0, 400); // m202 抬z口径
@@ -1726,6 +1780,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 "绿口拖线=连线 · 滚轮=缩放",
                 "状态灯：绿=运行 黄=阻塞 红=缺料",
                 "节点色：青=生产 橙=加工 紫=逻辑 绿=农场",
+                "快捷键(悬停节点)：P暂停 X断线 Del取出 V选择", // m313
+                "G组合所选 · Shift+G解散组 · F2改组名",
         };
         for (int i = 0; i < lines.length; i++)
             ctx.drawText(this.textRenderer, lines[i], px + 10, py + 24 + i * 14, i < 2 ? SciSkin.TXT : SciSkin.SUB, false);
@@ -1864,9 +1920,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         BlockPos p = this.handler.blockPos();
         clearMenu();
         menuTitle = st.getName().getString(); // m148 标题带=机器名
-        addMenu(StructureCoreBlockEntity.nodePaused(st) ? "恢复运行" : "暂停节点",
-                mi(StructureCoreBlockEntity.nodePaused(st) ? net.minecraft.item.Items.LIME_DYE : net.minecraft.item.Items.REDSTONE),
-                () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+        if (StructureCoreBlockEntity.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
+            addMenu("恢复运行", mi(net.minecraft.item.Items.LIME_DYE),
+                    () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+        else
+            addMenu("暂停节点", mt("pause_node"), 0,
+                    () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
         if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
             int mt = StructureCoreBlockEntity.machineTier(st);
             String[] TN = {"普通", "超级", "神级", "GM"};
@@ -1882,7 +1941,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 addMenu("拆解：1台→" + TN[mt - 1] + "×4", mi(net.minecraft.item.Items.GRINDSTONE),
                         () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
         }
-        addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 2, () -> clearLinksOfMachine(idx));
+        addMenu("断开全部连线", mt("disconnect_all"), 2, () -> clearLinksOfMachine(idx)); // m313 用户图标
         if (st.getItem() instanceof AutoCrafterItem) {
             addMenu("选择合成目标", mi(net.minecraft.item.Items.CRAFTING_TABLE), 2, () -> openPicker(idx));
             String tgtR = StructureCoreBlockEntity.craftTarget(st); // m235 多配方目标可手选配方（单配方不显示不添乱）
@@ -1941,10 +2000,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
                             StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
         }
-        if (StructureCoreBlockEntity.machineFilterable(st)) // m149 二级界面：熔炉选烧什么/多产物机选产物
-            addMenu(st.getItem() instanceof com.sdzjz.item.MachineItem mif && com.sdzjz.machine.Machines.smelterFamily(mif.def().id())
-                            ? "选择烧什么…" : "选择产物…",
-                    mi(net.minecraft.item.Items.FURNACE), 2, () -> openMachineFilterPicker(idx));
+        if (StructureCoreBlockEntity.machineFilterable(st)) { // m149 二级界面：熔炉选烧什么/多产物机选产物（m313 双图标分家）
+            boolean sm313 = st.getItem() instanceof com.sdzjz.item.MachineItem mif && com.sdzjz.machine.Machines.smelterFamily(mif.def().id());
+            addMenu(sm313 ? "选择烧什么…" : "选择产物…", mt(sm313 ? "pick_smelt" : "pick_product"), 2, () -> openMachineFilterPicker(idx));
+        }
         if (StructureCoreBlockEntity.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
             int tfN = StructureCoreBlockEntity.filterList(st).size();
             addMenu("吞噬白名单" + (tfN > 0 ? "(" + tfN + ")" : "·全吞") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
@@ -1956,7 +2015,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             selPlus.add(idx); // 右键的这台自动并入，Shift 选完不必再补选它
             if (selPlus.size() >= 2 && selPlus.size() <= 512) { // 512=服务端伪造包熔断上限，超限不给静默哑口（m99 教训）
                 final java.util.List<Integer> msSel = new ArrayList<>(selPlus);
-                addMenu("组合所选(" + msSel.size() + "台)", mi(net.minecraft.item.Items.LEAD), 2, () -> {
+                addMenu("组合所选(" + msSel.size() + "台)", mt("group_selected"), 2, () -> { // m313 用户图标
                     if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", msSel)); selected.clear(); }
                 });
             }
@@ -1966,8 +2025,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", comp)); selected.clear(); }
                 });
         }
-        addMenu("取出机器", mi(net.minecraft.item.Items.HOPPER), 1,
-                () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显
+        addMenu("取出机器", mt("remove_machine"), 1,
+                () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显；m313 用户图标
         addMenu("取消", null, 2, () -> {});
         openMenu(atX, atY);
     }
@@ -2031,6 +2090,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.fill(menuX, y0 + 1, menuX + barW, y0 + MENU_H - 1,
                         SciSkin.withAlpha(danger ? SciSkin.RED : CYAN, ease));
             int tx = menuX + 6 + Math.round(2 * pv);
+            net.minecraft.util.Identifier tex = menuTexs.get(i); // m313 贴图图标优先
+            if (tex != null) {
+                ctx.drawTexture(tex, tx, y0 + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
+                tx += 16;
+            }
             ItemStack ic = menuIcons.get(i);
             if (ic != null && !ic.isEmpty()) {
                 ctx.getMatrices().push();
@@ -2297,7 +2361,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                                     }
                                 });
                             }
-                            addMenu("断开全部连线", mi(net.minecraft.item.Items.SHEARS), 1, () -> clearLinksOfStorage(pl));
+                            addMenu("断开全部连线", mt("disconnect_all"), 1, () -> clearLinksOfStorage(pl)); // m313 用户图标
                             addMenu("取消", () -> {});
                             openMenu((int) mouseX, (int) mouseY);
                             return true;
@@ -2611,6 +2675,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        lastMouseX = mouseX; lastMouseY = mouseY; // m313 快捷键悬停命中缓存
         SciSkin.scopeCanvas(true); // m214 主题分家：本帧 term*() 全族改读画布 7 色（默认暗夜），finally 必关防漏染别屏
         try {
             super.render(ctx, mouseX, mouseY, delta);
@@ -3066,6 +3131,26 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (keyCode == 256) { closePicker(); return true; }
             pickerField.keyPressed(keyCode, scanCode, modifiers);
             return true;
+        }
+        if (!menuOpen) { // m313 画布快捷键（作者点名"要支持快捷键"）：悬停节点即生效；各 modal 已在上方截前
+            int hv = hoveredNode();
+            BlockPos kp = this.handler.blockPos();
+            if (keyCode == 71 && hasShiftDown() && hv >= 0 && kp != null) { // Shift+G=解散悬停节点所属组（解散纯视觉，先于普通 G）
+                int gid = groupOfNode(hv);
+                if (gid >= 0) {
+                    ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(kp, gid, "", java.util.List.of()));
+                    return true;
+                }
+            }
+            if (hv >= 0 && kp != null) {
+                switch (keyCode) {
+                    case 80 -> { ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(kp, hv)); return true; } // P=暂停/恢复
+                    case 88 -> { clearLinksOfMachine(hv); return true; }                                                // X=断开全部连线
+                    case 261 -> { ClientPlayNetworking.send(new NodeRemovePayload(kp, hv)); return true; }              // Del=取出机器
+                    case 86 -> { openPrimaryPicker(hv); return true; }                                                  // V=选择(产物/烧什么/目标…)
+                    case 291 -> { int gid = groupOfNode(hv); if (gid >= 0) { openRename(gid); return true; } }          // F2=重命名所属组
+                }
+            }
         }
         if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !menuOpen) { // m192 G=打组所选（无输入框聚焦时才到这）
             createGroupFromSelection();
