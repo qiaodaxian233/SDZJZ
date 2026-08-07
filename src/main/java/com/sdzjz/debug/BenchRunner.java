@@ -53,7 +53,8 @@ public final class BenchRunner {
     private static int spawnIdx, cleanupIdx;
     private static long runTicksLeft;
     private static long prevNano;
-    private static long[] tickNs = new long[0];
+    private static long[] tickNs = new long[0];   // 墙钟间隔（健康脉搏≈50ms,含跑空等待）
+    private static long[] busyNs = new long[0];   // m307 忙时=原版 tickTimes 当拍真值（负载口径）
     private static int tickCount;
     private static Path reportPath;
 
@@ -87,6 +88,7 @@ public final class BenchRunner {
                 + " .. " + SITES.get(SITES.size() - 1).toShortString());
         spawnIdx = 0; cleanupIdx = 0; tickCount = 0; prevNano = 0;
         tickNs = new long[Math.min(seconds * 20 + 40, 24_000)];
+        busyNs = new long[tickNs.length];
         phase = Phase.SPAWN;
         return "§a[sdzjz] 压测铺场中：核心×" + cores + " × 节点" + nodesPer + "（刷石机满载）· " + seconds
                 + "s · cap=" + (capParam > 0 ? capParam : "不动配置") + " —— 跑完报告落游戏目录并自动清场";
@@ -117,7 +119,11 @@ public final class BenchRunner {
             }
             case RUN -> {
                 long now = System.nanoTime();
-                if (prevNano != 0 && tickCount < tickNs.length) tickNs[tickCount++] = now - prevNano;
+                if (prevNano != 0 && tickCount < tickNs.length) {
+                    // m307 忙时真值：原版把本拍耗时写在 tickTimes[ticks%100]，END_SERVER_TICK 时已写毕
+                    busyNs[tickCount] = server.getTickTimes()[server.getTicks() % 100];
+                    tickNs[tickCount++] = now - prevNano;
+                }
                 prevNano = now;
                 if (--runTicksLeft <= 0) {
                     try { writeReport(server); msg(server, "§a[sdzjz] 压测完成，报告：§f" + reportPath); }
@@ -142,7 +148,11 @@ public final class BenchRunner {
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) {
             ItemStack pack = new ItemStack(ModItems.COBBLE_MAKER, nodesPer);
             while (!pack.isEmpty() && core.insertMachine(null, pack)) { /* insertMachine 每次吃 1 台并 decrement */ }
-            core.running = true; // 开机（m133：开机即自持区块票，人不在照跑——正好把强加载链路一起压）
+            core.running = true;
+            // m307 首票自举（首轮实测 20 核只跑 6 的真凶）：核心自持票在**它自己 tick 里**注册，
+            // 而模拟距离外的新区块根本不给 BE tick 机会=鸡生蛋死锁。代发一张同通道票（force 按
+            // 核心坐标记账幂等，核心 ≤20t 自注册接管；拆块 release 走原路，另有清场兜底双保险）。
+            com.sdzjz.block.CoreChunkLoading.force(world, p, false);
         }
     }
 
@@ -150,19 +160,34 @@ public final class BenchRunner {
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) core.benchClearNodes();
         world.setBlockState(p, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);       // 节点已清空,dropAll 散落=零件
         world.setBlockState(p.east(), net.minecraft.block.Blocks.AIR.getDefaultState(), 3); // 存储账本是虚拟账,拆块零散落
+        com.sdzjz.block.CoreChunkLoading.release(world, p, false); // m307 兜底：核心若始终没tick,
+        // chunkForceActive=false 拆块走不到释放——补一发注销自举票（已释放时=孤儿声明清理,幂等无害）
+    }
+
+    private static double[] avgP95Max(long[] arr, int n) {
+        long[] a = java.util.Arrays.copyOf(arr, n);
+        java.util.Arrays.sort(a);
+        double avg = 0; for (long v : a) avg += v;
+        return new double[]{ n == 0 ? 0 : avg / n / 1e6,
+                n == 0 ? 0 : a[(int) Math.min(n - 1, Math.floor(n * 0.95))] / 1e6,
+                n == 0 ? 0 : a[n - 1] / 1e6 };
     }
 
     private static void writeReport(MinecraftServer server) throws Exception {
-        long[] ns = java.util.Arrays.copyOf(tickNs, tickCount);
-        java.util.Arrays.sort(ns);
-        double avg = 0; for (long v : ns) avg += v; avg = ns.length == 0 ? 0 : avg / ns.length / 1e6;
-        double p95 = ns.length == 0 ? 0 : ns[(int) Math.min(ns.length - 1, Math.floor(ns.length * 0.95))] / 1e6;
-        double mx  = ns.length == 0 ? 0 : ns[ns.length - 1] / 1e6;
+        double[] busy = avgP95Max(busyNs, tickCount); // m307 负载口径（原版 tickTimes 真值）
+        double[] wall = avgP95Max(tickNs, tickCount); // 健康脉搏（≈50ms=服务器有余力在睡）
 
         Set<BlockPos> mine = new HashSet<>(SITES);
         List<CoreScheduler.Row> rows = CoreScheduler.statRows();
         List<CoreScheduler.Row> bench = rows.stream().filter(r -> mine.contains(r.pos))
                 .sorted(java.util.Comparator.comparingLong(r -> r.granted)).toList();
+        // m307 防哑账（首轮实测被 14/20 沉默核心骗出"达标"）：铺场清单逐一对上账,缺席点名
+        Set<BlockPos> seen = new HashSet<>(); for (CoreScheduler.Row r : bench) seen.add(r.pos);
+        List<BlockPos> silent = new ArrayList<>(); for (BlockPos s : SITES) if (!seen.contains(s)) silent.add(s);
+        long otherGranted = rows.stream().filter(r -> !mine.contains(r.pos)).mapToLong(r -> r.granted).sum();
+        long otherCores = rows.size() - bench.size();
+        long benchGranted = bench.stream().mapToLong(r -> r.granted).sum();
+
         long min = bench.isEmpty() ? 0 : bench.get(0).granted;
         long max = bench.isEmpty() ? 0 : bench.get(bench.size() - 1).granted;
         long med = bench.isEmpty() ? 0 : bench.get(bench.size() / 2).granted;
@@ -176,16 +201,28 @@ public final class BenchRunner {
           .append(" machine=cobble_maker(10t无输入满载) duration=").append(seconds).append("s cap=")
           .append(capParam > 0 ? String.valueOf(capParam) : ("未改动(现值" + capUsed + ")")).append('\n');
         sb.append("维度: ").append(world.getRegistryKey().getValue()).append("  origin=").append(origin.toShortString())
-          .append("  站距64格(跨区块=真实BE tick序)\n\n");
-        sb.append(String.format("服务器整tick(自测END_TICK间隔, %d样本): 均值 %.2f ms | P95 %.2f ms | 峰值 %.2f ms%n",
-                ns.length, avg, p95, mx));
-        sb.append(String.format("调度器(仅本次压测核心): granted 最低=%d 中位=%d 最高=%d | 零吞吐核心=%d | 上拍消费=%d%n",
-                min, med, max, zero, CoreScheduler.prevTickSpent()));
-        String verdict = zero > 0 ? "不达标：存在零吞吐核心（防饥饿失效，请贴报告）"
-                : min > 0 ? String.format("达标判据（评审③）：最高/最低=%.1f×（几倍内且无恒0=达标）", (double) max / min)
-                : "样本不足";
-        sb.append("判据: ").append(verdict).append("\n\n");
-        sb.append("逐核明细(granted升序; tick耗时µs来自/sdzjz profile core同一环形窗):\n");
+          .append("  站距64格(跨区块=真实BE tick序)  上账核心=").append(bench.size()).append('/').append(cores).append("\n\n");
+        sb.append(String.format("服务器忙时MSPT(原版tickTimes, %d样本): 均值 %.2f ms | P95 %.2f ms | 峰值 %.2f ms%n",
+                tickCount, busy[0], busy[1], busy[2]));
+        sb.append(String.format("墙钟tick间隔(健康脉搏,≈50ms=有余力在睡): 均值 %.2f ms | P95 %.2f ms | 峰值 %.2f ms%n",
+                wall[0], wall[1], wall[2]));
+        sb.append(String.format("调度器(仅压测核心): granted 最低=%d 中位=%d 最高=%d 合计=%d | 零吞吐=%d | 上拍消费=%d%n",
+                min, med, max, benchGranted, zero, CoreScheduler.prevTickSpent()));
+        if (otherCores > 0)
+            sb.append(String.format("同服非压测核心 ×%d 同期消费 granted=%d（tick序竞争的真实对照,判据已剔除）%n", otherCores, otherGranted));
+        String verdict;
+        if (!silent.isEmpty()) verdict = "不达标：" + silent.size() + " 个铺场核心从未上账（未tick/未申请）——数据不可用请贴报告";
+        else if (zero > 0)     verdict = "不达标：存在零吞吐核心（防饥饿失效，请贴报告）";
+        else if (min > 0)      verdict = String.format("达标判据（评审③）：最高/最低=%.1f×（几倍内且无恒0=达标）", (double) max / min);
+        else                   verdict = "样本不足";
+        sb.append("判据: ").append(verdict).append("\n");
+        if (!silent.isEmpty()) {
+            sb.append("未上账核心: ");
+            for (int k = 0; k < Math.min(6, silent.size()); k++) sb.append(silent.get(k).toShortString()).append("; ");
+            if (silent.size() > 6) sb.append("…共").append(silent.size()).append("个");
+            sb.append('\n');
+        }
+        sb.append('\n').append("逐核明细(granted升序; tick耗时µs来自/sdzjz profile core同一环形窗):\n");
         String dim = world.getRegistryKey().getValue().toString();
         List<CoreProfiler.Stats> prof = CoreProfiler.active(dim);
         for (CoreScheduler.Row r : bench) {
@@ -195,8 +232,6 @@ public final class BenchRunner {
             if (s != null) sb.append(String.format("  tick均%.0fµs 峰%.0fµs 编译%d", s.avgMicros(), s.maxMicros(), s.planCompiles));
             sb.append('\n');
         }
-        if (rows.size() > bench.size())
-            sb.append("(另有 ").append(rows.size() - bench.size()).append(" 个非压测核心也在消费预算，已从判据剔除)\n");
 
         reportPath = server.getRunDirectory().resolve("sdzjz_bench_" + ts + ".txt");
         Files.write(reportPath, sb.toString().getBytes(StandardCharsets.UTF_8));
