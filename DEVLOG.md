@@ -5159,3 +5159,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   dup_method/override 尺绿。版本跳 0.1.323。
 - **实机脚本**：CI GameTest job 十六用例全绿即本批销账；另可实机双人开同一面板互搜（用例2
   的手感版）与双人抢末组（用例1 的手感版）对照。
+
+## m324 maxRecipesPerChunkTick 真接线（评审第六优先：\"要么接线要么删\"，评审与既有基建都倾向接线）
+
+- **现象（评审点名的服主陷阱）**：config 自注【遗留,m270核实未接线】——服主把
+  maxRecipesPerChunkTick 调到 100 以为限制生效，其实完全没有。静默无效比数值弱更伤（m99 教训
+  的配置版）。二选一里选接线：CoreScheduler 基建已备（m302/m309），dimension+chunkPos→
+  spentThisTick 是小活。
+- **接线四层**：节点 cap（upgradeMaxCyclesPerTick）→ 核内（maxRecipesPerCoreTick, m270）→
+  **区块（本笔）** → 全服（maxRecipesPerNetworkTick, m302）。耗尽全线同口径：只欠不丢，
+  工作量累积下 tick 续。
+- **挂钩次序（两处，防两笔坏账）**：全服申请**前**按 chunkHeadroom 钳申请量——区块封死的
+  核心不去全服排队，它的饿是区块政策造成的，进全服饥饿名单占保底也吃不下；实批量在全服
+  终裁**后**才 chunkCharge——先记后裁会把全服拒掉的量虚耗进区块账，同区块他核平白少吃。
+- **账层实现（CoreScheduler 尾部三件）**：CHUNK_SPENT=维度→ChunkPos.toLong→已耗，
+  chunkTickStamp **独立时钟**（全服闸关≤0 时 rollTick 不跑，区块账得自己换拍）；
+  clearAll 顺带清区块态。ChunkPos.toLong(BlockPos)=yarn method_37232，在树 CoreChunkLoading
+  已用 ChunkPos::toLong。
+- **明说的取舍**：区块层**无公平名单**——同区块内多核心按 BE tick 序竞争（m302 公平层只治
+  全服公池）。该键定位是"大量核心挤一个强加载区块"的管理员钝闸，默认 262144 极高不束缚=
+  行为零变化；真有人压满且在乎序偏置再谈区块级名单，不预支复杂度。
+- **配置口径**：零新键零删键 v35 不动；注释重写销【遗留】戳。accelMinPeriodTicks 仍留
+  【遗留】戳原样（删键=结构变更另立一笔，评审第六只点名 ChunkTick）。机器组合.md 预算段
+  新增区块层条目。
+- **验证**：javac21 冒烟真语法错 0，新符号六项定向检零命中；dup_method/docs_sync 绿；
+  GameTest 十七号用例 chunk_budget_shares_and_resets=同区块同账/异区块异账/cap≤0 闸关/
+  记满归零/**waitAndRun(1) 换拍复位**（独立时钟的直接判官），合成远坐标直驱账层与他用例
+  区块键天然不撞（m305 直驱同法）。版本跳 0.1.324。
+- **实机脚本**：①同一区块摆 2 核心满载，maxRecipesPerChunkTick 调小（如 40）——两核合计
+  产能被压到 40 周期/t 且 tick 序靠前核心占优（预期钝闸行为）；②把其中一核挪去邻区块——
+  各吃各的 40；③键置 0——回无限；④调回默认 262144——行为与 m323 版无差。

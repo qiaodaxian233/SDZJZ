@@ -168,5 +168,39 @@ public final class CoreScheduler {
         FED.clear();
         UNSERVED_BY_AGE.clear(); // m309
         resetStats(); // m304
+        chunkTickStamp = Long.MIN_VALUE; // m324
+        CHUNK_SPENT.clear();
+    }
+
+    // ===== m324 区块级预算（评审第六优先：maxRecipesPerChunkTick 真接线，四层=节点→核内→区块→全服）=====
+    // 用法（cyclesThisTick 两处挂钩）：全服申请**前**按 chunkHeadroom 钳申请量（区块封死的核心不去
+    // 全服排队——它的饿是区块政策造成的，全服保底喂它也吃不下，不该占饥饿名单）；全服终裁**后**按
+    // 实批量 chunkCharge 记账（先记后裁会把全服拒掉的量虚耗进区块账，同区块他核平白少吃）。
+    // 区块层无公平名单：同区块内多核心按 BE tick 序竞争（m302 公平层只治全服公池），区块 cap 压满时
+    // 序偏置存在——该键是"大量核心挤一个强加载区块"的管理员钝闸，默认 262144 极高不束缚。
+    // 时钟独立于全服层：全服闸关(≤0)时 rollTick 不跑，区块账得自己换拍。
+    private static long chunkTickStamp = Long.MIN_VALUE;
+    private static final Map<RegistryKey<World>, Map<Long, Long>> CHUNK_SPENT = new HashMap<>();
+
+    private static void chunkRollIfNeeded(ServerWorld world) {
+        long now = world.getServer().getTicks();
+        if (now != chunkTickStamp) { chunkTickStamp = now; CHUNK_SPENT.clear(); }
+    }
+
+    /** 本 tick 该坐标所在区块的剩余预算（chunkCap<=0=闸关无限）。仅服务端主线程。 */
+    public static long chunkHeadroom(ServerWorld world, BlockPos pos, long chunkCap) {
+        if (chunkCap <= 0) return Long.MAX_VALUE;
+        chunkRollIfNeeded(world);
+        long used = CHUNK_SPENT.getOrDefault(world.getRegistryKey(), Map.of())
+                .getOrDefault(net.minecraft.util.math.ChunkPos.toLong(pos), 0L);
+        return Math.max(0L, chunkCap - used);
+    }
+
+    /** 按最终批准量记区块账（在全服终裁之后调）。仅服务端主线程。 */
+    public static void chunkCharge(ServerWorld world, BlockPos pos, int granted) {
+        if (granted <= 0) return;
+        chunkRollIfNeeded(world);
+        CHUNK_SPENT.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>())
+                .merge(net.minecraft.util.math.ChunkPos.toLong(pos), (long) granted, Long::sum);
     }
 }

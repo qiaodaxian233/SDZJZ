@@ -401,4 +401,29 @@ public class SdzjzGameTests implements FabricGameTest {
                 "事务提交+手账串行后应余 50，实余 " + c.count("minecraft:cobblestone"));
         ctx.complete();
     }
+
+    /** m324 区块级预算（maxRecipesPerChunkTick 真接线）：同区块同账/异区块异账/换拍复位。
+     *  合成远坐标直驱账层（m305 调度器用例同法：预算单元不依赖真核心生产链），与其他用例
+     *  的区块键天然不撞（真核心的 chunkCharge 记它们自己的区块）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void chunk_budget_shares_and_resets(TestContext ctx) {
+        var w = ctx.getWorld();
+        long cap = 10;
+        BlockPos p1 = new BlockPos(1_234_567, 64, 1_234_567);
+        BlockPos p2 = p1.add(3, 0, 0);   // 同区块
+        BlockPos p3 = p1.add(160, 0, 0); // 异区块（隔 10 个区块）
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 10, "初始余量应=cap");
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, 0) == Long.MAX_VALUE, "cap<=0 应=闸关无限");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(w, p1, 7);
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p2, cap) == 3,
+                "同区块同账：邻坐标余量应=3，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p2, cap));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p3, cap) == 10, "异区块异账：远坐标余量应=10");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(w, p2, 3);
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 0, "记满后余量应=0");
+        ctx.waitAndRun(1, () -> { // 下一 server tick：区块账换拍复位（独立时钟，不依赖全服闸开）
+            ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 10,
+                    "换拍后余量应复位=cap，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap));
+            ctx.complete();
+        });
+    }
 }

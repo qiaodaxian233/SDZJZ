@@ -20,7 +20,7 @@ public class SdzjzConfig {
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
-    public long maxRecipesPerChunkTick = 262_144L;      // 【遗留,m270核实未接线】每区块每tick上限——跨核记账需全局表；核心级+节点级(upgradeMaxCyclesPerTick)双层预算已封顶，待真实需求再接
+    public long maxRecipesPerChunkTick = 262_144L;      // m324 真接线：每区块每tick生产周期上限（跨核共享,CoreScheduler区块账每拍复位,0或负=无限;四层=节点cap→核内→区块→全服,耗尽只欠不丢;区块层无公平名单=同区块内按BE tick序竞争,是"核心挤一个强加载区块"的管理员钝闸）；默认极高不束缚
     // ===== m311 随身仓库 =====
     public int portableVaultMagnetRadius = 5;   // 吸附半径（格），0=全局禁吸附；每 0.5s 一扫
     public int portableVaultTypeCap = 256;
