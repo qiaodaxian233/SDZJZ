@@ -31,6 +31,8 @@ jobs:
         run: python3 docs/tools_override_check.py
       - name: 调度器算法尺(m302,全服预算+饥饿名单四不变量多种子模拟)
         run: python3 docs/tools_core_scheduler_sim.py
+      - name: 版本号对表(m317,mod_version=0.1.<DEVLOG最新里程碑号> 一笔一跳忘跳即红)
+        run: python3 docs/tools_version_check.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；
