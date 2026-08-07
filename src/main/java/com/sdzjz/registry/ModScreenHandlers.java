@@ -23,6 +23,10 @@ public class ModScreenHandlers {
             Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("data_panel"),
                     new ExtendedScreenHandlerType<>(DataPanelScreenHandler::new, BlockPos.PACKET_CODEC));
 
+    public static final ScreenHandlerType<com.sdzjz.screen.PortableVaultScreenHandler> PORTABLE_VAULT = // m312 随身仓库取物屏（数据在手上包组件里，无需扩展开屏数据）
+            Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("portable_vault"),
+                    new ScreenHandlerType<>(com.sdzjz.screen.PortableVaultScreenHandler::new, FeatureFlags.VANILLA_FEATURES));
+
     public static final ScreenHandlerType<SuperBenchScreenHandler> SUPER_BENCH =
             Registry.register(Registries.SCREEN_HANDLER, Sdzjz.id("super_bench"),
                     new ScreenHandlerType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_FEATURES));

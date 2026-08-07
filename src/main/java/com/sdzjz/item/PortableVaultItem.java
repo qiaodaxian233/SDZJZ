@@ -104,6 +104,15 @@ public class PortableVaultItem extends Item {
         writeRoot(vault, root);
     }
 
+    /** m312 账本读/写公开口（GUI handler 用；K_VAULT 键保持私有，判定唯一出口思路同 isBoundTo）。 */
+    public static NbtCompound ledger(ItemStack vault) { return rootOf(vault).getCompound(K_VAULT); }
+
+    public static void writeLedger(ItemStack vault, NbtCompound ledger) {
+        NbtCompound root = rootOf(vault);
+        root.put(K_VAULT, ledger);
+        writeRoot(vault, root);
+    }
+
     private static boolean magnetOn(ItemStack s) { return rootOf(s).getBoolean(K_MAG); }
 
     /** 可收纳判定：普通可堆叠物（组件件与 maxCount=1 的工具/终端/本仓库天然出局）。 */
@@ -126,17 +135,10 @@ public class PortableVaultItem extends Item {
             bar(player, on ? "叮！吸附模式已开启——掉落物将直接收入仓库" : "吸附模式已关闭");
             return TypedActionResult.success(stack);
         }
-        NbtCompound v = rootOf(stack).getCompound(K_VAULT);
-        if (v.isEmpty()) { bar(player, "仓库空空如也（潜行右键开吸附，或把物品右键点到仓库上收纳）"); return TypedActionResult.success(stack); }
-        java.util.List<String> ids = new java.util.ArrayList<>(v.getKeys());
-        ids.sort((a, b) -> Long.compare(v.getLong(b), v.getLong(a)));
-        player.sendMessage(Text.literal("§b【随身仓库】§7类型 " + ids.size() + " · 总件 " + fmt(vaultTotal(stack))), false);
-        for (int i = 0; i < Math.min(8, ids.size()); i++) {
-            String id = ids.get(i);
-            String name = Registries.ITEM.get(Identifier.of(id)).getName().getString();
-            player.sendMessage(Text.literal("§7  " + name + " §f×" + fmt(v.getLong(id))), false);
-        }
-        if (ids.size() > 8) player.sendMessage(Text.literal("§8  …共 " + ids.size() + " 类（右键存储核心/数据面板整包入仓）"), false);
+        // m312：右键=开取物屏（聊天报账退役，明细进 GUI）
+        player.openHandledScreen(new net.minecraft.screen.SimpleNamedScreenHandlerFactory(
+                (syncId, inv, pl) -> new com.sdzjz.screen.PortableVaultScreenHandler(syncId, inv),
+                stack.getName()));
         return TypedActionResult.success(stack);
     }
 

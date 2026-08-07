@@ -82,6 +82,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.VaultTakePayload.ID, com.sdzjz.net.VaultTakePayload.CODEC); // m312
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.TerminalStockPayload.ID, com.sdzjz.net.TerminalStockPayload.CODEC); // m289 终端库存摘要→配方书
         PayloadTypeRegistry.playS2C().register(com.sdzjz.net.StorageNodeHomePayload.ID, com.sdzjz.net.StorageNodeHomePayload.CODEC); // m265 端点画布落位（CanvasEnds 姊妹包）
@@ -234,6 +235,13 @@ public class Sdzjz implements ModInitializer {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     core.setNodeTarget(payload.index(), payload.target());
                 }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.VaultTakePayload.ID, (payload, context) -> { // m312 随身仓库取物
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                if (p.currentScreenHandler instanceof com.sdzjz.screen.PortableVaultScreenHandler h) // 资格前置（m269 风）
+                    h.take(p, payload.itemId(), payload.mode());
             });
         });
         ServerPlayNetworking.registerGlobalReceiver(NodeAddPayload.ID, (payload, context) -> { // m88 机器库侧栏
