@@ -2703,6 +2703,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  离网吞吐≈喷射速率（约 2 组/秒），天然自限。 */
     private boolean ejectWarned = false; // m115：断网喷射只警告一次，接回存储后复位
     private boolean lagPause = false;    // m115：过载全线暂停标志（滞回控制）
+    /** m308：压测报告读黄灯占空比用（首轮 100×512 实测 3051× 倍数实为看门狗占空比噪声）。 */
+    public boolean lagPausedNow() { return lagPause; }
 
     private void ejectOverflow(World world, BlockPos corePos) {
         if (resolveOutTarget(world, corePos) != null) { ejectWarned = false; return; } // 有去处不喷，警告复位
