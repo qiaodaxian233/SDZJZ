@@ -4594,4 +4594,4 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   纯 CI 改动，零游戏代码、零配置键。
 - **验证**：YAML 过 yaml.safe_load + 三 job 名/步骤/always 上传逐项断言；首跑结果轮询
   api.github.com actions/runs 回填于下。
-- **首跑结果**：（待回填）
+- **首跑结果（run #37, 169c2ee, 2026-08-07）**：全 run 绿。gametest job success（79 秒，缓存热）；runGametest 退出码 0=TestServer 必测用例零失败（空用例集会直接抛错，没发生）；junit.xml 已产出并上传 artifact（gametest-junit, 444B zip）。**残留一眼活**：沙箱够不到 Actions blob 域名看不了报告正文，"计数恰=6"请作者点开 run #37 日志或下载工件核一眼。**闸已跑通——调度公平性开刀前置条件满足。**
