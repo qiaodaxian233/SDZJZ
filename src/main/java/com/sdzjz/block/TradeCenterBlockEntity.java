@@ -182,7 +182,8 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
 
         if (t.enchant() != null && this.world != null) {
             // m101 附魔书：按注册表构建带附魔的书。产物**只进玩家背包**——
-            // 仓储按物品 id 记账、面板拒收带组件物品，进仓等于附魔被抹，宁可占背包绝不丢数据。
+            // （m329 勘注：原理由"进仓=附魔被抹"自 m130 精确账本起已不成立，m146 交易机的书就走精确账本；
+            //  手动交易保留直发背包=既有体验，是否与自动侧统一改走精确账本待作者拍板，行为本笔不动。）
             ItemStack book = new ItemStack(net.minecraft.item.Items.ENCHANTED_BOOK);
             var reg = this.world.getRegistryManager()
                     .getWrapperOrThrow(net.minecraft.registry.RegistryKeys.ENCHANTMENT);

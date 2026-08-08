@@ -240,7 +240,7 @@ public class Sdzjz implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.VaultTakePayload.ID, (payload, context) -> { // m312 随身仓库取物
             ServerPlayerEntity p = context.player();
             p.getServer().execute(() -> {
-                if (p.currentScreenHandler instanceof com.sdzjz.screen.PortableVaultScreenHandler h) // 资格前置（m269 风）
+                if (writeBudget(p) && p.currentScreenHandler instanceof com.sdzjz.screen.PortableVaultScreenHandler h) // m329：补 m269 写包预算——16 接收器唯一漏点（取物触发背包同步回包，洪泛=放大器）
                     h.take(p, payload.itemId(), payload.mode());
             });
         });

@@ -118,11 +118,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         @Override public int get(int i) {
             return switch (i) {
                 case 0 -> running ? 1 : 0;
-                case 1 -> machineCount();
+                case 1 -> Math.min(32767, machineCount());          // m329：bigStacks 后节点可叠海量机器，裸发16位通道会符号扩展（m106族），显示饱和 32767
                 case 2 -> tierOf();
-                case 3 -> totalNodeUpgrade("spd");
-                case 4 -> totalNodeUpgrade("cnt");
-                case 5 -> totalNodeUpgrade("par");
+                case 3 -> Math.min(32767, totalNodeUpgrade("spd")); // m329 同上，三升级总量饱和护通道（m230 0x7FFF 同款先例）
+                case 4 -> Math.min(32767, totalNodeUpgrade("cnt"));
+                case 5 -> Math.min(32767, totalNodeUpgrade("par"));
                 case 6 -> (int) (((long) xpPool) & 0x7FFF);              // 经验低15位（属性按short网络同步）
                 case 7 -> (int) Math.min(((long) xpPool) >> 15, 32767);  // 经验高位
                 case 8 -> (int) (bufferedTotal() & 0x7FFF);              // 在途缓存低15位
@@ -910,7 +910,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (!any) break; // 本轮一个都没升成（全满级）
                 }
                 if (cured > 0) { be.prodTally(cured); produced = true; be.stat(i, 1); }
-                else be.statR(i, 3, "缺料：附魔金苹果"); // 有合同可升却取不到苹果=缺料红灯
+                else be.statR(i, 3, "缺料：金苹果"); // 有合同可升却取不到苹果=缺料红灯（m329 勘误：实取普通金苹果，旧文案误写"附魔"会误导备料）
             } else if (st.getItem() instanceof MachineItem sk && sk.def().id().startsWith("sculk_")) {
                 // m138 幽匿三机：吃核心经验池产幽匿件（原版幽匿=经验具象化——催化体吸收死亡经验长
                 // 蔓延，蔓延概率长出传感器/尖啸体）。经验闸镜像附魔工厂（m132 同池竞争先例）：
