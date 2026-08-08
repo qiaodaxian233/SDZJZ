@@ -5272,3 +5272,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：尺子本地绿（121 生产文件零命中）；纯 python+yml 零 Java 改动无冒烟需求；
   version 闸绿。版本跳 0.1.327。
 - **实机脚本**：无行为变化无需实机；CI run 三 job 全绿即销账（第十一闸首跑）。
+
+## m328 mock 玩家 API 迁移（作者构建报告 8 处 [removal] 警告——按报告逐个修，铁律 5 主链路生效）
+
+- **现象**：作者"拉取并构建"报告贴回：BUILD SUCCESSFUL + Loom 1.7.4 落地 + 0.1.327 进测试
+  实例，唯一账=8 处 `createMockCreativeServerPlayerInWorld()` 已过时**且标记待删除**
+  （m323/m326 六用例引入；本地 javac 能看见 MC 注解，沙箱冒烟盲区——MC 类不可解析时弃用
+  警告不可见，作者构建报告正是补这个盲区的主链路）。
+- **替代口核证**：javac 只点名 InWorld 版、`createMockPlayer(GameMode)` 未被点名=1.21.x
+  原版口径（带 GameMode 参数的 mock 是替代）；我方用法逐点核过——玩家对象上只调过
+  getInventory()，其余（quickMove/canUse/onClosed/ItemUsageContext）全按 PlayerEntity 形参
+  传入，ServerPlayerEntity 无一处必需。
+- **修法**：8 处全量替换为 `ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL)`
+  （SURVIVAL 比 CREATIVE 更贴真实玩家，我方路径无 gamemode 分支、行为等价）；文件头与
+  十三号用例注释同步改口不留旧名。
+- **验证**：javac21 冒烟真语法错 0、createMockPlayer 定向检零命中；CI GameTest job=行为
+  判官（二十用例在 PlayerEntity mock 下须原样全绿）；**作者下次构建报告应零警告**=最终销账。
+  版本跳 0.1.328。
+- **教训**：弃用/待删除标注是冒烟盲区新亚种（#6）：沙箱 javac 缺 MC 类时 @Deprecated 不可见，
+  yarn 映射也不带弃用位——**作者本地构建报告是唯一能看见弃用警告的尺**，新 MC API 落地后
+  首份构建报告要专门扫 warning 段，不只看 BUILD SUCCESSFUL。
+- **实机脚本**：作者工具再跑一次"拉取并构建"——警告段应为空；GameTest 由 CI 代跑。

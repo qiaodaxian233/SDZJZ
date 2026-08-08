@@ -19,7 +19,8 @@ import net.minecraft.util.math.BlockPos;
 
 /**
  * m297 GameTest（外部审计四建议之④"给关键问题增加真正的 GameTest"）。
- * 全部服务端账本级用例，不依赖假人（TestContext 的 mock 玩家口径各版漂移大，取物竞争
+ * 账本级用例 + E2E 用例（m323 起上 mock 玩家：createMockPlayer(GameMode)，m328 从
+ * 弃用的 createMockCreativeServerPlayerInWorld 迁来——作者构建报告 8 处 [removal] 警告清账；取物竞争
  * 直接测账本不变量——handler 的取物顺序 m 修复正是靠这条不变量成立）。
  * 跑法：`gradlew runGametest`（build.gradle 已配 run），出 build/junit.xml；
  * 或任何加 -Dfabric-api.gametest 的开发端服务器。生产环境该入口不激活，零开销。
@@ -282,7 +283,7 @@ public class SdzjzGameTests implements FabricGameTest {
 
     // ===== m323 端到端第一批（评审第四优先：网络包→ScreenHandler→玩家库存→BE→存档 完整链）=====
 
-    /** m323 评审清单#1：**真 ServerPlayerEntity 两人同时 Shift 取最后一组**——m266 复制窗修复的
+    /** m323 评审清单#1：**真 mock 玩家两人同时 Shift 取最后一组**（m328 起 createMockPlayer(SURVIVAL)，PlayerEntity 形参链全程够用）——m266 复制窗修复的
      *  handler 级判官（此前只有账本级 two_withdraw）。两 handler 各持 10t 陈旧展示页同抢 64 圆石，
      *  账本权威=两人实收和恒等 64、账本清零，谁都不凭空得料。 */
     @GameTest(templateName = EMPTY_STRUCTURE)
@@ -294,8 +295,8 @@ public class SdzjzGameTests implements FabricGameTest {
             ctx.throwGameTestException("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.COBBLESTONE, 64)); // 最后一组
-        var p1 = ctx.createMockCreativeServerPlayerInWorld();
-        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var p2 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel); // 双 handler 构造即各刷首页——都看见 64
         h1.quickMove(p1, com.sdzjz.screen.DataPanelScreenHandler.DISP0);
@@ -320,8 +321,8 @@ public class SdzjzGameTests implements FabricGameTest {
         }
         c.deposit(new ItemStack(Items.IRON_INGOT, 32));
         c.deposit(new ItemStack(Items.DIAMOND, 16));
-        var p1 = ctx.createMockCreativeServerPlayerInWorld();
-        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var p2 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
         int d0 = com.sdzjz.screen.DataPanelScreenHandler.DISP0;
@@ -440,8 +441,8 @@ public class SdzjzGameTests implements FabricGameTest {
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
             ctx.throwGameTestException("数据面板方块实体未生成"); return;
         }
-        var p1 = ctx.createMockCreativeServerPlayerInWorld();
-        var p2 = ctx.createMockCreativeServerPlayerInWorld();
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var p2 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
         int r = com.sdzjz.screen.DataPanelScreenHandler.RESULT;
@@ -473,7 +474,7 @@ public class SdzjzGameTests implements FabricGameTest {
             ctx.throwGameTestException("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.COBBLESTONE, 64));
-        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
         ItemStack term = new ItemStack(com.sdzjz.registry.ModItems.TERMINAL);
         p1.getInventory().setStack(0, term); // 主手（selectedSlot=0）
         var hitPos = panel.getPos();
@@ -504,7 +505,7 @@ public class SdzjzGameTests implements FabricGameTest {
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
             ctx.throwGameTestException("数据面板方块实体未生成"); return;
         }
-        var p1 = ctx.createMockCreativeServerPlayerInWorld();
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
         p1.getInventory().setStack(0, new ItemStack(com.sdzjz.registry.ModItems.TERMINAL));
         var hitPos = panel.getPos();
         var uctx = new net.minecraft.item.ItemUsageContext(p1, net.minecraft.util.Hand.MAIN_HAND,
