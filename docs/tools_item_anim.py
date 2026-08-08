@@ -202,9 +202,131 @@ def gen_core_module():
          lambda x, y, hv: is_gold(hv) or (0.42 <= hv[0] <= 0.70 and hv[2] >= 0.30 and hv[1] >= 0.15)
                           or (hv[2] >= 0.75 and hv[1] <= 0.45))   # 白热芯低饱和高亮也入列
 
+
+# ------------------------------------------------- m330 五台规划器机器节点（作者点名"自动合成机那些"）
+
+def gen_auto_crafter():
+    """自动合成机：青蓝 3×3 合成面按 y 三分位切三行，顶→中→底轮流点亮（合成格逐行
+    填充本义）。等距视角格面与侧徽同列重叠（列直方图实测无空档），不强拆、整行同相
+    （m319 铁律：大块同相，16px 可读）。9 帧=3 拍整分。"""
+    S = 128
+    base = load('auto_crafter', S); bp = base.load()
+    pred = lambda x, y, hv: 0.45 <= hv[0] <= 0.72 and hv[1] >= 0.20 and hv[2] >= 0.30
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    ys = sorted(y for _, y in mask)
+    t1, t2 = ys[len(ys) // 3], ys[2 * len(ys) // 3]   # 像素量三等分（比几何三等分抗徽记偏置）
+
+    def factor(x, y, u, hsv0):
+        row = 0 if y <= t1 else (1 if y <= t2 else 2)
+        amp = 0.14 + 0.28 * min(1.0, hsv0[2])
+        return 1.0 + amp * math.sin(2 * math.pi * (u - row / 3.0))
+    emit('auto_crafter', S, 9, 5, factor, pred)
+
+
+def gen_crop_farm():
+    """种植机：作物像素（高饱和暖色=胡萝卜麦穗 + 绿色=叶苗）按货架层三分位，
+    底→中→顶轮流点亮=生长向上波。木架/暗底（低饱和暖色）阈值挡在掩码外逐位不动。
+    9 帧=3 拍整分。"""
+    S = 128
+    base = load('crop_farm', S); bp = base.load()
+    pred = lambda x, y, hv: ((0.04 <= hv[0] <= 0.16 and hv[1] >= 0.48 and hv[2] >= 0.40)
+                             or (0.16 < hv[0] <= 0.42 and hv[1] >= 0.30 and hv[2] >= 0.30))
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    ys = sorted(y for _, y in mask)
+    mid = ys[len(ys) // 2]
+
+    # 首版三分位在 16px 断言下红（0.0080<0.012）：作物是散点小簇，三相位在图标尺寸互抵。
+    # 按 m319 剧本改上下两块**反相**（此亮彼暗交替=位移翻倍）+ 加幅 + 放宽暖色阈值多收作物像素。
+    def factor(x, y, u, hsv0):
+        sgn = 1.0 if y > mid else -1.0                    # 下半（近根）与上半（近穗）反相=呼吸生长
+        amp = 0.16 + 0.32 * min(1.0, hsv0[2])
+        return 1.0 + sgn * amp * math.sin(2 * math.pi * u)
+    emit('crop_farm', S, 8, 5, factor, pred)
+
+
+def gen_brewing_tower():
+    """酿造塔：青蓝液体件按塔身三分位 底→中→顶 涌升（酿造液上塔）；暖色炉口/灯
+    2 倍频齐闪（火感）。9 帧（涌升 3 拍整分；灯 4.5 周非整分、单像素零均值不碍漂移）。"""
+    S = 128
+    base = load('brewing_tower', S); bp = base.load()
+    # 二轮阈值（16px 断言逼出来的账：本图发光像素天生稀少，0.0059/0.0071 两红都是掩码
+    # 太小被整轮廓平均稀释——放宽到亮玻璃/暖木光晕也入列（539→1396 枚），幅度同步抬）。
+    is_warm = lambda hv: (hv[0] <= 0.14 or hv[0] >= 0.94) and hv[1] >= 0.30 and hv[2] >= 0.25
+    is_cool = lambda hv: 0.42 <= hv[0] <= 0.80 and hv[1] >= 0.14 and hv[2] >= 0.18
+    pred = lambda x, y, hv: is_warm(hv) or is_cool(hv)
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    cool_ys = sorted(y for (x, y) in mask if is_cool(hsv(bp[x, y])))
+    mid = cool_ys[len(cool_ys) // 2] if cool_ys else 64
+
+    # 首版三段涌升在 16px 断言下红（0.0059<0.012）：瓶簇散点三相互抵（crop_farm 同病同药）。
+    # 改冷色上下两块**反相**（塔顶馏出/塔底回流的交替感）+ 加幅；暖色炉口 2 倍频齐闪不变。
+    def factor(x, y, u, hsv0):
+        if is_warm(hsv0):                              # 炉口/灯：2 倍频齐闪
+            return 1.0 + 0.30 * math.sin(4 * math.pi * (u + 0.125))
+        sgn = 1.0 if y > mid else -1.0                 # 塔下半与上半反相
+        amp = 0.20 + 0.34 * min(1.0, hsv0[2])
+        return 1.0 + sgn * amp * math.sin(2 * math.pi * u)
+    emit('brewing_tower', S, 8, 5, factor, pred)
+
+
+def gen_enchant_factory():
+    """附魔工厂：紫符文按 y 像素量中位切上/下两块**反相**呼吸（core_module 芯/港交替
+    同款，16px 极易读）；暖色指示灯 2 倍频齐闪。8 帧。"""
+    S = 128
+    base = load('enchant_factory', S); bp = base.load()
+    # 二轮阈值（16px 断言逼的账，酿造塔同病：紫符文天生稀少 0.0066 红——放宽到暗紫辉光
+    # 也入列 407→928+241 枚，幅度同步抬）。
+    is_warm = lambda hv: hv[0] <= 0.16 and hv[1] >= 0.25 and hv[2] >= 0.22
+    is_viol = lambda hv: 0.55 <= hv[0] <= 0.92 and hv[1] >= 0.10 and hv[2] >= 0.15
+    pred = lambda x, y, hv: is_warm(hv) or is_viol(hv)
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    vys = sorted(y for (x, y) in mask if is_viol(hsv(bp[x, y])))
+    mid = vys[len(vys) // 2] if vys else 64
+
+    def factor(x, y, u, hsv0):
+        if is_warm(hsv0):
+            return 1.0 + 0.30 * math.sin(4 * math.pi * (u + 0.125))
+        sgn = 1.0 if y <= mid else -1.0                # 上屏/下符文反相：此亮彼暗
+        amp = 0.20 + 0.34 * min(1.0, hsv0[2])
+        return 1.0 + sgn * amp * math.sin(2 * math.pi * u)
+    emit('enchant_factory', S, 8, 5, factor, pred)
+
+
+def gen_villager_trader():
+    """村民无限交易机：琥珀行情板按 y 三分位 顶→中→底 逐行走灯（行情滚动感）；
+    绿宝石格 2 倍频齐闪（成交闪烁）。9 帧=3 拍整分。"""
+    S = 128
+    base = load('villager_trader', S); bp = base.load()
+    is_emer = lambda hv: 0.25 <= hv[0] <= 0.46 and hv[1] >= 0.35 and hv[2] >= 0.30
+    is_amber = lambda hv: 0.03 <= hv[0] <= 0.16 and hv[1] >= 0.40 and hv[2] >= 0.35
+    pred = lambda x, y, hv: is_emer(hv) or is_amber(hv)
+    mask = {(x, y) for y in range(S) for x in range(S)
+            if bp[x, y][3] > 0 and pred(x, y, hsv(bp[x, y]))}
+    ays = sorted(y for (x, y) in mask if is_amber(hsv(bp[x, y])))
+    t1 = ays[len(ays) // 3] if ays else 0
+    t2 = ays[2 * len(ays) // 3] if ays else 0
+
+    def factor(x, y, u, hsv0):
+        if is_emer(hsv0):                              # 绿宝石：2 倍频成交闪
+            return 1.0 + 0.26 * math.sin(4 * math.pi * (u + 0.125))
+        row = 0 if y <= t1 else (1 if y <= t2 else 2)  # 顶行先亮=行情向下滚
+        amp = 0.13 + 0.27 * min(1.0, hsv0[2])
+        return 1.0 + amp * math.sin(2 * math.pi * (u - row / 3.0))
+    emit('villager_trader', S, 9, 5, factor, pred)
+
+
 if __name__ == '__main__':
     gen_parallel_upgrade()
     gen_count_upgrade()
     gen_speed_upgrade()
     gen_core_module()  # m319 起=作者原图 128²（Blockbench 调色板版已退役）
+    gen_auto_crafter()      # m330 五台规划器（作者点名"自动合成机那些"）
+    gen_crop_farm()
+    gen_brewing_tower()
+    gen_enchant_factory()
+    gen_villager_trader()
     print('全部生成+断言通过 ✓（改基础贴图后重跑本脚本即重出动画）')

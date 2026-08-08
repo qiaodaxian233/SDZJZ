@@ -26,6 +26,11 @@ public final class SodiumSpriteKicker {
             Identifier.of("sdzjz", "item/count_upgrade"),
             Identifier.of("sdzjz", "item/speed_upgrade"),
             Identifier.of("sdzjz", "item/core_module"),
+            Identifier.of("sdzjz", "item/auto_crafter"),      // m330 五台规划器机器节点动画
+            Identifier.of("sdzjz", "item/crop_farm"),
+            Identifier.of("sdzjz", "item/brewing_tower"),
+            Identifier.of("sdzjz", "item/enchant_factory"),
+            Identifier.of("sdzjz", "item/villager_trader"),
     };
 
     private static boolean resolved = false, disabled = false;
@@ -45,7 +50,7 @@ public final class SodiumSpriteKicker {
             }
             if (!java.lang.reflect.Modifier.isStatic(mark.getModifiers()))
                 markTarget = util.getField("INSTANCE").get(null);
-            com.sdzjz.Sdzjz.LOGGER.info("[生电终结者] SodiumSpriteKicker: 已挂接 Sodium {} 式 markSpriteActive，四件动画物品精灵每tick保活",
+            com.sdzjz.Sdzjz.LOGGER.info("[生电终结者] SodiumSpriteKicker: 已挂接 Sodium {} 式 markSpriteActive，九 件动画物品精灵每tick保活",
                     markTarget == null ? "0.5静态" : "0.6实例");
         } catch (ClassNotFoundException e) {
             disabled = true;
