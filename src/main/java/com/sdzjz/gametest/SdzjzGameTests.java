@@ -686,4 +686,30 @@ public class SdzjzGameTests implements FabricGameTest {
                 "3 橡木+3 云杉=1 次（跨类型合计 6/4，缺 2 不虚算）");
         ctx.complete();
     }
+
+    /** m344 廿七号：画布观众登记表——开屏挂号/关屏销号（handler 双钩）+ 漏钩自愈
+     *  （直接改写 currentScreenHandler 模拟未经 onClosed 的换屏，核心 tick 的谓词校验应把它销号）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void canvas_viewer_registry(TestContext ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0);
+        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.getDefaultState());
+        if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
+            ctx.throwGameTestException("结构核心方块实体未生成"); return;
+        }
+        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var p2 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var h1 = new com.sdzjz.screen.StructureCoreScreenHandler(1, p1.getInventory(), be);
+        p1.currentScreenHandler = h1;
+        ctx.assertTrue(be.canvasViewerCount() == 1, "开屏挂号：观众数应=1");
+        var h2 = new com.sdzjz.screen.StructureCoreScreenHandler(2, p2.getInventory(), be);
+        p2.currentScreenHandler = h2;
+        ctx.assertTrue(be.canvasViewerCount() == 2, "双观众应=2");
+        h2.onClosed(p2);
+        ctx.assertTrue(be.canvasViewerCount() == 1, "关屏销号：应回 1");
+        p1.currentScreenHandler = p1.playerScreenHandler; // 模拟漏钩换屏（未经 onClosed）
+        ctx.waitAndRun(3, () -> { // 核心 tick 的 flushCanvasSnapshot 谓词校验应自愈销号
+            ctx.assertTrue(be.canvasViewerCount() == 0, "漏钩自愈：谓词失配观众应被 tick 销号，实余 " + be.canvasViewerCount());
+            ctx.complete();
+        });
+    }
 }

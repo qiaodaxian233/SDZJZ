@@ -203,9 +203,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m89：端点+总线库存 直发正在看画布的玩家（BE同步链实机不生效的最终修复——走已被证明可靠的包通道）
         if (Math.floorMod(wt, 40) == 0 && world instanceof net.minecraft.server.world.ServerWorld sw) { // m218c 错峰
             com.sdzjz.net.CanvasEndsPayload pk = null;
-            for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+            for (var itv = be.canvasViewers.iterator(); itv.hasNext(); ) { // m344 查登记表不扫全服（失配销号）
+                net.minecraft.server.network.ServerPlayerEntity sp = itv.next();
                 if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
-                        || !pos.equals(h.blockPos())) continue;
+                        || !pos.equals(h.blockPos())) { itv.remove(); be.snapshotSent.remove(sp.getUuid()); continue; }
                 if (pk == null) pk = be.buildEndsPayload(pos);
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
                 net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, be.buildHomesPayload(pos)); // m265 放置落位姊妹包（同拍同通道，只含已放置项通常极小）
@@ -2709,12 +2710,35 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         nodeReason.clear(); // m178
     }
 
-    /** m181 是否有玩家正开着本核心的画布（判定复用 m89 端点直发同款：currentScreenHandler 指向本 pos）。 */
+    // ===== m344 画布观众登记表（外部审计 P1 销账：此前每核心每 tick 扫一遍全服玩家表——
+    // 100 核×50 人=5000 次谓词判定/tick，绝大多数核心根本没人看）。开屏挂号/关屏销号
+    // （StructureCoreScreenHandler 构造+onClosed 双钩），三处扫描（快照/兜底判定/m89 端点包）
+    // 全改查表；表内逐观众仍过 currentScreenHandler 同款谓词校验，失配即销号=断线/换屏等
+    // 一切漏钩路径的兜底，语义与旧全表扫描逐点一致。零新配置键（m279 先例：纯查询加速）。 =====
+    private final java.util.Set<net.minecraft.server.network.ServerPlayerEntity> canvasViewers =
+            new java.util.LinkedHashSet<>();
+
+    /** m344 开屏挂号（服务端 ScreenHandler 构造调用）。 */
+    public void addCanvasViewer(net.minecraft.server.network.ServerPlayerEntity sp) { canvasViewers.add(sp); }
+
+    /** m344 关屏销号（onClosed 调用）；顺带清快照已发账，重开必得首包（原"无观众清表"的逐人版）。 */
+    public void removeCanvasViewer(net.minecraft.server.network.ServerPlayerEntity sp) {
+        canvasViewers.remove(sp);
+        snapshotSent.remove(sp.getUuid());
+    }
+
+    /** m344 观众登记数（GameTest 廿七号/观测用，裸表数不做校验）。 */
+    public int canvasViewerCount() { return canvasViewers.size(); }
+
+    /** m181 是否有玩家正开着本核心的画布（判定复用 m89 端点直发同款：currentScreenHandler 指向本 pos）。
+     *  m344 起查登记表不扫全服；失配观众就地销号。 */
     private boolean hasCanvasViewer(World world) {
-        if (!(world instanceof net.minecraft.server.world.ServerWorld sw)) return false;
-        for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+        if (!(world instanceof net.minecraft.server.world.ServerWorld)) return false;
+        for (var it = canvasViewers.iterator(); it.hasNext(); ) {
+            net.minecraft.server.network.ServerPlayerEntity sp = it.next();
             if (sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h
                     && pos.equals(h.blockPos())) return true;
+            it.remove();
         }
         return false;
     }
@@ -2735,11 +2759,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private void flushCanvasSnapshot(World world) {
         if (!(world instanceof net.minecraft.server.world.ServerWorld sw)) return;
         if (canvasDirty) { snapshotRev++; canvasDirty = false; }
+        if (canvasViewers.isEmpty()) { // m344 无人看=零成本早退（这才是绝大多数核心的每 tick 路径）
+            if (!snapshotSent.isEmpty()) snapshotSent.clear();
+            return;
+        }
         com.sdzjz.net.CanvasSnapshotPayload pk = null;
         boolean anyViewer = false;
-        for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+        for (var it = canvasViewers.iterator(); it.hasNext(); ) { // m344 查登记表不扫全服
+            net.minecraft.server.network.ServerPlayerEntity sp = it.next();
             if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
-                    || !pos.equals(h.blockPos())) continue;
+                    || !pos.equals(h.blockPos())) { it.remove(); snapshotSent.remove(sp.getUuid()); continue; }
             anyViewer = true;
             Long sent = snapshotSent.get(sp.getUuid());
             if (sent != null && sent == snapshotRev) continue;

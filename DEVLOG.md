@@ -5636,3 +5636,25 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①仓里只放云杉木板，合成机目标=工作台→绿灯出货且账本扣云杉；②混放多种木板→按
   候选序（橡木先）消耗；③手选配方后，供料线拉料/接线 accepts 对云杉放行；④config 关
   craftIngredientAlternatives→复现旧行为（只认橡木报缺料）；⑤水桶类配方（蛋糕）确认桶残留数量照旧。
+
+## m344 画布观众登记表（外部审计 P1 销账：每核心每 tick 扫全服玩家）
+
+- **现象/根因**：审计点名并逐行核实——`flushCanvasSnapshot` 在 tickInner 顶部**每 tick 无条件**
+  对全服玩家表跑一遍 `currentScreenHandler` 谓词（m89 端点包 40t 拍、m181 兜底判定各再扫一遍）。
+  没人看的核心也照扫：100 核×50 人=5000 次谓词/tick 纯白烧，且随核心数×在线数双线性涨。
+- **修法（审计建议的 viewer registry，挂 BE 上）**：SCBE 新增 `canvasViewers` 登记表；
+  `StructureCoreScreenHandler` 服务端构造挂号（客户端构造 player 非 ServerPlayerEntity 天然不进）、
+  `onClosed` 销号（断线/换屏走原版关闭链同到；写法照抄 DataPanel/SuperBench 在树先例）。
+  三处扫描全改查表：①flushCanvasSnapshot——无观众**零成本早退**（绝大多数核心的每 tick 路径），
+  有观众逐人仍过原谓词校验，失配就地销号+清快照账=一切漏钩路径的自愈兜底，语义与旧全表扫描
+  逐点一致；②m89 端点 40t 拍同款；③hasCanvasViewer 查表+失配销号。销号顺带清该人 snapshotSent
+  （原"无观众才清表"的逐人版，重开屏必得首包且不再靠 createMenu 标脏顺带重发全员）。
+  量级：O(全服玩家×核心数)/tick → O(观众数)，无观众=O(1)。零新配置键（m279 纯查询加速先例）。
+- **验证**：全库 javac21 冒烟真语法错 0；新符号 canvasViewers/addCanvasViewer/removeCanvasViewer/
+  canvasViewerCount 定向检全为缺 MC 类噪音（逐条核过上下文）；super.onClosed 噪音与 DataPanel
+  既有行同款（超类不可解析家族，m288 口径）；七尺全绿。GameTest 廿七号=挂号/双观众/关屏销号/
+  漏钩自愈四断言（直接改写 currentScreenHandler 模拟未经 onClosed 的换屏，等核心 tick 谓词销号）。
+  currentScreenHandler 直赋值在测试里首次当左值（在树此前只读），CI 真编译当判官。版本跳 0.1.344。
+- **实机脚本**：①开画布→机器状态/连线实时刷新照旧（快照链路走新表）；②两人同看同核各自正常；
+  ③关屏/断线后 `/sdzjz profile core` 的 syncPackets 不再增长；④100 核无人看时 MSPT 对比 m343 应
+  可见下降（bench 三档矩阵顺带复测）。

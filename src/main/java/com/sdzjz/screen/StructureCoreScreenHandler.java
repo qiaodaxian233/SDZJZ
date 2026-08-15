@@ -43,6 +43,15 @@ public class StructureCoreScreenHandler extends ScreenHandler {
         this.inv.onOpen(playerInv.player);
         addProperties(props);
         // 画布界面：无槽位（机器=节点；机器/升级经右键方块放入；产出自动推送到连接的存储）
+        if (be != null && playerInv.player instanceof net.minecraft.server.network.ServerPlayerEntity sp)
+            be.addCanvasViewer(sp); // m344 开屏挂号（客户端构造 player 非 ServerPlayerEntity，天然不进）
+    }
+
+    @Override
+    public void onClosed(PlayerEntity player) { // m344 关屏销号（断线/换屏走原版关闭链同样到这）
+        super.onClosed(player);
+        if (core != null && player instanceof net.minecraft.server.network.ServerPlayerEntity sp)
+            core.removeCanvasViewer(sp);
     }
 
     public BlockPos blockPos() { return blockPos; }
