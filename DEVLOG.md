@@ -5872,3 +5872,27 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①重跑同参数 bench 对表：22625 KB/tick 应断崖（预期砍掉大头，残余=真产出
   ItemStack+账本盒装）；②垃圾桶吞几组东西→卡面"已吞"终于会涨且重开界面/重启存档不丢；
   ③交易机/全机器行为逐帧同旧。
+
+## m354 机器类型账+执行计划数组化（外部审计④轮②③双销）
+
+- **现象**：审计④轮定榜三件，本笔双销②③（同在 tickInner 交织故一笔）——
+  ③"让数据决定下一刀"：上份报告 97.1% 挤在"生产/转发/分发"粗桶（71.9µs/核·tick），看不出
+  是哪类节点贡献的；②执行计划 outT 还是 Map<Integer,List<Integer>>，node index 本就 0..n-1，
+  盒装 Integer+HashMap 查找在热路径纯浪费。
+- **修法③类型账**：CoreProfiler 新八桶（逻辑六族/合成/酿造/附魔/交易/复制/通用机器/其他），
+  大循环"上一笔"式计时——循环体 continue 众多没有统一出口，改在下一节点头部结上一笔账、
+  循环后补末笔（pushOutput 归生产段不入类型账=类型账只覆盖节点体）；typeBucket 判定=
+  instanceof 链纳秒级；全部挂 PHASES 闸内（bench 自动开），平时零成本。下一份 bench 报告
+  细分表直接给出 µs/核·tick 前三大类型贡献。
+- **修法②数组化**：planOutT → int[][]（null 槽=无出线，与旧 Map.get 缺席同义）；编译两趟=
+  计数+按 connections 原序填充（与旧 List.add 序逐位一致，分发轮转次序不变）；18 处
+  outT.get(i)→outT[i] 直取；chainWants/chainWants0/chainEndsInTrash/distribute/
+  distributeEven/allGatesClosed 六签名连锁换 int[]/int[][]（体内 isEmpty→length==0，
+  链函数越界防御 i<outT.length）。热路径每次目标取用少一次 hash+拆盒。
+- **配置**：零新键（②语义逐位不变纯提速；③纯观测 PHASES 闸内）。
+- **验证**：javac21 冒烟真语法错 0，定向检全净（旧 API outT.get/getOrDefault 精确复检零残留；
+  首轮脚本因"先整体替换后精确锚"次序错误原子失败未落盘，重排先精确后整体后通过——脚本
+  写盘在末尾=天然事务性，教训记档）；类型账为观测项无 GameTest 面，数组化行为等价由既有
+  卅三个用例编译级+分发轮转实机回归把关。
+- **实机脚本**：①/sdzjz bench 100 档重跑，细分表看八个[类型账]行，前三大就是下一刀的靶
+  （审计④轮③原话：让数据决定，别再凭源码感觉）；②分配器均分/过滤/垃圾桶两轮垫底行为同旧。

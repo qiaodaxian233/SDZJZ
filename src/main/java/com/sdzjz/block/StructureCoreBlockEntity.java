@@ -68,7 +68,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private transient int topoRev = 1;
     private transient int planRev = 0;
     private transient boolean[] planHasOut, planHasIn;
-    private transient java.util.Map<Integer, java.util.List<Integer>> planOutT;
+    private transient int[][] planOutT; // m355 数组化（外部审计④轮②）：node index 本就是 0..n-1，Map 盒装下岗；null 槽=无出线（=旧 Map.get 缺席）
     private void bumpTopo() { topoRev++; }
     private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>(); // 遗留共享池（老档迁移+节点删除回收），消耗时兜底
     private final java.util.List<java.util.Map<String, Long>> nodeBufs = new java.util.ArrayList<>(); // 每节点输入缓存：连线按边精确路由
@@ -261,12 +261,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (be.planRev != be.topoRev || be.planHasOut == null || be.planHasOut.length != nSize) {
             boolean[] cHasOut = new boolean[nSize];
             boolean[] cHasIn = new boolean[nSize];
-            java.util.Map<Integer, java.util.List<Integer>> cOutT = new java.util.HashMap<>();
+            int[][] cOutT = new int[nSize][]; // m355 数组化：两趟=计数+按 connections 原序填充（与旧 List.add 序逐位一致）
+            int[] cCnt = new int[nSize];
+            for (int[] c : be.connections())
+                if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) cCnt[c[0]]++;
+            for (int k = 0; k < nSize; k++) if (cCnt[k] > 0) cOutT[k] = new int[cCnt[k]];
+            java.util.Arrays.fill(cCnt, 0);
             for (int[] c : be.connections()) {
                 if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) {
                     cHasOut[c[0]] = true;
                     cHasIn[c[1]] = true;
-                    cOutT.computeIfAbsent(c[0], k -> new java.util.ArrayList<>()).add(c[1]);
+                    cOutT[c[0]][cCnt[c[0]]++] = c[1];
                 }
             }
             be.planHasOut = cHasOut; be.planHasIn = cHasIn; be.planOutT = cOutT;
@@ -275,7 +280,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         boolean[] hasOut = be.planHasOut;
         boolean[] hasIn = be.planHasIn;
-        java.util.Map<Integer, java.util.List<Integer>> outT = be.planOutT;
+        int[][] outT = be.planOutT; // m355 热路径 outT[i] 直取
 
         // m92：逻辑节点供料拉取·链式需求传播（连接系统补完）——任何逻辑节点(过滤/开关/传感/分配)接了
         // "存储→自己"的供料边，都按「自身放行规则 ∩ 下游机器真实需求」拉料。遍历的是仓库类型清单（有限），
@@ -313,7 +318,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         // 缓存囤着失踪（每种4096）——改为"没有去处的不抽"：出线机器目标当下肯收
                         // （过滤白名单在 accepts 里生效→只抽名单内）才抽；搬仓走上面 pumpAll。
                         boolean anyTake = false;
-                        java.util.List<Integer> tgP = outT.get(i);
+                        int[] tgP = outT[i];
                         if (tgP != null)
                             for (int t : tgP)
                                 if (t >= 0 && t < nSize && be.accepts(world, t, id)) { anyTake = true; break; }
@@ -362,8 +367,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         StorageCoreBlockEntity src = null;
         boolean srcResolved = false;
 
+        int __tb = -1; long __tn = 0; // m354 机器类型桶：循环体 continue 众多，改在下一节点头部结上一笔账
         for (int i = 0; i < nSize; i++) {
             ItemStack st = be.machineNodes.get(i);
+            if (com.sdzjz.debug.CoreProfiler.PHASES) {
+                long __n2 = System.nanoTime();
+                if (__tb >= 0) com.sdzjz.debug.CoreProfiler.sub(__tb, __n2 - __tn);
+                __tb = typeBucket(st); __tn = __n2;
+            }
             int speedLv = be.nodeSpeed(st);
             int countLv = be.nodeCount(st);
             int parallelLv = be.nodePar(st);
@@ -374,7 +385,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (StructureCoreBlockEntity.nodePaused(st)) { be.statR(i, 2, "已手动暂停"); continue; }
 
             // 传感器闸门：该节点全部出线目标都关闸 → 整台暂停（不白产、不绕道塞存储）
-            if (hasOut[i] && be.allGatesClosed(world, outT.get(i))) {
+            if (hasOut[i] && be.allGatesClosed(world, outT[i])) {
                 be.statR(i, 2, "下游闸门全关");
                 continue;
             }
@@ -389,7 +400,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int dk = 0; dk < dnD; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
-                    be.distributeEven(world, i, outT.get(i), id, amt);
+                    be.distributeEven(world, i, outT[i], id, amt);
                     movedD = true;
                 }
                 if (movedD) { be.stat(i, 1); produced = true; }
@@ -403,7 +414,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int dk = 0; dk < dnF; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
-                    if (StructureCoreBlockEntity.filterPasses(st, id)) be.distribute(world, i, outT.get(i), id, amt);
+                    if (StructureCoreBlockEntity.filterPasses(st, id)) be.distribute(world, i, outT[i], id, amt);
                     else be.distribute(world, i, null, id, amt);
                     moved = true;
                 }
@@ -448,7 +459,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 java.util.Map<String, Long> ownX = be.nodeBuf(i);
                 boolean movedX = false;
-                java.util.List<Integer> tgX = outT.get(i);
+                int[] tgX = outT[i];
                 final int dnX = be.fillDrain(ownX); // m350 转存不清：残量口径（尾部 put(left)/remove 原样）
                 for (int dk = 0; dk < dnX; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
@@ -492,7 +503,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int dk = 0; dk < dnS; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
-                    be.distribute(world, i, outT.get(i), id, amt);
+                    be.distribute(world, i, outT[i], id, amt);
                     movedSw = true;
                 }
                 be.stat(i, movedSw ? 1 : 0);
@@ -507,7 +518,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int dk = 0; dk < dnE; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
-                    be.distribute(world, i, outT.get(i), id, amt);
+                    be.distribute(world, i, outT[i], id, amt);
                     moved = true;
                 }
                 be.stat(i, moved ? 1 : 0);
@@ -561,12 +572,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 be.stat(i, 1);
                 int total = (int) Math.min(Integer.MAX_VALUE, crafts * plan.resultCount());
                 be.prodTally(total); // m86 实测产量
-                if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
+                if (hasOut[i]) be.distribute(world, i, outT[i], target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 for (var en : ex.remainders().entrySet()) { // 容器残留（桶等）返还——m343 按实际消耗物结算（值已是总量，m349 随 Exec 单趟出）
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, en.getValue());
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), en.getKey(), rc);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], en.getKey(), rc);
                     else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));
                 }
@@ -698,7 +709,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long total = (long) running * sum * cropUnit;
                     if (cappedCf) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
                     else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
@@ -725,7 +736,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (take <= 0) continue;
                         be.bufWithdrawFor(i, id, take);
                         long give = take * (int) out[1];
-                        if (hasOut[i]) be.distribute(world, i, outT.get(i), (String) out[0], give);
+                        if (hasOut[i]) be.distribute(world, i, outT[i], (String) out[0], give);
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += take;
@@ -748,7 +759,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         int got = supply.withdraw(idM, (int) Math.min(take, Integer.MAX_VALUE));
                         if (got <= 0) continue;
                         long give = (long) got * (int) out[1];
-                        if (hasOut[i]) be.distribute(world, i, outT.get(i), (String) out[0], give);
+                        if (hasOut[i]) be.distribute(world, i, outT[i], (String) out[0], give);
                         else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
                         else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += got;
@@ -881,7 +892,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 } else {
                     long totalT = attempts * t.outCount();
                     be.prodTally(totalT);
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), t.outItem(), totalT);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], t.outItem(), totalT);
                     else if (depositT != null) be.depositOrBuffer(depositT, new ItemStack(
                             Registries.ITEM.get(Identifier.of(t.outItem())), (int) Math.min(totalT, Integer.MAX_VALUE)));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())), (int) totalT));
@@ -917,7 +928,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     attempts = Math.min(attempts, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规，不蒸发不洪泛）
                 be.stat(i, 1);
                 be.prodTally(attempts);
-                if (hasOut[i]) be.distribute(world, i, outT.get(i), tgtD, attempts);
+                if (hasOut[i]) be.distribute(world, i, outT[i], tgtD, attempts);
                 else if (depositD != null) be.depositOrBuffer(depositD, new ItemStack(
                         Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
@@ -993,7 +1004,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (sum <= 0) continue;
                     if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
                     be.prodTally(sum);
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), sum);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), sum);
                     else if (depositSk != null) be.depositOrBuffer(depositSk, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(sum, Integer.MAX_VALUE)));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) sum));
                     produced = true;
@@ -1052,7 +1063,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     }
                     if (cappedMi) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
                     else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
@@ -1076,7 +1087,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long total = (long) running * sum;
                     if (cappedCg) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
-                    if (hasOut[i]) be.distribute(world, i, outT.get(i), d.item(), total);
+                    if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
                     else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
                     else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(d.item())), (int) total));
                     produced = true;
@@ -1085,6 +1096,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (cxp > 0) { be.xpPool += cxp * running * cycles; produced = true; }
             }
         }
+        if (com.sdzjz.debug.CoreProfiler.PHASES && __tb >= 0)
+            com.sdzjz.debug.CoreProfiler.sub(__tb, System.nanoTime() - __tn); // m354 末节点结账（pushOutput 不入类型账）
         if (produced) {
             be.pushOutput(world, pos);
             be.markDirty();
@@ -1351,6 +1364,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ===== 画布逻辑节点：过滤器 / 数量传感器 =====
     static NbtCompound nbtOf(ItemStack s) { return com.sdzjz.node.NodeTags.nbtOf(s); }
 
+    /** m354 机器类型桶判定（每节点每 tick 一次，PHASES 闸内；instanceof 链=纳秒级）。 */
+    private static int typeBucket(ItemStack st) {
+        if (isFilter(st) || isSwitch(st) || isSensor(st) || isDistributor(st) || isExtractor(st) || isTrash(st))
+            return com.sdzjz.debug.CoreProfiler.SUB_T_LOGIC;
+        if (st.getItem() instanceof AutoCrafterItem) return com.sdzjz.debug.CoreProfiler.SUB_T_CRAFT;
+        if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) return com.sdzjz.debug.CoreProfiler.SUB_T_BREW;
+        if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) return com.sdzjz.debug.CoreProfiler.SUB_T_ENCH;
+        if (st.getItem() instanceof com.sdzjz.item.VillagerContractItem) return com.sdzjz.debug.CoreProfiler.SUB_T_TRADE;
+        if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem) return com.sdzjz.debug.CoreProfiler.SUB_T_DUP;
+        if (st.getItem() instanceof MachineItem) return com.sdzjz.debug.CoreProfiler.SUB_T_MACHINE;
+        return com.sdzjz.debug.CoreProfiler.SUB_T_MISC;
+    }
+
     public static boolean isFilter(ItemStack s) { return com.sdzjz.node.NodeTags.isFilter(s); }
 
     public static boolean isTrash(ItemStack s) { return com.sdzjz.node.NodeTags.isTrash(s); } // m150
@@ -1585,8 +1611,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 该节点的全部出线目标是否都是「关闸的传感器」——是则上游整台暂停（不白产不塞存储）。 */
-    private boolean allGatesClosed(World world, java.util.List<Integer> targets) {
-        if (targets == null || targets.isEmpty()) return false;
+    private boolean allGatesClosed(World world, int[] targets) { // m355 数组化
+        if (targets == null || targets.length == 0) return false;
         for (int t : targets) {
             if (t < 0 || t >= machineNodes.size()) return false;
             ItemStack ts = machineNodes.get(t);
@@ -2150,7 +2176,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m155 该 id 沿此节点的出线链能否到达垃圾桶（尊重过滤/开关/抽取闸门，深度8防环）。
      *  精确账本物品抽取的授权判定：只有"终点是销毁"才允许抹组件抽走。 */
     private boolean chainEndsInTrash(World world, int i, String id, int depth, java.util.Set<Integer> visited,
-                                     java.util.Map<Integer, java.util.List<Integer>> outT) {
+                                     int[][] outT) { // m355 数组化
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
         if (nodePaused(st)) return false;
@@ -2158,7 +2184,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (isFilter(st) && !filterPasses(st, id)) return false;
         if (isSwitch(st) && !switchOn(st)) return false;
         if (isExtractor(st) && (!extractorLive(world, i, st) || !machineFilterAllows(st, id))) return false; // m160
-        java.util.List<Integer> targets = outT.get(i);
+        int[] targets = i < outT.length ? outT[i] : null; // m355 计划与节点表同拍重编译，越界仅防御
         if (targets == null) return false;
         for (int t : targets)
             if (chainEndsInTrash(world, t, id, depth + 1, visited, outT)) return true;
@@ -2200,7 +2226,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m321 计时壳：PHASES 关或递归内层=直通（一次 volatile 读+分支）；顶层调用计入 SUB_CHAIN。 */
     private boolean chainWants(World world, int i, String id, int depth,
                                java.util.Set<Integer> visited,
-                               java.util.Map<Integer, java.util.List<Integer>> outT,
+                               int[][] outT, // m355 数组化
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
         if (depth != 0 || !com.sdzjz.debug.CoreProfiler.PHASES) return chainWants0(world, i, id, depth, visited, outT, crafterNeeds);
         long __t = System.nanoTime();
@@ -2210,7 +2236,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private boolean chainWants0(World world, int i, String id, int depth,
                                java.util.Set<Integer> visited,
-                               java.util.Map<Integer, java.util.List<Integer>> outT,
+                               int[][] outT, // m355 数组化
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
         if (prof != null) prof.chainChecks++; // m177
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
@@ -2265,8 +2291,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else {
             return false; // 农场/笼子等
         }
-        for (Integer t : outT.getOrDefault(i, java.util.List.of()))
-            if (chainWants(world, t, id, depth + 1, visited, outT, crafterNeeds)) return true;
+        int[] tsW = i < outT.length ? outT[i] : null; // m355 数组化（旧 getOrDefault 空表=null 同义）
+        if (tsW != null)
+            for (int t : tsW)
+                if (chainWants(world, t, id, depth + 1, visited, outT, crafterNeeds)) return true;
         return false;
     }
 
@@ -2546,7 +2574,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 均分分发（分配器）：在所有"吃得下"的目标间平分，余数轮转；装不下/没人要的走 定向存储/默认路由。 */
     /** m321 计时壳。 */
-    private void distributeEven(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+    private void distributeEven(World world, int fromIndex, int[] targets, String id, long amt) { // m355 数组化
         if (!com.sdzjz.debug.CoreProfiler.PHASES) { distributeEven0(world, fromIndex, targets, id, amt); return; }
         long __t = System.nanoTime();
         try { distributeEven0(world, fromIndex, targets, id, amt); }
@@ -2555,7 +2583,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private void distributeEven0(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
         if (prof != null) prof.routes++; // m177
-        if (targets != null && !targets.isEmpty()) {
+        if (targets != null && targets.length > 0) {
             java.util.List<Integer> ok = new java.util.ArrayList<>();
             for (int t : targets)
                 if (t >= 0 && t < machineNodes.size() && accepts(world, t, id)) ok.add(t);
@@ -2583,7 +2611,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */
     /** m321 计时壳。 */
-    private void distribute(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+    private void distribute(World world, int fromIndex, int[] targets, String id, long amt) { // m355 数组化
         if (!com.sdzjz.debug.CoreProfiler.PHASES) { distribute0(world, fromIndex, targets, id, amt); return; }
         long __t = System.nanoTime();
         try { distribute0(world, fromIndex, targets, id, amt); }

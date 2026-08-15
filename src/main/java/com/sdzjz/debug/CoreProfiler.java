@@ -94,10 +94,16 @@ public final class CoreProfiler {
             "维护/同步(端点扫描·快照·m89包·看门狗)", "区块票(强加载/续票/孤儿回收)",
             "逻辑供料(5t拍:仓视图扫描+链需求门控+精确支路)", "生产/转发/分发(全机器大循环)"};
     public static final int SUB_CHAIN = 0, SUB_ENDPOINT = 1, SUB_DISTRIBUTE = 2,
-            SUB_DEPOSIT = 3, SUB_RESOLVE = 4, SUB_PLANNER = 5, SUB_N = 6;
+            SUB_DEPOSIT = 3, SUB_RESOLVE = 4, SUB_PLANNER = 5,
+            // m354 机器类型桶（外部审计④轮③"让数据决定下一刀"）：97.1% 的生产粗桶按节点类型拆账，
+            // 报告直接给出 µs/核·tick 前三大贡献；PHASES 闸内每节点一次 nanoTime，平时零成本。
+            SUB_T_LOGIC = 6, SUB_T_CRAFT = 7, SUB_T_BREW = 8, SUB_T_ENCH = 9,
+            SUB_T_TRADE = 10, SUB_T_DUP = 11, SUB_T_MACHINE = 12, SUB_T_MISC = 13, SUB_N = 14;
     private static final String[] SUB_NAME = {
             "chainWants 链需求判定", "scanStorageEndpoints 端点扫描", "distribute/Even 分发路由",
-            "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划"};
+            "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划",
+            "[类型账]逻辑节点(分/滤/垃圾/抽/开/感)", "[类型账]自动合成机", "[类型账]酿造塔", "[类型账]附魔工厂",
+            "[类型账]交易节点", "[类型账]复制机", "[类型账]通用机器(含熔炉/作物族)", "[类型账]其他节点"};
     private static final long[] phNs = new long[PH_N];
     private static final long[] subNs = new long[SUB_N];
     private static final long[] subCalls = new long[SUB_N];
