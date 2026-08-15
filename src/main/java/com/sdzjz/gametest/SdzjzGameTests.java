@@ -873,4 +873,25 @@ public class SdzjzGameTests implements FabricGameTest {
                 "蛋糕 1 次：3 桶奶消耗→3 空桶残留，实得 " + exC.remainders());
         ctx.complete();
     }
+
+    /** m351 卅二号：GC/分配账——两快照单调不减；HotSpot 下服务器线程分配账应覆盖测间真分配
+     *  （GameTest 体=冷代码解释执行，逃逸分析消除不了分配；阈值放到 8MB 留余量不赌 JIT）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void gc_account_snapshot(TestContext ctx) {
+        var a = com.sdzjz.debug.GcAccount.snap();
+        long junk = 0; long[] keep = null;
+        for (int k = 0; k < 4096; k++) { // ~32MB 真分配（4096×long[1024]）
+            long[] t = new long[1024];
+            t[0] = k; junk += t[0];
+            if ((k & 1023) == 0) keep = t;
+        }
+        var b = com.sdzjz.debug.GcAccount.snap();
+        ctx.assertTrue(junk == 4096L * 4095 / 2 && keep != null, "防呆：分配体未被优化掉");
+        ctx.assertTrue(b.gcCount >= a.gcCount && b.gcMs >= a.gcMs, "GC 计数/停顿应单调不减");
+        ctx.assertTrue(a.allocOk == b.allocOk, "分配账可用性同窗内应稳定");
+        if (a.allocOk)
+            ctx.assertTrue(b.allocBytes - a.allocBytes >= 8L * 1024 * 1024,
+                    "线程分配账应覆盖 ~32MB 真分配(阈值8MB)，实得 " + (b.allocBytes - a.allocBytes));
+        ctx.complete();
+    }
 }

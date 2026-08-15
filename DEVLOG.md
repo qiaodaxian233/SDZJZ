@@ -5806,3 +5806,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①仓→过滤→垃圾桶、抽取启停退料、开关/传感器闸门、泵高挡抽取全套行为同旧；
   ②/sdzjz bench 三档矩阵对比 m349：GC 次数/分配速率应可见下降（m351 给 bench 补 GC 账后精测）；
   ③装 Create 类 FTA 管道对拍存储核心，取放照常。
+
+## m351 GC/分配压测账（外部审计③轮"大规模 GC 压测"收官件）
+
+- **现象**：审计③轮下一轮目标榜四件套的最后一件——m349（单趟执行计划）/m350（热路径零分配）
+  都是"减分配"的刀，但 /sdzjz bench 报告只有 MSPT/调度账，没有 GC/分配账，收益无对表尺。
+- **修法**：新 com.sdzjz.debug.GcAccount 快照类（GC 次数/停顿毫秒=全 JVM 收集器求和；
+  分配字节=当前线程走 com.sun.management.ThreadMXBean，HotSpot 默认可用，
+  UnsupportedOperationException/SecurityException 一律降级只留 GC 账，allocOk 位随行）。
+  BenchRunner 三锚点：字段 gcStart、reset 清态、铺场完成进 RUN 前起账（END_SERVER_TICK=
+  服务器线程，与结账天然同线程可比）；writeReport 看门狗行后出账行：测窗秒/GC 次/停顿 ms
+  +占窗%/服务器线程分配 MB+MB/s+KB/tick，分配不可用打"非HotSpot/被禁"。口径注释行随报告
+  同文落地防误读：GC=全 JVM 合计（集成服含渲染线程诱发），分配=仅服务器线程，对比须同环境同参数。
+- **配置**：零新键（bench 命令本就 opt-in，纯报告增强，m306 先例）。
+- **验证**：javac21 冒烟真语法错 0（com.sun.management 包可见性=本刀唯一编译风险点，本地
+  javac 直编通过即排除）；十新符号定向检全净。GameTest 卅二号：4096×long[1024]≈32MB
+  冷代码真分配（测试体解释执行，逃逸分析消不掉；防呆断言=求和恒等式+keep 非空），断言
+  GC 计数/停顿单调不减、allocOk 窗内稳定、HotSpot 下线程分配差≥8MB（阈值留 4 倍余量不赌 JIT）。
+- **实机脚本**：同参数三档矩阵（如 100×64）分别在 m348 与 m351 出报告，对比 GC 次数/
+  停顿占窗%/KB/tick——m349+m350 的收益就看这三个数降多少；贴报告回外部审计即四件套交卷。

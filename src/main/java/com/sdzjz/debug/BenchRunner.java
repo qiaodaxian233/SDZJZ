@@ -57,6 +57,7 @@ public final class BenchRunner {
     private static long[] busyNs = new long[0];   // m307 忙时=原版 tickTimes 当拍真值（负载口径）
     private static int tickCount;
     private static Path reportPath;
+    private static com.sdzjz.debug.GcAccount gcStart; // m351 测窗起点 GC/分配快照
     // m308 黄灯占空比直测（m115 看门狗 45/40ms 滞回；占空比>0 时倍数判据=噪声）
     private static long pauseSamples, pauseHits; private static int pausePeak;
 
@@ -68,7 +69,7 @@ public final class BenchRunner {
     /** SERVER_STOPPED：复位状态机（配置只改内存不落盘，重启自动回读磁盘值）。 */
     public static void reset() {
         phase = Phase.IDLE; world = null; SITES.clear(); tickNs = new long[0]; tickCount = 0;
-        capTouched = false; reportPath = null;
+        capTouched = false; reportPath = null; gcStart = null;
     }
 
     public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap) {
@@ -117,6 +118,7 @@ public final class BenchRunner {
                         SdzjzConfig.get().maxRecipesPerNetworkTick = capParam; capTouched = true; }
                     runTicksLeft = (long) seconds * 20;
                     prevNano = 0;
+                    gcStart = com.sdzjz.debug.GcAccount.snap(); // m351 起账（END_SERVER_TICK=服务器线程）
                     phase = Phase.RUN;
                     msg(server, "§a[sdzjz] 铺场完成，压测开跑 " + seconds + "s（/sdzjz bench stop 可提前收）");
                 }
@@ -224,6 +226,20 @@ public final class BenchRunner {
         double dutyPct = pauseSamples == 0 ? 0 : 100.0 * pauseHits / pauseSamples;
         sb.append(String.format("过载看门狗(m115,阈45/40ms滞回): 黄灯占空比 均 %.1f%% | 峰值同时暂停 %d/%d 核%n",
                 dutyPct, pausePeak, SITES.size()));
+        if (gcStart != null) { // m351 GC/分配账（m349/m350 热路径刀的对表尺）
+            com.sdzjz.debug.GcAccount ge = com.sdzjz.debug.GcAccount.snap();
+            double winSec = Math.max(1e-9, (ge.nanoTime - gcStart.nanoTime) / 1e9);
+            long gcC = Math.max(0, ge.gcCount - gcStart.gcCount);
+            long gcT = Math.max(0, ge.gcMs - gcStart.gcMs);
+            sb.append(String.format("GC/分配(测窗 %.1fs): GC %d 次 | 停顿累计 %d ms (占窗 %.2f%%)",
+                    winSec, gcC, gcT, gcT / (winSec * 10)));
+            if (ge.allocOk && gcStart.allocOk) {
+                long ab = Math.max(0, ge.allocBytes - gcStart.allocBytes);
+                sb.append(String.format(" | 服务器线程分配 %.1f MB | %.1f MB/s | %.1f KB/tick",
+                        ab / 1048576.0, ab / 1048576.0 / winSec, tickCount > 0 ? ab / 1024.0 / tickCount : 0));
+            } else sb.append(" | 分配账不可用(非HotSpot/被禁)");
+            sb.append('\n').append("  口径: GC=全JVM合计(集成服含渲染线程诱发), 分配=仅服务器线程; 对比请同环境同参数跑\n");
+        }
         String verdict;
         double ratio = min > 0 ? (double) max / min : Double.NaN;
         if (!silent.isEmpty()) verdict = "不达标：" + silent.size() + " 个铺场核心从未上账（未tick/未申请）——数据不可用请贴报告";
