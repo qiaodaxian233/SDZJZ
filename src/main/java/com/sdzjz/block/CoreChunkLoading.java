@@ -55,6 +55,8 @@ public final class CoreChunkLoading {
 
     public static void clearAll() {
         FORCED.clear();
+        STRIKES.clear();     // m347 核销击数随停服清（跨存档幽灵防线同款）
+        FIRST_SEEN.clear();  // m347 宽限锚同清（下个存档重新计宽限）
     }
 
     private static String dimId(ServerWorld w) {
@@ -137,6 +139,69 @@ public final class CoreChunkLoading {
         w.getChunkManager().removeTicket(CORE, cp, 2, cp); // 无票时 remove 无害
         Claims c = claims(w);
         if (c.chunks.remove(cp.toLong())) c.markDirty();
+    }
+
+    // ===== m347 孤儿声明渐进核销（外部审计销账）=====
+    // 病根：restoreClaims 开服照声明表逐块重发无期票，**不验核心还在不在**。核心若在区块未加载态下
+    // 消失（存档回滚/世界编辑工具/落盘时序撕裂），声明成孤儿——区块被自家票永久钉死，release 的
+    // "未登记即撤"兜底永远等不到调用（没有核心去调它）。
+    // 修法：每维度每 200t 扫一遍声明表，与运行时 FORCED 引用计数对表——声明在而运行时零登记
+    // = 记一击；**连续三击**（≥30s）才核销（撤票+删声明+出声）。运行时有登记即销击。
+    // 时序安全账：重启后 chunkForceOn 瞬态=false，活核心的区块被恢复票钉着必然 tick，≤20t 边沿
+    // 重登记进 FORCED（m296 既有戏法）；再叠开服 600t 宽限起扫 + 三击迟滞 ≥30s，任何慢热路径
+    // 都追不上误杀。全程 O(声明数) 查表，声明数=运行核心区块数，量级可忽略（"渐进"即在此）。
+    private static final Map<String, Map<Long, Integer>> STRIKES = new HashMap<>(); // dim → chunkLong → 连续缺席击数
+    private static final Map<String, Long> FIRST_SEEN = new HashMap<>();            // dim → 首见世界时刻（宽限锚）
+    private static final int STRIKE_OUT = 3;      // 三击核销
+    private static final int SWEEP_PERIOD = 200;  // 每 10s 一扫
+    private static final int GRACE_TICKS = 600;   // 开服 30s 宽限（≥20t 重登记窗的 30 倍）
+
+    /** 每维度 tick 驱动（Sdzjz 注册）：宽限+节拍由此把门，真活在 sweepNow。开关关=零动作。 */
+    public static void reconcileTick(ServerWorld w) {
+        if (!com.sdzjz.config.SdzjzConfig.get().chunkClaimReconcile) return;
+        String dim = dimId(w);
+        long now = w.getTime();
+        Long first = FIRST_SEEN.get(dim);
+        if (first == null) { FIRST_SEEN.put(dim, now); return; }
+        if (now - first < GRACE_TICKS || Math.floorMod(now, SWEEP_PERIOD) != 0) return;
+        sweepNow(w);
+    }
+
+    /** 单趟对表核销（GameTest 直驱口，绕过宽限/节拍）。 */
+    public static void sweepNow(ServerWorld w) {
+        String dim = dimId(w);
+        Claims c = claims(w);
+        Map<Long, Integer> strikes = STRIKES.computeIfAbsent(dim, k -> new HashMap<>());
+        Map<Long, Set<Long>> dimMap = FORCED.get(dim);
+        java.util.Iterator<Long> it = c.chunks.iterator();
+        while (it.hasNext()) {
+            long cl = it.next();
+            Set<Long> owners = dimMap == null ? null : dimMap.get(cl);
+            if (owners != null && !owners.isEmpty()) { strikes.remove(cl); continue; } // 运行时有主=活声明
+            int n = strikes.merge(cl, 1, Integer::sum);
+            if (n < STRIKE_OUT) continue;
+            ChunkPos cp = new ChunkPos(cl);
+            w.getChunkManager().removeTicket(CORE, cp, 2, cp);
+            it.remove();
+            c.markDirty();
+            strikes.remove(cl);
+            com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] 孤儿强加载声明核销：{} 区块({}, {}) 连续 {} 轮无核心登记，"
+                    + "已撤票删声明（核心消失于区块未加载态的遗留；误销自愈=核心仍在则下次开机重新登记）。",
+                    dim, cp.x, cp.z, STRIKE_OUT);
+        }
+        strikes.keySet().retainAll(c.chunks); // 声明已由 release 正常撤走的陈击数顺手保洁
+    }
+
+    /** GameTest 观测口：本维度声明数。 */
+    public static int claimCount(ServerWorld w) {
+        return claims(w).chunks.size();
+    }
+
+    /** GameTest 注入口：只抹掉指定区块的**运行时**登记（声明保留）=精确模拟"核心消失于区块
+     *  未加载态"的孤儿态，不像 clearAll 会殃及同服其他用例的运行时账。 */
+    public static void debugForgetRuntime(ServerWorld w, long chunkLong) {
+        Map<Long, Set<Long>> dimMap = FORCED.get(dimId(w));
+        if (dimMap != null) dimMap.remove(chunkLong);
     }
 
     /** 孤儿回收：现只承担**旧通道遗旗**清理（m268 时代 owned=true 但停机核心重启后发现区块仍 forced）。

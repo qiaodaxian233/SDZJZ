@@ -39,6 +39,8 @@ public class Sdzjz implements ModInitializer {
         // m332 随身仓库专属仓位：仓位不在 PlayerInventory，原版 inventoryTick 轮不到——服务端 tick 钩
         // 与背包同拍（每 10t）代跑吸附；开关关或格空=每 0.5s 一次空遍历在线表，开销可忽略。
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (net.minecraft.server.world.ServerWorld w : server.getWorlds())
+                com.sdzjz.block.CoreChunkLoading.reconcileTick(w); // m347 孤儿声明渐进核销（宽限/节拍/开关在里头把门）
             if (!SdzjzConfig.get().portableVaultSlot || server.getOverworld().getTime() % 10 != 0) return;
             for (net.minecraft.server.network.ServerPlayerEntity sp : server.getPlayerManager().getPlayerList()) {
                 net.minecraft.item.ItemStack v = com.sdzjz.item.PortableVaultSlot.stackOf(sp);

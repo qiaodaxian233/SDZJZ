@@ -751,4 +751,34 @@ public class SdzjzGameTests implements FabricGameTest {
                 "不可熔炼物应返回 null");
         ctx.complete();
     }
+
+    /** m347 廿九号：孤儿强加载声明渐进核销——force 走真入口（声明+运行时+票三件套），
+     *  debugForgetRuntime 精确注入孤儿态（=核心消失于区块未加载态），sweepNow 直驱绕过宽限节拍：
+     *  前两击迟滞不动、第三击核销；同批活声明（运行时有主）全程豁免且击数被销。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void chunk_claim_reconcile(TestContext ctx) {
+        var w = ctx.getWorld();
+        int base = com.sdzjz.block.CoreChunkLoading.claimCount(w);
+        BlockPos orphanPos = ctx.getAbsolutePos(new BlockPos(0, 1, 0)).add(16384, 0, 16384); // 远离在用区块
+        BlockPos alivePos = orphanPos.add(512, 0, 0);
+        com.sdzjz.block.CoreChunkLoading.force(w, orphanPos, false);
+        com.sdzjz.block.CoreChunkLoading.force(w, alivePos, false);
+        ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base + 2, "两声明应入表");
+        com.sdzjz.block.CoreChunkLoading.debugForgetRuntime(w, new net.minecraft.util.math.ChunkPos(orphanPos).toLong());
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base + 2,
+                "两击迟滞：声明应还在（防误杀）");
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base + 1,
+                "三击核销：孤儿声明应被撤，实存 " + com.sdzjz.block.CoreChunkLoading.claimCount(w));
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        com.sdzjz.block.CoreChunkLoading.sweepNow(w);
+        ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base + 1,
+                "活声明豁免：运行时有主的声明任扫不掉");
+        com.sdzjz.block.CoreChunkLoading.release(w, alivePos, false); // 清场不留票
+        ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base, "release 清场对账");
+        ctx.complete();
+    }
 }
