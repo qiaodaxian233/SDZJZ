@@ -5378,3 +5378,40 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   tools_docs_sync 绿（未动机器）；纯 markdown+properties 零 Java 无冒烟需求。
 - **实机脚本**：无行为变化，CI 三 job 全绿即销账。作者侧动作：①废弃手头旧粘贴副本（内嵌
   token 那份），以后开新对话直接贴仓库现行 `对接文档.md`；②任务看板去留回一句话。
+
+## m332 随身仓库专属仓位（作者点名"物品栏新增一个地方放，可以兼容功能"）
+
+- **设计**：原版背包屏追加第 47 格（下标 46，副手 77,62 正上方 77,44）只收随身仓库、格上限恒 1。
+  账面**不进 PlayerInventory**——PersistentState 按玩家 UUID 挂主世界一份（m296 声明表同刀法）：
+  死亡不掉（贴身口袋语义）、换维度/重进服跟人、keepInventory 无关，零 copyFrom/dropAll 边角。
+  客户端不碰账面：原版 playerScreenHandler 每 playerTick 恒广播槽位（开着别的屏也刷），
+  追加格下标双端同构=白捡同步（m312 零 S2C 同款思路）。
+- **接线四件（"兼容功能"逐项落地）**：①吸附：inventoryTick 主体抽 `magnetTick(stack, player)` 静态，
+  背包路径原样、仓位路径走 Sdzjz 新 END_SERVER_TICK 钩（仓位不在 PlayerInventory 原版不给 tick），
+  同拍每 10t，两路互斥零双跑；②开屏：onClicked 空光标+右键+槽是 PortableVaultSlot=服务端
+  openHandledScreen（仓位没有"手持右键"路径），双端同判 return true 吃掉点击防客户端预测取栈；
+  ③取物屏：vault() 手上没有时兜底 `PortableVaultSlot.stackOf(player)`——从仓位开的屏校验/渲染/
+  VaultTake 全走同一读口；canUse"包离手关屏"语义自动升级为"手上或仓位有包"；④shift 交互白捡：
+  追加在槽表末尾=原版 quickMove 显式区段零漂移，46 号落它的兜底 else=shift 点仓位自动回背包。
+- **mixin 两枚（m310 后第 4/5 枚）**：PlayerScreenHandlerVaultMixin（<init> TAIL 加槽，单构造函数
+  签名 yarn 核过 inventory/onServer/owner 三参）+ client.InventoryScreenVaultSlotMixin
+  （drawBackground TAIL 手绘 18² 三色槽框；刻意抄原版槽框配色**不进 SciSkin**——这格跟原版底图走
+  不跟 MOD 主题走）。x/y 字段、Entity.getServer、MinecraftServer.getOverworld、
+  PlayerEntity.playerScreenHandler 五名全 yarn 1.21.1 核到。
+- **账面读口置脏**：账本组件（吸附/收纳/取物）原地写在同一实例上不经 setStack，存档期序列化的
+  正是该实例——dirty 只决定要不要落盘，故 Inv.getStack 服务端读口顺手 markDirty（小表每存档周期
+  重写，代价可忽略），根治"组件改了没人 markDirty 存档丢"。
+- **配置**：portableVaultSlot 默认开，v36 纯加键。**需双端一致**（bigStacks 同律）：不一致=槽数
+  错位、同步包下标越界。
+- **边界立档**：①创造模式"背包"页是另一套 CreativeSlot 重排，追加格在那页的落位属原版重排逻辑，
+  观感异常先关开关复核；②InventoryScreen 是否覆写 drawBackground=mixin 靶点唯一存疑名
+  （HandledScreen 层 method_2389 核到，覆写与否 CI 真编译现形，红了改靶 render 前段）；
+  ③onClicked 内开屏的点击时序（客户端正处理点击、服务端插开屏包）待实机验证；
+  ④仓位内的包"右键核心/面板整包入仓"需先取到手上——useOnBlock 是手持路径，属预期不补。
+- **验证**：javac21 全库冒烟真语法错 0（-Xmaxerrs 放开），三新文件缺符号逐一列名全为 MC/Mixin
+  依赖噪音、自家符号零命中；六尺全绿（dup/override/tx/bounded/color/docs）；mixins.json 过
+  json.load；GameTest 廿一号用例=账面存档往返（30 亿 long 跨 int 边界）+陌生 UUID 读空+仓位
+  准入三断言，CI 判官。版本跳 0.1.332。
+- **实机脚本**：①开背包：副手正上方多一格，只放得进随身仓库；②包放仓位，开吸附，捡东西——
+  照吸且入账（tooltip 计数动）；③仓位里右键包=开取物屏，取物/收纳照常；④死亡重生：仓位包还在
+  账目不丢；⑤shift 点仓位包=回背包；⑥关 portableVaultSlot（双端）＝格消失、老档账面保留不丢。

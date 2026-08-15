@@ -35,6 +35,16 @@ public class Sdzjz implements ModInitializer {
     public void onInitialize() {
         com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph
         com.sdzjz.debug.BenchRunner.init(); // m306 一键压测（IDLE 时 tick 零开销）
+
+        // m332 随身仓库专属仓位：仓位不在 PlayerInventory，原版 inventoryTick 轮不到——服务端 tick 钩
+        // 与背包同拍（每 10t）代跑吸附；开关关或格空=每 0.5s 一次空遍历在线表，开销可忽略。
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (!SdzjzConfig.get().portableVaultSlot || server.getOverworld().getTime() % 10 != 0) return;
+            for (net.minecraft.server.network.ServerPlayerEntity sp : server.getPlayerManager().getPlayerList()) {
+                net.minecraft.item.ItemStack v = com.sdzjz.item.PortableVaultSlot.stackOf(sp);
+                if (!v.isEmpty()) com.sdzjz.item.PortableVaultItem.magnetTick(v, sp);
+            }
+        });
         SdzjzConfig.load();
         ModBlocks.init();
         ModBlockEntities.init();

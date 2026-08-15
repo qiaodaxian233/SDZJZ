@@ -526,4 +526,29 @@ public class SdzjzGameTests implements FabricGameTest {
         h.onClosed(p1);
         ctx.complete();
     }
+
+    /** m332 廿一号：随身仓库专属仓位——账面 PersistentState 存档往返（long 账本跨 int 边界）+ 仓位准入规则。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void portable_vault_slot_state_roundtrip(TestContext ctx) {
+        var lookup = ctx.getWorld().getRegistryManager();
+        java.util.UUID u = java.util.UUID.randomUUID();
+        ItemStack vault = new ItemStack(com.sdzjz.registry.ModItems.PORTABLE_VAULT);
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultAdd(vault, "minecraft:stone", 3_000_000_000L),
+                "入账 30 亿石头应成功");
+        var a = new com.sdzjz.item.PortableVaultSlot.State();
+        a.set(u, vault);
+        var nbt = a.writeNbt(new net.minecraft.nbt.NbtCompound(), lookup);
+        var b = com.sdzjz.item.PortableVaultSlot.State.read(nbt, lookup);
+        ItemStack back = b.get(u);
+        ctx.assertTrue(back.getItem() instanceof com.sdzjz.item.PortableVaultItem, "往返后仓位物品身份不变");
+        ctx.assertTrue(com.sdzjz.item.PortableVaultItem.ledger(back).getLong("minecraft:stone") == 3_000_000_000L,
+                "long 账本跨 int 边界往返不变（m311 十号用例同口径）");
+        ctx.assertTrue(b.get(java.util.UUID.randomUUID()).isEmpty(), "陌生 UUID 读空");
+        // 仓位准入：只收随身仓库、格上限恒 1（m310 SlotMaxCountMixin 打在超类无参口，本覆写直返不受累）
+        var slot = new com.sdzjz.item.PortableVaultSlot(new net.minecraft.inventory.SimpleInventory(1));
+        ctx.assertTrue(slot.canInsert(vault), "仓位应收随身仓库");
+        ctx.assertTrue(!slot.canInsert(new ItemStack(net.minecraft.item.Items.STONE)), "仓位拒收普通物品");
+        ctx.assertTrue(slot.getMaxItemCount() == 1, "仓位格上限恒 1");
+        ctx.complete();
+    }
 }

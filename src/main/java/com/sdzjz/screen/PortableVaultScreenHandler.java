@@ -43,7 +43,10 @@ public class PortableVaultScreenHandler extends ScreenHandler {
     /** 客户端渲染/双端校验都从这拿包（手上实时读，被换手/丢弃即空）。 */
     public ItemStack vault() {
         ItemStack s = player.getStackInHand(hand);
-        return s.getItem() instanceof PortableVaultItem ? s : ItemStack.EMPTY;
+        if (s.getItem() instanceof PortableVaultItem) return s;
+        // m332 专属仓位兜底：从仓位开的屏照常校验/渲染；仓位栈走原版槽位同步（playerScreenHandler
+        // 每 playerTick 恒广播，本屏开着也刷）——客户端列表读数与服务端账本同源不冻。
+        return com.sdzjz.item.PortableVaultSlot.stackOf(player);
     }
 
     @Override

@@ -5,10 +5,12 @@
   "mixins": [
     "ItemStackCodecMixin",
     "ItemStackMaxCountMixin",
+    "PlayerScreenHandlerVaultMixin",
     "SlotMaxCountMixin"
   ],
   "client": [
-    "client.DrawContextCountMixin"
+    "client.DrawContextCountMixin",
+    "client.InventoryScreenVaultSlotMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -169,7 +169,16 @@ public class PortableVaultItem extends Item {
     public boolean onClicked(ItemStack stack, ItemStack otherStack, net.minecraft.screen.slot.Slot slot,
                              net.minecraft.util.ClickType clickType, PlayerEntity player,
                              net.minecraft.inventory.StackReference cursorStackReference) {
-        if (clickType != net.minecraft.util.ClickType.RIGHT || otherStack.isEmpty()) return false;
+        if (otherStack.isEmpty()) {
+            // m332 专属仓位里右键（空光标）=原地开仓——仓位在背包屏没有"手持右键"路径
+            if (clickType == net.minecraft.util.ClickType.RIGHT && slot instanceof PortableVaultSlot) {
+                if (!player.getWorld().isClient) player.openHandledScreen(new net.minecraft.screen.SimpleNamedScreenHandlerFactory(
+                        (syncId, inv, pl) -> new com.sdzjz.screen.PortableVaultScreenHandler(syncId, inv), stack.getName()));
+                return true; // 双端同判吃掉点击：客户端不预测取栈，等服务端开屏包（时序待实机验证）
+            }
+            return false;
+        }
+        if (clickType != net.minecraft.util.ClickType.RIGHT) return false;
         if (!absorbable(otherStack)) { bar(player, "带组件/不可堆叠物品不入仓（防抹组件）"); return true; }
         String id = Registries.ITEM.getId(otherStack.getItem()).toString();
         if (!vaultAdd(stack, id, otherStack.getCount())) { bar(player, "仓库类型已满（config portableVaultTypeCap）"); return true; }
@@ -183,7 +192,14 @@ public class PortableVaultItem extends Item {
     public void inventoryTick(ItemStack stack, World world, net.minecraft.entity.Entity entity, int slotIdx, boolean selected) {
         if (world.isClient || world.getTime() % 10 != 0) return;
         if (!(entity instanceof net.minecraft.server.network.ServerPlayerEntity player)) return;
+        magnetTick(stack, player);
+    }
+
+    /** m332 抽成静态：背包内走 inventoryTick、专属仓位走 Sdzjz 服务端 tick 钩
+     *  （仓位不在 PlayerInventory，原版不给它 inventoryTick）。两路互斥零双跑。 */
+    public static void magnetTick(ItemStack stack, net.minecraft.server.network.ServerPlayerEntity player) {
         if (!magnetOn(stack)) return;
+        World world = player.getWorld();
         int r = SdzjzConfig.get().portableVaultMagnetRadius;
         if (r <= 0) return;
         NbtCompound root = rootOf(stack);
@@ -218,7 +234,7 @@ public class PortableVaultItem extends Item {
                 .formatted(net.minecraft.util.Formatting.AQUA));
         tooltip.add(Text.literal("账本: " + v.getKeys().size() + " 类 · " + fmt(vaultTotal(stack)) + " 件")
                 .formatted(net.minecraft.util.Formatting.GRAY)); // m312：撤明细行（30 类会刷屏，用户点名）——明细进 GUI
-        tooltip.add(Text.literal("右键=打开仓库 · 右键核心/面板=整包入仓").formatted(net.minecraft.util.Formatting.DARK_GRAY));
+        tooltip.add(Text.literal("右键=打开仓库 · 右键核心/面板=整包入仓 · 背包屏副手上方有专属仓位").formatted(net.minecraft.util.Formatting.DARK_GRAY));
     }
 
     private static void bar(PlayerEntity p, String s) {
