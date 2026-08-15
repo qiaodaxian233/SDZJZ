@@ -551,4 +551,39 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(slot.getMaxItemCount() == 1, "仓位格上限恒 1");
         ctx.complete();
     }
+
+    /** m333 廿二号：交易所等级系统——门槛升级/满级封顶/旧合同按大师接管/交易表序号锚定不漂移。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void trade_center_leveling(TestContext ctx) {
+        ItemStack c = new ItemStack(com.sdzjz.registry.ModItems.VILLAGER_CONTRACT);
+        // 旧合同：有职业没有 lv 键 → 按大师接管（m333 前它本就全表解锁，不没收），且不再记账
+        var n = new net.minecraft.nbt.NbtCompound();
+        n.putString("prof", "librarian");
+        c.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                net.minecraft.component.type.NbtComponent.of(n));
+        ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.contractLevel(c) == 5, "旧合同（无lv键）应按大师接管");
+        ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.grantTradeXp(c, 999) == 0, "满级/旧合同不再升级");
+        // 新合同：新手起步，10/70/150/250 累计门槛逐级升，一笔灌满连升封顶
+        n.putInt("lv", 1);
+        n.putInt("xp", 0);
+        c.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                net.minecraft.component.type.NbtComponent.of(n));
+        ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.grantTradeXp(c, 10) == 1
+                        && com.sdzjz.block.TradeCenterBlockEntity.contractLevel(c) == 2, "累计 10 经验→学徒");
+        ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.grantTradeXp(c, 1000) == 3
+                        && com.sdzjz.block.TradeCenterBlockEntity.contractLevel(c) == 5, "一笔灌满→连升三级到大师封顶");
+        ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.grantTradeXp(c, 50) == 0, "大师后再投入=零升级（界面明示满级，不静默）");
+        // 表内不变量：每职业至少一条 1 级起步交易（新合同不许开局无事可做）
+        for (var e : com.sdzjz.machine.VillagerTrades.ALL.entrySet())
+            ctx.assertTrue(e.getValue().trades().stream().anyMatch(t -> t.minLevel() == 1),
+                    "职业 " + e.getKey() + " 缺 1 级起步交易");
+        // 序号锚定（交易机目标串"职业|序号"防漂移）：m333 只在表尾追加，头部序号必须原位
+        ctx.assertTrue("minecraft:wheat".equals(com.sdzjz.machine.VillagerTrades.ALL.get("farmer").trades().get(0).inItem()),
+                "farmer|0 仍是小麦收购");
+        ctx.assertTrue("minecraft:mending".equals(com.sdzjz.machine.VillagerTrades.ALL.get("librarian").trades().get(4).enchant()),
+                "librarian|4 仍是经验修补（m101 序）");
+        ctx.assertTrue("minecraft:lapis_lazuli".equals(com.sdzjz.machine.VillagerTrades.ALL.get("cleric").trades().get(0).outItem()),
+                "cleric|0 仍是青金石量产口（m153）");
+        ctx.complete();
+    }
 }

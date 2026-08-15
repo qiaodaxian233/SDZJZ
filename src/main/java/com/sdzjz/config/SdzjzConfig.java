@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 36; // m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 37; // m333 交易所等级系统两键（tradeLeveling 总开关/tradeXpMultiplier 经验倍率）；m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
@@ -25,6 +25,8 @@ public class SdzjzConfig {
     public int portableVaultMagnetRadius = 5;   // 吸附半径（格），0=全局禁吸附；每 0.5s 一扫
     public int portableVaultTypeCap = 256;
     public boolean portableVaultSlot = true;    // m332 背包屏追加专属仓位（下标46，副手上方）。需双端一致（bigStacks 同律）：不一致=槽数错位同步炸
+    public boolean tradeLeveling = true;        // m333 交易所合同等级系统（新手→大师，交易攒经验解锁高档交易）。关=全表解锁旧行为。服务端权威；客户端值只影响锁行显示
+    public int tradeXpMultiplier = 1;           // m333 每笔交易合同经验倍率（≥1，想快毕业调大）
     public boolean sodiumIconAnimFix = true;    // m320：装 Sodium 时每客户端tick给本模组动画物品精灵标"活跃"（其"仅动画可见纹理"优化只保世界内方块精灵，纯GUI物品精灵会冻帧）；未装Sodium自动停用零开销      // 账本类型上限（只闸新类型，已有类型照常并账）。账本存物品组件，类数越大背包同步越重，慎调大
 
     // ===== m310 原生大堆叠（替代 ItemStackProMax，模组自带）=====
@@ -203,6 +205,8 @@ public class SdzjzConfig {
         if (cfg.configVersion < 34) cfg.configVersion = 34; // m320 纯加键（sodiumIconAnimFix），缺键走字段初值
         if (cfg.configVersion < 35) cfg.configVersion = 35; // m322 纯加键（panelMasterSnapshotCache 终端主快照缓存），缺键走字段初值
         if (cfg.configVersion < 36) cfg.configVersion = 36; // m332 纯加键（portableVaultSlot 专属仓位），缺键走字段初值
+        if (cfg.configVersion < 37) cfg.configVersion = 37; // m333 纯加键（tradeLeveling/tradeXpMultiplier 交易所等级），缺键走字段初值
+        cfg.tradeXpMultiplier = Math.max(1, cfg.tradeXpMultiplier); // m333 钳位
         cfg.bigStackMax = Math.max(64, Math.min(1_073_741_823, cfg.bigStackMax)); // m310 钳位：上界 2^30 防原版合并 a+b 溢出吃物品
 
         INSTANCE = cfg;

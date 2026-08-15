@@ -133,6 +133,43 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt("disc");
     }
 
+    /** m333 合同等级（1..5）。**旧合同（有职业但无 lv 键）按 5 级接管**——m333 上线前它们本就
+     *  全表解锁，收回=没收玩家既有权益（m99 之训反面）。新就业合同从 1 级起步。 */
+    public static int contractLevel(ItemStack s) {
+        if (contractProf(s) == null) return 0;
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        if (!n.contains("lv")) return 5;
+        return Math.max(1, Math.min(5, n.getInt("lv")));
+    }
+
+    /** m333 合同累计交易经验（满级后不再累计）。 */
+    public static int contractXp(ItemStack s) {
+        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt("xp");
+    }
+
+    private static void setLevel(ItemStack s, int lv, int xp) {
+        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        n.putInt("lv", lv);
+        n.putInt("xp", xp);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+    }
+
+    /** m333 记交易经验并按门槛升级，返回升了几级（0=没升）。纯函数口（廿二号用例直测）：
+     *  旧合同（无 lv 键）视同满级零写入；满级封顶（到顶再投入=界面明示"满级"，不静默——m99 之问）。 */
+    public static int grantTradeXp(ItemStack c, int gain) {
+        if (contractProf(c) == null) return 0;
+        NbtCompound n = c.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        int lv = n.contains("lv") ? Math.max(1, Math.min(5, n.getInt("lv"))) : 5;
+        if (lv >= 5) return 0;
+        int xp = Math.max(0, n.getInt("xp")) + Math.max(0, gain);
+        int up = 0;
+        while (lv < 5 && xp >= VillagerTrades.LEVEL_XP[lv]) { lv++; up++; }
+        n.putInt("lv", lv);
+        n.putInt("xp", xp);
+        c.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        return up;
+    }
+
     private static void setContract(ItemStack s, String prof, int disc) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         n.putString("prof", prof);
@@ -155,6 +192,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             return;
         }
         setContract(c, prof, 0);
+        setLevel(c, 1, 0); // m333 新就业=新手起步（旧合同无 lv 键=按大师接管，见 contractLevel）
         contractSlot.markDirty();
     }
 
@@ -166,6 +204,12 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
         if (index < 0 || index >= trades.size()) return;
         VillagerTrades.Trade t = trades.get(index);
+        var cfg = com.sdzjz.config.SdzjzConfig.get();
+        if (cfg.tradeLeveling && contractLevel(c) < t.minLevel()) { // m333 等级闸（客户端锁行只是礼貌，这里才是门）
+            player.sendMessage(Text.literal("交易未解锁：需 " + VillagerTrades.levelName(t.minLevel())
+                    + "（当前 " + VillagerTrades.levelName(contractLevel(c)) + "）——先做已解锁交易攒经验"), true);
+            return;
+        }
         int disc = contractDiscount(c);
         int need = VillagerTrades.discounted(t.inCount(), disc);
         if (netCount(t.inItem()) < need) {
@@ -200,6 +244,12 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             }
         }
         player.addExperience(3 + player.getRandom().nextInt(4)); // 原版交易经验 3-6
+        if (cfg.tradeLeveling) { // m333 合同经验：越高档交易喂得越多，升级即时播报
+            int up = grantTradeXp(c, VillagerTrades.tradeXp(t) * Math.max(1, cfg.tradeXpMultiplier));
+            contractSlot.markDirty();
+            if (up > 0) player.sendMessage(Text.literal("叮！村民升级：" + VillagerTrades.levelName(contractLevel(c))
+                    + "——交易列表解锁新行"), true);
+        }
     }
 
     /** 治愈：消耗网络里 1 个金苹果，折扣 +1（最高 5）。 */

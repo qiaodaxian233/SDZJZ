@@ -73,7 +73,11 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
             }
         } else {
             int disc = TradeCenterBlockEntity.contractDiscount(c);
-            ctx.drawText(this.textRenderer, "职业：" + profName(prof) + "   折扣：Lv" + disc + "（每级输入-10%）", x + 80, y + 30, TXT, false);
+            int lvl = TradeCenterBlockEntity.contractLevel(c);
+            boolean lvOn = com.sdzjz.config.SdzjzConfig.get().tradeLeveling; // m333 关=全表解锁旧观感
+            String lvTxt = !lvOn ? "" : " · " + VillagerTrades.levelName(lvl)
+                    + (lvl >= 5 ? "(满级)" : "(" + TradeCenterBlockEntity.contractXp(c) + "/" + VillagerTrades.LEVEL_XP[lvl] + ")");
+            ctx.drawText(this.textRenderer, "职业：" + profName(prof) + lvTxt + " · 折扣Lv" + disc + "(-" + disc * 10 + "%)", x + 80, y + 30, TXT, false);
 
             // 治愈按钮
             int hx = x + 288, hy = y + 26;
@@ -90,7 +94,8 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 int i = tradeScroll + v;
                 VillagerTrades.Trade t = trades.get(i);
                 int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
-                boolean hov = mouseX >= rx && mouseX < rx + 270 && mouseY >= ry && mouseY < ry + ROW_H;
+                boolean locked = lvOn && lvl < t.minLevel(); // m333 未到级：不亮不点，右侧标解锁等级
+                boolean hov = !locked && mouseX >= rx && mouseX < rx + 270 && mouseY >= ry && mouseY < ry + ROW_H;
                 ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? SciSkin.HOVER : CELL);
                 ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
                 int need = VillagerTrades.discounted(t.inCount(), disc);
@@ -113,7 +118,8 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 } else {
                     ctx.drawText(this.textRenderer, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
                 }
-                if (hov) ctx.drawText(this.textRenderer, "点击交易", rx + 214, ry + 8, CYAN, false);
+                if (locked) ctx.drawText(this.textRenderer, VillagerTrades.levelName(t.minLevel()) + "解锁", rx + 214, ry + 8, SUB, false);
+                else if (hov) ctx.drawText(this.textRenderer, "点击交易", rx + 214, ry + 8, CYAN, false);
             }
             if (maxScroll > 0) { // m101 滚动条
                 int trackX = x + 352, trackY = y + 48, trackH = VISIBLE_ROWS * (ROW_H + 4) - 4;
@@ -177,9 +183,12 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 return true;
             }
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
+            int lvl = TradeCenterBlockEntity.contractLevel(c);
+            boolean lvOn = com.sdzjz.config.SdzjzConfig.get().tradeLeveling;
             for (int v = 0; v < VISIBLE_ROWS && tradeScroll + v < trades.size(); v++) { // m101 按滚动偏移换算
                 int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 if (mx >= rx && mx < rx + 270 && my >= ry && my < ry + ROW_H) {
+                    if (lvOn && lvl < trades.get(tradeScroll + v).minLevel()) return true; // m333 锁定行吃点击
                     this.client.interactionManager.clickButton(this.handler.syncId,
                             TradeCenterScreenHandler.BTN_TRADE_BASE + tradeScroll + v);
                     return true;
