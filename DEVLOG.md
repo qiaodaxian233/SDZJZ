@@ -5671,3 +5671,15 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   假人发快照包（否则 ServerPlayNetworking.send NPE）。
 - **教训**：假人上手先问一句"它到底是哪个类"——m328 注记里就写着答案；测试挂号类断言
   要连同**钩子入口的类型前提**一起想。热修不抬版本（m317 口径），版本停 0.1.344。
+
+## m345 外部审计②余账对表登记（纯文档）
+
+- 作者转来第二份外部源码审计（二十条+优先级表）。本轮三笔处置：P0 CraftPlanner Ingredient=m343
+  已销、P1 每 tick 扫全服玩家=m344 已销（均逐行对源核实属实后才动手）；其余条目逐条对表分拣进
+  HANDOVER 待办池第 0 条——属实待做 11 项（SmeltPlanner 多配方覆盖/分级 tick/孤儿 claim
+  reconciliation/面板网络快照/BrewPlanner 全图/bigStacks 分档/portableVault 握手/预算预设/
+  Machines 数据驱动/SCBE 拆分/GC 优化），已有等效实现或需实机的 5 项注明出处防重做
+  （codec smoke=九号用例、Ingredient 测试=廿六号、bench 矩阵/多人 Panel/重启 claim 各有归属）。
+- 审计里"sleepWhenIdle 配置"系审计笔误（库内无此键，实体为 running 开关+m115 看门狗），
+  对应实况已按"tick 头维护段照跑"改写进待办条目。机制/产品向的三项（bigStacks 分档、预算预设、
+  SmeltPlanner 按库存挑输出）标了"待作者拍板"不擅动。版本跳 0.1.345。
