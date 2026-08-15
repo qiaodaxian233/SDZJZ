@@ -418,8 +418,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 final int dnT = be.fillDrain(ownTr); ownTr.clear(); // m350 整锅转存再清
                 for (int dk = 0; dk < dnT; dk++) if (be.drainAmts[dk] > 0) ate += be.drainAmts[dk];
                 if (ate > 0) {
-                    NbtCompound nTr = nbtOf(st);
-                    nTr.putLong("tc", nTr.getLong("tc") + ate);
+                    com.sdzjz.node.NodeTags.addTrashCount(st, ate); // m353 修丢写：旧代码改 copyNbt 副本从不 set 回，"已吞"是死数
                     be.markDirty();
                     be.stat(i, 1);
                     produced = true;
@@ -1320,7 +1319,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private int nodeInt(ItemStack s, String key) {
-        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt(key);
+        return com.sdzjz.node.NodeTags.viewOf(s).getInt(key); // m353 只读免拷贝（生产大循环每节点每tick多次，压测火源）
     }
 
     private int totalNodeUpgrade(String key) {
@@ -1769,12 +1768,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 读节点画布坐标（无则给默认）。 */
     public int nodeX(ItemStack s, int def) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = com.sdzjz.node.NodeTags.viewOf(s); // m353 只读免拷贝（客户端每卡每帧+服务端布局）
         return n.contains("nx") ? n.getInt("nx") : def;
     }
 
     public int nodeY(ItemStack s, int def) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = com.sdzjz.node.NodeTags.viewOf(s); // m353 只读免拷贝
         return n.contains("ny") ? n.getInt("ny") : def;
     }
 

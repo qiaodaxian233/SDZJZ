@@ -19,7 +19,7 @@ public final class NodeTags {
     private NodeTags() {}
 
     public static java.util.List<String> cropList(ItemStack s) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = viewOf(s); // m353 只读免拷贝
         java.util.List<String> out = new java.util.ArrayList<>();
         if (n.contains("crops")) {
             net.minecraft.nbt.NbtList l = n.getList("crops", 8);
@@ -32,18 +32,34 @@ public final class NodeTags {
     }
 
     public static String craftTarget(ItemStack s) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = viewOf(s); // m353 只读免拷贝
         return n.contains("ct") ? n.getString("ct") : "";
     }
 
     /** m235 合成机手选配方 id（空=自动按库存挑，m234）。 */
     public static String craftRecipe(ItemStack s) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = viewOf(s); // m353 只读免拷贝
         return n.contains("cr") ? n.getString("cr") : "";
     }
 
+    /** 写路起手口：返回**拷贝**——改完必须 s.set(CUSTOM_DATA, NbtComponent.of(n)) 回写，否则丢写
+     *  （m353 垃圾桶 tc 就栽在这：改了拷贝没回写，"已吞"自组件化起是死数）。只读请走 viewOf 零拷贝。 */
     public static NbtCompound nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
         return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    }
+
+    /** m353 免拷贝只读视图（yarn getNbt=组件内部实包，mojmap getUnsafe 同口，1.21.1 核名 method_57463）。
+     *  铁律：**绝对只读**——改它=篡改组件内部状态，且 DEFAULT 空件全局共享一份，写它=全服中毒。
+     *  要写走 nbtOf 拷贝→改→set 三段。读路全面换本口是压测 447MB/s 分配火源的主刀（m353）。 */
+    public static NbtCompound viewOf(ItemStack s) {
+        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).getNbt();
+    }
+
+    /** m353 垃圾桶已吞计数累加（修丢写 bug：拷贝→加→set 回三段全）。 */
+    public static void addTrashCount(ItemStack s, long ate) {
+        NbtCompound n = nbtOf(s);
+        n.putLong("tc", n.getLong("tc") + ate);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
     }
 
     public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
@@ -52,16 +68,16 @@ public final class NodeTags {
 
     public static boolean isExtractor(ItemStack s) { return s.isOf(ModItems.EXTRACTOR_NODE); }
 
-    public static boolean extractorOn(ItemStack s) { return nbtOf(s).getBoolean("xo"); }
+    public static boolean extractorOn(ItemStack s) { return viewOf(s).getBoolean("xo"); }
 
-    public static long extractorCount(ItemStack s) { return nbtOf(s).getLong("xc"); }
+    public static long extractorCount(ItemStack s) { return viewOf(s).getLong("xc"); }
 
     public static long extractorRate(ItemStack s) {
-        long r = nbtOf(s).getLong("xr");
+        long r = viewOf(s).getLong("xr");
         return r > 0 ? r : 512;
     }
 
-    public static long trashCount(ItemStack s) { return nbtOf(s).getLong("tc"); }
+    public static long trashCount(ItemStack s) { return viewOf(s).getLong("tc"); }
 
     public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
 
@@ -70,24 +86,24 @@ public final class NodeTags {
     public static boolean isDistributor(ItemStack s) { return s.isOf(ModItems.DISTRIBUTOR_NODE); }
 
     public static boolean switchOn(ItemStack s) {
-        NbtCompound n = nbtOf(s);
+        NbtCompound n = viewOf(s);
         return !n.contains("so") || n.getBoolean("so");
     }
 
-    public static int machineTier(ItemStack s) { return nbtOf(s).getInt("mt"); }
+    public static int machineTier(ItemStack s) { return viewOf(s).getInt("mt"); }
 
-    public static boolean nodePaused(ItemStack s) { return nbtOf(s).getBoolean("np"); }
+    public static boolean nodePaused(ItemStack s) { return viewOf(s).getBoolean("np"); }
 
     /** m191 画布分组：节点所属组 id（存节点栈 NBT "gp"，随栈走天然免下标重映射；无组=-1）。 */
     public static int nodeGroup(ItemStack s) {
-        NbtCompound n = nbtOf(s);
+        NbtCompound n = viewOf(s);
         return n.contains("gp") ? n.getInt("gp") : -1;
     }
 
-    public static boolean filterBlacklist(ItemStack s) { return nbtOf(s).getBoolean("fb"); }
+    public static boolean filterBlacklist(ItemStack s) { return viewOf(s).getBoolean("fb"); }
 
     public static java.util.List<String> filterList(ItemStack s) {
-        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
         java.util.List<String> out = new java.util.ArrayList<>(l.size());
         for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
         return out;
@@ -95,7 +111,7 @@ public final class NodeTags {
 
     public static boolean filterPasses(ItemStack s, String id) {
         boolean in = false;
-        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) { in = true; break; }
         return filterBlacklist(s) ? !in : in;
     }
@@ -106,21 +122,21 @@ public final class NodeTags {
     }
 
     public static boolean machineFilterAllows(ItemStack s, String id) {
-        NbtList l = nbtOf(s).getList("fl", NbtElement.STRING_TYPE);
+        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
         if (l.isEmpty()) return true;
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) return true;
         return false;
     }
 
-    public static String sensorItem(ItemStack s) { return nbtOf(s).getString("si"); }
+    public static String sensorItem(ItemStack s) { return viewOf(s).getString("si"); }
 
     public static long sensorThreshold(ItemStack s) {
-        NbtCompound n = nbtOf(s);
+        NbtCompound n = viewOf(s);
         return n.contains("sv") ? Math.max(0, n.getLong("sv")) : 10000L;
     }
 
     public static boolean sensorLess(ItemStack s) {
-        NbtCompound n = nbtOf(s);
+        NbtCompound n = viewOf(s);
         return !n.contains("sl") || n.getBoolean("sl");
     }
 

@@ -894,4 +894,24 @@ public class SdzjzGameTests implements FabricGameTest {
                     "线程分配账应覆盖 ~32MB 真分配(阈值8MB)，实得 " + (b.allocBytes - a.allocBytes));
         ctx.complete();
     }
+
+    /** m353 卅三号：NBT 双口语义——①垃圾桶已吞累计持久（丢写 bug 修复判官：旧代码改 copyNbt
+     *  副本从不 set 回）；②nbtOf=拷贝，改副本不落栈（写路必须回写的契约）；③viewOf 与组件同源
+     *  零拷贝可见；④无组件栈空视图不炸。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void nbt_view_and_trash_count(TestContext ctx) {
+        ItemStack ts = new ItemStack(com.sdzjz.registry.ModItems.TRASH_NODE);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.trashCount(ts) == 0, "新垃圾桶计数应为 0");
+        com.sdzjz.node.NodeTags.addTrashCount(ts, 5);
+        com.sdzjz.node.NodeTags.addTrashCount(ts, 7);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.trashCount(ts) == 12,
+                "已吞累计应持久(丢写修复判官)，实得 " + com.sdzjz.node.NodeTags.trashCount(ts));
+        var cp = com.sdzjz.node.NodeTags.nbtOf(ts);
+        cp.putLong("tc", 999L);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.trashCount(ts) == 12, "nbtOf=拷贝：改副本不落栈");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.viewOf(ts).getLong("tc") == 12L, "viewOf 与组件同源零拷贝可见");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.viewOf(new ItemStack(net.minecraft.item.Items.STONE)).isEmpty(),
+                "无组件栈=空视图不炸");
+        ctx.complete();
+    }
 }

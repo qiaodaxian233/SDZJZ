@@ -125,26 +125,26 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     // ---- 合同数据 ----
     public static String contractProf(ItemStack s) {
         if (s.isEmpty() || !s.isOf(ModItems.VILLAGER_CONTRACT)) return null;
-        String p = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getString("prof");
+        String p = com.sdzjz.node.NodeTags.viewOf(s).getString("prof"); // m353 只读免拷贝（交易机每拍逐合同读）
         return p.isEmpty() ? null : p;
     }
 
     public static int contractDiscount(ItemStack s) {
-        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt("disc");
+        return com.sdzjz.node.NodeTags.viewOf(s).getInt("disc"); // m353 只读免拷贝
     }
 
     /** m333 合同等级（1..5）。**旧合同（有职业但无 lv 键）按 5 级接管**——m333 上线前它们本就
      *  全表解锁，收回=没收玩家既有权益（m99 之训反面）。新就业合同从 1 级起步。 */
     public static int contractLevel(ItemStack s) {
         if (contractProf(s) == null) return 0;
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        NbtCompound n = com.sdzjz.node.NodeTags.viewOf(s); // m353 只读免拷贝
         if (!n.contains("lv")) return 5;
         return Math.max(1, Math.min(5, n.getInt("lv")));
     }
 
     /** m333 合同累计交易经验（满级后不再累计）。 */
     public static int contractXp(ItemStack s) {
-        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt().getInt("xp");
+        return com.sdzjz.node.NodeTags.viewOf(s).getInt("xp"); // m353 只读免拷贝
     }
 
     private static void setLevel(ItemStack s, int lv, int xp) {
