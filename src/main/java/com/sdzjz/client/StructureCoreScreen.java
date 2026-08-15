@@ -975,8 +975,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         SciSkin.drawCard(ctx, x, y, NW, NH, NODEFRM); // m120 投影+渐变面+角刻
         ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
         ctx.fill(x, y + 3, x + NW, y + 15, SciSkin.withAlpha(SciSkin.BACKDROP, 0.25f)); // m120 标题读数底带（m207 字面量退役随族）
-        ctx.fill(x - 4, y + NH / 2 - 3, x + 2, y + NH / 2 + 3, CYAN);
-        ctx.fill(x + NW - 2, y + NH / 2 - 3, x + NW + 4, y + NH / 2 + 3, ON);
+        boolean swP = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped; // m341 进出口互换（作者点名；默认换，配置可回）
+        int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
+        ctx.fill(inX, y + NH / 2 - 3, inX + 6, y + NH / 2 + 3, CYAN);      // 进口柱
+        ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
         int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
         float isc = 2f + 0.45f * mt;
         var msi = ctx.getMatrices();
@@ -2477,10 +2479,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 机器输出口(绿) → 连线
+                    // 机器输出口(绿) → 连线（m341 口位随 nodePortsSwapped，与接线柱渲染同源）
+                    boolean swPc = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
                     double pR = Math.max(7, 10 / zoom); // m122 抓取半径随缩放反比——屏幕上恒 ~10px，低倍率下也点得中
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        int oxp = wnx(be, nodes, i) + NW, oyp = wny(be, nodes, i) + NH / 2;
+                        int oxp = wnx(be, nodes, i) + (swPc ? 0 : NW), oyp = wny(be, nodes, i) + NH / 2;
                         if (Math.abs(wx - oxp) <= pR && Math.abs(wy - oyp) <= pR) {
                             linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
                         }
