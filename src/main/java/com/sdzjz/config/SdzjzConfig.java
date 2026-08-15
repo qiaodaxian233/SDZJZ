@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 40; // m339 经验池公平层开关（xpFairShare）；m335 选择器查询语法开关（pickerQuerySyntax）；m334 无限复制机两键（duplicatorEnabled 开关/duplicatorXpPerItem 每件经验价）；m333 交易所等级系统两键（tradeLeveling 总开关/tradeXpMultiplier 经验倍率）；m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 42; // m341 节点进出口互换开关（nodePortsSwapped）；m340 显式供料线补足开关（supplyTopUp）；m339 经验池公平层开关（xpFairShare）；m335 选择器查询语法开关（pickerQuerySyntax）；m334 无限复制机两键（duplicatorEnabled 开关/duplicatorXpPerItem 每件经验价）；m333 交易所等级系统两键（tradeLeveling 总开关/tradeXpMultiplier 经验倍率）；m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
@@ -30,6 +30,8 @@ public class SdzjzConfig {
     public boolean duplicatorEnabled = true;    // m334 无限复制机总开关（服主熔断阀：关=画布节点黄灯待命，不删档）
     public int duplicatorXpPerItem = 20;        // m334 每复制 1 件烧核心经验池的经验（≥1）——复制的唯一运行成本，服主按经济调
     public boolean pickerQuerySyntax = true;    // m335 画布选择器查询语法（@模组/-排除/|并联，学JEI语法习惯自写实现）。关=回纯包含匹配
+    public boolean nodePortsSwapped = true;     // m341 画布节点接线柱互换：出口在左、进口在右（作者点名）。关=旧左入右出。线端走就近缘（m184）不受影响
+    public boolean supplyTopUp = true;          // m340 连线喂料的机器：显式存储供料线自动补足缓存缺口（熔炉族除外防误烧）。关=旧"接线就只吃线"
     public boolean xpFairShare = true;          // m339 经验池公平层：有吃经验机器挨饿时全池先喂它（复制机/附魔工厂多台并存不再"第一台吃光第二台饿死"）。关=旧先到先得
     public boolean sodiumIconAnimFix = true;    // m320：装 Sodium 时每客户端tick给本模组动画物品精灵标"活跃"（其"仅动画可见纹理"优化只保世界内方块精灵，纯GUI物品精灵会冻帧）；未装Sodium自动停用零开销      // 账本类型上限（只闸新类型，已有类型照常并账）。账本存物品组件，类数越大背包同步越重，慎调大
 
@@ -215,6 +217,8 @@ public class SdzjzConfig {
         cfg.duplicatorXpPerItem = Math.max(1, cfg.duplicatorXpPerItem); // m334 钳位
         if (cfg.configVersion < 39) cfg.configVersion = 39; // m335 纯加键（pickerQuerySyntax 选择器语法），缺键走字段初值
         if (cfg.configVersion < 40) cfg.configVersion = 40; // m339 纯加键（xpFairShare 经验池公平层），缺键走字段初值
+        if (cfg.configVersion < 41) cfg.configVersion = 41; // m340 纯加键（supplyTopUp 显式供料线补足），缺键走字段初值
+        if (cfg.configVersion < 42) cfg.configVersion = 42; // m341 纯加键（nodePortsSwapped 进出口互换），缺键走字段初值
         cfg.bigStackMax = Math.max(64, Math.min(1_073_741_823, cfg.bigStackMax)); // m310 钳位：上界 2^30 防原版合并 a+b 溢出吃物品
 
         INSTANCE = cfg;

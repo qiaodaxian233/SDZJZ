@@ -522,14 +522,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 CraftPlanner.Plan plan; // m234 拿到库存视图后再定案（谁的料齐用谁；都不齐回退首候选按原版材料报缺料）
                 if (hasIn[i]) {
                     final int fi = i;
-                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, k -> be.bufCountFor(fi, k)); // m235
+                    final com.sdzjz.machine.StorageAccess expC = be.topUpSource(world, i); // m340 显式供料线补足
+                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, k -> be.dualCount(fi, expC, k)); // m235+m340 选配方也看合计
                     if (!hasOut[i] && depositAc == null)
                         crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 只在无存储时封顶（剑/图腾等max=1时防白扣）
                     for (var en : plan.needs().entrySet())
-                        crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
+                        crafts = Math.min(crafts, be.dualCount(i, expC, en.getKey()) / en.getValue());
                     if (crafts <= 0) { be.statR(i, 3, be.whyMissingBuf(i, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
-                        be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
+                        be.dualWithdraw(i, expC, en.getKey(), (long) en.getValue() * crafts);
                 } else {
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);   // 存储→机器 定向供料连线优先
                     if (supply == null) {
@@ -582,15 +583,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int fuelNd = plan.needs().getOrDefault(com.sdzjz.machine.BrewPlanner.FUEL_ID, 0); // 力量药水的材料烈焰粉，与燃料两账并存
                 int ops = com.sdzjz.machine.BrewPlanner.OPS_PER_FUEL;
                 if (hasIn[i]) {
+                    final com.sdzjz.machine.StorageAccess expB = be.topUpSource(world, i); // m340 显式供料线补足
                     for (var en : plan.needs().entrySet())
-                        crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
-                    long fuelAvail = be.bufCountFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID);
+                        crafts = Math.min(crafts, be.dualCount(i, expB, en.getKey()) / en.getValue());
+                    long fuelAvail = be.dualCount(i, expB, com.sdzjz.machine.BrewPlanner.FUEL_ID);
                     crafts = Math.min(crafts, fuelAvail * ops / ((long) fuelNd * ops + steps));
                     while (crafts > 0 && (long) fuelNd * crafts + (crafts * steps + ops - 1) / ops > fuelAvail) crafts--; // ceil 兜底
                     if (crafts <= 0) { String w178 = be.whyMissingBuf(i, plan.needs()); if (w178.startsWith("缺料（")) w178 = "缺料：烈焰粉（燃料）"; be.statR(i, 3, w178); continue; }
                     for (var en : plan.needs().entrySet())
-                        be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
-                    be.bufWithdrawFor(i, com.sdzjz.machine.BrewPlanner.FUEL_ID, (crafts * steps + ops - 1) / ops);
+                        be.dualWithdraw(i, expB, en.getKey(), (long) en.getValue() * crafts);
+                    be.dualWithdraw(i, expB, com.sdzjz.machine.BrewPlanner.FUEL_ID, (crafts * steps + ops - 1) / ops);
                 } else {
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
                     if (supply == null) {
@@ -636,11 +638,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 crafts = be.xpGate(i, crafts, plan.xpCost()); // m339 经验闸+公平层：礼让期非名单节点=0
                 if (crafts <= 0) { be.statR(i, 3, "经验池不足或礼让保底（本单需 " + plan.xpCost() + "，现 " + (long) be.xpPool + "；有机器挨饿时全池先喂它）"); continue; }
                 if (hasIn[i]) {
+                    final com.sdzjz.machine.StorageAccess expE = be.topUpSource(world, i); // m340 显式供料线补足
                     for (var en : plan.needs().entrySet())
-                        crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
+                        crafts = Math.min(crafts, be.dualCount(i, expE, en.getKey()) / en.getValue());
                     if (crafts <= 0) { be.statR(i, 3, be.whyMissingBuf(i, plan.needs())); continue; }
                     for (var en : plan.needs().entrySet())
-                        be.bufWithdrawFor(i, en.getKey(), (long) en.getValue() * crafts);
+                        be.dualWithdraw(i, expE, en.getKey(), (long) en.getValue() * crafts);
                 } else {
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
                     if (supply == null) {
@@ -839,12 +842,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean cappedT = depositT == null && (t.enchant() != null || !hasOut[i]);
                 if (cappedT) attempts = Math.min(attempts, t.enchant() != null ? OUTPUT_SLOTS
                         : Math.max(1, 64L * OUTPUT_SLOTS / Math.max(1, t.outCount())));
-                if (hasIn[i]) { // 连线喂料（刷线机直供）
-                    attempts = Math.min(attempts, be.bufCountFor(i, t.inItem()) / need1);
-                    if (t.in2Item() != null) attempts = Math.min(attempts, be.bufCountFor(i, t.in2Item()) / t.in2Count());
-                    if (attempts <= 0) { be.statR(i, 3, "缺料（本周期成本料不足，对照徽章/工具提示）"); continue; }
-                    be.bufWithdrawFor(i, t.inItem(), (long) need1 * attempts);
-                    if (t.in2Item() != null) be.bufWithdrawFor(i, t.in2Item(), (long) t.in2Count() * attempts);
+                if (hasIn[i]) { // 连线喂料（刷线机直供）+ m340 显式供料线补足
+                    final com.sdzjz.machine.StorageAccess expV = be.topUpSource(world, i);
+                    attempts = Math.min(attempts, be.dualCount(i, expV, t.inItem()) / need1);
+                    if (t.in2Item() != null) attempts = Math.min(attempts, be.dualCount(i, expV, t.in2Item()) / t.in2Count());
+                    if (attempts <= 0) { be.statR(i, 3, "缺料（缓存+供料线合计不足，对照徽章/工具提示）"); continue; }
+                    be.dualWithdraw(i, expV, t.inItem(), (long) need1 * attempts);
+                    if (t.in2Item() != null) be.dualWithdraw(i, expV, t.in2Item(), (long) t.in2Count() * attempts);
                 } else {
                     if (accT == null) { be.statR(i, 3, "未接存储/供料线"); continue; } // 没连仓也没喂料
                     attempts = Math.min(attempts, accT.count(t.inItem()) / need1);
@@ -994,11 +998,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
                 if (def.consumesInputs()) {
                     if (hasIn[i]) {
-                        // 从内部缓存取料（连线喂料）。m99：料不够整批时按料量折算周期数，能跑几轮跑几轮
+                        // 从内部缓存取料（连线喂料）+ m340 显式供料线补足。m99：料不够整批时按料量折算周期数
+                        final com.sdzjz.machine.StorageAccess expG = be.topUpSource(world, i);
                         for (MachineDef.Input in : def.inputs())
-                            doCycles = (int) Math.min(doCycles, be.bufCountFor(i, in.item()) / ((long) in.count() * running));
+                            doCycles = (int) Math.min(doCycles, be.dualCount(i, expG, in.item()) / ((long) in.count() * running));
                         if (doCycles <= 0) { be.statR(i, 3, be.whyMissingBufIn(i, def.inputs(), running)); continue; }
-                        for (MachineDef.Input in : def.inputs()) be.bufWithdrawFor(i, in.item(), (long) in.count() * running * doCycles);
+                        for (MachineDef.Input in : def.inputs()) be.dualWithdraw(i, expG, in.item(), (long) in.count() * running * doCycles);
                     } else {
                         com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i); // 存储→机器 定向供料连线优先
                         if (supply == null) {
@@ -1206,6 +1211,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static long xpFairDecide(long want, long afford, boolean fairOn, boolean reserveActive, boolean amStarved) {
         if (fairOn && reserveActive && !amStarved) return 0;
         return Math.max(0, Math.min(want, afford));
+    }
+
+    // ===== m340 连线喂料的"显式供料线补足"（作者实锤：合成机同时接塔线+仓线，只吃塔的涓流，
+    // 仓里 62.6M 金粒看得见吃不着=观感"第二台不生效/卡住"——旧语义 hasIn 与存储二选一）。
+    // 新语义：连线喂料优先、**显式**存储供料线补足；隐式网络(resolveInputSource)不搅局；
+    // 熔炉族刻意除外（"接什么烧什么"补上仓=误烧库存，m173 防线不动）。开关 supplyTopUp。 =====
+    private com.sdzjz.machine.StorageAccess topUpSource(World world, int i) {
+        return com.sdzjz.config.SdzjzConfig.get().supplyTopUp ? supplyFor(world, i) : null;
+    }
+
+    private long dualCount(int i, com.sdzjz.machine.StorageAccess exp, String id) {
+        return bufCountFor(i, id) + (exp != null ? exp.count(id) : 0L);
+    }
+
+    /** 先吃缓存后吃供料线；调用方的量已被 dualCount 夹过，缺口非零时 exp 必非空。 */
+    private void dualWithdraw(int i, com.sdzjz.machine.StorageAccess exp, String id, long want) {
+        long fromBuf = Math.min(want, bufCountFor(i, id));
+        bufWithdrawFor(i, id, fromBuf);
+        if (want > fromBuf && exp != null)
+            exp.withdraw(id, (int) Math.min(Integer.MAX_VALUE, want - fromBuf));
     }
 
     /** m99 并发升级直接乘台数：运行台数 = 节点内机器数 ×(1+并发级)×核心层级。 */
