@@ -5748,3 +5748,30 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①正常产线开机运转/画布观感零变化；②停机核心开画布，接口列表应即时齐全
   （转变沿哨兵）；③服务器整体压测对比：大量停机核心（如装饰性/备用产线）MSPT 应可见下降；
   ④coreIdleScanRelief=false 复旧对照。
+
+## m349 CraftExecutionPlan+StockSnapshot（外部审计③轮①③销账）
+
+- **现象/根因（第三轮审计点名，对源核实属实）**：合成机每生产拍"重复算三遍"——
+  pick 对每候选跑一次 maxCrafts（各自建 have/seen 表+逐 id 回调存储）、中选后 Core 再全量
+  maxCrafts 一次、takeFor 再建表再逐 id 回调一次；100+ 合成节点×高并发×多候选时是 CPU/GC 热点。
+  且 stock 形参是 ToLongFunction——今天 StorageCore.count 是 O(1)，将来聚合实现会被
+  配方×候选×多趟放大成网络级访问（审计③）。
+- **修法**：CraftPlanner 新增单趟口 `exec(plans, manual, capOf, StockView[, alt])` →
+  `Exec(plan, crafts, taken, remainders)`：①快照物化=全生效候选去重 id 各查存储**恰一次**，
+  值预钳非负；②选配方在快照上探"能做一次"（不看 cap=旧 pick 逐点口径，全不可行回退首候选）；
+  ③次数按 capOf(中选) 封顶（m99 无存储槽位封顶吃 plan.resultCount 故为函数）；④实扣快照上
+  同贪心同序出多重集（不回调 withdraw，实扣由调用方按返回值做=旧 takeFor 尾循环原位搬家）；
+  ⑤残留随趟出。快照版 maxCraftsOn/takeOn 与公共版逐行同口径（feasible 原函数直接复用），
+  公共三口 pick/maxCrafts/takeFor 原样保留（廿六号测试面+回退面）。StockView 命名接口=审计③
+  的聚合对齐口。SCBE 双路（缓存+供料/仓）换装 Exec，whyMissing 缺料报告冷路径口径不动，
+  m235 手选/m340 合计/m343 候选组语义全原样。m321 计时并入 SUB_PLANNER 同壳。
+- **配置**：零新键（内部重构语义零变化，m279 先例）；机器组合.md 无需动（消耗口径不变）。
+- **验证**：javac21 冒烟真语法错 0，九新符号定向检全净；GameTest 卅一号五断言=
+  ①Exec 与旧三口组合逐点等价（选配方/次数/实扣多重集）②快照契约计数器直测=每去重 id 恰查
+  一次（本刀性能承诺的判官）③手选只评估手选且只查它的候选 ④全缺料回退首候选零扣零残留
+  ⑤蛋糕 3 桶奶→3 空桶残留随趟出（真配方表口径）。
+- **顺手对表**：审计⑥"HANDOVER 写 m348 而 main 停 m347"=推送时间窗撞上审计截图，远端
+  0a0814b=m348 已在且 CI 绿，账本无漂移；审计④"flushCanvasSnapshot 在 running 闸前"=
+  m344 已零观众 O(1) 早退+m348 已分档，分层雏形审计自己也认，不再单独动。
+- **实机脚本**：①合成产线行为逐帧同旧（消耗/残留/缺料文案）；②/sdzjz profile phase 开
+  SUB_PLANNER 前后对比，多候选配方产线该项耗时应可见下降；③m350 接供料热路径零分配。

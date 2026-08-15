@@ -528,18 +528,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 提前解析：封顶只对"进内部缓存"生效
                 int maxStack = Registries.ITEM.get(Identifier.of(target)).getMaxCount();
-                CraftPlanner.Plan plan; // m234 拿到库存视图后再定案（谁的料齐用谁；都不齐回退首候选按原版材料报缺料）
-                java.util.Map<String, Long> taken; // m343 实际消耗多重集（可能含替代材料）——残留容器按它结算
+                CraftPlanner.Plan plan; // m234 都不齐回退首候选按原版材料报缺料（Exec.plan 同口径）
+                CraftPlanner.Exec ex;   // m349 一次成型执行计划：快照→选配方→次数→实扣→残留 单趟（存储每去重 id 只查一次，销"重复算三遍"）
+                final long baseCrafts = crafts;
+                final boolean capSlots = !hasOut[i] && depositAc == null; // m99 只在无存储时封顶（剑/图腾等max=1时防白扣）
+                final int msC = maxStack;
+                final java.util.function.ToLongFunction<CraftPlanner.Plan> capOf = // 封顶吃中选配方的 resultCount，故为函数随选随算
+                        p2 -> capSlots ? Math.min(baseCrafts, ((long) msC * OUTPUT_SLOTS) / Math.max(1, p2.resultCount())) : baseCrafts;
                 if (hasIn[i]) {
                     final int fi = i;
                     final com.sdzjz.machine.StorageAccess expC = be.topUpSource(world, i); // m340 显式供料线补足
-                    final java.util.function.ToLongFunction<String> stkC = k -> be.dualCount(fi, expC, k);
-                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, stkC); // m235+m340 选配方也看合计
-                    if (!hasOut[i] && depositAc == null)
-                        crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 只在无存储时封顶（剑/图腾等max=1时防白扣）
-                    crafts = CraftPlanner.maxCrafts(plan, crafts, stkC); // m343 槽位候选组口径（任意木板认全部木板）
-                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingPlan(plan, stkC, expC != null ? "缓存+供料" : "缓存")); continue; }
-                    taken = CraftPlanner.takeFor(plan, crafts, stkC, (id2, amt) -> be.dualWithdraw(fi, expC, id2, amt));
+                    ex = CraftPlanner.exec(planC, chosen, capOf, k -> be.dualCount(fi, expC, k)); // m235 手选/m340 合计/m343 候选组口径全原样
+                    plan = ex.plan();
+                    if (ex.crafts() <= 0) { be.statR(i, 3, be.whyMissingPlan(plan, k -> be.dualCount(fi, expC, k), expC != null ? "缓存+供料" : "缓存")); continue; }
+                    for (var en : ex.taken().entrySet()) be.dualWithdraw(fi, expC, en.getKey(), en.getValue()); // 实扣序=贪心组序
                 } else {
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);   // 存储→机器 定向供料连线优先
                     if (supply == null) {
@@ -551,22 +553,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     }
                     if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
                     final com.sdzjz.machine.StorageAccess sup = supply;
-                    final java.util.function.ToLongFunction<String> stkS = sup::count;
-                    plan = chosen != null ? chosen : CraftPlanner.pick(planC, stkS); // m235
-                    if (!hasOut[i] && depositAc == null)
-                        crafts = Math.min(crafts, ((long) maxStack * OUTPUT_SLOTS) / Math.max(1, plan.resultCount())); // m99 同上
-                    crafts = CraftPlanner.maxCrafts(plan, crafts, stkS); // m343 候选组口径
-                    if (crafts <= 0) { be.statR(i, 3, be.whyMissingPlan(plan, stkS, "仓")); continue; }
-                    taken = CraftPlanner.takeFor(plan, crafts, stkS,
-                            (id2, amt) -> sup.withdraw(id2, (int) Math.min(Integer.MAX_VALUE, amt)));
+                    ex = CraftPlanner.exec(planC, chosen, capOf, sup::count); // m235
+                    plan = ex.plan();
+                    if (ex.crafts() <= 0) { be.statR(i, 3, be.whyMissingPlan(plan, sup::count, "仓")); continue; }
+                    for (var en : ex.taken().entrySet()) sup.withdraw(en.getKey(), (int) Math.min(Integer.MAX_VALUE, en.getValue()));
                 }
+                crafts = ex.crafts();
                 be.stat(i, 1);
                 int total = (int) Math.min(Integer.MAX_VALUE, crafts * plan.resultCount());
                 be.prodTally(total); // m86 实测产量
                 if (hasOut[i]) be.distribute(world, i, outT.get(i), target, total);
                 else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(target)), total));
-                for (var en : CraftPlanner.remaindersOf(taken).entrySet()) { // 容器残留（桶等）返还——m343 按实际消耗物结算（值已是总量）
+                for (var en : ex.remainders().entrySet()) { // 容器残留（桶等）返还——m343 按实际消耗物结算（值已是总量，m349 随 Exec 单趟出）
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, en.getValue());
                     if (hasOut[i]) be.distribute(world, i, outT.get(i), en.getKey(), rc);
                     else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(Registries.ITEM.get(Identifier.of(en.getKey())), rc));

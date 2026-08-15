@@ -172,6 +172,101 @@ public final class CraftPlanner {
         return out;
     }
 
+    // ===== m349 一次成型执行计划（外部审计③轮①③：pick/maxCrafts/takeFor/remainders 从"重复算三遍"
+    // 合并为 库存快照→选配方→算次数→算实扣→算残留 单趟；存储每个去重 id 只被查一次，
+    // 后续全程内存计算——StorageAccess 将来换成聚合实现也不会被放大成网络级访问）。 =====
+
+    /** m349 库存视图：Planner 的存储输入口（语义同 ToLongFunction<String>，命名接口便于聚合实现对齐）。 */
+    @FunctionalInterface
+    public interface StockView { long count(String id); }
+
+    /** m349 执行计划：plan=中选配方（都不齐=首候选，缺料报告口径与旧 pick 一致）；crafts=最终次数；
+     *  taken=应实扣多重集（调用方拿它逐 id 真扣，序=LinkedHashMap 组序稳定）；remainders=容器残留总量。 */
+    public record Exec(Plan plan, long crafts, Map<String, Long> taken, Map<String, Long> remainders) {}
+
+    /** m349 单趟出全套。capOf=按中选配方算次数上限（m99 无存储槽位封顶依赖 plan.resultCount 故为函数）；
+     *  manual=m235 手选（非空则只看它，缺料按它报）。选配方口径与旧 pick 逐点一致：探"能做一次"不看 cap，
+     *  全不可行回退首候选。m321 计时并入 SUB_PLANNER。 */
+    public static Exec exec(java.util.List<Plan> plans, Plan manual, java.util.function.ToLongFunction<Plan> capOf,
+                            StockView stock) {
+        return exec(plans, manual, capOf, stock, altOn());
+    }
+
+    /** m349 显式口径版（GameTest 直测两分支用）。 */
+    public static Exec exec(java.util.List<Plan> plans, Plan manual, java.util.function.ToLongFunction<Plan> capOf,
+                            StockView stock, boolean alt) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return exec0(plans, manual, capOf, stock, alt);
+        long __t = System.nanoTime();
+        try { return exec0(plans, manual, capOf, stock, alt); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_PLANNER, System.nanoTime() - __t); }
+    }
+
+    private static Exec exec0(java.util.List<Plan> plans, Plan manual, java.util.function.ToLongFunction<Plan> capOf,
+                              StockView stock, boolean alt) {
+        java.util.List<Plan> order = manual != null ? java.util.List.of(manual) : plans;
+        // ① 快照物化：全生效候选去重 id 各查存储恰一次（值先钳非负，后续贪心免逐处 Math.max）
+        Map<String, Long> snap = new HashMap<>();
+        for (Plan p : order)
+            for (Group g : p.groups())
+                for (String c : cands(g, alt))
+                    if (!snap.containsKey(c)) snap.put(c, Math.max(0, stock.count(c)));
+        // ② 选配方：第一个"至少能做一次"的候选（快照上探，不看 cap=旧 pick 口径）；全不可行回退首候选
+        Plan plan = null;
+        for (Plan p : order)
+            if (maxCraftsOn(p, 1, snap, alt) >= 1) { plan = p; break; }
+        if (plan == null) plan = order.get(0);
+        // ③ 次数：中选配方按 capOf 封顶在快照上算满
+        long crafts = maxCraftsOn(plan, Math.max(0, capOf.applyAsLong(plan)), snap, alt);
+        if (crafts <= 0) return new Exec(plan, 0, Map.of(), Map.of());
+        // ④ 实扣 + ⑤ 残留：同快照同贪心序一趟
+        Map<String, Long> taken = takeOn(plan, crafts, snap, alt);
+        return new Exec(plan, crafts, taken, remaindersOf(taken));
+    }
+
+    /** m349 快照版 maxCrafts：与公共版逐行同口径，唯 have 记忆表换现成快照（零 stock 回调零 computeIfAbsent）。 */
+    private static long maxCraftsOn(Plan p, long cap, Map<String, Long> snap, boolean alt) {
+        if (cap <= 0 || p.groups().isEmpty()) return Math.max(0, cap);
+        cap = Math.min(cap, Long.MAX_VALUE / 16); // 护栏：下方 count(≤9)×N 乘法不溢出
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        boolean shared = false;
+        long ub = cap;
+        for (Group g : p.groups()) {
+            long sum = 0;
+            for (String c : cands(g, alt)) {
+                long v = snap.getOrDefault(c, 0L); // 快照建立时已钳非负
+                sum = (sum + v < sum) ? Long.MAX_VALUE : sum + v; // 饱和加法（bigStacks 账本量级可观）
+                if (!seen.add(c)) shared = true;
+            }
+            ub = Math.min(ub, sum / g.count());
+            if (ub <= 0) return 0;
+        }
+        if (!shared) return ub; // 组间不共享候选：上界即精确（绝大多数配方走这）
+        long lo = 0, hi = ub;   // 共享候选：贪心可行性二分（feasible 复用，形参本就是 Map）
+        while (lo < hi) {
+            long mid = lo + (hi - lo + 1) / 2;
+            if (feasible(p, mid, snap, alt)) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    /** m349 快照版 takeFor：同贪心同序，虚拟账本从快照复制，不回调 withdraw（实扣由调用方按返回值做）。 */
+    private static Map<String, Long> takeOn(Plan p, long crafts, Map<String, Long> snap, boolean alt) {
+        Map<String, Long> taken = new java.util.LinkedHashMap<>();
+        if (crafts <= 0) return taken;
+        Map<String, Long> left = new HashMap<>(snap);
+        for (Group g : p.groups()) {
+            long need = g.count() * crafts;
+            for (String c : cands(g, alt)) {
+                long avail = left.getOrDefault(c, 0L);
+                long take = Math.min(need, avail);
+                if (take > 0) { left.put(c, avail - take); taken.merge(c, take, Long::sum); need -= take; }
+                if (need == 0) break;
+            }
+            // need>0 理论不可达（crafts 来自同快照同序 maxCraftsOn）；防御口径=短多少少扣多少，绝不虚扣
+        }
+        return taken;
+    }
+
     /** m343 单条候选的"想要"集合（m235 手选配方的链需求口径：含各槽全部生效候选，与消耗同口径）。 */
     public static java.util.Set<String> wantsOf(Plan p) {
         boolean alt = altOn();

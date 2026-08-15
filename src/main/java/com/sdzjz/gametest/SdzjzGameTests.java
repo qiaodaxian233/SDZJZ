@@ -821,4 +821,56 @@ public class SdzjzGameTests implements FabricGameTest {
         for (long[] e : be.storageEndpointsView()) if (e[0] == posLong) return true;
         return false;
     }
+
+    /** m349 卅一号：一次成型执行计划——①与旧三口（pick→maxCrafts→takeFor→remaindersOf）逐点等价；
+     *  ②快照物化契约=存储每个去重 id 恰查一次（计数器直测，这才是本刀的性能承诺）；
+     *  ③手选只看手选；④全缺料回退首候选零扣料；⑤容器残留（蛋糕收 3 空桶）随 Exec 单趟出。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void craft_exec_single_pass(TestContext ctx) {
+        var w = ctx.getWorld();
+        var plans = com.sdzjz.machine.CraftPlanner.plans(w, "minecraft:crafting_table");
+        ctx.assertTrue(!plans.isEmpty(), "工作台应有合成配方");
+        java.util.Map<String, Long> stock = new java.util.HashMap<>();
+        stock.put("minecraft:spruce_planks", 64L);
+        // ① 等价：旧三口组合当参照
+        var oldPlan = com.sdzjz.machine.CraftPlanner.pick(plans, k -> stock.getOrDefault(k, 0L));
+        long oldCrafts = com.sdzjz.machine.CraftPlanner.maxCrafts(oldPlan, 999, k -> stock.getOrDefault(k, 0L), true);
+        java.util.Map<String, Long> shadow = new java.util.HashMap<>(stock);
+        var oldTaken = com.sdzjz.machine.CraftPlanner.takeFor(oldPlan, oldCrafts,
+                k -> shadow.getOrDefault(k, 0L), (id, amt) -> shadow.merge(id, -amt, Long::sum), true);
+        // ② 计数器包着的 StockView：每 id 查询次数记账
+        java.util.Map<String, Integer> hits = new java.util.HashMap<>();
+        com.sdzjz.machine.CraftPlanner.StockView sv = id -> { hits.merge(id, 1, Integer::sum); return stock.getOrDefault(id, 0L); };
+        var ex = com.sdzjz.machine.CraftPlanner.exec(plans, null, p2 -> 999L, sv, true);
+        ctx.assertTrue(ex.plan().recipeId().equals(oldPlan.recipeId()) && ex.crafts() == oldCrafts
+                        && ex.taken().equals(oldTaken),
+                "Exec 与旧三口逐点等价（选配方/次数/实扣多重集），实得 crafts=" + ex.crafts());
+        int over = 0;
+        for (int v : hits.values()) if (v != 1) over++;
+        ctx.assertTrue(over == 0 && !hits.isEmpty(), "快照契约：全候选去重 id 各查恰一次，违约 " + over + " 项");
+        // ③ 手选只看手选：手动钉住首候选，只有它的 id 被查
+        java.util.Set<String> touched = new java.util.HashSet<>();
+        var manual = plans.get(0);
+        var exM = com.sdzjz.machine.CraftPlanner.exec(plans, manual,
+                p2 -> 999L, id -> { touched.add(id); return stock.getOrDefault(id, 0L); }, true);
+        java.util.Set<String> manualIds = new java.util.HashSet<>();
+        for (var g : manual.groups()) manualIds.addAll(g.candidates());
+        ctx.assertTrue(exM.plan().recipeId().equals(manual.recipeId()) && manualIds.containsAll(touched),
+                "手选口径：只评估手选配方且只查它的候选 id");
+        // ④ 全缺料：回退首候选、零次零扣零残留（缺料报告口径与旧 pick 一致）
+        var exE = com.sdzjz.machine.CraftPlanner.exec(plans, null, p2 -> 999L, id -> 0L, true);
+        ctx.assertTrue(exE.plan().recipeId().equals(plans.get(0).recipeId())
+                        && exE.crafts() == 0 && exE.taken().isEmpty() && exE.remainders().isEmpty(),
+                "全缺料：回退首候选零扣料");
+        // ⑤ 容器残留：蛋糕 3 桶奶→3 空桶随 Exec 出（真配方表口径）
+        var cake = com.sdzjz.machine.CraftPlanner.plans(w, "minecraft:cake");
+        ctx.assertTrue(!cake.isEmpty(), "蛋糕应有合成配方");
+        java.util.Map<String, Long> ck = new java.util.HashMap<>();
+        ck.put("minecraft:milk_bucket", 3L); ck.put("minecraft:sugar", 2L);
+        ck.put("minecraft:egg", 1L); ck.put("minecraft:wheat", 3L);
+        var exC = com.sdzjz.machine.CraftPlanner.exec(cake, null, p2 -> 999L, id -> ck.getOrDefault(id, 0L), true);
+        ctx.assertTrue(exC.crafts() == 1 && exC.remainders().getOrDefault("minecraft:bucket", 0L) == 3L,
+                "蛋糕 1 次：3 桶奶消耗→3 空桶残留，实得 " + exC.remainders());
+        ctx.complete();
+    }
 }
