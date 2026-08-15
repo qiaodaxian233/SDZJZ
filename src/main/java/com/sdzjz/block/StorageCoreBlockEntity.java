@@ -396,7 +396,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
 
         @Override public Iterator<StorageView<ItemVariant>> iterator() {
             List<StorageView<ItemVariant>> views = new ArrayList<>(store.size() + exactTpl.size());
-            for (String id : new ArrayList<>(store.keySet())) { // 键快照：迭代中抽空条目不炸游标
+            for (String id : store.keySet()) { // m350 撤键拷贝：views 表在此建完才外泄，外部 extract 只动 views 走 View 懒读，建表期 store 零突变（原"迭代中抽空"担忧指向返回后的消费期，与建表游标无关）
                 Item it = Registries.ITEM.get(Identifier.of(id));
                 ItemVariant v = ItemVariant.of(it);
                 if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）

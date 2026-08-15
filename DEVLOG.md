@@ -5775,3 +5775,34 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   m344 已零观众 O(1) 早退+m348 已分档，分层雏形审计自己也认，不再单独动。
 - **实机脚本**：①合成产线行为逐帧同旧（消耗/残留/缺料文案）；②/sdzjz profile phase 开
   SUB_PLANNER 前后对比，多候选配方产线该项耗时应可见下降；③m350 接供料热路径零分配。
+
+## m350 供料热路径零/低分配（外部审计③轮②销账）
+
+- **现象/根因（审计点名，逐处对源核实）**：每 5t 一拍的清运/泵料路径逐拍重配防御性拷贝——
+  泵料 `new ArrayList<>(sup.storeView().entrySet())`（仓账整表拷贝，值根本没用只借键！）、
+  万能熔炉供料同款、分配/过滤/垃圾桶/开关/传感器/抽取歇工六处 `new ArrayList<>(keySet())`、
+  抽取在岗一处、外加 crafterNeeds 外层 HashMap 逐 tick 重配、StorageCore FTA iterator 的键拷贝。
+  拷贝的存在理由=迭代中结构性突变防 CME；审计方子=稳定遍历+修改延后。
+- **修法（等价落地）**：BE 挂 grow-only 双数组 scratch（drainIds/drainAmts+fillDrain，m218d 同族；
+  转存后立即处理不跨节点不跨 tick 不可重入，注释立规矩）。三种口径：
+  ①**整锅转存再清**（分配/过滤/垃圾桶/开关/传感器/抽取歇工六处）——旧=键拷贝逐个 remove，
+  新=fillDrain+clear 后处理数组；处理中回灌进空表=旧"不在键拷贝里故存活"同语义；
+  ②**转存不清**（抽取在岗）——残量 put(left)/remove 尾账原样，amt≤0 就地 remove 现在
+  发生在数组迭代外天然安全；③**只借键/键值快照+当场实扣**（泵料/熔炉）——withdraw 返回值
+  照旧当唯一入账依据，**绝不按快照值虚记账**（聚合视图 DataPanel 缓存可能陈旧，虚记=凭空造物，
+  这是本刀最要命的等价性红线，注释与 scratch 头注双立档）。crafterNeeds 换 BE transient
+  外层表 clear 复用（值集来自 CraftPlanner.wants 缓存/Set.of 常量——**缓存共享集绝不能 clear**，
+  勘察时差点踩，值集复用方案就此否决只动外层）。StorageCore FTA iterator 撤键拷贝：views
+  表建完才外泄、外部 extract 走 View 懒读只动 views，建表期 store 零突变，原注释担忧指向
+  返回后消费期与建表游标无关（Create 类管道每 tick 打 iterator，这处是三方联动热点）。
+- **刻意不动**：精确支路 `new ArrayList<>(bank.exactTemplates())`——withdrawExact 会当场
+  从模板表移除，拷贝是必需品（延后化=改精确账本接口，收益不配风险）；2116 top 摘要表=
+  观众/低频路径非热点；审计建议的 forEachStoreEntry 接口层不加——fillDrain 即"稳定遍历+
+  修改延后"的等价实现，m349 StockView 已是聚合对齐口，再加个零调用 API=死码。
+- **验证**：javac21 冒烟真语法错 0；14 个新符号定向检全净；pn/pk 撞名嫌疑人工核为不相交
+  兄弟块后仍改名 dnP/dk 消歧（m271 冒烟盲区族：缺 MC 类时 javac 可能漏报同域重定义，不赌）。
+  行为等价靠逐处口径对照（上表三种口径每处注明"同旧"点）；无新 GameTest——十处全是机械
+  变换且判官=既有 31 用例编译级+实机脚本，性能承诺由 bench/profile 实测背书。
+- **实机脚本**：①仓→过滤→垃圾桶、抽取启停退料、开关/传感器闸门、泵高挡抽取全套行为同旧；
+  ②/sdzjz bench 三档矩阵对比 m349：GC 次数/分配速率应可见下降（m351 给 bench 补 GC 账后精测）；
+  ③装 Create 类 FTA 管道对拍存储核心，取放照常。

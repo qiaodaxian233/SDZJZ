@@ -282,7 +282,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // 熔炉需求=可熔炼表、合成机需求=目标配方材料、消耗机需求=定义 inputs；支持逻辑节点串联（深度8+防环）。
         long __ps = System.nanoTime(); // m321 供料拍起点
         if (Math.floorMod(be.ticks + ph, 5) == 0) { // m116：20t→5t 与逻辑节点转发同拍；m218c 多核心移相（此前 64/20t=64/秒天花板，用户熔炉组升到 50/50/54 也只吃到 100/秒）
-            java.util.Map<Integer, java.util.Set<String>> crafterNeeds = new java.util.HashMap<>();
+            be.crafterNeedsScratch.clear(); // m350 外层表复用（值集来自 planner 缓存/常量，本就不逐拍配）
+            java.util.Map<Integer, java.util.Set<String>> crafterNeeds = be.crafterNeedsScratch;
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
                 if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL) || isExtractor(stL))) continue;
@@ -300,8 +301,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // m159 修过的"速率>缓存卡喉"。泵缓存只是 id→long 计数不占实存，直接放到双周期余量。
                     bufCapL = Math.max(4096, pumpRate * 2);
                 }
-                for (var en : new java.util.ArrayList<>(sup.storeView().entrySet())) {
-                    String id = en.getKey();
+                final int dnP = be.fillDrain(sup.storeView()); // m350 转存 scratch：撤仓账整表拷贝（旧只用键；withdraw 当场实扣防聚合视图虚账）
+                for (int dk = 0; dk < dnP; dk++) {
+                    String id = be.drainIds[dk];
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）：链式需求门控仍在，在途量经 8/9 号属性可见
                     if (!pump && !be.chainWants(world, i, id, 0, be.wantsScratchCleared(), outT, crafterNeeds)) continue; // m218d scratch复用
@@ -383,9 +385,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 java.util.Map<String, Long> ownD = be.nodeBuf(i);
                 if (ownD.isEmpty()) continue;
                 boolean movedD = false;
-                for (String id : new java.util.ArrayList<>(ownD.keySet())) {
-                    long amt = ownD.getOrDefault(id, 0L);
-                    ownD.remove(id);
+                final int dnD = be.fillDrain(ownD); ownD.clear(); // m350 整锅转存再清（旧=键拷贝逐个 remove，回灌进空表语义同旧）
+                for (int dk = 0; dk < dnD; dk++) {
+                    String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
                     be.distributeEven(world, i, outT.get(i), id, amt);
                     movedD = true;
@@ -397,9 +399,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 java.util.Map<String, Long> own = be.nodeBuf(i);
                 if (own.isEmpty()) continue;
                 boolean moved = false;
-                for (String id : new java.util.ArrayList<>(own.keySet())) {
-                    long amt = own.getOrDefault(id, 0L);
-                    own.remove(id);
+                final int dnF = be.fillDrain(own); own.clear(); // m350 整锅转存再清
+                for (int dk = 0; dk < dnF; dk++) {
+                    String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
                     if (StructureCoreBlockEntity.filterPasses(st, id)) be.distribute(world, i, outT.get(i), id, amt);
                     else be.distribute(world, i, null, id, amt);
@@ -413,10 +415,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 java.util.Map<String, Long> ownTr = be.nodeBuf(i);
                 if (ownTr.isEmpty()) continue;
                 long ate = 0;
-                for (String id : new java.util.ArrayList<>(ownTr.keySet())) {
-                    Long amt = ownTr.remove(id);
-                    if (amt != null && amt > 0) ate += amt;
-                }
+                final int dnT = be.fillDrain(ownTr); ownTr.clear(); // m350 整锅转存再清
+                for (int dk = 0; dk < dnT; dk++) if (be.drainAmts[dk] > 0) ate += be.drainAmts[dk];
                 if (ate > 0) {
                     NbtCompound nTr = nbtOf(st);
                     nTr.putLong("tc", nTr.getLong("tc") + ate);
@@ -439,10 +439,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // 货，点一下"停止抽取"就全数找回，不留缓存黑洞。
                     java.util.Map<String, Long> ownOff = be.nodeBuf(i);
                     if (!ownOff.isEmpty()) {
-                        for (String id : new java.util.ArrayList<>(ownOff.keySet())) {
-                            long amt = ownOff.remove(id);
-                            if (amt > 0) be.distribute(world, i, null, id, amt);
-                        }
+                        final int dnO = be.fillDrain(ownOff); ownOff.clear(); // m350 整锅转存再清
+                        for (int dk = 0; dk < dnO; dk++)
+                            if (be.drainAmts[dk] > 0) be.distribute(world, i, null, be.drainIds[dk], be.drainAmts[dk]);
                         produced = true;
                     }
                     be.stat(i, 2);
@@ -451,8 +450,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 java.util.Map<String, Long> ownX = be.nodeBuf(i);
                 boolean movedX = false;
                 java.util.List<Integer> tgX = outT.get(i);
-                for (String id : new java.util.ArrayList<>(ownX.keySet())) {
-                    long amt = ownX.getOrDefault(id, 0L);
+                final int dnX = be.fillDrain(ownX); // m350 转存不清：残量口径（尾部 put(left)/remove 原样）
+                for (int dk = 0; dk < dnX; dk++) {
+                    String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) { ownX.remove(id); continue; }
                     long left = amt;
                     if (tgX != null) {
@@ -489,9 +489,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!StructureCoreBlockEntity.switchOn(st)) { be.stat(i, 2); continue; }
                 java.util.Map<String, Long> ownSw = be.nodeBuf(i);
                 boolean movedSw = false;
-                for (String id : new java.util.ArrayList<>(ownSw.keySet())) {
-                    long amt = ownSw.getOrDefault(id, 0L);
-                    ownSw.remove(id);
+                final int dnS = be.fillDrain(ownSw); ownSw.clear(); // m350 整锅转存再清
+                for (int dk = 0; dk < dnS; dk++) {
+                    String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
                     be.distribute(world, i, outT.get(i), id, amt);
                     movedSw = true;
@@ -504,9 +504,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!be.sensorOpen(world, i)) { be.stat(i, 2); continue; }
                 java.util.Map<String, Long> own = be.nodeBuf(i);
                 boolean moved = false;
-                for (String id : new java.util.ArrayList<>(own.keySet())) {
-                    long amt = own.getOrDefault(id, 0L);
-                    own.remove(id);
+                final int dnE = be.fillDrain(own); own.clear(); // m350 整锅转存再清
+                for (int dk = 0; dk < dnE; dk++) {
+                    String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
                     be.distribute(world, i, outT.get(i), id, amt);
                     moved = true;
@@ -737,14 +737,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
                     com.sdzjz.machine.StorageAccess supply = be.supplyFor(world, i);
                     if (supply == null) { be.statR(i, 3, "未接存储/供料线"); continue; }
-                    for (var en : new java.util.ArrayList<>(supply.storeView().entrySet())) {
+                    final int dnM = be.fillDrain(supply.storeView()); // m350 转存 scratch：撤仓账整表拷贝（withdraw 当场实扣防聚合视图虚账）
+                    for (int dk = 0; dk < dnM; dk++) {
                         if (done >= capacity) break;
-                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, en.getKey());
+                        String idM = be.drainIds[dk];
+                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, idM);
                         if (out == null) continue;
-                        if (!machineFilterAllows(st, en.getKey())) continue; // m149
-                        long take = Math.min(en.getValue(), capacity - done);
+                        if (!machineFilterAllows(st, idM)) continue; // m149
+                        long take = Math.min(be.drainAmts[dk], capacity - done);
                         if (take <= 0) continue;
-                        int got = supply.withdraw(en.getKey(), (int) Math.min(take, Integer.MAX_VALUE));
+                        int got = supply.withdraw(idM, (int) Math.min(take, Integer.MAX_VALUE));
                         if (got <= 0) continue;
                         long give = (long) got * (int) out[1];
                         if (hasOut[i]) be.distribute(world, i, outT.get(i), (String) out[0], give);
@@ -2171,6 +2173,30 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.HashSet<Integer> trashScratch = new java.util.HashSet<>();
     private java.util.Set<Integer> wantsScratchCleared() { wantsScratch.clear(); return wantsScratch; }
     private java.util.Set<Integer> trashScratchCleared() { trashScratch.clear(); return trashScratch; }
+
+    // ===== m350 供料热路径复用 scratch（外部审计③轮②：每 5t 清运/泵料的 ArrayList(entrySet/keySet)
+    // 防御性拷贝逐拍重配下岗）——map 转存进 grow-only 双数组后立即处理，不跨节点不跨 tick 不可重入；
+    // 需要"实扣看返回值"的路径（泵/熔炉 withdraw）照旧当场扣，绝不按快照值虚记账（聚合视图可能陈旧）。 =====
+    private transient String[] drainIds = new String[16];
+    private transient long[] drainAmts = new long[16];
+    private int fillDrain(java.util.Map<String, Long> m) {
+        int n = m.size();
+        if (drainIds.length < n) {
+            int cap = Math.max(n, drainIds.length * 2);
+            drainIds = new String[cap];
+            drainAmts = new long[cap];
+        }
+        int k = 0;
+        for (var en : m.entrySet()) {
+            drainIds[k] = en.getKey();
+            Long v = en.getValue();
+            drainAmts[k] = v == null ? 0L : v;
+            k++;
+        }
+        return k;
+    }
+    /** m350 链式需求备忘外层表复用（值集来自 CraftPlanner 缓存/常量本就不逐拍配，只有外层 HashMap 在逐拍重配）。 */
+    private final transient java.util.Map<Integer, java.util.Set<String>> crafterNeedsScratch = new java.util.HashMap<>();
 
     /** m321 计时壳：PHASES 关或递归内层=直通（一次 volatile 读+分支）；顶层调用计入 SUB_CHAIN。 */
     private boolean chainWants(World world, int i, String id, int depth,
