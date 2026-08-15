@@ -164,6 +164,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private static void tickInner(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         long __ph = System.nanoTime(); // m321 阶段计时游标（四段边界各 1 次 nanoTime，常开可忽略）
         be.recipesThisTick = 0; // m270 全核tick周期预算复位（cyclesThisTick 共享额度）
+        // m339 经验池公平层（作者实锤：两台吃经验的机器都拉满，下标靠前的每拍把池里刚攒的经验吃光，
+        // 第二台永远等不到 ≥单价 的余额=饿死。m302 饥饿名单管核心之间，这里下沉到**同核节点之间**，
+        // 同款方案①：饿着的记名，下一拍全池礼让给名单，直到它吃上为止；先到先得只在无人挨饿时成立）。
+        if (SdzjzConfig.get().xpFairShare) {
+            be.xpStarved.removeIf(ix -> ix >= be.machineNodes.size() || !be.xpConsumerReady(ix)); // 名单保洁：拆机/暂停/丢目标的不许占坑堵池
+            be.xpReserveActive = !be.xpStarved.isEmpty();
+        } else {
+            be.xpStarved.clear();
+            be.xpReserveActive = false;
+        }
         be.flushCanvasSnapshot(world); // m275：上一拍标脏的渲染快照在此聚合、定向发观众（每 tick 至多 1 份/核心）
         // m218c 多核心错峰：周期性大活（ends包/区块票/拉料拍/端点扫描）按 pos 哈希移相——频率逐核不变，
         // 只是不同核心不再挤同一全局 tick（m181 给 m88 兜底同步用过的同款药方，推广到其余四拍）。
@@ -623,8 +633,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositEf = be.depositFor(world, i);
                 if (depositEf == null)
                     crafts = Math.min(crafts, OUTPUT_SLOTS); // 附魔书 max=1，无存储时封顶防白扣
-                crafts = Math.min(crafts, (long) (be.xpPool / plan.xpCost())); // 经验闸：池里够几本合几本
-                if (crafts <= 0) { be.statR(i, 3, "经验池不足（本单需 " + plan.xpCost() + "，现 " + (long) be.xpPool + "）"); continue; }
+                crafts = be.xpGate(i, crafts, plan.xpCost()); // m339 经验闸+公平层：礼让期非名单节点=0
+                if (crafts <= 0) { be.statR(i, 3, "经验池不足或礼让保底（本单需 " + plan.xpCost() + "，现 " + (long) be.xpPool + "；有机器挨饿时全池先喂它）"); continue; }
                 if (hasIn[i]) {
                     for (var en : plan.needs().entrySet())
                         crafts = Math.min(crafts, be.bufCountFor(i, en.getKey()) / en.getValue());
@@ -887,8 +897,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (accD == null) { be.statR(i, 3, "未接存储网络（母本要仓压阵）"); continue; }
                 if (accD.count(tgtD) < 1) { be.statR(i, 3, "网络里没有母本：先放 1 件目标物品进仓（母本不消耗）"); continue; }
                 int xpEach = Math.max(1, cfg.duplicatorXpPerItem);
-                attempts = Math.min(attempts, (long) (be.xpPool / xpEach));
-                if (attempts <= 0) { be.statR(i, 3, "经验池不足（每件需 " + xpEach + "，现 " + (long) be.xpPool + "）"); continue; }
+                attempts = be.xpGate(i, attempts, xpEach); // m339 经验闸+公平层：礼让期非名单节点=0
+                if (attempts <= 0) { be.statR(i, 3, "经验池不足或礼让保底（每件需 " + xpEach + "，现 " + (long) be.xpPool + "；有机器挨饿时全池先喂它）"); continue; }
                 com.sdzjz.machine.StorageAccess depositD = hasOut[i] ? null : be.depositFor(world, i);
                 if (!hasOut[i] && depositD == null)
                     attempts = Math.min(attempts, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规，不蒸发不洪泛）
@@ -1132,6 +1142,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         double acc = workAcc.getOrDefault(nodeIndex, 0.0) + rate;
         int cycles = (int) (acc / base);
         if (cycles > cap) cycles = cap;
+        boolean hadWork = cycles > 0; // m339 预算剪零可视化用：区分"没攒够周期"与"被预算剪没"
         if (cfg.maxRecipesPerCoreTick > 0) { // m270 真接线（审计核实三键此前只声明零使用）：全核共享每tick周期预算
             long remain = cfg.maxRecipesPerCoreTick - recipesThisTick;
             if (remain <= 0) cycles = 0;                    // 预算耗尽：本tick不结算，工作量照常累积下tick续（不静默蒸发,m99教训）
@@ -1160,7 +1171,41 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (acc > (double) base * cap) acc = (double) base * cap; // 被cap/预算截断时不无限囤积
         workAcc.put(nodeIndex, acc);
         recipesThisTick += cycles;
+        if (hadWork && cycles == 0) // m339 预算剪零≠没到周期：亮黄说人话，别静默 continue 装死（m99 教训）
+            statR(nodeIndex, 2, "生产预算本拍已满（核内/区块/全服四层之一），工作量已排队下拍续");
         return cycles;
+    }
+
+    // ---- m339 经验池公平层状态（transient，不落盘）----
+    final java.util.LinkedHashSet<Integer> xpStarved = new java.util.LinkedHashSet<>();
+    boolean xpReserveActive;
+
+    /** m339 名单保洁口：仍是"就绪的吃经验机器"才配占保底坑（拆机/换机/暂停/丢目标=出名单）。 */
+    boolean xpConsumerReady(int ix) {
+        ItemStack st = machineNodes.get(ix);
+        if (nodePaused(st)) return false;
+        String ct = craftTarget(st);
+        if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem)
+            return com.sdzjz.item.DuplicatorItem.validTarget(ct);
+        if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)
+            return !ct.isEmpty();
+        return false;
+    }
+
+    /** m339 经验池闸的唯一过账口：礼让保底期非名单节点吃不到；吃到即销名，吃不到即记名。
+     *  返回按池量与保底裁剪后的次数（调用方自带其余封顶）。 */
+    long xpGate(int i, long want, int costEach) {
+        long got = xpFairDecide(want, (long) (xpPool / Math.max(1, costEach)),
+                SdzjzConfig.get().xpFairShare, xpReserveActive, xpStarved.contains(i));
+        if (got <= 0) xpStarved.add(i);
+        else xpStarved.remove(i);
+        return got;
+    }
+
+    /** m339 公平裁决纯函数（廿五号用例直测）：礼让期非名单节点吃 0；其余按池量与需求取小。 */
+    public static long xpFairDecide(long want, long afford, boolean fairOn, boolean reserveActive, boolean amStarved) {
+        if (fairOn && reserveActive && !amStarved) return 0;
+        return Math.max(0, Math.min(want, afford));
     }
 
     /** m99 并发升级直接乘台数：运行台数 = 节点内机器数 ×(1+并发级)×核心层级。 */

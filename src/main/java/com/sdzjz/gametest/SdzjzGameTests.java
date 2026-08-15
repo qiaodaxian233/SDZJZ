@@ -636,4 +636,22 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(!Q.apply(diamond, " - @ "), "全废词组不放行");
         ctx.complete();
     }
+
+    /** m339 廿五号：经验池公平裁决真值表——礼让期非名单节点吃 0，名单节点照吃，无人挨饿先到先得，开关关=旧行为。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void xp_fair_share_decide(TestContext ctx) {
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(10, 5, true, true, false) == 0,
+                "礼让期：非名单节点吃 0（这就是“第二台饿死”的解药——反过来喂）");
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(10, 5, true, true, true) == 5,
+                "礼让期：名单节点按池量吃");
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(10, 5, true, false, false) == 5,
+                "无人挨饿：先到先得照旧");
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(10, 5, false, true, false) == 5,
+                "开关关：回旧先到先得");
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(10, 0, true, true, true) == 0,
+                "池空：名单节点也吃不到（继续挂名等池涨）");
+        ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(3, 99, true, false, false) == 3,
+                "池量富余按需取小");
+        ctx.complete();
+    }
 }
