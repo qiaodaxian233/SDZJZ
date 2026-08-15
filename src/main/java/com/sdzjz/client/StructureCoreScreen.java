@@ -638,17 +638,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 continue;
             }
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
-            float mys = (float) (panY + (wny(be, nodes, mi) + NH / 2.0) * zoom);
+            boolean dualPe = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 机器端锚分高
+            float mysO = (float) (panY + (wny(be, nodes, mi) + (dualPe ? NH / 2.0 - 7 : NH / 2.0)) * zoom); // 产出=出口柱心
+            float mysI = (float) (panY + (wny(be, nodes, mi) + (dualPe ? NH / 2.0 + 7 : NH / 2.0)) * zoom); // 供料=进口柱心
             float mcx = (float) (panX + (wnx(be, nodes, mi) + NW / 2.0) * zoom); // m184 机器中心屏幕x：选缘看几何
             if (e[2] == 0) { // 机器→存储（产出）：机器近侧缘水平出线 → 垂直向上接入卡底左收料口（m184 选缘看几何，卡口在哪侧就走哪缘，反向不再绕背后大圈）
                 boolean er = sx + 14 >= mcx; // 收料口在机器右侧→右缘出线，否则左缘出线
                 float mxs = (float) (panX + (wnx(be, nodes, mi) + (er ? NW : 0)) * zoom);
-                drawWire(ctx, mxs, mys, er ? 1 : -1, 0, sx + 14, sy + bh() + 2, 0, -1,
+                drawWire(ctx, mxs, mysO, er ? 1 : -1, 0, sx + 14, sy + bh() + 2, 0, -1,
                         lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
             } else {         // 存储→机器（供料）：卡底右供料口垂直下发 → 水平接入机器近侧缘（m184 同上）
                 boolean fr = sx + bw() - 14 >= mcx; // 供料口在机器右侧→从右缘进（行进方向向左），否则左缘进
                 float mxi = (float) (panX + (wnx(be, nodes, mi) + (fr ? NW : 0)) * zoom);
-                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mys, fr ? -1 : 1, 0,
+                drawWire(ctx, sx + bw() - 14, sy + bh() + 2, 0, 1, mxi, mysI, fr ? -1 : 1, 0,
                         lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
             }
         }
@@ -699,8 +701,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (lit2) acc[1] = 1;
                     continue;
                 }
-                int ax0 = wnx(be, nodes, c[0]), ay = wny(be, nodes, c[0]) + NH / 2;
-                int bx0 = wnx(be, nodes, c[1]), by = wny(be, nodes, c[1]) + NH / 2;
+                int dyO = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 - 7 : NH / 2; // m352 出口柱心
+                int dyI = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 + 7 : NH / 2; // m352 进口柱心
+                int ax0 = wnx(be, nodes, c[0]), ay = wny(be, nodes, c[0]) + dyO;
+                int bx0 = wnx(be, nodes, c[1]), by = wny(be, nodes, c[1]) + dyI;
                 boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
                 int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
                 drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
@@ -721,15 +725,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
         }
         if (linking && linkInto >= 0 && linkInto < nodes.size()) { // m342 进口起手预览：进线色，锚随口位
-            boolean swPv = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
+            boolean dualPv = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 双侧=随鼠标选缘（与出口预览同 m184 口径）
+            boolean swPv = !dualPv && com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
             int nxI = wnx(be, nodes, linkInto);
-            int axI = nxI + (swPv ? NW : 0), ayI = wny(be, nodes, linkInto) + NH / 2;
-            drawWireFree(ctx, axI, ayI, swPv ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), SciSkin.wireIn(), (float) zoom);
+            boolean lrI = dualPv ? wmx(mouseX) >= nxI + NW / 2.0 : swPv;
+            int axI = nxI + (lrI ? NW : 0), ayI = wny(be, nodes, linkInto) + (dualPv ? NH / 2 + 7 : NH / 2);
+            drawWireFree(ctx, axI, ayI, lrI ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), SciSkin.wireIn(), (float) zoom);
         }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int nx0 = wnx(be, nodes, linkFrom);
             boolean lr = wmx(mouseX) >= nx0 + NW / 2.0; // m184 预览线同看几何：鼠标在节点左侧就从左缘出
-            int ax = nx0 + (lr ? NW : 0), ay = wny(be, nodes, linkFrom) + NH / 2;
+            int ax = nx0 + (lr ? NW : 0), ay = wny(be, nodes, linkFrom)
+                    + (com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 - 7 : NH / 2); // m352 出口柱心
             drawWireFree(ctx, ax, ay, lr ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), SciSkin.wireOut(), (float) zoom); // m198 预览随出线色
         }
         for (int i = 0; i < nodes.size(); i++) {
@@ -982,14 +989,23 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         SciSkin.drawCard(ctx, x, y, NW, NH, NODEFRM); // m120 投影+渐变面+角刻
         ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
         ctx.fill(x, y + 3, x + NW, y + 15, SciSkin.withAlpha(SciSkin.BACKDROP, 0.25f)); // m120 标题读数底带（m207 字面量退役随族）
-        boolean swP = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped; // m341 进出口互换（作者点名；默认换，配置可回）
-        int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
-        ctx.fill(inX, y + NH / 2 - 3, inX + 6, y + NH / 2 + 3, CYAN);      // 进口柱
-        ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
-        // m342 字标画卡外（作者点名"加上进和出"）：柱在左缘=字在柱左，柱在右缘=字在柱右，不压卡面图标
-        boolean inRight = inX > x + NW / 2;
-        ctx.drawText(this.textRenderer, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
-        ctx.drawText(this.textRenderer, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
+        if (com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts) { // m352 双侧进出口（作者点名"左右都要有进和出"）：
+            // 出上/进下、两缘各一对——m184 连线几何早就两侧智能选缘，此前柱子只画单侧=线常贴到没柱/颜色不对的缘上。
+            int oyP = y + NH / 2 - 10, iyP = y + NH / 2 + 4; // 柱心=NH/2∓7，与锚点分高同源
+            ctx.fill(x - 4, oyP, x + 2, oyP + 6, ON);           ctx.fill(x + NW - 2, oyP, x + NW + 4, oyP + 6, ON);   // 出口柱×2
+            ctx.fill(x - 4, iyP, x + 2, iyP + 6, CYAN);         ctx.fill(x + NW - 2, iyP, x + NW + 4, iyP + 6, CYAN); // 进口柱×2
+            ctx.drawText(this.textRenderer, "出", x - 16, oyP - 1, ON, false);   ctx.drawText(this.textRenderer, "出", x + NW + 7, oyP - 1, ON, false);
+            ctx.drawText(this.textRenderer, "进", x - 16, iyP - 1, CYAN, false); ctx.drawText(this.textRenderer, "进", x + NW + 7, iyP - 1, CYAN, false);
+        } else {
+            boolean swP = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped; // m341 进出口互换（关=单侧旧行为，此键仍生效）
+            int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
+            ctx.fill(inX, y + NH / 2 - 3, inX + 6, y + NH / 2 + 3, CYAN);      // 进口柱
+            ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
+            // m342 字标画卡外（作者点名"加上进和出"）：柱在左缘=字在柱左，柱在右缘=字在柱右，不压卡面图标
+            boolean inRight = inX > x + NW / 2;
+            ctx.drawText(this.textRenderer, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
+            ctx.drawText(this.textRenderer, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
+        }
         int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
         float isc = 2f + 0.45f * mt;
         var msi = ctx.getMatrices();
@@ -1166,7 +1182,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.fill(sx, sy, sx + 24, sy + 18, SciSkin.BTN_FACE);
             SciSkin.drawSlot(ctx, sx + 1, sy + 1); // m120 物品坐进角括号插槽，与终端同语言
             ctx.drawItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
-            ctx.drawText(this.textRenderer, "" + lv[k], sx + 18, sy + 6, lv[k] > 0 ? ON : SUB, false);
+            // m352 计数进格内右下角（作者截图：128 画在格外右侧仅 7px 预算，被右邻格框盖字——painter
+            // 序后画的框压先画的字）。原版堆叠数样式：右下对齐+阴影+z抬200压图标，邻格永远够不着；fmtNum 防四位数再溢。
+            String cntU = fmtNum(lv[k]);
+            int cwU = this.textRenderer.getWidth(cntU);
+            var msU = ctx.getMatrices();
+            msU.push(); msU.translate(0, 0, 200);
+            ctx.drawText(this.textRenderer, cntU, sx + 24 - cwU, sy + 10, lv[k] > 0 ? ON : SUB, true);
+            msU.pop();
         }
     }
 
@@ -2490,19 +2513,27 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             return true;
                         }
                     }
-                    // 机器输出口(绿) → 连线（m341 口位随 nodePortsSwapped，与接线柱渲染同源）
+                    // 机器输出口(绿) → 连线（m341 口位随 nodePortsSwapped；m352 双侧=左右两锚都可抓）
+                    boolean dualPc = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts;
                     boolean swPc = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
                     double pR = Math.max(7, 10 / zoom); // m122 抓取半径随缩放反比——屏幕上恒 ~10px，低倍率下也点得中
+                    double pRy = dualPc ? Math.min(pR, 6) : pR; // m352 纵向收紧：柱心距14，6+6<14 上下柱不抢点
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        int oxp = wnx(be, nodes, i) + (swPc ? 0 : NW), oyp = wny(be, nodes, i) + NH / 2;
-                        if (Math.abs(wx - oxp) <= pR && Math.abs(wy - oyp) <= pR) {
+                        int nxH = wnx(be, nodes, i), oyp = wny(be, nodes, i) + (dualPc ? NH / 2 - 7 : NH / 2);
+                        boolean hitO = dualPc
+                                ? Math.abs(wy - oyp) <= pRy && (Math.abs(wx - nxH) <= pR || Math.abs(wx - (nxH + NW)) <= pR)
+                                : Math.abs(wx - (nxH + (swPc ? 0 : NW))) <= pR && Math.abs(wy - oyp) <= pRy;
+                        if (hitO) {
                             linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
                         }
                     }
-                    // m342 机器进口(青) → 反向拉线（拖到仓卡=供料线，拖到机器=对方出→我进）
+                    // m342 机器进口(青) → 反向拉线（拖到仓卡=供料线，拖到机器=对方出→我进；m352 同双侧）
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        int ixp = wnx(be, nodes, i) + (swPc ? NW : 0), iyp = wny(be, nodes, i) + NH / 2;
-                        if (Math.abs(wx - ixp) <= pR && Math.abs(wy - iyp) <= pR) {
+                        int nxH = wnx(be, nodes, i), iyp = wny(be, nodes, i) + (dualPc ? NH / 2 + 7 : NH / 2);
+                        boolean hitI = dualPc
+                                ? Math.abs(wy - iyp) <= pRy && (Math.abs(wx - nxH) <= pR || Math.abs(wx - (nxH + NW)) <= pR)
+                                : Math.abs(wx - (nxH + (swPc ? NW : 0))) <= pR && Math.abs(wy - iyp) <= pRy;
+                        if (hitI) {
                             linking = true; linkInto = i; linkFrom = -1; linkStor = Long.MIN_VALUE; return true;
                         }
                     }
