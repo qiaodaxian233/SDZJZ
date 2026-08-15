@@ -781,4 +781,44 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base, "release 清场对账");
         ctx.complete();
     }
+
+    /** m348 三十号：停机核心端点扫描降频——首扫（加载哨兵）/停→开哨兵/开画布哨兵三个新鲜度契约。
+     *  慢拍 200t 的"不扫"负断言故意不测：日历拍相位随 world.getTime() 漂，窗口内撞上 %200==0 就假红。
+     *  观众哨兵走同 tick 原子挂号→断言→销号（m344b 零发包口径：fake 玩家无 networkHandler，
+     *  绝不能活过本 tick 让 flush 给它发包）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void core_idle_scan_relief(TestContext ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0), relS = new BlockPos(1, 1, 0), relS2 = new BlockPos(0, 1, 1);
+        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.getDefaultState());
+        ctx.setBlockState(relS, ModBlocks.STORAGE_CORE.getDefaultState());
+        if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
+            ctx.throwGameTestException("结构核心方块实体未生成"); return;
+        }
+        long sPos = ctx.getAbsolutePos(relS).asLong(), s2Pos = ctx.getAbsolutePos(relS2).asLong();
+        ctx.waitAndRun(3, () -> { // ① 首扫：加载哨兵（lastEndpointScan 初值 -1000）停机也要即时扫一次
+            ctx.assertTrue(hasEndpoint(be, sPos), "首扫哨兵：停机核心加载后邻接存储核心应已入端点表");
+            ctx.setBlockState(relS2, ModBlocks.STORAGE_CORE.getDefaultState()); // 停机期新增第二台
+            be.toggleRunning(true); // ② 停→开转变沿哨兵
+            ctx.assertTrue(be.endpointScanPending(), "开机哨兵：toggleRunning(true) 应置扫描待刷");
+            ctx.waitAndRun(3, () -> {
+                ctx.assertTrue(hasEndpoint(be, s2Pos), "开机新鲜度：≤3t 内新端点应入表，慢拍陈旧窗清零");
+                be.toggleRunning(false);
+                ctx.assertTrue(!be.endpointScanPending(), "开→停不置哨兵（上轮已扫清位）");
+                var sw = ctx.getWorld();
+                var pv = new net.minecraft.server.network.ServerPlayerEntity(sw.getServer(), sw,
+                        new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v3"),
+                        net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault());
+                be.addCanvasViewer(pv); // ③ 开画布转变沿哨兵（同 tick 挂号→断言→销号，零发包）
+                boolean pend = be.endpointScanPending();
+                be.removeCanvasViewer(pv);
+                ctx.assertTrue(pend, "开画布哨兵：addCanvasViewer 应置扫描待刷");
+                ctx.complete();
+            });
+        });
+    }
+
+    private static boolean hasEndpoint(com.sdzjz.block.StructureCoreBlockEntity be, long posLong) {
+        for (long[] e : be.storageEndpointsView()) if (e[0] == posLong) return true;
+        return false;
+    }
 }

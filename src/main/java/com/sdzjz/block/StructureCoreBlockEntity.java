@@ -182,7 +182,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m218c 端点扫描错峰（回查自纠：初版"每次回拨相位"是复利——last=now-p 让下次在 40-p 就触发，
         // 周期被永久压成 40-p 反而提频。改日历拍：稳态严格 40t、相位由 wt 哈希天然错开；-1000 哨兵=
         // 刚加载首扫即时，画布随时能看到接口的原语义不变，首扫后至多 39t 内并入日历拍）。
-        if (be.lastEndpointScan <= -1000 || Math.floorMod(wt, 40) == 0) {
+        // m348 停机降频（外部审计"idle 核心 tick 头维护段照跑"）：停机+无观众=扫描纯白烧（消费面
+        // 三路全闸后：生产路由在 running 闸内/观众链路有登记表/续票 want=running），降 40t→200t
+        // 慢拍保底自愈（200%40=0，日历拍切换无缝不丢拍）；开机/开画布两转变沿哨兵强刷零陈旧窗。
+        boolean epFull = be.running || !be.canvasViewers.isEmpty(); // flush 在上方已保洁，此表无陈员
+        if (be.lastEndpointScan <= -1000
+                || Math.floorMod(wt, (epFull || !SdzjzConfig.get().coreIdleScanRelief) ? 40 : 200) == 0) {
             be.lastEndpointScan = world.getTime();
             be.scanStorageEndpoints(world, pos);
         }
@@ -192,7 +197,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // m276 起本行=标脏→flushCanvasSnapshot 升版本重发渲染快照给观众（自愈兜底防标脏遗漏类 bug 永久失同步）。
         if (Math.floorMod(world.getTime() + pos.hashCode(), 200) == 0 && be.hasCanvasViewer(world)) be.syncToClient();
         // m115 过载保护：平均 tick >45ms 全线自动暂停（<40ms 恢复，滞回防抖）；>60ms 清理本核心喷出的掉落物
-        if (be.ticks % 20 == 0 && world instanceof net.minecraft.server.world.ServerWorld sw115) {
+        // m348 两修：①基准 be.ticks→日历拍（ticks 在 running 闸后才自增，停机冻结——冻在 %20==0 上
+        // 就每 tick 采样、服务器 >60ms 时每 tick 扫实体清扫）；②补 running 闸（看门狗管的是本核心
+        // 机器产出，停机=无产出无可保护；重开机 ≤20t 内重采样自校正，lagPause 陈值期间无人消费）。
+        if (be.running && Math.floorMod(wt, 20) == 0 && world instanceof net.minecraft.server.world.ServerWorld sw115) {
             float ms = sw115.getServer().getAverageTickTime();
             boolean was = be.lagPause;
             if (ms > 45f) be.lagPause = true; else if (ms < 40f) be.lagPause = false;
@@ -2719,7 +2727,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             new java.util.LinkedHashSet<>();
 
     /** m344 开屏挂号（服务端 ScreenHandler 构造调用）。 */
-    public void addCanvasViewer(net.minecraft.server.network.ServerPlayerEntity sp) { canvasViewers.add(sp); }
+    public void addCanvasViewer(net.minecraft.server.network.ServerPlayerEntity sp) { canvasViewers.add(sp); lastEndpointScan = -1000; } // m348 开画布哨兵强刷端点
+    public boolean endpointScanPending() { return lastEndpointScan <= -1000; } // m348 GameTest 观测口：哨兵是否待刷
 
     /** m344 关屏销号（onClosed 调用）；顺带清快照已发账，重开必得首包（原"无观众清表"的逐人版）。 */
     public void removeCanvasViewer(net.minecraft.server.network.ServerPlayerEntity sp) {
@@ -3409,6 +3418,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
     @Override public void clear() { items.clear(); }
 
-    public void toggleRunning(boolean run) { this.running = run; markDirty(); }
+    public void toggleRunning(boolean run) { if (run && !this.running) lastEndpointScan = -1000; this.running = run; markDirty(); } // m348 停→开哨兵强刷端点，慢拍陈旧窗清零
     public boolean isRunning() { return running; }
 }
