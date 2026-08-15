@@ -34,6 +34,11 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     private static final int BH = 332, TEX_H = 316, TEX_SPLIT = 304, TEX_TILE = 288;
     // m241 压缩区两钮（右栏底部，BOM 清单最深到 ~296、底边艺术带从 324 起，302..317 两不相扰）
     private static final int BTN_Y = 302, BTN_H = 15, BTN_W = 93, BTN_GAP = 6;
+    // m338 材料总览卡（作者点名"+N…显示不全，加个展开全部"）：点"+N▼"展开、任意点/Esc 收起、滚轮翻行
+    private boolean bomExpanded;
+    private int bomScroll;
+    private boolean bomOver;
+    private int bomMoreX, bomMoreY, bomMoreW, bomMoreH; // "+N▼"点击热区（渲染时缓存=渲染点击同源，m215）
 
     private int scroll = 0;
     private int selected = -1;                 // 选中配方（ALL 下标——填料协议 clickButton(idx) 口径不变）
@@ -234,10 +239,56 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 ctx.drawText(this.textRenderer, bl.get(e.getKey()), sx + 17, sy + 5,
                         ok ? 0xFF50E850 : SciSkin.RED, false);
             }
-            if (over)
-                ctx.drawText(this.textRenderer, "+" + (bom.size() - show) + "…",
-                        (show % cols) * colW, (show / cols) * rowH + 5, SUB, false);
+            bomOver = over; // m338 热区缓存（渲染点击同源）
+            bomMoreX = PX + (int) (S * ((show % cols) * colW));
+            bomMoreY = dy + 12 + (int) (S * ((show / cols) * rowH));
+            bomMoreW = (int) (S * colW);
+            bomMoreH = (int) (S * rowH);
+            if (over) {
+                boolean hovMore = mouseX - this.x >= bomMoreX && mouseX - this.x < bomMoreX + bomMoreW
+                        && mouseY - this.y >= bomMoreY && mouseY - this.y < bomMoreY + bomMoreH;
+                ctx.drawText(this.textRenderer, "+" + (bom.size() - show) + "▼",
+                        (show % cols) * colW, (show / cols) * rowH + 5, hovMore ? SciSkin.ACCENT : SUB, false);
+            }
             ctx.getMatrices().pop();
+
+            if (bomExpanded) { // m338 材料总览卡：盖右栏（不压任何槽位，槽提示零穿透），原尺寸网格+滚轮翻行
+                int ox = PX - 4, oy = 20, ow = PW + 8, oh = BTN_Y + BTN_H - oy + 2;
+                ctx.getMatrices().push();
+                ctx.getMatrices().translate(0, 0, 400); // m283 置顶刀
+                ctx.fill(ox - 1, oy - 1, ox + ow + 1, oy + oh + 1, SciSkin.FRAME);
+                ctx.fill(ox, oy, ox + ow, oy + oh, SciSkin.CELL);
+                ctx.drawText(this.textRenderer, "全部材料（" + bom.size() + " 种）", ox + 6, oy + 5, TXT, false);
+                int gcolW = 16 + labelW + 6, gcols = Math.max(1, (ow - 14) / gcolW);
+                int grows = Math.max(1, (oh - 34) / 18);
+                int totalRows = (bom.size() + gcols - 1) / gcols;
+                bomScroll = Math.max(0, Math.min(bomScroll, Math.max(0, totalRows - grows)));
+                String foot = null;
+                for (int k = bomScroll * gcols; k < bom.size() && k < (bomScroll + grows) * gcols; k++) {
+                    int kk = k - bomScroll * gcols;
+                    int sx = ox + 6 + (kk % gcols) * gcolW, sy = oy + 16 + (kk / gcols) * 18;
+                    Map.Entry<String, Integer> e = bom.get(k);
+                    ctx.drawItem(bs.get(e.getKey()), sx, sy);
+                    boolean okE = bl.get(e.getKey()).startsWith("×");
+                    ctx.drawText(this.textRenderer, bl.get(e.getKey()), sx + 17, sy + 5,
+                            okE ? 0xFF50E850 : SciSkin.RED, false);
+                    if (mouseX - this.x >= sx && mouseX - this.x < sx + gcolW
+                            && mouseY - this.y >= sy && mouseY - this.y < sy + 18)
+                        foot = bs.get(e.getKey()).getName().getString() + "  "
+                                + have.getOrDefault(e.getKey(), 0) + "/" + e.getValue(); // 悬停=精确数（cnt 缩写的全量口）
+                }
+                if (totalRows > grows) { // 迷你滚动条
+                    int trackY = oy + 16, trackH = grows * 18 - 2;
+                    ctx.fill(ox + ow - 5, trackY, ox + ow - 3, trackY + trackH, SciSkin.CELL_FRM);
+                    int thumbH = Math.max(8, trackH * grows / totalRows);
+                    int thumbY = trackY + (trackH - thumbH) * bomScroll / Math.max(1, totalRows - grows);
+                    ctx.fill(ox + ow - 5, thumbY, ox + ow - 3, thumbY + thumbH, SciSkin.ACCENT);
+                }
+                ctx.drawText(this.textRenderer,
+                        foot != null ? this.textRenderer.trimToWidth(foot, ow - 12) : "滚轮翻行 · 再点/Esc 收起",
+                        ox + 6, oy + oh - 11, foot != null ? TXT : SUB, false);
+                ctx.getMatrices().pop();
+            }
         }
     }
 
@@ -273,6 +324,10 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (bomExpanded) { // m338 总览卡翻行（下限此处夹，上限渲染按行数夹）
+            if (v < 0) bomScroll++; else if (v > 0) bomScroll = Math.max(0, bomScroll - 1);
+            return true;
+        }
         double rx = mouseX - this.x;
         if (rx >= PX - 6) {
             scroll = Math.max(0, scroll - (int) Math.signum(v));
@@ -284,6 +339,11 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         double rx = mouseX - this.x, ry = mouseY - this.y;
+        if (bomExpanded) { bomExpanded = false; return true; } // m338 任意点=收起（可预期，不藏关闭钮）
+        if (button == 0 && bomOver && rx >= bomMoreX && rx < bomMoreX + bomMoreW
+                && ry >= bomMoreY && ry < bomMoreY + bomMoreH) {
+            bomExpanded = true; bomScroll = 0; return true; // m338 点"+N▼"=展开全部
+        }
         if (button == 0 && ry >= BTN_Y && ry < BTN_Y + BTN_H && rx >= PX && rx < PX + PW) { // m241 压缩区两钮
             int b = rx < PX + BTN_W ? 0 : (rx >= PX + BTN_W + BTN_GAP ? 1 : -1);
             if (b >= 0 && this.client != null && this.client.interactionManager != null) {
@@ -298,6 +358,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             if (vi >= 0 && vi < view.size()) {
                 int idx = view.get(vi); // m237 过滤视图→ALL 下标，填料协议 clickButton(原下标) 口径不变
                 selected = idx;
+                bomExpanded = false; bomScroll = 0; // m338 换台收卡清滚
                 if (this.client != null && this.client.interactionManager != null) {
                     this.client.interactionManager.clickButton(this.handler.syncId, idx); // 填料
                 }
@@ -309,6 +370,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) { // m237 聚焦时按键进搜索框（Esc 除外），防 E 关屏
+        if (bomExpanded && keyCode == 256) { bomExpanded = false; return true; } // m338 Esc 收总览卡（先吃，防连带关屏）
         if (search != null && search.isFocused() && keyCode != 256) {
             search.keyPressed(keyCode, scanCode, modifiers);
             return true;
