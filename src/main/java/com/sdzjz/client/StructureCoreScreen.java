@@ -211,6 +211,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private double dragOffX, dragOffY;
     private int dragCurX, dragCurY; // m196 拖动中的屏幕本地坐标（渲染/发包唯一真源）——BE 坐标拖动中会被服务器全量同步打回旧值，读它=闪跳；从它回读发包=同步恰好盖掉就把旧坐标发回去=永久漂移
     private boolean linking = false;
+    private int linkInto = -1;                        // m342 机器进口起手（拖到仓卡=供料线，拖到机器=反向建线）
     private int linkFrom = -1;                        // 机器输出口起点
     private long linkStor = Long.MIN_VALUE;           // 存储供料口起点
 
@@ -719,6 +720,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     lit3 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
         }
+        if (linking && linkInto >= 0 && linkInto < nodes.size()) { // m342 进口起手预览：进线色，锚随口位
+            boolean swPv = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
+            int nxI = wnx(be, nodes, linkInto);
+            int axI = nxI + (swPv ? NW : 0), ayI = wny(be, nodes, linkInto) + NH / 2;
+            drawWireFree(ctx, axI, ayI, swPv ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), SciSkin.wireIn(), (float) zoom);
+        }
         if (linking && linkFrom >= 0 && linkFrom < nodes.size()) {
             int nx0 = wnx(be, nodes, linkFrom);
             boolean lr = wmx(mouseX) >= nx0 + NW / 2.0; // m184 预览线同看几何：鼠标在节点左侧就从左缘出
@@ -979,6 +986,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
         ctx.fill(inX, y + NH / 2 - 3, inX + 6, y + NH / 2 + 3, CYAN);      // 进口柱
         ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
+        // m342 字标画卡外（作者点名"加上进和出"）：柱在左缘=字在柱左，柱在右缘=字在柱右，不压卡面图标
+        boolean inRight = inX > x + NW / 2;
+        ctx.drawText(this.textRenderer, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
+        ctx.drawText(this.textRenderer, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
         int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
         float isc = 2f + 0.45f * mt;
         var msi = ctx.getMatrices();
@@ -2488,6 +2499,13 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
                         }
                     }
+                    // m342 机器进口(青) → 反向拉线（拖到仓卡=供料线，拖到机器=对方出→我进）
+                    for (int i = nodes.size() - 1; i >= 0; i--) {
+                        int ixp = wnx(be, nodes, i) + (swPc ? NW : 0), iyp = wny(be, nodes, i) + NH / 2;
+                        if (Math.abs(wx - ixp) <= pR && Math.abs(wy - iyp) <= pR) {
+                            linking = true; linkInto = i; linkFrom = -1; linkStor = Long.MIN_VALUE; return true;
+                        }
+                    }
                     // 机器节点体 → 拖动
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
@@ -2630,6 +2648,28 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             }
                         }
                     }
+                } else if (linkInto >= 0) { // m342 进口起手落靶
+                    boolean doneI = false;
+                    for (int j = ends.size() - 1; j >= 0; j--) {
+                        long pl = ends.get(j)[0];
+                        if (!busVisible() && !endPlaced(be, pl)) continue;
+                        int sx = snx(be, pl, j), sy = sny(be, pl, j);
+                        if (mouseX >= sx - 6 && mouseX <= sx + bw() + 6 && mouseY >= sy - 4 && mouseY <= sy + bh() + 10) {
+                            ClientPlayNetworking.send(new StorageLinkPayload(p, linkInto, pl, 1, dims.get(j))); // 供料线：仓→我
+                            doneI = true;
+                            break;
+                        }
+                    }
+                    if (!doneI) {
+                        double padI = 6 / zoom;
+                        for (int i = nodes.size() - 1; i >= 0; i--) {
+                            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
+                            if (wx >= nx - padI && wx <= nx + NW + padI && wy >= ny - padI && wy <= ny + NH + padI) {
+                                if (i != linkInto) ClientPlayNetworking.send(new NodeLinkPayload(p, i, linkInto)); // 对方出→我进
+                                break;
+                            }
+                        }
+                    }
                 } else if (linkStor != Long.MIN_VALUE) {
                     // 存储→机器 定向供料
                     int j = endpointIndex(ends, linkStor);
@@ -2644,7 +2684,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     }
                 }
             }
-            linking = false; linkFrom = -1; linkStor = Long.MIN_VALUE;
+            linking = false; linkFrom = -1; linkStor = Long.MIN_VALUE; linkInto = -1; // m342
             return true;
         }
         if (button == 0 && dragIndex >= 0) {
