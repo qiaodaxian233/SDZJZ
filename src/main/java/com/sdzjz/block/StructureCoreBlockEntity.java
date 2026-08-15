@@ -2581,7 +2581,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DISTRIBUTE, System.nanoTime() - __t); }
     }
 
-    private void distributeEven0(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+    private void distributeEven0(World world, int fromIndex, int[] targets, String id, long amt) { // m354b 补：m321 计时壳的实体签名漏改（沙盒 javac 缺 MC 类盲区，CI 抓获）
         if (prof != null) prof.routes++; // m177
         if (targets != null && targets.length > 0) {
             java.util.List<Integer> ok = new java.util.ArrayList<>();
@@ -2618,7 +2618,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DISTRIBUTE, System.nanoTime() - __t); }
     }
 
-    private void distribute0(World world, int fromIndex, java.util.List<Integer> targets, String id, long amt) {
+    private void distribute0(World world, int fromIndex, int[] targets, String id, long amt) { // m354b 补：同上
         if (prof != null) prof.routes++; // m177
         if (targets != null) {
             for (int pass = 0; pass < 2; pass++) { // m150 两轮：第一轮跳过垃圾桶，第二轮只喂垃圾桶——
