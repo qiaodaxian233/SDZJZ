@@ -654,4 +654,36 @@ public class SdzjzGameTests implements FabricGameTest {
                 "池量富余按需取小");
         ctx.complete();
     }
+
+    /** m343 廿六号：合成机槽位替代材料（外部审计P0）——"任意木板"配方（工作台）用云杉木板
+     *  也能算次数/能实扣，想要集合含替代材料（路由/链需求认云杉）；显式关口径=旧首选行为。
+     *  真配方表口径：用 ctx 世界的 RecipeManager 解析，不造假配方。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void craft_ingredient_alternatives(TestContext ctx) {
+        var plans = com.sdzjz.machine.CraftPlanner.plans(ctx.getWorld(), "minecraft:crafting_table");
+        ctx.assertTrue(!plans.isEmpty(), "工作台应有合成配方");
+        var plan = plans.get(0);
+        ctx.assertTrue(!plan.groups().isEmpty() && plan.groups().get(0).candidates().size() > 1,
+                "工作台配方的木板槽应解析出多个候选（tag #planks）");
+        java.util.Map<String, Long> stock = new java.util.HashMap<>();
+        stock.put("minecraft:spruce_planks", 64L);
+        java.util.function.ToLongFunction<String> stk = k -> stock.getOrDefault(k, 0L);
+        ctx.assertTrue(com.sdzjz.machine.CraftPlanner.maxCrafts(plan, 999, stk, true) == 16,
+                "64 云杉木板=16 次工作台（任意木板口径，4 板/次）");
+        ctx.assertTrue(com.sdzjz.machine.CraftPlanner.maxCrafts(plan, 999, stk, false) == 0,
+                "关口径=旧首选行为（只认首选材料，云杉不算数）");
+        java.util.Map<String, Long> taken = com.sdzjz.machine.CraftPlanner.takeFor(
+                plan, 2, stk, (id, amt) -> stock.merge(id, -amt, Long::sum), true);
+        ctx.assertTrue(taken.getOrDefault("minecraft:spruce_planks", 0L) == 8L
+                        && stock.get("minecraft:spruce_planks") == 56L,
+                "实扣 2 次=8 块云杉，账对得上（消耗多重集与扣账同源）");
+        ctx.assertTrue(com.sdzjz.machine.CraftPlanner.remaindersOf(taken).isEmpty(),
+                "木板无容器残留");
+        java.util.Map<String, Long> mix = new java.util.HashMap<>(); // 混料：贪心按候选序取，绝不虚扣
+        mix.put("minecraft:oak_planks", 3L);
+        mix.put("minecraft:spruce_planks", 3L);
+        ctx.assertTrue(com.sdzjz.machine.CraftPlanner.maxCrafts(plan, 999, k -> mix.getOrDefault(k, 0L), true) == 1,
+                "3 橡木+3 云杉=1 次（跨类型合计 6/4，缺 2 不虚算）");
+        ctx.complete();
+    }
 }
