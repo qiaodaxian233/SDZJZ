@@ -96,8 +96,8 @@ jobs:
         run: |
           JAR=$(ls build/libs/*.jar | grep -v sources | head -1)
           N=$(unzip -l "$JAR" | grep -c 'png\.mcmeta' || true)
-          echo "产物 $JAR 内 png.mcmeta = $N（期望 ≥13：3方块+10物品，m330 五台规划器+m334 复制机入列）"
-          test "$N" -ge 13
+          echo "产物 $JAR 内 png.mcmeta = $N（期望 ≥76：3方块+73物品，m337 批量动画化63张入列）"
+          test "$N" -ge 76
       - name: 上传构建产物
         uses: actions/upload-artifact@v7
         with:
