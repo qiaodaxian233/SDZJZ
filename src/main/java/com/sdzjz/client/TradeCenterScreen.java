@@ -78,6 +78,15 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
             String lvTxt = !lvOn ? "" : " · " + VillagerTrades.levelName(lvl)
                     + (lvl >= 5 ? "(满级)" : "(" + TradeCenterBlockEntity.contractXp(c) + "/" + VillagerTrades.LEVEL_XP[lvl] + ")");
             ctx.drawText(this.textRenderer, "职业：" + profName(prof) + lvTxt + " · 折扣Lv" + disc + "(-" + disc * 10 + "%)", x + 80, y + 30, TXT, false);
+            if (lvOn) { // m335 经验进度条（学原版村民屏的等级条，实现自写、配色走本屏皮肤）
+                int bx0 = x + 80, by0 = y + 41, bw = 200;
+                ctx.fill(bx0, by0, bx0 + bw, by0 + 3, CELL);
+                int prev = VillagerTrades.LEVEL_XP[lvl - 1];
+                int fill = lvl >= 5 ? bw : (int) Math.min(bw, (long) bw
+                        * Math.max(0, TradeCenterBlockEntity.contractXp(c) - prev)
+                        / Math.max(1, VillagerTrades.LEVEL_XP[lvl] - prev));
+                ctx.fill(bx0, by0, bx0 + fill, by0 + 3, CYAN);
+            }
 
             // 治愈按钮
             int hx = x + 288, hy = y + 26;
@@ -109,7 +118,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                     ctx.drawItem(in2, rx + 62, ry + 3);
                     ctx.drawText(this.textRenderer, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
                 }
-                ctx.drawText(this.textRenderer, "→", rx + 130, ry + 8, CYAN, false);
+                ctx.drawText(this.textRenderer, locked ? "×" : "→", rx + 130, ry + 8, locked ? SciSkin.RED : CYAN, false); // m335 学原版锁定叉
                 ctx.drawItem(out, rx + 150, ry + 3);
                 if (t.enchant() != null) { // m101 附魔书：显示附魔名+等级（走原版翻译键）
                     String en = Text.translatable("enchantment." + t.enchant().replace(':', '.')).getString()

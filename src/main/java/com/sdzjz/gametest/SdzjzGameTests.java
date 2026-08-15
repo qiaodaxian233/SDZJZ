@@ -612,4 +612,28 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue("duplicator".equals(com.sdzjz.machine.Machines.DUPLICATOR.id()), "def id=duplicator");
         ctx.complete();
     }
+
+    /** m335 廿四号：选择器查询语法真值表（学 JEI 语法习惯、实现自写——@模组/-排除/|并联/大小写/空查询）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void picker_query_syntax(TestContext ctx) {
+        var Q = (java.util.function.BiFunction<String[], String, Boolean>) (it, q) ->
+                com.sdzjz.machine.PickerQuery.matches(it[0], it[1], q);
+        String[] diamond = {"钻石", "minecraft:diamond"};
+        String[] dup = {"无限复制机", "sdzjz:duplicator"};
+        String[] cobbledDeep = {"深板岩圆石", "minecraft:cobbled_deepslate"};
+        String[] deep = {"深板岩", "minecraft:deepslate"};
+        ctx.assertTrue(Q.apply(diamond, "diamond"), "注册路径命中");
+        ctx.assertTrue(Q.apply(diamond, "钻"), "中文显示名命中");
+        ctx.assertTrue(Q.apply(diamond, "DIAmond"), "不区分大小写");
+        ctx.assertTrue(Q.apply(diamond, ""), "空查询恒真");
+        ctx.assertTrue(Q.apply(dup, "@sdzjz"), "@命名空间命中本模组");
+        ctx.assertTrue(!Q.apply(diamond, "@sdzjz"), "@命名空间拒他模组");
+        ctx.assertTrue(Q.apply(dup, "@sdzjz 复制"), "组内与：@模组+名词同时成立");
+        ctx.assertTrue(!Q.apply(cobbledDeep, "deepslate -cobbled"), "-排除：圆石版出局");
+        ctx.assertTrue(Q.apply(deep, "deepslate -cobbled"), "-排除：素版保留（纯排除比 JEI 更宽松，允许独立使用）");
+        ctx.assertTrue(Q.apply(diamond, "redstone|diamond"), "|并联任一组命中即真");
+        ctx.assertTrue(!Q.apply(diamond, "redstone|lapis"), "|并联全不中为假");
+        ctx.assertTrue(!Q.apply(diamond, " - @ "), "全废词组不放行");
+        ctx.complete();
+    }
 }

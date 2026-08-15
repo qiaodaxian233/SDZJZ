@@ -289,6 +289,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     private TextFieldWidget pickerField;
     private List<Item> craftables;
     private List<Item> allItems;
+    private final java.util.Map<Item, String[]> pickerNameCache = new java.util.HashMap<>(); // m335 每键1400次getName的m107a账：懒缓存
+    private int pickerMatchTotal; // m335 页脚"匹配N"
     private final List<Item> pickerFiltered = new ArrayList<>();
     private static final int PICK_W = 226, PICK_H = 210, PICK_COLS = 10, PICK_ROWS = 7;
 
@@ -2975,8 +2977,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         craftables.addAll(set);
     }
 
+    /** m335 网格命中唯一口：查询语法（学JEI：@模组/-排除/|并联，PickerQuery 自写实现）+名字/id缓存。 */
+    private boolean pickerHit(Item it, String q) {
+        String[] ni = pickerNameCache.computeIfAbsent(it, k -> new String[]{
+                new ItemStack(k).getName().getString().toLowerCase(), Registries.ITEM.getId(k).toString()});
+        if (com.sdzjz.config.SdzjzConfig.get().pickerQuerySyntax)
+            return com.sdzjz.machine.PickerQuery.matches(ni[0], ni[1], q);
+        return q.isEmpty() || ni[0].contains(q) || ni[1].substring(ni[1].indexOf(':') + 1).contains(q); // 旧口径
+    }
+
     private void refilterPicker() {
         pickerFiltered.clear();
+        pickerMatchTotal = 0;
         if (pickerMode == 4) { refilterPotions(); return; } // m131b 药水目标走独立表
         if (pickerMode == 5) { refilterEnchants(); return; } // m132 附魔目标走独立表
         if (pickerMode == 6) { refilterTrades(); return; } // m146 交易目标走独立表
@@ -2994,21 +3006,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         : StructureCoreBlockEntity.cropList(beS.nodes().get(pickerNode));
                 for (String sid : sel) {
                     Item it = Registries.ITEM.get(net.minecraft.util.Identifier.of(sid));
-                    if (q.isEmpty()
-                            || new ItemStack(it).getName().getString().toLowerCase().contains(q)
-                            || Registries.ITEM.getId(it).getPath().contains(q)) {
+                    if (pickerHit(it, q)) { // m335 统一命中口
                         if (!pickerFiltered.contains(it)) pickerFiltered.add(it);
                     }
                 }
             }
         }
+        pickerMatchTotal = pickerFiltered.size(); // 置顶的计入总数
         for (Item it : src) {
             if (pickerFiltered.contains(it)) continue; // 已置顶的不重复
-            if (q.isEmpty()
-                    || new ItemStack(it).getName().getString().toLowerCase().contains(q)
-                    || Registries.ITEM.getId(it).getPath().contains(q)) {
-                pickerFiltered.add(it);
-                if (pickerFiltered.size() >= PICK_COLS * PICK_ROWS) break;
+            if (pickerHit(it, q)) { // m335 统一命中口
+                pickerMatchTotal++;
+                if (pickerFiltered.size() < PICK_COLS * PICK_ROWS) pickerFiltered.add(it); // 满页继续计总数不再加格
             }
         }
     }
@@ -3126,7 +3135,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         }
         String tip = hoverName != null ? hoverName
                 : hoveredStack != null ? hoveredStack.getName().getString()
-                : hovered != null ? new ItemStack(hovered).getName().getString() : "点击图标设为目标 · Esc 关闭";
+                : hovered != null ? new ItemStack(hovered).getName().getString() + " · " + Registries.ITEM.getId(hovered) // m335 悬停带id
+                : pickerMode == 4 || pickerMode == 5 || pickerMode == 6 ? "点击图标设为目标 · Esc 关闭"
+                : pickerMatchTotal > PICK_COLS * PICK_ROWS
+                        ? "匹配 " + pickerMatchTotal + " · 仅显前 " + (PICK_COLS * PICK_ROWS) + " · @模组 -排除 |并联"
+                        : "匹配 " + pickerMatchTotal + " · @模组 -排除 |并联 · Esc 关闭"; // m335 学JEI语法习惯（自写）
+        tip = fitText(tip, PICK_W - 16); // m335 防溢出（m164a 省略号刀）
         ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
         ctx.getMatrices().pop(); // m283 与顶部 translate(0,0,400) 配对
     }
