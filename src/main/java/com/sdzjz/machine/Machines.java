@@ -25,6 +25,8 @@ public final class Machines {
     public static final MachineDef BREWING_TOWER = new MachineDef("brewing_tower", List.of(), 40, false, List.of());
     /** 附魔工厂（m132）：目标附魔+等级在画布节点徽章选择，成本由 EnchantPlanner 解析（经验从核心经验池扣）。 */
     public static final MachineDef ENCHANT_FACTORY = new MachineDef("enchant_factory", List.of(), 40, false, List.of());
+    /** 无限复制机（m334）：目标物品画布徽章选（全物品注册表），母本压阵+经验池付费复制（组件不复制）。 */
+    public static final MachineDef DUPLICATOR = new MachineDef("duplicator", List.of(), 40, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

@@ -31,6 +31,7 @@ public final class SodiumSpriteKicker {
             Identifier.of("sdzjz", "item/brewing_tower"),
             Identifier.of("sdzjz", "item/enchant_factory"),
             Identifier.of("sdzjz", "item/villager_trader"),
+            Identifier.of("sdzjz", "item/duplicator"),      // m334 复制机脉冲动画
     };
 
     private static boolean resolved = false, disabled = false;

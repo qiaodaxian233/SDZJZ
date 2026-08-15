@@ -43,7 +43,8 @@ public final class SuperBenchRecipes {
         "sdzjz:mega_wither_skeleton_farm", "sdzjz:mega_raid_tower", "sdzjz:mega_honey_farm",
         "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm",
         "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm",
-        "sdzjz:wither_rose_farm", "sdzjz:wither_killer", "sdzjz:dragon_cannon"); // m168-m174：工程款与新线终局全入Ⅲ档
+        "sdzjz:wither_rose_farm", "sdzjz:wither_killer", "sdzjz:dragon_cannon",
+        "sdzjz:duplicator"); // m168-m174：工程款与新线终局全入Ⅲ档；m334 复制机=终局中的终局
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -99,6 +100,11 @@ public final class SuperBenchRecipes {
                 BOT, 2, "minecraft:gunpowder", 2, "minecraft:iron_bars", 8, BED, 1, "minecraft:emerald", 8, HOP, 2, CHE, 1);
         bom("sdzjz:villager_trader", "minecraft:villager", "minecraft:emerald_block", 4, CHE, 4, GL, 8,
                 PLK, 16, TRAP, 4, "minecraft:lectern", 1, "minecraft:barrel", 1); // 交易大厅
+        bom("sdzjz:duplicator", "", // m334 无限复制机=全表最贵（作者点名"配方要超级难"）：8星+双信标+重核+末影水晶阵
+                "minecraft:nether_star", 8, "minecraft:netherite_block", 8, "minecraft:beacon", 2,
+                "minecraft:heavy_core", 1, "minecraft:enchanted_golden_apple", 4, "minecraft:end_crystal", 4,
+                "minecraft:echo_shard", 8, "minecraft:diamond_block", 16, "minecraft:emerald_block", 32,
+                "minecraft:amethyst_block", 16); // 合计 99+核心模块4=103 布局位（≤144）
         bom("sdzjz:grindstone_recycler", "", "minecraft:grindstone", 2, "minecraft:book", 4,
                 "minecraft:stone", 8, "minecraft:iron_ingot", 8, HOP, 4, CHE, 2);
         bom("sdzjz:bamboo_farm", "", "minecraft:bamboo", 8, OSV, 8, PIS, 8, RSD, 8, SST, 24, HOP, 4, CHE, 2);

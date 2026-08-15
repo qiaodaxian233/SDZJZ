@@ -1081,7 +1081,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         boolean isBrew = st.getItem() instanceof com.sdzjz.item.BrewingTowerItem; // m131b
         boolean isEnch = st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem; // m132
         boolean isTrade = st.getItem() instanceof com.sdzjz.item.VillagerTraderItem; // m146
-        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew || isEnch || isTrade) {
+        boolean isDup = st.getItem() instanceof com.sdzjz.item.DuplicatorItem; // m334
+        if (st.getItem() instanceof AutoCrafterItem || isCrop || isBrew || isEnch || isTrade || isDup) {
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
@@ -1114,7 +1115,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (!showWhy) ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字;m178 阻塞时让位
             } else {
                 ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : "设目标", x + 44, y + 38, SUB, false);
+                if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : isDup ? "选复制" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
         if (showWhy) // m178 错误解释：从"猜"到"可诊断"——缺料红字/阻塞金字，转绿自动消失
@@ -1963,6 +1964,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择目标附魔", mi(net.minecraft.item.Items.ENCHANTED_BOOK), 2, () -> openEnchantPicker(idx));
         if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem)
             addMenu("选择交易条目", mi(net.minecraft.item.Items.EMERALD), 2, () -> openTradePicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem)
+            addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
         if (StructureCoreBlockEntity.isFilter(st)) {
@@ -2464,10 +2467,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         boolean crop = nodes.get(i).getItem() instanceof com.sdzjz.item.CropFarmItem;
                         boolean brew = nodes.get(i).getItem() instanceof com.sdzjz.item.BrewingTowerItem;
                         boolean trade = nodes.get(i).getItem() instanceof com.sdzjz.item.VillagerTraderItem; // m146
-                        if (!auto && !crop && !brew && !trade) continue;
+                        boolean dup = nodes.get(i).getItem() instanceof com.sdzjz.item.DuplicatorItem; // m334
+                        if (!auto && !crop && !brew && !trade && !dup) continue;
                         int bx = wnx(be, nodes, i) + NW - 30, by = wny(be, nodes, i) + 14;
                         if (wx >= bx && wx <= bx + 20 && wy >= by && wy <= by + 20) {
-                            if (crop) openCropPicker(i); else if (brew) openPotionPicker(i); else if (trade) openTradePicker(i); else openPicker(i);
+                            if (crop) openCropPicker(i); else if (brew) openPotionPicker(i); else if (trade) openTradePicker(i); else if (dup) openDupPicker(i); else openPicker(i);
                             return true;
                         }
                     }
@@ -2694,6 +2698,20 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
     }
 
     // ================= 自动合成机目标选择器 =================
+    /** m334 复制机目标：全物品注册表网格——复用 mode0 点格发 NodeTargetPayload + m149 候选源覆盖 +
+     *  m116 已选置顶 + 搜索；closePicker 清 srcOverride（m149 既有生命周期），零新增选择器形态。 */
+    private void openDupPicker(int node) {
+        pickerMode = 0;
+        pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs();
+        if (allItems == null) buildAllItems();
+        pickerSrcOverride = allItems;
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
     private void openPicker(int node) {
         pickerMode = 0;
         pickerNode = node;

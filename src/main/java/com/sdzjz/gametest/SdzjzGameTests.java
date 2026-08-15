@@ -586,4 +586,30 @@ public class SdzjzGameTests implements FabricGameTest {
                 "cleric|0 仍是青金石量产口（m153）");
         ctx.complete();
     }
+
+    /** m334 廿三号：无限复制机——目标校验唯一口径 + 配方"超级难"回归闸 + 六件套注册闭环。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void duplicator_target_and_recipe(TestContext ctx) {
+        // 目标校验（setNodeTarget 服务端闸与 tick 闸同口）
+        ctx.assertTrue(com.sdzjz.item.DuplicatorItem.validTarget("minecraft:diamond"), "钻石应为合法目标");
+        ctx.assertTrue(!com.sdzjz.item.DuplicatorItem.validTarget("minecraft:air"), "空气不许当目标");
+        ctx.assertTrue(!com.sdzjz.item.DuplicatorItem.validTarget(""), "空串不许当目标");
+        ctx.assertTrue(!com.sdzjz.item.DuplicatorItem.validTarget("坏 id!!"), "非法字符 id 不许当目标（tryParse 挡）");
+        ctx.assertTrue(!com.sdzjz.item.DuplicatorItem.validTarget("minecraft:no_such_item_xyz"), "未注册 id 不许当目标");
+        // 配方超难回归闸（作者点名"配方要超级难"——防后人手滑降价）：8星+重核在列，总件数≥100，Ⅲ档
+        com.sdzjz.machine.SuperBenchRecipes.Recipe r = null;
+        for (var rec : com.sdzjz.machine.SuperBenchRecipes.ALL)
+            if ("sdzjz:duplicator".equals(rec.result())) { r = rec; break; }
+        ctx.assertTrue(r != null, "复制机配方必须在表");
+        ctx.assertTrue(r.ingredients().getOrDefault("minecraft:nether_star", 0) >= 8, "下界之星 ≥8（超难底线）");
+        ctx.assertTrue(r.ingredients().getOrDefault("minecraft:heavy_core", 0) >= 1, "重型核心在列");
+        int total = 0;
+        for (int v : r.ingredients().values()) total += v;
+        ctx.assertTrue(total >= 100, "配方总件数 ≥100（现 " + total + "）——超难回归闸");
+        ctx.assertTrue(r.tier() == 3, "复制机必须Ⅲ档");
+        // 注册闭环：物品/def 同 id
+        ctx.assertTrue(com.sdzjz.registry.ModItems.DUPLICATOR instanceof com.sdzjz.item.DuplicatorItem, "物品注册为 DuplicatorItem");
+        ctx.assertTrue("duplicator".equals(com.sdzjz.machine.Machines.DUPLICATOR.id()), "def id=duplicator");
+        ctx.complete();
+    }
 }

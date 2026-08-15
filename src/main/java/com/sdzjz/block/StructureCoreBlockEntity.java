@@ -865,6 +865,41 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.xpPool += 4.5 * attempts;
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem) {
+                // m334 无限复制机：目标画布徽章选（全物品注册表+搜索）。母本制：网络里≥1件目标压阵
+                // （不消耗），每件复制烧核心经验池 duplicatorXpPerItem——经验是全 MOD 终局货币
+                // （附魔工厂/幽匿线同源），复制没有免费午餐。组件不复制：产物是干净 id 计数件
+                // （机器组合.md 第 1 条物理不为复制机开洞）。接线五件账：tick=本分支；accepts=恒假
+                // （只吃经验不吃料，经验非物品不走线——附魔工厂同注）；setNodeTarget=dupOk；
+                // 徽章=通用目标图标路（isDup 并入既有条件）；chainWants=显式零需求（不吃料自然不拉料）。
+                if (!cfg.duplicatorEnabled) { be.statR(i, 2, "复制机已在配置停用（duplicatorEnabled）"); continue; }
+                String tgtD = craftTarget(st);
+                if (!com.sdzjz.item.DuplicatorItem.validTarget(tgtD)) { be.stat(i, 0); continue; } // 未选=待机（徽章"选复制"）
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                long attempts = (long) running * (1 + countLv) * cycles;
+                com.sdzjz.machine.StorageAccess accD = be.supplyFor(world, i);
+                if (accD == null) {
+                    if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                    accD = src;
+                }
+                if (accD == null) { be.statR(i, 3, "未接存储网络（母本要仓压阵）"); continue; }
+                if (accD.count(tgtD) < 1) { be.statR(i, 3, "网络里没有母本：先放 1 件目标物品进仓（母本不消耗）"); continue; }
+                int xpEach = Math.max(1, cfg.duplicatorXpPerItem);
+                attempts = Math.min(attempts, (long) (be.xpPool / xpEach));
+                if (attempts <= 0) { be.statR(i, 3, "经验池不足（每件需 " + xpEach + "，现 " + (long) be.xpPool + "）"); continue; }
+                com.sdzjz.machine.StorageAccess depositD = hasOut[i] ? null : be.depositFor(world, i);
+                if (!hasOut[i] && depositD == null)
+                    attempts = Math.min(attempts, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规，不蒸发不洪泛）
+                be.stat(i, 1);
+                be.prodTally(attempts);
+                if (hasOut[i]) be.distribute(world, i, outT.get(i), tgtD, attempts);
+                else if (depositD != null) be.depositOrBuffer(depositD, new ItemStack(
+                        Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
+                else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
+                be.xpPool -= (double) xpEach * attempts;
+                produced = true;
             } else if (st.getItem() instanceof MachineItem vd && "villager_discount_machine".equals(vd.def().id())) {
                 // m145 村民打折机（用户拍板：独立画布机自动治愈）：吃网络金苹果给共网交易所里的合同
                 // 升折扣。1 苹果=1 级与交易所手动治愈同价（自动化不改经济账）；低折扣合同优先补短板；
@@ -1549,7 +1584,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 && com.sdzjz.machine.EnchantPlanner.targetStack(this.world, id) != null; // m132 目标串服务端校验
         boolean tradeOk = s.getItem() instanceof com.sdzjz.item.VillagerTraderItem
                 && com.sdzjz.machine.TradePlanner.valid(id); // m146 目标串服务端校验
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk) return;
+        boolean dupOk = s.getItem() instanceof com.sdzjz.item.DuplicatorItem
+                && com.sdzjz.item.DuplicatorItem.validTarget(id); // m334 目标=物品id 服务端校验
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk && !dupOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
             java.util.List<String> cur = cropList(s);
