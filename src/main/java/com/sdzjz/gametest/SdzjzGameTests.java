@@ -688,7 +688,12 @@ public class SdzjzGameTests implements FabricGameTest {
     }
 
     /** m344 廿七号：画布观众登记表——开屏挂号/关屏销号（handler 双钩）+ 漏钩自愈
-     *  （直接改写 currentScreenHandler 模拟未经 onClosed 的换屏，核心 tick 的谓词校验应把它销号）。 */
+     *  （直接改写 currentScreenHandler 模拟未经 onClosed 的换屏，核心 tick 的谓词校验应把它销号）。
+     *  m344b：createMockPlayer 假人**不是** ServerPlayerEntity（m328 注记早说了"其余全按 PlayerEntity
+     *  形参传"），挂号钩 instanceof 天然不进——首跑 CI 抓获。改手工 new ServerPlayerEntity
+     *  （四参构造+SyncedClientOptions.createDefault 均 yarn 1.21.1 核到；fake player 通用刀法）。
+     *  零发包保障：方法体单 tick 原子执行，体末两人都已 销号/谓词失配，flush 永远轮不到给
+     *  无 networkHandler 的假人发快照包。 */
     @GameTest(templateName = EMPTY_STRUCTURE)
     public void canvas_viewer_registry(TestContext ctx) {
         BlockPos rel = new BlockPos(0, 1, 0);
@@ -696,8 +701,13 @@ public class SdzjzGameTests implements FabricGameTest {
         if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
             ctx.throwGameTestException("结构核心方块实体未生成"); return;
         }
-        var p1 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
-        var p2 = ctx.createMockPlayer(net.minecraft.world.GameMode.SURVIVAL);
+        var sw = ctx.getWorld();
+        var p1 = new net.minecraft.server.network.ServerPlayerEntity(sw.getServer(), sw,
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v1"),
+                net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault());
+        var p2 = new net.minecraft.server.network.ServerPlayerEntity(sw.getServer(), sw,
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v2"),
+                net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault());
         var h1 = new com.sdzjz.screen.StructureCoreScreenHandler(1, p1.getInventory(), be);
         p1.currentScreenHandler = h1;
         ctx.assertTrue(be.canvasViewerCount() == 1, "开屏挂号：观众数应=1");
@@ -705,6 +715,7 @@ public class SdzjzGameTests implements FabricGameTest {
         p2.currentScreenHandler = h2;
         ctx.assertTrue(be.canvasViewerCount() == 2, "双观众应=2");
         h2.onClosed(p2);
+        p2.currentScreenHandler = p2.playerScreenHandler; // 归位防悬垂（登记已销，双保险）
         ctx.assertTrue(be.canvasViewerCount() == 1, "关屏销号：应回 1");
         p1.currentScreenHandler = p1.playerScreenHandler; // 模拟漏钩换屏（未经 onClosed）
         ctx.waitAndRun(3, () -> { // 核心 tick 的 flushCanvasSnapshot 谓词校验应自愈销号

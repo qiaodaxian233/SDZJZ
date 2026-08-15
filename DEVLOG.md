@@ -5658,3 +5658,16 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①开画布→机器状态/连线实时刷新照旧（快照链路走新表）；②两人同看同核各自正常；
   ③关屏/断线后 `/sdzjz profile core` 的 syncPackets 不再增长；④100 核无人看时 MSPT 对比 m343 应
   可见下降（bench 三档矩阵顺带复测）。
+
+## m344b 热修：廿七号用例假人类型不对（CI 首跑红=首跑就回本）
+
+- **现象**：run 红在"开屏挂号：观众数应=1"——handler 构造钩根本没挂上号。
+- **根因**：`ctx.createMockPlayer` 假人是 PlayerEntity 匿名子类**不是 ServerPlayerEntity**
+  （m328 迁移注记原话"其余全按 PlayerEntity 形参传"，当时就该想起来）——挂号钩
+  `instanceof ServerPlayerEntity` 天然不进。生产链路无恙（真玩家必是 SPE），纯测试用错假人。
+- **修法**：手工 `new ServerPlayerEntity(server, world, GameProfile, SyncedClientOptions.createDefault())`
+  （fake player 通用刀法，构造四参与 createDefault 拉 yarn 1.21.1 核到）。零发包保障：方法体
+  单 tick 原子执行，体末 p2 已销号+归位、p1 谓词失配，flush 永远轮不到给无 networkHandler 的
+  假人发快照包（否则 ServerPlayNetworking.send NPE）。
+- **教训**：假人上手先问一句"它到底是哪个类"——m328 注记里就写着答案；测试挂号类断言
+  要连同**钩子入口的类型前提**一起想。热修不抬版本（m317 口径），版本停 0.1.344。
