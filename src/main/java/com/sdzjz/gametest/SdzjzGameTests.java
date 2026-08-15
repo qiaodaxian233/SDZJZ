@@ -723,4 +723,32 @@ public class SdzjzGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    /** m346 廿八号：SmeltPlanner 稳定选序——pickStable 纯函数直测（m339 xpFairDecide 同法）
+     *  + 真配方表锚点（原版无同输入重复熔炼配方，锚点=行为逐字节不变的对照）。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void smelt_planner_stable_pick(TestContext ctx) {
+        java.util.List<Object[]> cands = new java.util.ArrayList<>(java.util.List.of(
+                new Object[]{"mymod:zzz", "out_z", 1},
+                new Object[]{"minecraft:bbb", "out_vanilla", 1},
+                new Object[]{"mymod:aaa", "out_a", 1}));
+        ctx.assertTrue("out_vanilla".equals(com.sdzjz.machine.SmeltPlanner.pickStable(cands)[1]),
+                "minecraft 命名空间候选应排前胜出");
+        java.util.Collections.reverse(cands);
+        ctx.assertTrue("out_vanilla".equals(com.sdzjz.machine.SmeltPlanner.pickStable(cands)[1]),
+                "洗牌不变性：倒序喂入胜者应不变");
+        java.util.List<Object[]> mods = java.util.List.of(
+                new Object[]{"mymod:z_recipe", "out_z", 1},
+                new Object[]{"mymod:a_recipe", "out_a", 1});
+        ctx.assertTrue("out_a".equals(com.sdzjz.machine.SmeltPlanner.pickStable(mods)[1]),
+                "同空间应按配方 id 字典序取最小");
+        ctx.assertTrue(com.sdzjz.machine.SmeltPlanner.pickStable(java.util.List.of()) == null,
+                "空候选应返回 null");
+        Object[] stone = com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getWorld(), "minecraft:cobblestone");
+        ctx.assertTrue(stone != null && "minecraft:stone".equals(stone[0]) && (Integer) stone[1] == 1,
+                "真配方表锚点：圆石应烧成石头×1");
+        ctx.assertTrue(com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getWorld(), "minecraft:stick") == null,
+                "不可熔炼物应返回 null");
+        ctx.complete();
+    }
 }
