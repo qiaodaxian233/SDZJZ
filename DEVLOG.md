@@ -6016,3 +6016,25 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①`/sdzjz bench start 100 64 60 100 craft_fed`——报告应见合成机口径行、
   SUB_T_CRAFT/exec/chainWants/accepts 全活账、granted 全员>0；②idle 档对照核心框架底价；
   ③cobble 档与 m358 报告回归对表；④中途 stop 各相位均应转清场零残留。
+
+## m360 craft_chain 深链+mixed 混布+矩阵工况化（拍板 A 收官件）
+
+- **修法**：①CRAFT_CHAIN=每站 7×九节点深链（仓灌 1000 万原木→F→F→C1[原木→木板]→F→F→
+  C2[木板→木棍]→F→F→C3[木棍→梯子]→回仓）：双过滤前置=chainWants 真递归深度 2-3，
+  三级真配方中间产物全靠节点边流转不回仓（合成机 hasOut 走 distribute 到下级过滤），
+  末级梯子出库边回仓——正是作者要的 A→B→C→D。②MIXED=按站序 25%×4 轮布
+  （idle/cobble/fed/chain），siteWl 逐站定型（wlOf 永不返回 MIXED，spawn 分支防呆 throw）；
+  activeCrafters 分母按型累计（fed=32/站，chain=21/站）。③判据适配：idle 站豁免防哑账
+  （不生产不申请）；MIXED 新判据行=非idle站全上账+零吞吐=0 达标，跨型倍数不适用。
+  ④矩阵工况化：/sdzjz bench matrix [工况 [秒 cap]]，默认 MIXED（作者原话 25%混布跑
+  100/300/500），汇总文件头带工况；单跑第五参提示串同步扩全五档。
+- **配置**：零新键。
+- **验证**：javac21 冒烟真语法错 0，7 新符号定向检全净；深链装配依赖复核：木板配方吃 #logs
+  标签（wants 含云杉原木 ✓ F0 拉料闸放行）、级间 C→F 节点边走 crafter hasOut distribute ✓、
+  switch 工况分支穷尽（本地 javac 真查我方枚举穷尽性）。
+- **实机脚本（拍板 A 的交卷动作）**：①`/sdzjz bench matrix mixed 120 500`——三份单档+
+  汇总，看：合成机口径行（ns/台·tick 双账+分配摊台）、[类型账]合成机 vs 逻辑 vs 通用机器
+  三分天下、chainWants/accepts/exec/plans 分桶各自占比；②对照跑 `matrix cobble` 回归基线
+  不回归；③单跑 `bench start 100 63 60 100 craft_chain`（63=9 的倍数用满 7 链）看深链
+  独账。**判读钥匙**：若 craft 工况下 exec/plans/chainWants 合计仍是小头、大头在类型账
+  的机器体本身——m349/m350 兑现实锤；若 planner 族浮上来——下一刀有了新靶。

@@ -42,8 +42,17 @@ public final class BenchRunner {
     private enum Phase { IDLE, SPAWN, WIRE, RUN, CLEANUP }
     /** m359 工况（作者拍板 A：证明 m349/m350/chainWants 在真实合成网络里兑现，不是只把冷路径优化得漂亮）。
      *  IDLE=零节点纯核心框架基线；COBBLE=回归基准；CRAFT_FED=仓→过滤→合成机→回仓 真产线。 */
-    enum Workload { IDLE, COBBLE, CRAFT_FED }
+    enum Workload { IDLE, COBBLE, CRAFT_FED, CRAFT_CHAIN, MIXED }
     private static Workload workload = Workload.COBBLE;
+    private static Workload[] siteWl = new Workload[0]; // m360 逐站工况（MIXED=按站序 25%×4 轮布）
+    private static Workload wlOf(int idx) { // MIXED 轮布序：idle→cobble→fed→chain
+        if (workload != Workload.MIXED) return workload;
+        return switch (idx % 4) { case 0 -> Workload.IDLE; case 1 -> Workload.COBBLE;
+            case 2 -> Workload.CRAFT_FED; default -> Workload.CRAFT_CHAIN; };
+    }
+    /** m360 深链单元：仓→F→F→C1(原木→木板)→F→F→C2(木板→木棍)→F→F→C3(木棍→梯子)→仓，9 节点/链。
+     *  双过滤前置=chainWants 真递归（深度 2-3）；三级真配方=中间产物全靠节点边流转不回仓。 */
+    private static final int CHAIN_UNIT = 9;
     private static int wireIdx, wireDelay; // m359 装配相位：toggleStorageEdge 有 known 闸（端点须先被扫入），铺完等首扫再连线
     private static int activeCrafters;      // m359 per-crafter 出账分母
 
@@ -71,6 +80,7 @@ public final class BenchRunner {
     private static int matrixCooldown;
     private static ServerWorld matrixWorld; private static BlockPos matrixAt; private static UUID matrixBy;
     private static int matrixSecs; private static long matrixCap;
+    private static Workload matrixWl = Workload.MIXED; // m360 矩阵默认混布（作者拍板 A：25%×4）
     // m308 黄灯占空比直测（m115 看门狗 45/40ms 滞回；占空比>0 时倍数判据=噪声）
     private static long pauseSamples, pauseHits; private static int pausePeak;
 
@@ -112,7 +122,15 @@ public final class BenchRunner {
                 + " .. " + SITES.get(SITES.size() - 1).toShortString());
         spawnIdx = 0; cleanupIdx = 0; tickCount = 0; prevNano = 0;
         wireIdx = 0; wireDelay = 5; // m359 铺完等 5t：各站核心首扫哨兵入端点表后才连线（known 闸）
-        activeCrafters = workload == Workload.CRAFT_FED ? cores * (nodesPer / 2) : 0;
+        siteWl = new Workload[cores]; // m360 逐站工况定型
+        activeCrafters = 0;
+        for (int i = 0; i < cores; i++) {
+            siteWl[i] = wlOf(i);
+            activeCrafters += switch (siteWl[i]) {
+                case CRAFT_FED -> nodesPer / 2;
+                case CRAFT_CHAIN -> (nodesPer / CHAIN_UNIT) * 3;
+                default -> 0; };
+        }
         pauseSamples = 0; pauseHits = 0; pausePeak = 0;
         tickNs = new long[Math.min(seconds * 20 + 40, 24_000)];
         busyNs = new long[tickNs.length];
@@ -123,7 +141,13 @@ public final class BenchRunner {
 
     /** m355 三档矩阵：100/300/500 核 ×64 节点自动串跑，档间清场+冷却，收官落汇总对比文件。 */
     public static String startMatrix(ServerWorld w, BlockPos at, UUID by, int secs, long cap) {
+        return startMatrix(w, at, by, secs, cap, Workload.MIXED);
+    }
+
+    /** m360 工况版矩阵。 */
+    public static String startMatrix(ServerWorld w, BlockPos at, UUID by, int secs, long cap, Workload wl) {
         if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
+        matrixWl = wl;
         matrixQueue = new java.util.ArrayDeque<>();
         matrixQueue.add(new int[]{100, 64});
         matrixQueue.add(new int[]{300, 64});
@@ -131,7 +155,7 @@ public final class BenchRunner {
         matrixRows = new java.util.ArrayList<>();
         matrixWorld = w; matrixAt = at; matrixBy = by; matrixSecs = secs; matrixCap = cap; matrixCooldown = 0;
         int[] first = matrixQueue.poll();
-        String r = start(w, at, by, first[0], first[1], secs, cap);
+        String r = start(w, at, by, first[0], first[1], secs, cap, matrixWl);
         return r.startsWith("§c") ? r : r + " §b[矩阵 1/3：后续 300/500 档自动接跑，stop=全停]";
     }
 
@@ -151,20 +175,20 @@ public final class BenchRunner {
                     else if (!matrixQueue.isEmpty()) {
                         int[] t = matrixQueue.poll();
                         int tier = 3 - matrixQueue.size();
-                        msg(server, "§b[sdzjz] 矩阵第 " + tier + "/3 档开跑：核心×" + t[0]);
-                        start(matrixWorld, matrixAt, matrixBy, t[0], t[1], matrixSecs, matrixCap);
+                        msg(server, "§b[sdzjz] 矩阵第 " + tier + "/3 档开跑：核心×" + t[0] + " 工况=" + matrixWl);
+                        start(matrixWorld, matrixAt, matrixBy, t[0], t[1], matrixSecs, matrixCap, matrixWl);
                     }
                 }
             }
             case SPAWN -> {
-                for (int b = 0; b < 2 && spawnIdx < SITES.size(); b++, spawnIdx++) spawnSite(SITES.get(spawnIdx));
+                for (int b = 0; b < 2 && spawnIdx < SITES.size(); b++, spawnIdx++) spawnSite(spawnIdx); // m360 带站号定工况
                 if (spawnIdx >= SITES.size()) {
                     CoreProfiler.resetAll();
                     CoreProfiler.PHASES = true; // m321：压测期自动开细分计时（收尾复原）
                     CoreScheduler.resetStats();
                     if (capParam > 0) { savedCap = SdzjzConfig.get().maxRecipesPerNetworkTick;
                         SdzjzConfig.get().maxRecipesPerNetworkTick = capParam; capTouched = true; }
-                    if (workload == Workload.CRAFT_FED) { phase = Phase.WIRE; break; } // m359 先装配再起测
+                    if (activeCrafters > 0) { phase = Phase.WIRE; break; } // m359/m360 有合成机的工况先装配再起测
                     runTicksLeft = (long) seconds * 20;
                     prevNano = 0;
                     gcStart = com.sdzjz.debug.GcAccount.snap(); // m351 起账（END_SERVER_TICK=服务器线程）
@@ -174,7 +198,7 @@ public final class BenchRunner {
             }
             case WIRE -> { // m359 装配：等首扫入端点表后，4 站/tick 连线（供料边/节点边/出库边/翻黑名单）
                 if (wireDelay > 0) { wireDelay--; break; }
-                for (int b = 0; b < 4 && wireIdx < SITES.size(); b++, wireIdx++) wireSite(SITES.get(wireIdx));
+                for (int b = 0; b < 4 && wireIdx < SITES.size(); b++, wireIdx++) wireSite(wireIdx); // m360 带站号定工况
                 if (wireIdx >= SITES.size()) {
                     runTicksLeft = (long) seconds * 20;
                     prevNano = 0;
@@ -219,15 +243,42 @@ public final class BenchRunner {
         }
     }
 
-    private static void spawnSite(BlockPos p) {
+    private static void spawnSite(int idx) {
+        BlockPos p = SITES.get(idx);
         world.setBlockState(p, ModBlocks.STRUCTURE_CORE.getDefaultState(), 3);
         world.setBlockState(p.east(), ModBlocks.STORAGE_CORE.getDefaultState(), 3);
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) {
-            switch (workload) { // m359 工况铺场
+            switch (siteWl[idx]) { // m359/m360 逐站工况铺场
                 case IDLE -> { /* 零节点：纯核心框架开销基线 */ }
                 case COBBLE -> {
                     ItemStack pack = new ItemStack(ModItems.COBBLE_MAKER, nodesPer);
                     while (!pack.isEmpty() && core.insertMachine(null, pack)) { /* insertMachine 每次吃 1 台并 decrement */ }
+                }
+                case MIXED -> throw new IllegalStateException("siteWl 已定型不该出现 MIXED"); // 防呆
+                case CRAFT_CHAIN -> { // m360 深链：仓灌原木，三级配方靠节点边流转，末级回仓
+                    if (world.getBlockEntity(p.east()) instanceof com.sdzjz.block.StorageCoreBlockEntity scC) {
+                        ItemStack logs = new ItemStack(net.minecraft.item.Items.SPRUCE_LOG);
+                        logs.setCount(10_000_000);
+                        scC.deposit(logs);
+                    }
+                    ItemStack cf = new ItemStack(ModItems.FILTER_NODE, 1);
+                    ItemStack cc = new ItemStack(ModItems.AUTO_CRAFTER, 1);
+                    String[] tgts = {"minecraft:spruce_planks", "minecraft:stick", "minecraft:ladder"};
+                    for (int u = 0; u < nodesPer / CHAIN_UNIT; u++) {
+                        int base = u * CHAIN_UNIT;
+                        boolean full = true;
+                        for (int stg = 0; stg < 3 && full; stg++) { // 每级=F,F,C
+                            cf.setCount(1); full &= core.insertMachine(null, cf);
+                            cf.setCount(1); full &= core.insertMachine(null, cf);
+                            cc.setCount(1); full &= core.insertMachine(null, cc);
+                        }
+                        if (!full) break;
+                        for (int stg = 0; stg < 3; stg++) {
+                            core.toggleFilterEntry(base + stg * 3, "");
+                            core.toggleFilterEntry(base + stg * 3 + 1, "");
+                            core.setNodeTarget(base + stg * 3 + 2, tgts[stg]);
+                        }
+                    }
                 }
                 case CRAFT_FED -> { // 仓→过滤→合成机→回仓：预灌 1000 万木板（cap500×300s 最坏偏斜也吃不穿，绝无假空转）
                     if (world.getBlockEntity(p.east()) instanceof com.sdzjz.block.StorageCoreBlockEntity scF) {
@@ -255,15 +306,34 @@ public final class BenchRunner {
 
     /** m359 装配（CRAFT_FED）：供料边(仓→过滤)+节点边(过滤→合成机)+出库边(合成机→仓)。
      *  known 闸已由 WIRE 相位的 5t 延迟满足（首扫哨兵把东侧存储核心扫入端点表）。 */
-    private static void wireSite(BlockPos p) {
+    private static void wireSite(int idx) {
+        BlockPos p = SITES.get(idx);
         if (!(world.getBlockEntity(p) instanceof StructureCoreBlockEntity core)) return;
         long sp = p.east().asLong();
         String dim = world.getRegistryKey().getValue().toString();
-        for (int k = 0; k < nodesPer / 2; k++) {
-            int f = 2 * k, c = 2 * k + 1;
-            core.toggleStorageEdge(null, f, sp, 1, dim); // 仓→过滤 供料
-            core.toggleConnection(null, f, c);           // 过滤→合成机
-            core.toggleStorageEdge(null, c, sp, 0, dim); // 合成机→仓 出库
+        switch (siteWl[idx]) {
+            case CRAFT_FED -> {
+                for (int k = 0; k < nodesPer / 2; k++) {
+                    int f = 2 * k, c = 2 * k + 1;
+                    core.toggleStorageEdge(null, f, sp, 1, dim); // 仓→过滤 供料
+                    core.toggleConnection(null, f, c);           // 过滤→合成机
+                    core.toggleStorageEdge(null, c, sp, 0, dim); // 合成机→仓 出库
+                }
+            }
+            case CRAFT_CHAIN -> { // m360 深链：F→F→C 三级串接，级间 C→下级F 节点边，末级 C 出库
+                for (int u = 0; u < nodesPer / CHAIN_UNIT; u++) {
+                    int b = u * CHAIN_UNIT;
+                    core.toggleStorageEdge(null, b, sp, 1, dim); // 仓→F0 供料（chainWants 经 F0→F1→C 深度递归）
+                    for (int stg = 0; stg < 3; stg++) {
+                        int f0 = b + stg * 3, f1 = f0 + 1, c = f0 + 2;
+                        core.toggleConnection(null, f0, f1);
+                        core.toggleConnection(null, f1, c);
+                        if (stg < 2) core.toggleConnection(null, c, f0 + 3); // 级间：C→下级F0
+                        else core.toggleStorageEdge(null, c, sp, 0, dim);    // 末级：梯子回仓
+                    }
+                }
+            }
+            default -> { }
         }
     }
 
@@ -294,7 +364,11 @@ public final class BenchRunner {
                 .sorted(java.util.Comparator.comparingLong(r -> r.granted)).toList();
         // m307 防哑账（首轮实测被 14/20 沉默核心骗出"达标"）：铺场清单逐一对上账,缺席点名
         Set<BlockPos> seen = new HashSet<>(); for (CoreScheduler.Row r : bench) seen.add(r.pos);
-        List<BlockPos> silent = new ArrayList<>(); for (BlockPos s : SITES) if (!seen.contains(s)) silent.add(s);
+        List<BlockPos> silent = new ArrayList<>();
+        for (int k = 0; k < SITES.size(); k++) { // m360 idle 站不生产不申请=豁免防哑账
+            if (k < siteWl.length && siteWl[k] == Workload.IDLE) continue;
+            if (!seen.contains(SITES.get(k))) silent.add(SITES.get(k));
+        }
         long otherGranted = rows.stream().filter(r -> !mine.contains(r.pos)).mapToLong(r -> r.granted).sum();
         long otherCores = rows.size() - bench.size();
         long benchGranted = bench.stream().mapToLong(r -> r.granted).sum();
@@ -312,7 +386,9 @@ public final class BenchRunner {
           .append(" machine=").append(switch (workload) {
               case IDLE -> "idle(零节点纯框架基线)";
               case COBBLE -> "cobble_maker(10t无输入满载)";
-              case CRAFT_FED -> "craft_fed(仓→过滤→合成机→回仓, 4木板→工作台, 预灌1000万)"; })
+              case CRAFT_FED -> "craft_fed(仓→过滤→合成机→回仓, 4木板→工作台, 预灌1000万)";
+              case CRAFT_CHAIN -> "craft_chain(9节点深链×" + (nodesPer / CHAIN_UNIT) + ": 原木→木板→木棍→梯子, 双过滤前置)";
+              case MIXED -> "mixed(25%×4轮布: idle/cobble/craft_fed/craft_chain)"; })
           .append(" duration=").append(seconds).append("s cap=")
           .append(capParam > 0 ? String.valueOf(capParam) : ("未改动(现值" + capUsed + ")")).append('\n');
         sb.append("维度: ").append(world.getRegistryKey().getValue()).append("  origin=").append(origin.toShortString())
@@ -375,6 +451,7 @@ public final class BenchRunner {
         if (workload == Workload.IDLE) verdict = "（见上）";
         else if (!silent.isEmpty()) verdict = "不达标：" + silent.size() + " 个铺场核心从未上账（未tick/未申请）——数据不可用请贴报告";
         else if (zero > 0)     verdict = "不达标：存在零吞吐核心（防饥饿失效，请贴报告）";
+        else if (workload == Workload.MIXED) verdict = "混合工况达标：非idle站全上账且零吞吐=0（跨型倍数不适用，各型成本看[类型账]与合成机口径行）";
         else if (dutyPct > 0)  verdict = String.format("倍数判据无效：过载看门狗介入(占空比%.1f%%)——%.1f×是黄灯占空比噪声非调度器序偏置；" +
                                        "防饥饿(零吞吐=0)仍有效。请降档使忙时P95<35ms重测倍数", dutyPct, ratio);
         else if (min > 0 && ratio <= 10.0) verdict = String.format("达标（评审③）：最高/最低=%.1f× ≤10×且无恒0", ratio);
@@ -407,6 +484,7 @@ public final class BenchRunner {
         if (matrixRows != null && matrixQueue != null && matrixQueue.isEmpty()) { // m355 末档=落汇总
             StringBuilder ms = new StringBuilder("《生电终结者》三档矩阵汇总 ").append(ts).append('\n');
             ms.append("每档 ").append(seconds).append("s cap=").append(capParam > 0 ? String.valueOf(capParam) : "未改动")
+              .append(" 工况=").append(workload)
               .append("；看点：核tick均µs 随规模是否近似持平（超线性=争抢/缓存失效），类型前三是否换位（换位=下一刀换靶）\n\n");
             for (String r : matrixRows) ms.append(r).append('\n');
             java.nio.file.Path mp = server.getRunDirectory().resolve("sdzjz_bench_matrix_" + ts + ".txt");

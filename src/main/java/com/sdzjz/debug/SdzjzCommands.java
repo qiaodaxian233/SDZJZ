@@ -71,8 +71,17 @@ public final class SdzjzCommands {
                                                                 com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap"),
                                                                 com.mojang.brigadier.arguments.StringArgumentType.getString(c, "工况"))))))))
                                 )
-                                .then(literal("matrix") // m355 三档矩阵：100/300/500×64 自动串跑（外部审计④轮③）
+                                .then(literal("matrix") // m355 三档矩阵：100/300/500×64 自动串跑；m360 默认混布 25%×4
                                         .executes(c -> benchMatrix(c.getSource(), 60, 100))
+                                        .then(net.minecraft.server.command.CommandManager.argument("工况", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                .executes(c -> benchMatrixW(c.getSource(), 60, 100,
+                                                        com.mojang.brigadier.arguments.StringArgumentType.getString(c, "工况")))
+                                                .then(net.minecraft.server.command.CommandManager.argument("秒", com.mojang.brigadier.arguments.IntegerArgumentType.integer(5, 1200))
+                                                .then(net.minecraft.server.command.CommandManager.argument("cap", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 1_000_000))
+                                                        .executes(c -> benchMatrixW(c.getSource(),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap"),
+                                                                com.mojang.brigadier.arguments.StringArgumentType.getString(c, "工况"))))))
                                         .then(net.minecraft.server.command.CommandManager.argument("秒", com.mojang.brigadier.arguments.IntegerArgumentType.integer(5, 1200))
                                         .then(net.minecraft.server.command.CommandManager.argument("cap", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 1_000_000))
                                                 .executes(c -> benchMatrix(c.getSource(),
@@ -85,12 +94,26 @@ public final class SdzjzCommands {
                                 })))));
     }
 
+    /** m360 工况版矩阵入口。 */
+    private static int benchMatrixW(ServerCommandSource src, int secs, int cap, String wl) {
+        BenchRunner.Workload w;
+        try { w = BenchRunner.Workload.valueOf(wl.toUpperCase(java.util.Locale.ROOT)); }
+        catch (IllegalArgumentException e) {
+            src.sendFeedback(() -> Text.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
+            return 0;
+        }
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
+        final String r = BenchRunner.startMatrix(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, secs, cap, w);
+        src.sendFeedback(() -> Text.literal(r), false);
+        return 1;
+    }
+
     /** m359 工况版入口：idle|cobble|craft_fed（作者拍板 A：真实合成网络验证）。 */
     private static int benchStartW(ServerCommandSource src, int cores, int nodes, int secs, int cap, String wl) {
         BenchRunner.Workload w;
         try { w = BenchRunner.Workload.valueOf(wl.toUpperCase(java.util.Locale.ROOT)); }
         catch (IllegalArgumentException e) {
-            src.sendFeedback(() -> Text.literal("§c工况须为 idle|cobble|craft_fed"), false);
+            src.sendFeedback(() -> Text.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
             return 0;
         }
         java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
