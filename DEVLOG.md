@@ -5926,3 +5926,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①`/sdzjz bench matrix`（默认每档 60s cap=100）一条命令拿三份单档报告+
   一份汇总；②汇总表三行纵向对比：µs/核·tick 曲线+类型前三——这就是审计④轮③要的
   "让数据决定下一刀"的全部输入；③中途 `/sdzjz bench stop` 应全停不接跑。
+
+## m356 空转路径三刀（三档矩阵数据指认，审计④轮③"数据决定下一刀"首个战果）
+
+- **现象（矩阵实测指认）**：三档汇总=核tick均 44.2/45.9/46.0µs 完美线性（架构层平线拿到手），
+  类型账指认通用机器 94% 占比、**654ns/节点·tick 且每节点每 tick 一次**——刷石机 10t 周期
+  90% 的 tick 在空转等拍，空转一趟 654ns 必有肥羊。对源抓获三只：
+  ①cyclesThisTick 头两行 **Math.pow 每节点每 tick 现算**（(1+gain)^spd×mult，纯常量入参）；
+  ②workAcc 是 Map<Integer,Double>——每节点每 tick 一次 getOrDefault+一次 put=两次装箱哈希，
+  put 的 Double 装箱是分配账常客（64 节点×20t/s×N 核）；
+  ③大循环头三级属性读=三次组件查找（m353 免拷贝后剩的组件 map 查找本身）。
+- **修法**：①速率查表 rateOf：per-BE 表按需成倍扩到最高等级；失效口径=对 gain/mult 两来源
+  值快照比对（**配置对象是原地改字段的单例，identity 靠不住**——这坑注释立档）；同参同级
+  与 Math.pow 逐位一致（同一确定性函数同一入参）。②workAcc → double[]（不落盘纯内存，
+  写时扩容，索引寻址语义与原 Map 逐位同构含节点增删时的索引位移容忍）。③循环头改一次
+  viewOf 三级齐读，键抽 K_SPD/K_CNT/K_PAR 常量与 nodeSpeed/nodeCount/nodePar 读者同源。
+- **配置**：零新键（三刀语义逐位不变纯提速）。
+- **验证**：javac21 冒烟真语法错 0，定向检全净，workAcc 旧 Map API 零残留，无 m354b 型
+  壳体错位（cyclesThisTick 无 `*0` 双身）。行为等价由既有生产类 GameTest（产量断言族）把关。
+- **实机脚本**：同参数重跑 /sdzjz bench matrix 对表本份：654ns/节点·tick 与 12265KB/tick
+  （100 档）应双降；三档线性平线应保持。

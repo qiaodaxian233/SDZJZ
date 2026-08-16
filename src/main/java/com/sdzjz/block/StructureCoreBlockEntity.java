@@ -375,9 +375,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (__tb >= 0) com.sdzjz.debug.CoreProfiler.sub(__tb, __n2 - __tn);
                 __tb = typeBucket(st); __tn = __n2;
             }
-            int speedLv = be.nodeSpeed(st);
-            int countLv = be.nodeCount(st);
-            int parallelLv = be.nodePar(st);
+            NbtCompound nvL = com.sdzjz.node.NodeTags.viewOf(st); // m356 一次视图三级齐读（原=三次组件查找；矩阵实测空转 654ns/节点·tick 的一份子）
+            int speedLv = nvL.getInt(K_SPD);
+            int countLv = nvL.getInt(K_CNT);
+            int parallelLv = nvL.getInt(K_PAR);
 
             // m115 过载保护：全线暂停（黄灯），流畅后自动恢复
             if (be.lagPause) { be.statR(i, 2, "服务器过载，自动暂停"); continue; }
@@ -1148,25 +1149,46 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 读节点各类升级等级。 */
-    public int nodeSpeed(ItemStack s) { return nodeInt(s, "spd"); }
-    public int nodeCount(ItemStack s) { return nodeInt(s, "cnt"); }
-    public int nodePar(ItemStack s)   { return nodeInt(s, "par"); }
+    static final String K_SPD = "spd", K_CNT = "cnt", K_PAR = "par"; // m356 三级键常量（大循环单视图齐读与读者同源）
+    public int nodeSpeed(ItemStack s) { return nodeInt(s, K_SPD); }
+    public int nodeCount(ItemStack s) { return nodeInt(s, K_CNT); }
+    public int nodePar(ItemStack s)   { return nodeInt(s, K_PAR); }
 
     // ===== m99 升级数学重写：工作量累积模型 =====
     // 旧模型三处死区：①速度线性减周期(base-4×级)→触底1tick后再插全部无效；②并发只抬"同时运行台数上限"
     // →节点里只有1台机器时(m78后的常态)从头到尾没生效过；③数量产出被64×输出格硬顶→堆到顶再插白插。
     // 新模型：速率=(1+gain)^速度级×productionRateMultiplier，每tick累积、攒够基础周期结算1次，
     // 速率溢出折成同tick多周期——永不触底；并发直接乘台数(1台也翻倍)；数量顶只在"产出只能进内部缓存"时保留。
-    private final java.util.Map<Integer, Double> workAcc = new java.util.HashMap<>(); // 节点索引→累积工作量(不落盘,重载至多丢半个周期)
+    private double[] workAcc = new double[0]; // 节点索引→累积工作量(不落盘,重载至多丢半个周期)——m356 Map<Integer,Double> 拆装箱下岗（每节点每 tick 一次 Double put 是分配账常客）
+
+    // m356 速率查表：Math.pow((1+gain)^spd)×mult 每节点每 tick 现算下岗（矩阵实测空转 654ns/节点·tick 的大头）。
+    // 失效口径=对 gain/mult 两个来源值做快照比对（配置对象是原地改字段的单例，identity 靠不住）；
+    // 表按需成倍扩到最高等级，同参同级与 Math.pow 逐位一致（同一确定性函数同一入参）。
+    private transient double[] rateCache = new double[0];
+    private transient double rateGainSnap = Double.NaN, rateMultSnap = Double.NaN;
+    private double rateOf(int speedLv, SdzjzConfig cfg) {
+        double gain = Math.max(0.0, cfg.upgradeSpeedGainPerLevel);
+        double mult = Math.max(0.01, cfg.productionRateMultiplier);
+        int lv = Math.max(0, speedLv);
+        if (gain != rateGainSnap || mult != rateMultSnap) {
+            rateCache = new double[0]; rateGainSnap = gain; rateMultSnap = mult;
+        }
+        if (lv >= rateCache.length) {
+            int n = Math.max(lv + 1, Math.max(8, rateCache.length * 2));
+            double[] nc = new double[n];
+            for (int k = 0; k < n; k++) nc[k] = Math.pow(1.0 + gain, k) * mult;
+            rateCache = nc;
+        }
+        return rateCache[lv];
+    }
     private long recipesThisTick = 0; // m270 全核每tick已结算周期数（tickInner 每tick复位；配合 maxRecipesPerCoreTick 共享预算）
 
     /** 该节点本tick应结算的生产周期数（0=继续攒）。 */
     private int cyclesThisTick(int nodeIndex, int baseInterval, int speedLv, SdzjzConfig cfg) {
-        double gain = Math.max(0.0, cfg.upgradeSpeedGainPerLevel);
-        double rate = Math.pow(1.0 + gain, Math.max(0, speedLv)) * Math.max(0.01, cfg.productionRateMultiplier);
+        double rate = rateOf(speedLv, cfg); // m356 查表（同参同级与 Math.pow 逐位一致）
         int base = Math.max(1, baseInterval);
         int cap = Math.max(1, cfg.upgradeMaxCyclesPerTick);
-        double acc = workAcc.getOrDefault(nodeIndex, 0.0) + rate;
+        double acc = (nodeIndex < workAcc.length ? workAcc[nodeIndex] : 0.0) + rate; // m356 数组直取
         int cycles = (int) (acc / base);
         if (cycles > cap) cycles = cap;
         boolean hadWork = cycles > 0; // m339 预算剪零可视化用：区分"没攒够周期"与"被预算剪没"
@@ -1196,7 +1218,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         acc -= (double) cycles * base;
         if (acc > (double) base * cap) acc = (double) base * cap; // 被cap/预算截断时不无限囤积
-        workAcc.put(nodeIndex, acc);
+        if (nodeIndex >= workAcc.length) workAcc = java.util.Arrays.copyOf(workAcc, Math.max(nodeIndex + 1, Math.max(8, workAcc.length * 2))); // m356 写时扩容
+        workAcc[nodeIndex] = acc;
         recipesThisTick += cycles;
         if (hadWork && cycles == 0) // m339 预算剪零≠没到周期：亮黄说人话，别静默 continue 装死（m99 教训）
             statR(nodeIndex, 2, "生产预算本拍已满（核内/区块/全服四层之一），工作量已排队下拍续");
