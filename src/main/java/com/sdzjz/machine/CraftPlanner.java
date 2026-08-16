@@ -1,16 +1,5 @@
 package com.sdzjz.machine;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeType;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 绝不重复计数（组间无共享时贪心即精确最大值；有共享时对"贪心可行性"二分——N 可行则 N-1 必可行，
  * 单调成立）。needs/remainders 保留=首选口径，只喂显示/回退（残留容器改按实际消耗物结算，见 takeFor）。
  * 开关 craftIngredientAlternatives（默认开；关=全链路回旧首选口径，消耗与路由永远同口径）。
+ * m362（多版本代际架构 Phase 1）：本类升 Common——零 Minecraft import，配方解析走
+ * platform.RecipeAccess SPI（Legacy 实现=legacy.LegacyRecipeAccess，resolveAll 原文平移）；
+ * 公共签名的 World 形参升级为 Object 不透明代际句柄（向上转型，全调用面零改动），本类只透传绝不触碰。
  * 解析结果按目标 id 缓存（服务器停止时清空，见 Sdzjz 注册的 SERVER_STOPPED）。
  */
 public final class CraftPlanner {
@@ -70,14 +62,14 @@ public final class CraftPlanner {
 
     /** m234 目标物品的全部合成候选（原版排前；不可变；无配方=空表）。 */
     /** m321 计时壳（PHASES 关=直通零开销）。 */
-    public static java.util.List<Plan> plans(World world, String targetId) {
+    public static java.util.List<Plan> plans(Object world, String targetId) {
         if (!com.sdzjz.debug.CoreProfiler.PHASES) return plans0(world, targetId);
         long __t = System.nanoTime();
         try { return plans0(world, targetId); }
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_PLANNER, System.nanoTime() - __t); }
     }
 
-    private static java.util.List<Plan> plans0(World world, String targetId) {
+    private static java.util.List<Plan> plans0(Object world, String targetId) {
         return CACHE.computeIfAbsent(targetId, id -> resolveAll(world, id));
     }
 
@@ -170,8 +162,8 @@ public final class CraftPlanner {
     public static Map<String, Long> remaindersOf(Map<String, Long> taken) {
         Map<String, Long> out = new java.util.LinkedHashMap<>();
         for (var en : taken.entrySet()) {
-            Item rem = Registries.ITEM.get(Identifier.of(en.getKey())).getRecipeRemainder();
-            if (rem != null) out.merge(Registries.ITEM.getId(rem).toString(), en.getValue(), Long::sum);
+            String rem = com.sdzjz.platform.Platform.recipes().craftRemainderOf(en.getKey()); // m362 SPI
+            if (rem != null) out.merge(rem, en.getValue(), Long::sum);
         }
         return out;
     }
@@ -310,7 +302,7 @@ public final class CraftPlanner {
 
     /** m234 链需求/收料判定用：全候选材料并集（任一候选用得上的料都"想要"，路由不偏科）。
      *  m343 起并集含槽位替代材料（开关关=仅首选，两口径各自缓存，翻开关不吃陈账）。 */
-    public static java.util.Set<String> wants(World world, String targetId) {
+    public static java.util.Set<String> wants(Object world, String targetId) {
         Map<String, java.util.Set<String>> cache = altOn() ? WANTS : WANTS_FIRST;
         boolean alt = altOn();
         return cache.computeIfAbsent(targetId, id -> {
@@ -321,45 +313,8 @@ public final class CraftPlanner {
         });
     }
 
-    private static java.util.List<Plan> resolveAll(World world, String targetId) {
-        Item target = Registries.ITEM.get(Identifier.of(targetId));
-        if (target == Items.AIR) return java.util.List.of();
-        java.util.List<Map.Entry<Identifier, Plan>> found = new java.util.ArrayList<>();
-        for (RecipeEntry<CraftingRecipe> entry : world.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
-            CraftingRecipe r = entry.value();
-            ItemStack out;
-            try {
-                out = r.getResult(world.getRegistryManager());
-            } catch (Exception ex) {
-                continue; // 特殊配方（烟花/染色等）取结果可能异常，跳过
-            }
-            if (out == null || out.isEmpty() || out.getItem() != target) continue;
-
-            Map<String, Integer> needs = new java.util.LinkedHashMap<>();
-            Map<String, Integer> remainders = new java.util.LinkedHashMap<>();
-            Map<java.util.List<String>, Integer> groupCount = new java.util.LinkedHashMap<>(); // m343 同候选集槽位合并
-            boolean ok = true;
-            for (Ingredient ing : r.getIngredients()) {
-                if (ing.isEmpty()) continue;
-                ItemStack[] matching = ing.getMatchingStacks();
-                if (matching == null || matching.length == 0) { ok = false; break; }
-                java.util.LinkedHashSet<String> cset = new java.util.LinkedHashSet<>(); // 保 matching 序去重
-                for (ItemStack ms : matching) cset.add(Registries.ITEM.getId(ms.getItem()).toString());
-                groupCount.merge(java.util.List.copyOf(cset), 1, Integer::sum);
-                Item pick = matching[0].getItem(); // 首选口径（显示/回退；实际计数扣料走 groups——m343）
-                needs.merge(Registries.ITEM.getId(pick).toString(), 1, Integer::sum);
-                Item rem = pick.getRecipeRemainder();
-                if (rem != null) remainders.merge(Registries.ITEM.getId(rem).toString(), 1, Integer::sum);
-            }
-            if (!ok || needs.isEmpty()) continue; // 无固定材料的特殊配方不支持
-            java.util.List<Group> groups = new java.util.ArrayList<>(groupCount.size());
-            for (var en : groupCount.entrySet()) groups.add(new Group(en.getKey(), en.getValue()));
-            found.add(Map.entry(entry.id(),
-                    new Plan(needs, out.getCount(), remainders, entry.id().toString(), java.util.List.copyOf(groups))));
-        }
-        found.sort(java.util.Comparator
-                .comparingInt((Map.Entry<Identifier, Plan> e) -> "minecraft".equals(e.getKey().getNamespace()) ? 0 : 1)
-                .thenComparing(e -> e.getKey().toString()));
-        return found.stream().map(Map.Entry::getValue).toList();
+    /** m362 配方解析下沉代际适配器（Legacy=resolveAll 原文平移），Common 侧只剩委托。 */
+    private static java.util.List<Plan> resolveAll(Object level, String targetId) {
+        return com.sdzjz.platform.Platform.recipes().craftingPlans(level, targetId);
     }
 }

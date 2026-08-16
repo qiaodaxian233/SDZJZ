@@ -4,8 +4,8 @@
 
 ## 总量
 
-- **A Common-safe 可直迁**: 9 文件 / 843 行
-- **B Legacy-coupled 需 SPI 剥离**: 93 文件 / 15501 行
+- **A Common-safe 可直迁**: 12 文件 / 1212 行
+- **B Legacy-coupled 需 SPI 剥离**: 93 文件 / 15210 行
 - **D Client-only**: 20 文件 / 6704 行
 - **E Mixin(代际隔离)**: 6 文件 / 198 行
 - C Modern-only: 0（26.x 适配落地后产生）
@@ -14,14 +14,14 @@
 
 | API 族 | 文件数 | 用点数 | 对应 SPI |
 |---|---|---|---|
-| world/block | 61 | 1195 | WorldAdapter |
+| world/block | 61 | 1194 | WorldAdapter |
 | item | 52 | 922 | ItemPlatform/ItemView |
 | nbt/component | 21 | 411 | NbtAdapter/DataComponentAdapter |
 | registry | 56 | 278 | IdResolver |
 | screen | 23 | 239 | VaultScreenPlatform/ScreenAdapter |
 | text/i18n | 34 | 173 | MsgPlatform |
 | network | 26 | 159 | NetPlatform |
-| gametest | 5 | 93 | 版本测试层 |
+| gametest | 4 | 90 | 版本测试层 |
 | recipe | 7 | 57 | RecipeAccess |
 | fabric-api | 18 | 44 | loader 层 |
 
@@ -33,7 +33,7 @@
 - item/TerminalItem.java（222 行 / 132 用点：nbt/component×46, world/block×36, item×22, registry×19）
 - screen/SuperBenchScreenHandler.java（593 行 / 125 用点：item×78, screen×19, registry×17, text/i18n×9）
 - block/StorageCoreBlockEntity.java（509 行 / 118 用点：world/block×55, item×24, nbt/component×19, registry×15）
-- Sdzjz.java（331 行 / 113 用点：network×42, world/block×42, screen×14, fabric-api×8）
+- Sdzjz.java（332 行 / 113 用点：network×42, world/block×42, screen×14, fabric-api×8）
 - block/TradeCenterBlockEntity.java（305 行 / 101 用点：world/block×34, item×25, nbt/component×21, text/i18n×8）
 - block/DataCableBlockEntity.java（332 行 / 100 用点：world/block×50, item×28, nbt/component×9, fabric-api×6）
 - block/DataPanelBlockEntity.java（322 行 / 80 用点：world/block×43, item×14, nbt/component×10, screen×8）
@@ -47,6 +47,7 @@
 
 - debug/GcAccount.java（52 行）
 - graph/NodeKinds.java（22 行）
+- machine/CraftPlanner.java（321 行）
 - machine/CropFarms.java（43 行）
 - machine/MachineDef.java（22 行）
 - machine/MachineXp.java（57 行）
@@ -54,6 +55,8 @@
 - machine/MobDrops.java（74 行）
 - machine/PickerQuery.java（46 行）
 - machine/VillagerTrades.java（119 行）
+- platform/Platform.java（23 行）
+- platform/RecipeAccess.java（25 行）
 
 ## E 类 Mixin 清单（§6 代际隔离对象）
 

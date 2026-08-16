@@ -6064,3 +6064,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **配置**：零新键零 Java（纯工具+文档）。**验证**：扫描工具自校（五类互斥、族计数
   与 m361 前的手工 grep 抽样吻合：network 26≈25/nbt 21≥16/gametest 5=5）。
 - **实机脚本**：无（分析件）；下一步=Phase 1 第①②刀待作者确认后开工。
+
+## m362 Phase 1 第①②刀：platform.RecipeAccess SPI + CraftPlanner 升 Common
+
+- **修法**：①新 com.sdzjz.platform 包——RecipeAccess SPI（craftingPlans(level,target)/
+  craftRemainderOf(id)，酿造/附魔/熔炼口随 m363 各自收口时增补防"巨型接口"）+ Platform
+  服务定位器（注册一次定终身，未注册即用=硬失败带指路信息）；②新 com.sdzjz.legacy 包——
+  LegacyRecipeAccess=resolveAll **原文平移**（m180 刀法方法体一字未改，仅 world 由句柄向下
+  转型）+ craftRemainderOf 两行注册表查询；**无状态**——客户端画布屏也调 plans（对源核实），
+  服务端/客户端各用各的配方视图，绝不持服务端引用；③CraftPlanner 升 Common：十个 MC
+  import 全删零残留，resolveAll 退化为 SPI 委托、remaindersOf 走 craftRemainderOf，公共
+  签名 World→**Object 不透明代际句柄**（向上转型=SCBE/GameTest/客户端屏全调用面零改动，
+  javadoc 立"只透传绝不触碰"）；④Sdzjz.onInitialize 最早处注册 Legacy 实现（planner 的
+  CHM 缓存/clearCache 钩全原样，SPI 实现侧不缓存）。
+- **地雷图对表**：复跑扫描 A 9→12 文件（CraftPlanner+RecipeAccess+Platform 入列），B 中
+  新增 LegacyRecipeAccess（本就该在 Legacy 侧）；顺手修 SPI 注释里的 MC 字面误伤保守口径。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0（命中全为 Legacy 侧缺 MC 类噪音=预期
+  归属），廿六/廿八/卅一/卅三号既有 planner 用例全压真配方表=SPI 桥等价判官交 CI。
+- **实机脚本**：合成产线/画布配方选择器/徽章逐帧同旧；datapack reload 后配方缓存自清照旧。
