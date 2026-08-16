@@ -53,7 +53,15 @@ public final class EnchantPlanner {
     }
 
     /** 返回目标附魔书的生产计划；串非法/附魔不存在/等级越界返回 null。 */
+    /** m357 计时壳（PHASES 关=直通零开销）。 */
     public static Plan plan(World world, String target) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return plan0(world, target);
+        long __t = System.nanoTime();
+        try { return plan0(world, target); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_ENCH, System.nanoTime() - __t); }
+    }
+
+    private static Plan plan0(World world, String target) {
         return CACHE.computeIfAbsent(target, t -> Optional.ofNullable(resolve(world, t))).orElse(null);
     }
 

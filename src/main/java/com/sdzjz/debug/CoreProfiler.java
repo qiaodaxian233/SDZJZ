@@ -98,12 +98,19 @@ public final class CoreProfiler {
             // m354 机器类型桶（外部审计④轮③"让数据决定下一刀"）：97.1% 的生产粗桶按节点类型拆账，
             // 报告直接给出 µs/核·tick 前三大贡献；PHASES 闸内每节点一次 nanoTime，平时零成本。
             SUB_T_LOGIC = 6, SUB_T_CRAFT = 7, SUB_T_BREW = 8, SUB_T_ENCH = 9,
-            SUB_T_TRADE = 10, SUB_T_DUP = 11, SUB_T_MACHINE = 12, SUB_T_MISC = 13, SUB_N = 14;
+            SUB_T_TRADE = 10, SUB_T_DUP = 11, SUB_T_MACHINE = 12, SUB_T_MISC = 13,
+            // m357 规划器分桶（外部审计⑤轮③：SUB_PLANNER 名不副实——m349 exec 也挂它，Brew/Ench/Smelt 全没账）
+            SUB_P_EXEC = 14, SUB_P_BREW = 15, SUB_P_ENCH = 16, SUB_P_SMELT = 17,
+            // m357 端点扫描三段账（审计⑤轮⑤：低频高单次成本项，为 StorageCore revision 决策供数）
+            SUB_SCAN_DISC = 18, SUB_SCAN_AGG = 19, SUB_SCAN_SORT = 20, SUB_N = 21;
     private static final String[] SUB_NAME = {
-            "chainWants 链需求判定", "scanStorageEndpoints 端点扫描", "distribute/Even 分发路由",
-            "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划",
+            "chainWants 链需求判定", "scanStorageEndpoints 端点扫描(总)", "distribute/Even 分发路由",
+            "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划(查长期缓存)",
             "[类型账]逻辑节点(分/滤/垃圾/抽/开/感)", "[类型账]自动合成机", "[类型账]酿造塔", "[类型账]附魔工厂",
-            "[类型账]交易节点", "[类型账]复制机", "[类型账]通用机器(含熔炉/作物族)", "[类型账]其他节点"};
+            "[类型账]交易节点", "[类型账]复制机", "[类型账]通用机器(含熔炉/作物族)", "[类型账]其他节点",
+            "CraftPlanner.exec 合成执行(快照+选+扣)", "BrewPlanner.plan 酿造规划(查缓存)",
+            "EnchantPlanner.plan 附魔规划(查缓存)", "SmeltPlanner.resultOf 熔炼查表",
+            "[扫描段]发现BFS+离线核销", "[扫描段]总线聚合(仓账+精确账)", "[扫描段]排序top400+同步"};
     private static final long[] phNs = new long[PH_N];
     private static final long[] subNs = new long[SUB_N];
     private static final long[] subCalls = new long[SUB_N];

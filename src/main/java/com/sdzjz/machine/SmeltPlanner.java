@@ -26,7 +26,15 @@ public final class SmeltPlanner {
 
     private static Map<String, Object[]> cache; // inputId → {outputId(String), outCount(Integer)}
 
-    public static synchronized Object[] resultOf(World world, String inputId) {
+    /** m357 计时壳（PHASES 关=直通零开销；synchronized 留在实体上口径不变）。 */
+    public static Object[] resultOf(World world, String inputId) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return resultOf0(world, inputId);
+        long __t = System.nanoTime();
+        try { return resultOf0(world, inputId); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_SMELT, System.nanoTime() - __t); }
+    }
+
+    private static synchronized Object[] resultOf0(World world, String inputId) {
         if (cache == null) build(world);
         return cache.get(inputId);
     }

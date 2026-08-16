@@ -2031,6 +2031,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private void scanStorageEndpoints0(World world, BlockPos corePos) {
+        long __sd = com.sdzjz.debug.CoreProfiler.PHASES ? System.nanoTime() : 0; // m357 三段账（审计⑤轮⑤：为 StorageCore revision 决策供数）
         java.util.LinkedHashMap<Long, long[]> found = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<Long, String> dims = new java.util.LinkedHashMap<>();
         String selfDim = world.getRegistryKey().getValue().toString();
@@ -2145,6 +2146,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             storageNodePos.keySet().retainAll(found.keySet()); // 修剪已消失端点的画布坐标
         }
         // ===== m85：总线库存聚合（只数存储核心；面板聚合的是同一批核心，数它会重复计）=====
+        long __sa = 0;
+        if (com.sdzjz.debug.CoreProfiler.PHASES) { __sa = System.nanoTime(); com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_SCAN_DISC, __sa - __sd); }
         java.util.LinkedHashMap<String, Long> agg = new java.util.LinkedHashMap<>();
         for (long[] v : found.values()) {
             if (v[1] == 4 || v[1] == 5 || v[1] == 6) continue;
@@ -2161,6 +2164,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     agg.merge(Registries.ITEM.getId(tplB.get(k).getItem()).toString(), sc.exactCount(k), StorageCoreBlockEntity::satAdd); // m273
             }
         }
+        long __ss = 0;
+        if (com.sdzjz.debug.CoreProfiler.PHASES) { __ss = System.nanoTime(); com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_SCAN_AGG, __ss - __sa); }
         java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>(agg.entrySet());
         top.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
         // m163b：前10→前400。总线条按可用宽度自截断（超宽画"…"），多带的部分喂给抽取白名单
@@ -2178,6 +2183,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             markDirty();
             syncToClient();
         }
+        if (com.sdzjz.debug.CoreProfiler.PHASES) com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_SCAN_SORT, System.nanoTime() - __ss); // m357 尾段（排序+top400+同步）
     }
 
     /** 该机器的定向产出目标（机器→存储 连线；不可用则 null 走默认路由）。 */
@@ -2226,6 +2232,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // 防御性拷贝逐拍重配下岗）——map 转存进 grow-only 双数组后立即处理，不跨节点不跨 tick 不可重入；
     // 需要"实扣看返回值"的路径（泵/熔炉 withdraw）照旧当场扣，绝不按快照值虚记账（聚合视图可能陈旧）。 =====
     private transient String[] drainIds = new String[16];
+    private transient int[] evenOk = new int[8]; // m357 均分目标 scratch（distributeEven0 每次一个 ArrayList 下岗，审计⑤轮④）
     private transient long[] drainAmts = new long[16];
     private int fillDrain(java.util.Map<String, Long> m) {
         int n = m.size();
@@ -2284,7 +2291,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (tgt.isEmpty()) return java.util.Set.of();
                 String cr = craftRecipe(st); // m235 手选=只要那条的料；自动=全候选并集（m234）
                 if (!cr.isEmpty()) for (var pp : CraftPlanner.plans(world, tgt))
-                    if (pp.recipeId().equals(cr)) return CraftPlanner.wantsOf(pp); // m343 手选也认槽位替代材料
+                    if (pp.recipeId().equals(cr)) return CraftPlanner.wantsOfCached(pp); // m343 手选也认槽位替代材料；m357 长期缓存版（每拍现建集合下岗，审计⑤轮①唯一真缺口）
                 return CraftPlanner.wants(world, tgt);
             });
             return needs.contains(id);
@@ -2607,15 +2614,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private void distributeEven0(World world, int fromIndex, int[] targets, String id, long amt) { // m354b 补：m321 计时壳的实体签名漏改（沙盒 javac 缺 MC 类盲区，CI 抓获）
         if (prof != null) prof.routes++; // m177
         if (targets != null && targets.length > 0) {
-            java.util.List<Integer> ok = new java.util.ArrayList<>();
+            int okN = 0; // m357 scratch 两遍法：收可吃目标进复用数组（不跨调用不可重入）
             for (int t : targets)
-                if (t >= 0 && t < machineNodes.size() && accepts(world, t, id)) ok.add(t);
-            if (!ok.isEmpty()) {
-                long share = amt / ok.size(), extra = amt % ok.size(), undelivered = 0;
-                for (int k = 0; k < ok.size(); k++) {
+                if (t >= 0 && t < machineNodes.size() && accepts(world, t, id)) {
+                    if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
+                    evenOk[okN++] = t;
+                }
+            if (okN > 0) {
+                long share = amt / okN, extra = amt % okN, undelivered = 0;
+                for (int k = 0; k < okN; k++) {
                     long want = share + (k < extra ? 1 : 0);
                     if (want <= 0) continue;
-                    java.util.Map<String, Long> m = nodeBuf(ok.get(k));
+                    java.util.Map<String, Long> m = nodeBuf(evenOk[k]);
                     if (!bufTypeOk(m, id)) { undelivered += want; continue; } // m270 类型上限：拒收份额转默认路由
                     long cur = m.getOrDefault(id, 0L);
                     long put = Math.min(Math.max(0, BUF_CAP - cur), want);

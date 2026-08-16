@@ -74,7 +74,15 @@ public final class BrewPlanner {
     }
 
     /** 返回目标药水的酿造计划；串非法/不可达返回 null。 */
+    /** m357 计时壳（PHASES 关=直通零开销，审计⑤轮③：规划器分桶入账）。 */
     public static Plan plan(World world, String target) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return plan0(world, target);
+        long __t = System.nanoTime();
+        try { return plan0(world, target); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_BREW, System.nanoTime() - __t); }
+    }
+
+    private static Plan plan0(World world, String target) {
         return CACHE.computeIfAbsent(target, t -> Optional.ofNullable(resolve(world, t))).orElse(null);
     }
 

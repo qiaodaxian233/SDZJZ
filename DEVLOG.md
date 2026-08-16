@@ -5946,3 +5946,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   壳体错位（cyclesThisTick 无 `*0` 双身）。行为等价由既有生产类 GameTest（产量断言族）把关。
 - **实机脚本**：同参数重跑 /sdzjz bench matrix 对表本份：654ns/节点·tick 与 12265KB/tick
   （100 档）应双降；三档线性平线应保持。
+
+## m357 审计⑤轮五连响应（两勘误+一真缺口+两观测+一 P2）
+
+- **①②勘误留证（对源核实，审计设想的 DemandCache 判不做）**：CraftPlanner.plans/wants、
+  BrewPlanner.plan、EnchantPlanner.plan **全部本就是长期 ConcurrentHashMap 缓存**（clearCache
+  统一失效钩），chainWants 在拍内 memo 后已是 needs.contains O(1)——审计说的"每拍重新走
+  Planner"实为每拍一次 CHM 查找（~几十 ns），DemandCache 收益=省这一次查找，不值新缓存层
+  +失效面。**唯一真缺口**=手选分支 wantsOf(pp) 每拍现建集合 → 新 wantsOfCached
+  （WANTS_RECIPE/WANTS_RECIPE_FIRST 双口径长期缓存，clearCache 同钩，unmodifiable 包装守
+  m350 共享集红线），chainWants0 手选分支换装。
+- **③规划器分桶（审计对了一半，比它说的还糟）**：SUB_PLANNER 此前不止混 Brew/Ench/Smelt
+  没账——**m349 exec 整个执行（快照+选+扣）也挂在它名下**，报告里 4509ns 均值是 plans 查缓存
+  +exec 执行的混账假象。拆：SUB_P_EXEC/SUB_P_BREW/SUB_P_ENCH/SUB_P_SMELT 四新桶，
+  Brew/Ench plan 加计时壳（壳+plan0，m354b 教训壳体签名对过），SmeltPlanner.resultOf 壳化
+  （synchronized 留实体口径不变），SUB_PLANNER 改名"查长期缓存"。
+- **⑤扫描三段账**：scanStorageEndpoints0 内 [发现BFS+离线核销]/[总线聚合]/[排序top400+同步]
+  三段分桶——下轮矩阵直接看聚合段占比，决定 StorageCore revision 缓存要不要上（数据先行）。
+- **④distributeEven0**：ok ArrayList → evenOk int[] scratch 两遍法（每次均分一个表下岗）。
+- **⑥原则入档**：HANDOVER 新增"NBT 读写铁律"小节（读=viewOf 零拷贝/写=nbtOf 拷贝→改→set
+  三段，写路绝不许改 view——审计⑤轮原话照录防后人误伤）。
+- **矩阵对表勘误**：作者 0017 批次矩阵跑在 m355 构建（通用机器 652ns≈654ns、核tick均 44.2
+  持平），m356 三刀效果未入账——下次拉最新构建重跑才见真章。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0，定向检全净，旧 ok 残留核为卫星节点
+  无关变量；观测项无 GameTest 面，wantsOfCached 语义=wantsOf 逐位同集（同函数产物缓存）。
+- **实机脚本**：拉最新构建重跑 matrix：①m356 效果对表（654ns 应降）；②细分表新七行
+  （exec/brew/ench/smelt/扫描三段）首秀；③[扫描段]总线聚合若占大头→下刀 StorageCore revision。

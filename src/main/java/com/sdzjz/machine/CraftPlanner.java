@@ -50,11 +50,15 @@ public final class CraftPlanner {
     private static final Map<String, java.util.List<Plan>> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, java.util.Set<String>> WANTS = new ConcurrentHashMap<>();       // 全候选口径（开关开）
     private static final Map<String, java.util.Set<String>> WANTS_FIRST = new ConcurrentHashMap<>(); // 仅首选口径（开关关=旧行为）
+    private static final Map<String, java.util.Set<String>> WANTS_RECIPE = new ConcurrentHashMap<>();       // m357 手选单配方想要集（alt开）
+    private static final Map<String, java.util.Set<String>> WANTS_RECIPE_FIRST = new ConcurrentHashMap<>(); // m357 同上（alt关）
 
     public static void clearCache() {
         CACHE.clear();
         WANTS.clear();
         WANTS_FIRST.clear();
+        WANTS_RECIPE.clear();
+        WANTS_RECIPE_FIRST.clear(); // m357
     }
 
     private static boolean altOn() { return com.sdzjz.config.SdzjzConfig.get().craftIngredientAlternatives; }
@@ -198,7 +202,7 @@ public final class CraftPlanner {
         if (!com.sdzjz.debug.CoreProfiler.PHASES) return exec0(plans, manual, capOf, stock, alt);
         long __t = System.nanoTime();
         try { return exec0(plans, manual, capOf, stock, alt); }
-        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_PLANNER, System.nanoTime() - __t); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_EXEC, System.nanoTime() - __t); } // m357 与 plans 分桶（此前混记=4509ns 均值假象）
     }
 
     private static Exec exec0(java.util.List<Plan> plans, Plan manual, java.util.function.ToLongFunction<Plan> capOf,
@@ -273,6 +277,13 @@ public final class CraftPlanner {
         java.util.Set<String> u = new java.util.HashSet<>();
         for (Group g : p.groups()) u.addAll(cands(g, alt));
         return u;
+    }
+
+    /** m357 手选配方想要集（长期缓存版 wantsOf）：链需求每 5t 拍查询，现建集合下岗——外部审计⑤轮①
+     *  对源核实后唯一真缺口（plans/wants/Brew/Ench 本就全是长期缓存）。共享集不可变包装防误改（m350 红线同族）。 */
+    public static java.util.Set<String> wantsOfCached(Plan p) {
+        Map<String, java.util.Set<String>> c = altOn() ? WANTS_RECIPE : WANTS_RECIPE_FIRST;
+        return c.computeIfAbsent(p.recipeId(), k -> java.util.Collections.unmodifiableSet(wantsOf(p)));
     }
 
     /** m343 accepts 热路径单查：id 是否本候选任一槽位的生效材料（不建集合零垃圾）。 */
