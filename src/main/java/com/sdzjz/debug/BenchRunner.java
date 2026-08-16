@@ -58,6 +58,13 @@ public final class BenchRunner {
     private static int tickCount;
     private static Path reportPath;
     private static com.sdzjz.debug.GcAccount gcStart; // m351 测窗起点 GC/分配快照
+    // m355 三档矩阵连跑（外部审计④轮③：真测 100/300/500，让数据决定下一刀）——
+    // 档序队列+每档关键行捕获+档间冷却（清场后 GC/MSPT 回稳再开下一档，避免上一档余温污染）。
+    private static java.util.ArrayDeque<int[]> matrixQueue;
+    private static java.util.List<String> matrixRows;
+    private static int matrixCooldown;
+    private static ServerWorld matrixWorld; private static BlockPos matrixAt; private static UUID matrixBy;
+    private static int matrixSecs; private static long matrixCap;
     // m308 黄灯占空比直测（m115 看门狗 45/40ms 滞回；占空比>0 时倍数判据=噪声）
     private static long pauseSamples, pauseHits; private static int pausePeak;
 
@@ -70,12 +77,13 @@ public final class BenchRunner {
     public static void reset() {
         phase = Phase.IDLE; world = null; SITES.clear(); tickNs = new long[0]; tickCount = 0;
         capTouched = false; reportPath = null; gcStart = null;
+        matrixQueue = null; matrixRows = null; matrixCooldown = 0; matrixWorld = null; // m355
     }
 
     public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap) {
         if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
         int nodeCap = SdzjzConfig.get().maxNodesPerCore;
-        cores = Math.max(1, Math.min(200, nCores));
+        cores = Math.max(1, Math.min(500, nCores)); // m355 矩阵最高档 500（审计④轮③点名），10×50 站阵仍 64 格距
         nodesPer = Math.max(1, nodeCap > 0 ? Math.min(nNodes, nodeCap) : nNodes);
         seconds = Math.max(5, Math.min(1200, secs));
         capParam = cap;
@@ -98,7 +106,22 @@ public final class BenchRunner {
                 + "s · cap=" + (capParam > 0 ? capParam : "不动配置") + " —— 跑完报告落游戏目录并自动清场";
     }
 
+    /** m355 三档矩阵：100/300/500 核 ×64 节点自动串跑，档间清场+冷却，收官落汇总对比文件。 */
+    public static String startMatrix(ServerWorld w, BlockPos at, UUID by, int secs, long cap) {
+        if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
+        matrixQueue = new java.util.ArrayDeque<>();
+        matrixQueue.add(new int[]{100, 64});
+        matrixQueue.add(new int[]{300, 64});
+        matrixQueue.add(new int[]{500, 64});
+        matrixRows = new java.util.ArrayList<>();
+        matrixWorld = w; matrixAt = at; matrixBy = by; matrixSecs = secs; matrixCap = cap; matrixCooldown = 0;
+        int[] first = matrixQueue.poll();
+        String r = start(w, at, by, first[0], first[1], secs, cap);
+        return r.startsWith("§c") ? r : r + " §b[矩阵 1/3：后续 300/500 档自动接跑，stop=全停]";
+    }
+
     public static String stopNow() {
+        if (matrixQueue != null) { matrixQueue = null; matrixRows = null; matrixCooldown = 0; } // m355 停=含后续档
         if (phase == Phase.IDLE) return "§7[sdzjz] 没有在跑的压测";
         if (phase == Phase.RUN) { runTicksLeft = 1; return "§e[sdzjz] 收到，下一拍出报告并清场"; }
         if (phase == Phase.SPAWN) { phase = Phase.CLEANUP; return "§e[sdzjz] 铺场中止，转清场"; }
@@ -107,7 +130,17 @@ public final class BenchRunner {
 
     private static void tick(MinecraftServer server) {
         switch (phase) {
-            case IDLE -> { }
+            case IDLE -> { // m355 矩阵接力：档间冷却回稳后自动开下一档
+                if (matrixQueue != null && matrixWorld != null) {
+                    if (matrixCooldown > 0) { matrixCooldown--; }
+                    else if (!matrixQueue.isEmpty()) {
+                        int[] t = matrixQueue.poll();
+                        int tier = 3 - matrixQueue.size();
+                        msg(server, "§b[sdzjz] 矩阵第 " + tier + "/3 档开跑：核心×" + t[0]);
+                        start(matrixWorld, matrixAt, matrixBy, t[0], t[1], matrixSecs, matrixCap);
+                    }
+                }
+            }
             case SPAWN -> {
                 for (int b = 0; b < 2 && spawnIdx < SITES.size(); b++, spawnIdx++) spawnSite(SITES.get(spawnIdx));
                 if (spawnIdx >= SITES.size()) {
@@ -150,6 +183,10 @@ public final class BenchRunner {
                 if (cleanupIdx >= SITES.size()) {
                     msg(server, "§a[sdzjz] 压测清场完毕（配置已复原，方块零残留）");
                     phase = Phase.IDLE; world = null; SITES.clear();
+                    if (matrixQueue != null) { // m355 矩阵接力/收官
+                        if (!matrixQueue.isEmpty()) { matrixCooldown = 200; msg(server, "§b[sdzjz] 矩阵档间冷却 10s（GC/MSPT 回稳）…"); }
+                        else { matrixQueue = null; matrixRows = null; msg(server, "§a[sdzjz] 三档矩阵全部完成"); }
+                    }
                 }
             }
         }
@@ -233,12 +270,22 @@ public final class BenchRunner {
             long gcT = Math.max(0, ge.gcMs - gcStart.gcMs);
             sb.append(String.format("GC/分配(测窗 %.1fs): GC %d 次 | 停顿累计 %d ms (占窗 %.2f%%)",
                     winSec, gcC, gcT, gcT / (winSec * 10)));
+            long ab = -1; // m355 矩阵行捕获用（-1=分配账不可用）
             if (ge.allocOk && gcStart.allocOk) {
-                long ab = Math.max(0, ge.allocBytes - gcStart.allocBytes);
+                ab = Math.max(0, ge.allocBytes - gcStart.allocBytes);
                 sb.append(String.format(" | 服务器线程分配 %.1f MB | %.1f MB/s | %.1f KB/tick",
                         ab / 1048576.0, ab / 1048576.0 / winSec, tickCount > 0 ? ab / 1024.0 / tickCount : 0));
             } else sb.append(" | 分配账不可用(非HotSpot/被禁)");
             sb.append('\n').append("  口径: GC=全JVM合计(集成服含渲染线程诱发), 分配=仅服务器线程; 对比请同环境同参数跑\n");
+            if (matrixRows != null) { // m355 每档关键行（纵向对比 µs/核·tick 线性度与类型前三换位）
+                matrixRows.add(String.format(
+                        "%3d核×%d: MSPT均%6.2f P95 %6.2f | 核tick均 %6.1fµs | GC %d次 %dms(%.2f%%窗) | 分配 %s | 前三: %s",
+                        cores, nodesPer, busy[0], busy[1], com.sdzjz.debug.CoreProfiler.avgCoreTickUs(),
+                        gcC, gcT, gcT / (winSec * 10),
+                        ab >= 0 ? String.format("%.0fMB/s %.0fKB/tick", ab / 1048576.0 / winSec,
+                                tickCount > 0 ? ab / 1024.0 / tickCount : 0) : "不可用",
+                        com.sdzjz.debug.CoreProfiler.typeTop3()));
+            }
         }
         String verdict;
         double ratio = min > 0 ? (double) max / min : Double.NaN;
@@ -273,6 +320,15 @@ public final class BenchRunner {
         reportPath = server.getRunDirectory().resolve("sdzjz_bench_" + ts + ".txt");
         Files.write(reportPath, sb.toString().getBytes(StandardCharsets.UTF_8));
         Sdzjz_log("[sdzjz bench] 报告已写盘: " + reportPath);
+        if (matrixRows != null && matrixQueue != null && matrixQueue.isEmpty()) { // m355 末档=落汇总
+            StringBuilder ms = new StringBuilder("《生电终结者》三档矩阵汇总 ").append(ts).append('\n');
+            ms.append("每档 ").append(seconds).append("s cap=").append(capParam > 0 ? String.valueOf(capParam) : "未改动")
+              .append("；看点：核tick均µs 随规模是否近似持平（超线性=争抢/缓存失效），类型前三是否换位（换位=下一刀换靶）\n\n");
+            for (String r : matrixRows) ms.append(r).append('\n');
+            java.nio.file.Path mp = server.getRunDirectory().resolve("sdzjz_bench_matrix_" + ts + ".txt");
+            Files.write(mp, ms.toString().getBytes(StandardCharsets.UTF_8));
+            msg(server, "§a[sdzjz] 三档矩阵汇总已写盘: " + mp);
+        }
     }
 
     private static void msg(MinecraftServer server, String s) {

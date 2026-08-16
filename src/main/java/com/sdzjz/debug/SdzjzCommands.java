@@ -54,7 +54,7 @@ public final class SdzjzCommands {
                         .then(literal("bench") // m306 一键压测
                                 .then(literal("start")
                                         .executes(c -> benchStart(c.getSource(), 20, 64, 60, 100))
-                                        .then(net.minecraft.server.command.CommandManager.argument("核数", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 200))
+                                        .then(net.minecraft.server.command.CommandManager.argument("核数", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 500)) // m355 与矩阵最高档同步
                                         .then(net.minecraft.server.command.CommandManager.argument("每核节点", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 4096))
                                         .then(net.minecraft.server.command.CommandManager.argument("秒", com.mojang.brigadier.arguments.IntegerArgumentType.integer(5, 1200))
                                         .then(net.minecraft.server.command.CommandManager.argument("cap", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 1_000_000))
@@ -64,11 +64,26 @@ public final class SdzjzCommands {
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap")))))))
                                 )
+                                .then(literal("matrix") // m355 三档矩阵：100/300/500×64 自动串跑（外部审计④轮③）
+                                        .executes(c -> benchMatrix(c.getSource(), 60, 100))
+                                        .then(net.minecraft.server.command.CommandManager.argument("秒", com.mojang.brigadier.arguments.IntegerArgumentType.integer(5, 1200))
+                                        .then(net.minecraft.server.command.CommandManager.argument("cap", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 1_000_000))
+                                                .executes(c -> benchMatrix(c.getSource(),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap"))))))
                                 .then(literal("stop").executes(c -> {
                                     final String r = BenchRunner.stopNow();
                                     c.getSource().sendFeedback(() -> Text.literal(r), false);
                                     return 1;
                                 })))));
+    }
+
+    /** m355 三档矩阵入口：100/300/500×64 自动串跑，默认每档 60s cap=100。 */
+    private static int benchMatrix(ServerCommandSource src, int secs, int cap) {
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
+        final String r = BenchRunner.startMatrix(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, secs, cap);
+        src.sendFeedback(() -> Text.literal(r), false);
+        return 1;
     }
 
     /** m306 一键压测入口：四参齐给才算自定义，否则默认 20核×64节点×60s×cap100（评审矩阵最小档）。 */

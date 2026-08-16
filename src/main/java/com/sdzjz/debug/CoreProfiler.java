@@ -110,6 +110,27 @@ public final class CoreProfiler {
     private static long phTicks, phTotalNs;
 
     public static void phase(int i, long ns) { phNs[i] += ns; }
+
+    /** m355 矩阵汇总口：窗口内均值 µs/核·tick（0=无样本）。 */
+    public static double avgCoreTickUs() { return phTicks > 0 ? phTotalNs / 1e3 / phTicks : 0; }
+
+    /** m355 矩阵汇总口：类型账前三（µs/核·tick 排序，"名 x.xµs" 连接；全零=空串）。 */
+    public static String typeTop3() {
+        long ct = Math.max(1, phTicks);
+        int[] order = {SUB_T_LOGIC, SUB_T_CRAFT, SUB_T_BREW, SUB_T_ENCH, SUB_T_TRADE, SUB_T_DUP, SUB_T_MACHINE, SUB_T_MISC};
+        java.util.Arrays.sort(order); // 稳定基序
+        Integer[] idx = new Integer[order.length];
+        for (int k = 0; k < order.length; k++) idx[k] = order[k];
+        java.util.Arrays.sort(idx, (a, b) -> Long.compare(subNs[b], subNs[a]));
+        StringBuilder o = new StringBuilder();
+        for (int k = 0; k < 3; k++) {
+            if (subNs[idx[k]] <= 0) break;
+            if (o.length() > 0) o.append("  ");
+            o.append(SUB_NAME[idx[k]].replace("[类型账]", "")).append(' ')
+             .append(String.format("%.1fµs", subNs[idx[k]] / 1e3 / ct));
+        }
+        return o.toString();
+    }
     public static void sub(int i, long ns) { subNs[i] += ns; subCalls[i]++; }
     static void phaseTick(long totalNs) { phTicks++; phTotalNs += totalNs; }
 

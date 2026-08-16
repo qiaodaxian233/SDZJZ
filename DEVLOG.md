@@ -5902,3 +5902,27 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - distribute/distributeEven 是 m321 计时壳+实体(`*0`)两段式，m354 只换了壳签名没换实体——
   int[] 传 List<Integer> 真编译错。沙盒 javac 因缺 MC 类把整文件归错未暴露（m271/m344b 同族
   盲区第三次咬人）。修=两实体签名补 int[]。教训升级：**签名连锁改必 grep 同名+`0` 尾缀壳体对**。
+
+## m355 三档矩阵一键连跑 + 审计④轮①对源勘误（不做的决定也要留证）
+
+- **审计①勘误（InventorySnapshot 统一——对源核实后判为不做）**：逐路核酿造双路/附魔双路/
+  交易/通用机器四族输入：**每个材料 id 本就恰好一次 count+一次 withdraw**，已是快照模型的
+  理论下限（合成当年的病是 pick×候选+再算+takeFor 三遍重查，这四路从来没有）；酿造"烈焰粉
+  双账"也早已联合钳制（fuelNd*ops+steps 合并分母+ceil while 兜底，紧库存无超发）。照方抓药
+  上快照对象=每节点每拍平添 HashMap+LinkedHashMap 两张表分配、存储访问一次不省——直接
+  回退 m350 零分配线。判：不做，留此证；将来 StorageAccess 真聚合化时 count 每 id 一次
+  仍是下限，结论不变。统一抽象的诉求由 m349 StockView 接口承担（四路的 dualCount/sup::count
+  本就是它的实现形状）。
+- **修法（审计③的真落地）**：`/sdzjz bench matrix [秒] [cap]`——100/300/500 核×64 节点
+  自动串跑：IDLE 相位接力（档间清场完毕后 200t 冷却回稳，避免上一档 GC/MSPT 余温污染下一档），
+  每档 writeReport 时捕获关键行（MSPT 均/P95、核tick均 µs、GC 次/停顿占窗、分配 MB/s+KB/tick、
+  **类型账前三**），末档落 sdzjz_bench_matrix_<ts>.txt 汇总对比文件（看点写进文件头：核tick
+  均 µs 随规模是否近似持平——超线性=争抢/缓存失效；类型前三是否换位——换位=下一刀换靶）。
+  stop=全停含后续档；核数硬顶 200→500 命令与 Runner 同步放开（10×50 站阵仍 64 格距）。
+  CoreProfiler 新两口 avgCoreTickUs/typeTop3（矩阵行汇总用）。
+- **配置**：零新键（bench 命令族 opt-in，m306/m351 先例）。
+- **验证**：javac21 冒烟真语法错 0，定向检全净；m354b 教训复检=无 `*0` 壳体签名错位；
+  矩阵为服务端编排无 GameTest 面（判官=实机三档连跑）。
+- **实机脚本**：①`/sdzjz bench matrix`（默认每档 60s cap=100）一条命令拿三份单档报告+
+  一份汇总；②汇总表三行纵向对比：µs/核·tick 曲线+类型前三——这就是审计④轮③要的
+  "让数据决定下一刀"的全部输入；③中途 `/sdzjz bench stop` 应全停不接跑。
