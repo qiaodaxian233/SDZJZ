@@ -6038,3 +6038,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   不回归；③单跑 `bench start 100 63 60 100 craft_chain`（63=9 的倍数用满 7 链）看深链
   独账。**判读钥匙**：若 craft 工况下 exec/plans/chainWants 合计仍是小头、大头在类型账
   的机器体本身——m349/m350 兑现实锤；若 planner 族浮上来——下一刀有了新靶。
+
+## m361 多版本代际架构 Phase 0：平台耦合地雷图（顾问方案立项+扫描落地）
+
+- **立项（顾问方案全盘采纳）**：目标=Common(业务)/Legacy(1.21.x 适配)/Modern(26.x 适配)
+  代际结构，双端锚点 **1.21.1 + 26.2**（26.1 起 Fabric 进入无混淆新开发模型 fabric-loom，
+  与 ≤1.21.11 的 fabric-loom-remap 是两个世代——26.2 不是"又一个版本"是 Modern 第一站）。
+  五阶段：P0 地雷图（本笔）→P1 建 Common→P2 Legacy 参考实现（1.21.1 行为逐位不变）→
+  P3 26.2 Modern→P4 补 1.21.4/5/8/11→P5 发布流水线。"不要做"清单入档：每版本一套源码/
+  长期分支/Common 里 if(version)/Mixin 全版本共用/为兼容重写 Planner/巨型 Platform 接口/
+  26.2 API 反向污染 Common。
+- **修法**：docs/tools_platform_scan.py（可复跑分析工具非闸，A~E 五类+11 个 API 族全文
+  FQN 计数——本仓内联 FQN 极多只扫 import 会漏）→ docs/PLATFORM_MAP.md 地雷图。
+- **实测账（128 文件）**：A Common-safe 仅 9 文件/843 行（planner 纯函数层/调度骨架等）；
+  B 需 SPI 剥离 93 文件/15501 行；D Client 20 文件/6704 行；E Mixin 6 文件（§6 代际隔离
+  对象）。B 类 API 族排行=world/block 1195 用点(61 文件) > item 922 > nbt/component 411 >
+  registry 278 > screen 239 > text 173 > network 159 > gametest 93 > **recipe 仅 57 用点
+  /7 文件**——顾问点名"第二值得提前做"的 RecipeAccess 恰好是最便宜的一刀。TOP1 耦合=SCBE
+  3517 行/732 用点（Phase 1 压轴，前置刀全部先行）。
+- **Phase 1 顺位（按地雷图定）**：①A 类 9 文件直迁 → ②RecipeAccess（57 用点四 planner
+  收口）→ ③ItemId/ItemView 值对象（item 族 922 用点的替换基座）→ ④NbtAdapter（组件读写
+  铁律已有 viewOf/nbtOf 双口=天然 SPI 雏形）→ ⑤scheduler/profiler/storage → ⑥SCBE 压轴。
+  bigStacks/portableVault 两积压拍板件按顾问 §7/§8 升格为 SPI 模块设计（BigStackService/
+  VaultScreenPlatform），不再作独立小刀，随 Phase 1 落位。
+- **配置**：零新键零 Java（纯工具+文档）。**验证**：扫描工具自校（五类互斥、族计数
+  与 m361 前的手工 grep 抽样吻合：network 26≈25/nbt 21≥16/gametest 5=5）。
+- **实机脚本**：无（分析件）；下一步=Phase 1 第①②刀待作者确认后开工。
