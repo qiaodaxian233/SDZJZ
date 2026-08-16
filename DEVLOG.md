@@ -5991,3 +5991,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   过滤链网络，让 m349/m350/供料/planner 路径吃上真负载，现 bench 只会摆刷石机）；
   B)转积压拍板四件（bigStacks 分档/portableVault 握手/预算预设/SmeltPlanner 按库存挑输出）。
 - **验证**：纯文档零 Java。
+
+## m359 bench 工况系统+craft_fed 真产线（作者拍板 A 第一笔）
+
+- **拍板背景**：作者判死"通用机器继续榨"（真实 ~390ns/节点·tick 收益递减），正式拍板 A=
+  换工况矩阵，目标原话："**不是找优化，是证明 m349/m350/chainWants 在真实合成网络里兑现，
+  而不是只把不常触发的路径优化得漂亮**"。B 四件记账不抢跑。本笔=四档中前三（idle/cobble/
+  craft_fed），m360 接 craft_chain+mixed+矩阵工况化。
+- **修法**：①Workload 枚举三档——IDLE=零节点纯核心框架基线（新增判据行"调度判据不适用"，
+  防哑账/零吞吐豁免）；COBBLE=原样回归基准；CRAFT_FED=每站 仓(预灌 1000 万云杉木板，
+  账本 merge 一笔入账非逐栈)→32×(过滤[翻黑名单空单=全放行]→合成机[目标=工作台 4 木板
+  真配方])→回仓，绝无假空转。②新 WIRE 装配相位：toggleStorageEdge 有 known 闸（端点须
+  先被首扫扫入端点表），铺完等 5t 再 4 站/tick 连三种边（供料/节点/出库）；stopNow 补
+  WIRE 分支防 stop 落空。③出账：SUB_ACCEPTS 新桶+accepts 计时壳（壳+accepts0，m354b
+  壳体教训核过）；报告新"合成机口径"行=类型账 ns/台·tick + exec ns/次 + chainWants/plans
+  总 ms + 分配摊台 KB/台·tick（口径注明=全窗摊台是上界非净值）；CoreProfiler 新
+  subNsOf/subCallsOf 读数口。④命令：/sdzjz bench start 核数 节点 秒 cap [工况]，
+  工况=idle|cobble|craft_fed，非法值报用法。旧四参与矩阵零改动（旧 start 签名转发 COBBLE）。
+- **配置**：零新键（bench 命令族 opt-in 先例）。
+- **验证**：javac21 冒烟真语法错 0，13 新符号定向检全净，accepts0 壳体恰一处；
+  装配依赖链逐环核过：insertMachine(null) 先例/known 闸时序/toggleFilterEntry 空 id=翻
+  黑名单/setNodeTarget crafter 分支放行/deposit=merge 批量/capMsg null 安全/cleanSite
+  对新工况零残留（节点 benchClearNodes+方块拆除 BE 边表随灭）。
+- **实机脚本**：①`/sdzjz bench start 100 64 60 100 craft_fed`——报告应见合成机口径行、
+  SUB_T_CRAFT/exec/chainWants/accepts 全活账、granted 全员>0；②idle 档对照核心框架底价；
+  ③cobble 档与 m358 报告回归对表；④中途 stop 各相位均应转清场零残留。

@@ -102,7 +102,8 @@ public final class CoreProfiler {
             // m357 规划器分桶（外部审计⑤轮③：SUB_PLANNER 名不副实——m349 exec 也挂它，Brew/Ench/Smelt 全没账）
             SUB_P_EXEC = 14, SUB_P_BREW = 15, SUB_P_ENCH = 16, SUB_P_SMELT = 17,
             // m357 端点扫描三段账（审计⑤轮⑤：低频高单次成本项，为 StorageCore revision 决策供数）
-            SUB_SCAN_DISC = 18, SUB_SCAN_AGG = 19, SUB_SCAN_SORT = 20, SUB_N = 21;
+            SUB_SCAN_DISC = 18, SUB_SCAN_AGG = 19, SUB_SCAN_SORT = 20,
+            SUB_ACCEPTS = 21, SUB_N = 22; // m359 accepts 收货判定（分发/均分每目标每 id 一次，作者拍板 A 点名出账）
     private static final String[] SUB_NAME = {
             "chainWants 链需求判定", "scanStorageEndpoints 端点扫描(总)", "distribute/Even 分发路由",
             "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划(查长期缓存)",
@@ -110,13 +111,18 @@ public final class CoreProfiler {
             "[类型账]交易节点", "[类型账]复制机", "[类型账]通用机器(含熔炉/作物族)", "[类型账]其他节点",
             "CraftPlanner.exec 合成执行(快照+选+扣)", "BrewPlanner.plan 酿造规划(查缓存)",
             "EnchantPlanner.plan 附魔规划(查缓存)", "SmeltPlanner.resultOf 熔炼查表",
-            "[扫描段]发现BFS+离线核销", "[扫描段]总线聚合(仓账+精确账)", "[扫描段]排序top400+同步"};
+            "[扫描段]发现BFS+离线核销", "[扫描段]总线聚合(仓账+精确账)", "[扫描段]排序top400+同步",
+            "accepts 收货判定"};
     private static final long[] phNs = new long[PH_N];
     private static final long[] subNs = new long[SUB_N];
     private static final long[] subCalls = new long[SUB_N];
     private static long phTicks, phTotalNs;
 
     public static void phase(int i, long ns) { phNs[i] += ns; }
+
+    /** m359 单桶读数口（bench per-crafter 出账用）。 */
+    public static long subNsOf(int i) { return subNs[i]; }
+    public static long subCallsOf(int i) { return subCalls[i]; }
 
     /** m355 矩阵汇总口：窗口内均值 µs/核·tick（0=无样本）。 */
     public static double avgCoreTickUs() { return phTicks > 0 ? phTotalNs / 1e3 / phTicks : 0; }

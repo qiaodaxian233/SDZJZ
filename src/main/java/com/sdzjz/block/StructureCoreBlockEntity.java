@@ -2676,7 +2676,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 目标机器是否"吃"该物品：万能熔炉=可熔炼物；消耗机=配方输入；自动合成机=当前目标用料；农场=不吃。 */
+    /** m359 计时壳（PHASES 关=直通）。 */
     private boolean accepts(World world, int target, String id) {
+        if (!com.sdzjz.debug.CoreProfiler.PHASES) return accepts0(world, target, id);
+        long __t = System.nanoTime();
+        try { return accepts0(world, target, id); }
+        finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_ACCEPTS, System.nanoTime() - __t); }
+    }
+
+    private boolean accepts0(World world, int target, String id) {
         ItemStack st = machineNodes.get(target);
         if (nodePaused(st)) return false;                // m110b 暂停不收（上游改走默认路由）
         if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储

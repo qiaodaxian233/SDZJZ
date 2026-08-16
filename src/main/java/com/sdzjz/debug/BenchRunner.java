@@ -39,7 +39,13 @@ import java.util.UUID;
 public final class BenchRunner {
     private BenchRunner() {}
 
-    private enum Phase { IDLE, SPAWN, RUN, CLEANUP }
+    private enum Phase { IDLE, SPAWN, WIRE, RUN, CLEANUP }
+    /** m359 工况（作者拍板 A：证明 m349/m350/chainWants 在真实合成网络里兑现，不是只把冷路径优化得漂亮）。
+     *  IDLE=零节点纯核心框架基线；COBBLE=回归基准；CRAFT_FED=仓→过滤→合成机→回仓 真产线。 */
+    enum Workload { IDLE, COBBLE, CRAFT_FED }
+    private static Workload workload = Workload.COBBLE;
+    private static int wireIdx, wireDelay; // m359 装配相位：toggleStorageEdge 有 known 闸（端点须先被扫入），铺完等首扫再连线
+    private static int activeCrafters;      // m359 per-crafter 出账分母
 
     private static Phase phase = Phase.IDLE;
     private static ServerWorld world;
@@ -78,10 +84,17 @@ public final class BenchRunner {
         phase = Phase.IDLE; world = null; SITES.clear(); tickNs = new long[0]; tickCount = 0;
         capTouched = false; reportPath = null; gcStart = null;
         matrixQueue = null; matrixRows = null; matrixCooldown = 0; matrixWorld = null; // m355
+        workload = Workload.COBBLE; wireIdx = 0; wireDelay = 0; activeCrafters = 0; // m359
     }
 
     public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap) {
+        return start(w, at, by, nCores, nNodes, secs, cap, Workload.COBBLE);
+    }
+
+    /** m359 工况版入口。 */
+    public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap, Workload wl) {
         if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
+        workload = wl;
         int nodeCap = SdzjzConfig.get().maxNodesPerCore;
         cores = Math.max(1, Math.min(500, nCores)); // m355 矩阵最高档 500（审计④轮③点名），10×50 站阵仍 64 格距
         nodesPer = Math.max(1, nodeCap > 0 ? Math.min(nNodes, nodeCap) : nNodes);
@@ -98,11 +111,13 @@ public final class BenchRunner {
                 + " cores=" + cores + " 间距64 每站=核心+东侧存储 " + SITES.get(0).toShortString()
                 + " .. " + SITES.get(SITES.size() - 1).toShortString());
         spawnIdx = 0; cleanupIdx = 0; tickCount = 0; prevNano = 0;
+        wireIdx = 0; wireDelay = 5; // m359 铺完等 5t：各站核心首扫哨兵入端点表后才连线（known 闸）
+        activeCrafters = workload == Workload.CRAFT_FED ? cores * (nodesPer / 2) : 0;
         pauseSamples = 0; pauseHits = 0; pausePeak = 0;
         tickNs = new long[Math.min(seconds * 20 + 40, 24_000)];
         busyNs = new long[tickNs.length];
         phase = Phase.SPAWN;
-        return "§a[sdzjz] 压测铺场中：核心×" + cores + " × 节点" + nodesPer + "（刷石机满载）· " + seconds
+        return "§a[sdzjz] 压测铺场中：核心×" + cores + " × 节点" + nodesPer + "（工况=" + workload + "）· " + seconds
                 + "s · cap=" + (capParam > 0 ? capParam : "不动配置") + " —— 跑完报告落游戏目录并自动清场";
     }
 
@@ -124,7 +139,7 @@ public final class BenchRunner {
         if (matrixQueue != null) { matrixQueue = null; matrixRows = null; matrixCooldown = 0; } // m355 停=含后续档
         if (phase == Phase.IDLE) return "§7[sdzjz] 没有在跑的压测";
         if (phase == Phase.RUN) { runTicksLeft = 1; return "§e[sdzjz] 收到，下一拍出报告并清场"; }
-        if (phase == Phase.SPAWN) { phase = Phase.CLEANUP; return "§e[sdzjz] 铺场中止，转清场"; }
+        if (phase == Phase.SPAWN || phase == Phase.WIRE) { phase = Phase.CLEANUP; return "§e[sdzjz] 铺场/装配中止，转清场"; } // m359 WIRE 补漏：否则 stop 落空
         return "§7[sdzjz] 正在清场中";
     }
 
@@ -149,11 +164,23 @@ public final class BenchRunner {
                     CoreScheduler.resetStats();
                     if (capParam > 0) { savedCap = SdzjzConfig.get().maxRecipesPerNetworkTick;
                         SdzjzConfig.get().maxRecipesPerNetworkTick = capParam; capTouched = true; }
+                    if (workload == Workload.CRAFT_FED) { phase = Phase.WIRE; break; } // m359 先装配再起测
                     runTicksLeft = (long) seconds * 20;
                     prevNano = 0;
                     gcStart = com.sdzjz.debug.GcAccount.snap(); // m351 起账（END_SERVER_TICK=服务器线程）
                     phase = Phase.RUN;
                     msg(server, "§a[sdzjz] 铺场完成，压测开跑 " + seconds + "s（/sdzjz bench stop 可提前收）");
+                }
+            }
+            case WIRE -> { // m359 装配：等首扫入端点表后，4 站/tick 连线（供料边/节点边/出库边/翻黑名单）
+                if (wireDelay > 0) { wireDelay--; break; }
+                for (int b = 0; b < 4 && wireIdx < SITES.size(); b++, wireIdx++) wireSite(SITES.get(wireIdx));
+                if (wireIdx >= SITES.size()) {
+                    runTicksLeft = (long) seconds * 20;
+                    prevNano = 0;
+                    gcStart = com.sdzjz.debug.GcAccount.snap();
+                    phase = Phase.RUN;
+                    msg(server, "§a[sdzjz] 装配完毕（" + activeCrafters + " 台合成机上线），测量开始");
                 }
             }
             case RUN -> {
@@ -196,13 +223,47 @@ public final class BenchRunner {
         world.setBlockState(p, ModBlocks.STRUCTURE_CORE.getDefaultState(), 3);
         world.setBlockState(p.east(), ModBlocks.STORAGE_CORE.getDefaultState(), 3);
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) {
-            ItemStack pack = new ItemStack(ModItems.COBBLE_MAKER, nodesPer);
-            while (!pack.isEmpty() && core.insertMachine(null, pack)) { /* insertMachine 每次吃 1 台并 decrement */ }
+            switch (workload) { // m359 工况铺场
+                case IDLE -> { /* 零节点：纯核心框架开销基线 */ }
+                case COBBLE -> {
+                    ItemStack pack = new ItemStack(ModItems.COBBLE_MAKER, nodesPer);
+                    while (!pack.isEmpty() && core.insertMachine(null, pack)) { /* insertMachine 每次吃 1 台并 decrement */ }
+                }
+                case CRAFT_FED -> { // 仓→过滤→合成机→回仓：预灌 1000 万木板（cap500×300s 最坏偏斜也吃不穿，绝无假空转）
+                    if (world.getBlockEntity(p.east()) instanceof com.sdzjz.block.StorageCoreBlockEntity scF) {
+                        ItemStack planks = new ItemStack(net.minecraft.item.Items.SPRUCE_PLANKS);
+                        planks.setCount(10_000_000); // deposit=账本 merge 一笔入账，非逐栈
+                        scF.deposit(planks);
+                    }
+                    ItemStack pf = new ItemStack(ModItems.FILTER_NODE, 1);
+                    ItemStack pc = new ItemStack(ModItems.AUTO_CRAFTER, 1);
+                    for (int k = 0; k < nodesPer / 2; k++) { // 交替插：偶=过滤 奇=合成机（wireSite 按此配对）
+                        pf.setCount(1); if (!core.insertMachine(null, pf)) break;
+                        pc.setCount(1); if (!core.insertMachine(null, pc)) break;
+                        core.toggleFilterEntry(2 * k, "");                            // 翻黑名单：空黑名单=全放行
+                        core.setNodeTarget(2 * k + 1, "minecraft:crafting_table");    // 真配方：4 木板→1 工作台
+                    }
+                }
+            }
             core.running = true;
             // m307 首票自举（首轮实测 20 核只跑 6 的真凶）：核心自持票在**它自己 tick 里**注册，
             // 而模拟距离外的新区块根本不给 BE tick 机会=鸡生蛋死锁。代发一张同通道票（force 按
             // 核心坐标记账幂等，核心 ≤20t 自注册接管；拆块 release 走原路，另有清场兜底双保险）。
             com.sdzjz.block.CoreChunkLoading.force(world, p, false);
+        }
+    }
+
+    /** m359 装配（CRAFT_FED）：供料边(仓→过滤)+节点边(过滤→合成机)+出库边(合成机→仓)。
+     *  known 闸已由 WIRE 相位的 5t 延迟满足（首扫哨兵把东侧存储核心扫入端点表）。 */
+    private static void wireSite(BlockPos p) {
+        if (!(world.getBlockEntity(p) instanceof StructureCoreBlockEntity core)) return;
+        long sp = p.east().asLong();
+        String dim = world.getRegistryKey().getValue().toString();
+        for (int k = 0; k < nodesPer / 2; k++) {
+            int f = 2 * k, c = 2 * k + 1;
+            core.toggleStorageEdge(null, f, sp, 1, dim); // 仓→过滤 供料
+            core.toggleConnection(null, f, c);           // 过滤→合成机
+            core.toggleStorageEdge(null, c, sp, 0, dim); // 合成机→仓 出库
         }
     }
 
@@ -248,7 +309,11 @@ public final class BenchRunner {
         String ts = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
         sb.append("《生电终结者》一键压测报告 ").append(ts).append('\n');
         sb.append("参数: cores=").append(cores).append(" nodes/core=").append(nodesPer)
-          .append(" machine=cobble_maker(10t无输入满载) duration=").append(seconds).append("s cap=")
+          .append(" machine=").append(switch (workload) {
+              case IDLE -> "idle(零节点纯框架基线)";
+              case COBBLE -> "cobble_maker(10t无输入满载)";
+              case CRAFT_FED -> "craft_fed(仓→过滤→合成机→回仓, 4木板→工作台, 预灌1000万)"; })
+          .append(" duration=").append(seconds).append("s cap=")
           .append(capParam > 0 ? String.valueOf(capParam) : ("未改动(现值" + capUsed + ")")).append('\n');
         sb.append("维度: ").append(world.getRegistryKey().getValue()).append("  origin=").append(origin.toShortString())
           .append("  站距64格(跨区块=真实BE tick序)  上账核心=").append(bench.size()).append('/').append(cores).append("\n\n");
@@ -277,6 +342,20 @@ public final class BenchRunner {
                         ab / 1048576.0, ab / 1048576.0 / winSec, tickCount > 0 ? ab / 1024.0 / tickCount : 0));
             } else sb.append(" | 分配账不可用(非HotSpot/被禁)");
             sb.append('\n').append("  口径: GC=全JVM合计(集成服含渲染线程诱发), 分配=仅服务器线程; 对比请同环境同参数跑\n");
+            if (activeCrafters > 0 && tickCount > 0) { // m359 合成机口径（作者拍板 A 三指标：ns/台·tick 双账+分配/台·tick）
+                long ctks = (long) activeCrafters * tickCount;
+                sb.append(String.format(
+                        "合成机口径(×%d台): 类型账 %.0f ns/台·tick | exec %.0f ns/次·%d次 | chainWants 总 %.1f ms | plans 总 %.1f ms | 分配摊台 %.2f KB/台·tick%n",
+                        activeCrafters,
+                        com.sdzjz.debug.CoreProfiler.subNsOf(com.sdzjz.debug.CoreProfiler.SUB_T_CRAFT) * 1.0 / ctks,
+                        com.sdzjz.debug.CoreProfiler.subNsOf(com.sdzjz.debug.CoreProfiler.SUB_P_EXEC) * 1.0
+                                / Math.max(1, com.sdzjz.debug.CoreProfiler.subCallsOf(com.sdzjz.debug.CoreProfiler.SUB_P_EXEC)),
+                        com.sdzjz.debug.CoreProfiler.subCallsOf(com.sdzjz.debug.CoreProfiler.SUB_P_EXEC),
+                        com.sdzjz.debug.CoreProfiler.subNsOf(com.sdzjz.debug.CoreProfiler.SUB_CHAIN) / 1e6,
+                        com.sdzjz.debug.CoreProfiler.subNsOf(com.sdzjz.debug.CoreProfiler.SUB_PLANNER) / 1e6,
+                        ab >= 0 ? ab / 1024.0 / ctks : -1));
+                sb.append("  口径: 分配摊台=全窗分配/(台×tick)含非合成开销, 是上界不是净值; ns/台·tick 才是纯合成账\n");
+            }
             if (matrixRows != null) { // m355 每档关键行（纵向对比 µs/核·tick 线性度与类型前三换位）
                 matrixRows.add(String.format(
                         "%3d核×%d: MSPT均%6.2f P95 %6.2f | 核tick均 %6.1fµs | GC %d次 %dms(%.2f%%窗) | 分配 %s | 前三: %s",
@@ -288,8 +367,13 @@ public final class BenchRunner {
             }
         }
         String verdict;
+        if (workload == Workload.IDLE) { // m359 零节点基线：无申请无哑账，调度判据不适用
+            sb.append("判据: idle 基线工况——零节点无生产申请，调度判据不适用，本档只看 核tick均/GC/分配\n");
+            silent.clear();
+        }
         double ratio = min > 0 ? (double) max / min : Double.NaN;
-        if (!silent.isEmpty()) verdict = "不达标：" + silent.size() + " 个铺场核心从未上账（未tick/未申请）——数据不可用请贴报告";
+        if (workload == Workload.IDLE) verdict = "（见上）";
+        else if (!silent.isEmpty()) verdict = "不达标：" + silent.size() + " 个铺场核心从未上账（未tick/未申请）——数据不可用请贴报告";
         else if (zero > 0)     verdict = "不达标：存在零吞吐核心（防饥饿失效，请贴报告）";
         else if (dutyPct > 0)  verdict = String.format("倍数判据无效：过载看门狗介入(占空比%.1f%%)——%.1f×是黄灯占空比噪声非调度器序偏置；" +
                                        "防饥饿(零吞吐=0)仍有效。请降档使忙时P95<35ms重测倍数", dutyPct, ratio);

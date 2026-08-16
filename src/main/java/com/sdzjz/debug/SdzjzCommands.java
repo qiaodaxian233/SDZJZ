@@ -62,7 +62,14 @@ public final class SdzjzCommands {
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "核数"),
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "每核节点"),
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
-                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap")))))))
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap")))
+                                                .then(net.minecraft.server.command.CommandManager.argument("工况", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                                        .executes(c -> benchStartW(c.getSource(),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "核数"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "每核节点"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "秒"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap"),
+                                                                com.mojang.brigadier.arguments.StringArgumentType.getString(c, "工况"))))))))
                                 )
                                 .then(literal("matrix") // m355 三档矩阵：100/300/500×64 自动串跑（外部审计④轮③）
                                         .executes(c -> benchMatrix(c.getSource(), 60, 100))
@@ -76,6 +83,20 @@ public final class SdzjzCommands {
                                     c.getSource().sendFeedback(() -> Text.literal(r), false);
                                     return 1;
                                 })))));
+    }
+
+    /** m359 工况版入口：idle|cobble|craft_fed（作者拍板 A：真实合成网络验证）。 */
+    private static int benchStartW(ServerCommandSource src, int cores, int nodes, int secs, int cap, String wl) {
+        BenchRunner.Workload w;
+        try { w = BenchRunner.Workload.valueOf(wl.toUpperCase(java.util.Locale.ROOT)); }
+        catch (IllegalArgumentException e) {
+            src.sendFeedback(() -> Text.literal("§c工况须为 idle|cobble|craft_fed"), false);
+            return 0;
+        }
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
+        final String r = BenchRunner.start(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, cores, nodes, secs, cap, w);
+        src.sendFeedback(() -> Text.literal(r), false);
+        return 1;
     }
 
     /** m355 三档矩阵入口：100/300/500×64 自动串跑，默认每档 60s cap=100。 */
