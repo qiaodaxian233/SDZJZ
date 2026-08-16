@@ -1,13 +1,5 @@
 package com.sdzjz.machine;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeType;
-import net.minecraft.recipe.SmeltingRecipe;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,14 +19,14 @@ public final class SmeltPlanner {
     private static Map<String, Object[]> cache; // inputId → {outputId(String), outCount(Integer)}
 
     /** m357 计时壳（PHASES 关=直通零开销；synchronized 留在实体上口径不变）。 */
-    public static Object[] resultOf(World world, String inputId) {
+    public static Object[] resultOf(Object world, String inputId) {
         if (!com.sdzjz.debug.CoreProfiler.PHASES) return resultOf0(world, inputId);
         long __t = System.nanoTime();
         try { return resultOf0(world, inputId); }
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_SMELT, System.nanoTime() - __t); }
     }
 
-    private static synchronized Object[] resultOf0(World world, String inputId) {
+    private static synchronized Object[] resultOf0(Object world, String inputId) {
         if (cache == null) build(world);
         return cache.get(inputId);
     }
@@ -58,24 +50,9 @@ public final class SmeltPlanner {
         return a.compareTo(b);
     }
 
-    private static void build(World world) {
-        // 两趟：先按输入收全候选（带配方 id），再逐输入稳定选序落表——胜者与遍历序无关。
-        Map<String, List<Object[]>> cands = new HashMap<>();
-        for (RecipeEntry<SmeltingRecipe> e : world.getRecipeManager().listAllOfType(RecipeType.SMELTING)) {
-            try {
-                ItemStack out = e.value().getResult(world.getRegistryManager());
-                if (out == null || out.isEmpty()) continue;
-                Identifier rid = e.id();
-                String outId = Registries.ITEM.getId(out.getItem()).toString();
-                int outCount = out.getCount();
-                for (Ingredient ing : e.value().getIngredients()) {
-                    for (ItemStack s : ing.getMatchingStacks()) {
-                        cands.computeIfAbsent(Registries.ITEM.getId(s.getItem()).toString(), k -> new ArrayList<>())
-                                .add(new Object[]{rid.toString(), outId, outCount});
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
+    private static void build(Object world) {
+        // 两趟：先按输入收全候选（带配方 id，m363 起收集下沉代际适配器），再逐输入稳定选序落表——胜者与遍历序无关。
+        Map<String, List<Object[]>> cands = com.sdzjz.platform.Platform.recipes().smeltingCandidates(world);
         Map<String, Object[]> built = new HashMap<>();
         for (Map.Entry<String, List<Object[]>> en : cands.entrySet()) {
             Object[] win = pickStable(en.getValue());

@@ -21,4 +21,8 @@ public interface RecipeAccess {
 
     /** 物品的合成残留容器 id（奶桶→桶）；无残留=null。纯注册表查询与 level 无关。 */
     String craftRemainderOf(String itemId);
+
+    /** m363 熔炼候选全表：输入 id → 候选列表（每候选={recipeId, outputId, outCount}，全 String/Integer
+     *  纯值）。稳定选序（m346 pickStable）留在 Common——实现侧只管收集不管裁决。 */
+    java.util.Map<String, java.util.List<Object[]>> smeltingCandidates(Object level);
 }

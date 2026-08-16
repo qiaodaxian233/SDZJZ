@@ -66,6 +66,29 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
     }
 
     @Override
+    public java.util.Map<String, java.util.List<Object[]>> smeltingCandidates(Object level) {
+        World world = (World) level;
+        java.util.Map<String, java.util.List<Object[]>> cands = new java.util.HashMap<>();
+        for (RecipeEntry<net.minecraft.recipe.SmeltingRecipe> e
+                : world.getRecipeManager().listAllOfType(RecipeType.SMELTING)) {
+            try {
+                ItemStack out = e.value().getResult(world.getRegistryManager());
+                if (out == null || out.isEmpty()) continue;
+                Identifier rid = e.id();
+                String outId = Registries.ITEM.getId(out.getItem()).toString();
+                int outCount = out.getCount();
+                for (Ingredient ing : e.value().getIngredients()) {
+                    for (ItemStack s : ing.getMatchingStacks()) {
+                        cands.computeIfAbsent(Registries.ITEM.getId(s.getItem()).toString(), k -> new java.util.ArrayList<>())
+                                .add(new Object[]{rid.toString(), outId, outCount});
+                    }
+                }
+            } catch (Exception ignored) { }
+        }
+        return cands;
+    }
+
+    @Override
     public String craftRemainderOf(String itemId) {
         Item rem = Registries.ITEM.get(Identifier.of(itemId)).getRecipeRemainder();
         return rem != null ? Registries.ITEM.getId(rem).toString() : null;

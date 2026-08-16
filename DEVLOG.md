@@ -6082,3 +6082,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **配置**：零新键。**验证**：javac21 冒烟真语法错 0（命中全为 Legacy 侧缺 MC 类噪音=预期
   归属），廿六/廿八/卅一/卅三号既有 planner 用例全压真配方表=SPI 桥等价判官交 CI。
 - **实机脚本**：合成产线/画布配方选择器/徽章逐帧同旧；datapack reload 后配方缓存自清照旧。
+
+## m363 Phase 1 续：SmeltPlanner 升 Common + Brew/Ench 收口立档挂 ItemView
+
+- **触面分级（对源核实定顺位）**：SmeltPlanner 输出=纯 String id+Integer 数量天然可洗；
+  Brew/Ench 的 Plan.result=**带组件 ItemStack**（药水/附魔书）且 targetStack 公共口被客户端
+  徽章直用——现在硬洗=顾问"不要做"第五条（为兼容重写 planner）。判：Brew/Ench 收口立档
+  挂 Phase 1 第③刀 ItemView 值对象层（组件级产物必须先有值对象承载），不抢跑。
+- **修法**：RecipeAccess 增 smeltingCandidates(level)（输入 id→候选{recipeId,outputId,
+  outCount} 全纯值；**稳定选序 pickStable 留在 Common——实现侧只管收集不管裁决**，m346
+  语义主权不外放）；LegacyRecipeAccess 补收集段原文平移；SmeltPlanner 十行收集换一行 SPI
+  委托，八个 MC import 全删零残留，World→Object 句柄（调用面零改动），廿八号既有六断言
+  =等价判官。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0；地雷图 A 12→13、B 93→92。
+- **实机脚本**：万能熔炉全家行为同旧（稳定选序含 m346 用例回归）；datapack reload 重建表照旧。
