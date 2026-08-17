@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "sdzjz",
+  "version": "${version}",
+  "name": "生电终结者",
+  "description": "节点画布替代红石生电——26.2 新世代 bootstrap（Common 层挂载验证，功能适配随 Phase 2 逐刀跟进）。",
+  "authors": [
+    "qiaodaxian233"
+  ],
+  "contact": {
+    "sources": "https://github.com/qiaodaxian233/SDZJZ"
+  },
+  "license": "ARR",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.sdzjz.modern.ModernBootstrap"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

@@ -80,6 +80,31 @@ jobs:
           git commit -m "gametest 失败报告 $GITHUB_SHA" || true
           git push -f origin ci-gametest-report
 
+  modern-bootstrap:
+    # m370：26.2 新世代 bootstrap 真编译闸——Common 层在无混淆工具链（loom 1.17/Gradle 9.5.1/
+    # JDK 25/官方名）下的可编译性由此闭环。坐标=官方 fabric-example-mod@26.2 原文，红了按
+    # 报错修坐标/源码，闸红即停（m291b）。独立 wrapper 与根构建互不相干。
+    name: 26.2 新世代 bootstrap 编译
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - name: 编译出包
+        working-directory: versions/26.2
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace --no-daemon
+      - name: 上传 26.2 产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdzjz-26.2-jar
+          path: versions/26.2/build/libs/*.jar
+          retention-days: 30
+
   build:
     name: Gradle 编译出包
     runs-on: ubuntu-latest

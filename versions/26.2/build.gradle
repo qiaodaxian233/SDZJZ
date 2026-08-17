@@ -1,0 +1,40 @@
+// m370 新世代 bootstrap（26.2 锚点）。与旧世代三个关键差异（官方 26.2 发布口径，
+// 模板实测对上）：①插件换 net.fabricmc.fabric-loom（无混淆，跳过全部 remap 配置）；
+// ②没有 mappings 行——Yarn/Intermediary 停更，代码直接写 Mojang 官方名；
+// ③loader/fabric-api 用 implementation 而非 modImplementation（模板原文如此，照抄不猜）。
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+// 版本号唯一数据源=根仓 gradle.properties 的 mod_version（m317 一笔一跳），
+// jar 尾缀带 MC 版本：sdzjz-0.1.NNN+mc26.2.jar——"每个 MC 版本各自的 jar"就是这。
+def rootProps = new Properties()
+file("../../gradle.properties").withInputStream { rootProps.load(it) }
+version = rootProps.getProperty("mod_version") + "+mc26.2"
+group = "com.sdzjz"
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+// Common 层挂载：与根构建同一份 common/src/main/java（零 MC 依赖，tools_common_gate
+// 硬闸保证在此可编译）。本构建自己的版本侧代码在 ./src/main/java（modern 包）。
+sourceSets {
+    main {
+        java { srcDir '../../common/src/main/java' }
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": project.version }
+}
+
+tasks.withType(JavaCompile).configureEach { it.options.release = 25 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}

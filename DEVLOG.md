@@ -6217,3 +6217,38 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   版本号对表）；platform_scan 双根重跑文件计数 128 对上；Java 内容零改动故免冒烟。
 - **实机脚本**：作者本地 `gradlew runGametest` 应仍 32 全过、`gradlew build` 出
   sdzjz-0.1.369.jar 与旧版行为无异——这一笔的全部意义就是"搬了家但什么都没变"。
+
+## m370 versions/26.2 新世代 bootstrap 子构建（顾问 Phase 2 骨架·后半，双端锚点合龙）
+
+- **修法**：新独立 Gradle 构建 `versions/26.2/`（自带 Gradle 9.5.1 wrapper，与根构建的
+  8.10/loom1.7.4/JDK21 完全互不相干）：新世代 `net.fabricmc.fabric-loom` 插件（无 mappings 行、
+  loader/fabric-api 走 implementation——模板原文照抄不猜）+ `srcDir ../../common/src/main/java`
+  挂 Common 层 + 最小入口 ModernBootstrap（强引用 CraftPlanner/CoreScheduler/Platform 三类
+  打一行在岗日志，零副作用零注册——适配器属 Phase 2 后续刀）。
+- **坐标出处（一律有据）**：FabricMC/fabric-example-mod 分支 26.2 原文照抄四坐标
+  （minecraft 26.2 / loader 0.19.3 / fabric-api 0.157.0+26.2 / Gradle 9.5.1 / release 25），
+  loader 已对 fabric-loader 最新 release 单独核实；loom 钉 **1.17.19**=作者本地模板实测
+  解析版（m325 规矩：锁实测版防 SNAPSHOT 漂移，模板原文是 1.17-SNAPSHOT）；wrapper 三件
+  =官方 26.2 模板原件。depends 段（fabricloader>=0.19.3/minecraft~26.2/java>=25）同模板口径。
+- **版本号防双写**：26.2 侧 build.gradle 读根仓 gradle.properties 的 mod_version 拼 `+mc26.2`
+  尾缀——产物 `sdzjz-0.1.NNN+mc26.2.jar`，"每版本各自的 jar"落地且 m317 一笔一跳唯一数据源不破。
+- **CI 第四 job**：modern-bootstrap（setup-java 25 + working-directory versions/26.2 +
+  gradlew build + 上传产物）——Common 层在无混淆工具链下的可编译性由 CI 真编译闭环，
+  沙箱冒烟够不着的地方交给判官。
+- **JDK 口径**：命令行跑 26.2 构建需 Gradle JVM=25，gradle.properties 里备好注释版
+  org.gradle.java.home（本机解开勿提交，模板验证同款招）；IDEA 用户直接项目级选 25。
+- **冒烟抓获真雷+修复**：SdzjzConfig 四处错误日志借 Legacy 入口类 Sdzjz 的静态 Logger——
+  m365 洗 FabricLoader 时日志口漏洗，硬闸只禁 MC 字面抓不到自家跨层引用，Legacy 类路径
+  齐全从未爆雷，26.2 侧 Common 单独编译必红。修=SdzjzConfig 自持 slf4j Logger（双世代
+  类路径都有），import×2+字段×1+消费点×4 逐对计数断言，残留 0。全 Common 树精确扫描
+  确认此为唯一跨层引用。
+- **硬闸升级第④检（制度化防复发）**：Common 文件内 com.sdzjz.* FQN 引用（import 与内联
+  一并抓，剥注释/字符串后）必须落在名册类集合内；投毒自证=坏样本必红（且只触④不误触②）
+  /复原必绿。已知盲区立档：同包简名引用（无 FQN 无 import）本检抓不到——终审判官=CI
+  modern-bootstrap job 对 common 树的真编译。
+- **配置**：零新键（游戏侧零改动）。**验证**：mod.json 过 json.load；ci.yml 过 yaml 解析；
+  离线闸全套复跑绿；ModernBootstrap 无 MC 类引用（loader API net.fabricmc.api + slf4j），
+  真编译判决=CI modern-bootstrap job 首跑。
+- **实机脚本**：①根仓照旧 `gradlew runGametest` 32 绿（m369+m370 对 Legacy 均零行为变化）；
+  ②`versions/26.2` 里 IDEA Gradle JVM 选 25（或解开 java.home 注释）后 `gradlew runClient`
+  进 26.2，日志搜 `[sdzjz] 26.2 新世代 bootstrap 在岗` 一行=双端锚点合龙。

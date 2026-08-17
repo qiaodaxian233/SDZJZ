@@ -8,6 +8,11 @@
    （句柄只许作形参/返回值/record 组件透传，存进字段=Common 开始持有 MC 对象身份）。
 ③ Platform 防膨胀：platform/Platform.java 服务字段数硬顶 4（现=2：recipes/configDir）。
    超顶=先去顾问方案 §"Platform 只做 bootstrap/registry" 报到再说。
+④ 禁引名册外自家类（m370 实锤入闸）：Common 文件内的 com.sdzjz.* FQN 引用（import 与
+   内联一并抓，剥注释/字符串后）必须落在名册类集合内——SdzjzConfig 曾借 Legacy 入口类
+   Sdzjz 的 LOGGER，Legacy 类路径齐全从未爆雷，26.2 侧 Common 单独编译即红。
+   已知盲区：同包简名引用（无 FQN 无 import）本检抓不到——终审判官=CI modern-bootstrap
+   job 对 common 树的真编译；本检管住 FQN/import 这一整族即可。
 附：名册文件必须存在（防搬包后名册漂移成空话）。
 """
 import re
@@ -23,10 +28,28 @@ def strip(body):
     return STRING.sub('""', COMMENT.sub("", body))
 
 
+SELF_FQN = re.compile(r"com\.sdzjz\.[A-Za-z0-9_.]+")
+
+
+def own_class_of(fqn):
+    """截取 FQN 的类名层（首个大写起头的段）；纯包名（如 package 声明）返回 None。"""
+    parts = fqn.rstrip(".").split(".")
+    for i, seg in enumerate(parts):
+        if seg[:1].isupper():
+            return ".".join(parts[:i + 1])
+    return None
+
+
 def main():
     bad = []
     manifest = [l.strip() for l in open("docs/common_manifest.txt", encoding="utf-8")
                 if l.strip() and not l.startswith("#")]
+    # ④ 名册类集合：common/src/main/java/com/sdzjz/machine/CraftPlanner.java → com.sdzjz.machine.CraftPlanner
+    roster = set()
+    for p in manifest:
+        q = p.split("src/main/java/")[-1]
+        if q.endswith(".java"):
+            roster.add(q[:-5].replace("/", "."))
     plat_fields = 0
     for p in manifest:
         try:
@@ -41,6 +64,11 @@ def main():
         if "/platform/" not in p:
             for m in OBJ_FIELD.finditer(code):
                 bad.append("②Object 句柄存字段（只许形参/返回/record 透传）: %s 「%s」" % (p, m.group().strip()))
+        for m in SELF_FQN.finditer(code):
+            cls = own_class_of(m.group())
+            if cls and cls not in roster:
+                ln = code[:m.start()].count("\n") + 1
+                bad.append("④引用名册外自家类（Common 不许依赖版本侧）: %s:%d 「%s」" % (p, ln, cls))
         if p.endswith("platform/Platform.java"):
             plat_fields = len(re.findall(r"private static \w[\w.<>]* \w+;", code))
     if plat_fields > 4:
@@ -50,7 +78,7 @@ def main():
             print("✗ " + b)
         print("✗ Common 硬闸红：%d 项（名册 %d 文件）" % (len(bad), len(manifest)))
         sys.exit(1)
-    print("✓ Common 硬闸：%d 文件零 MC/Fabric/Mojang 依赖，句柄零存字段，Platform 字段 %d/4" % (len(manifest), plat_fields))
+    print("✓ Common 硬闸：%d 文件零 MC/Fabric/Mojang 依赖，零名册外自家引用，句柄零存字段，Platform 字段 %d/4" % (len(manifest), plat_fields))
 
 
 if __name__ == "__main__":

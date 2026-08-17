@@ -1,6 +1,8 @@
 package com.sdzjz.config;
 
 import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
@@ -132,6 +134,10 @@ public class SdzjzConfig {
     // ---- 单例 + 读写 ----
     private static SdzjzConfig INSTANCE;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    // m370：Common 层自持日志口——此前四处错误日志借 Legacy 入口类 Sdzjz 的静态 Logger，
+    // Legacy 侧类路径齐全从未爆雷，26.2 侧 Common 单独编译即红（本笔冒烟抓获）。
+    // slf4j 双世代类路径都有（MC/loader 自带），硬闸口径放行；硬闸第④检自此禁引名册外自家类。
+    private static final Logger LOGGER = LoggerFactory.getLogger("sdzjz");
     private static final String FILE_NAME = "sdzjz.json";
 
     public static SdzjzConfig get() {
@@ -150,7 +156,7 @@ public class SdzjzConfig {
                 // IO 层读失败（权限/占用等）：文件保留原样、日志出声、回落默认继续启动；本次不回写
                 cfg = null;
                 skipWriteBack = true;
-                com.sdzjz.Sdzjz.LOGGER.error("配置文件读取失败（IO），本次使用默认配置且不回写，原文件保留: {}，原因: {}", path, e.toString());
+                LOGGER.error("配置文件读取失败（IO），本次使用默认配置且不回写，原文件保留: {}，原因: {}", path, e.toString());
             } catch (RuntimeException e) {
                 // m272：Gson 的 JsonSyntaxException/JsonIOException 等运行时解析异常——旧版完全没兜，
                 // 配置里一个多余逗号就中断 MOD 初始化。坏档改名 .broken-时间戳 留证
@@ -159,10 +165,10 @@ public class SdzjzConfig {
                 try {
                     Path broken = path.resolveSibling(FILE_NAME + ".broken-" + System.currentTimeMillis());
                     Files.move(path, broken);
-                    com.sdzjz.Sdzjz.LOGGER.error("配置文件解析失败（JSON 损坏），已改名留证 {}，回落默认配置继续启动。原因: {}", broken.getFileName(), e.toString());
+                    LOGGER.error("配置文件解析失败（JSON 损坏），已改名留证 {}，回落默认配置继续启动。原因: {}", broken.getFileName(), e.toString());
                 } catch (IOException mv) {
                     skipWriteBack = true; // 改名留证也失败：原文件保留原位，本次不回写防覆盖
-                    com.sdzjz.Sdzjz.LOGGER.error("配置文件解析失败且改名留证失败，原文件保留，本次使用默认配置且不回写: {}，解析原因: {}，改名原因: {}", path, e.toString(), mv.toString());
+                    LOGGER.error("配置文件解析失败且改名留证失败，原文件保留，本次使用默认配置且不回写: {}，解析原因: {}，改名原因: {}", path, e.toString(), mv.toString());
                 }
             }
         }
@@ -241,7 +247,7 @@ public class SdzjzConfig {
                 GSON.toJson(INSTANCE, w);
             }
         } catch (IOException e) {
-            com.sdzjz.Sdzjz.LOGGER.error("配置文件保存失败: {}，原因: {}", path, e.toString()); // m272：旧版静默吞掉，磁盘满/只读时用户改的配置默默丢
+            LOGGER.error("配置文件保存失败: {}，原因: {}", path, e.toString()); // m272：旧版静默吞掉，磁盘满/只读时用户改的配置默默丢
         }
     }
 }
