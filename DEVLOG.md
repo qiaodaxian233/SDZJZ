@@ -6358,3 +6358,53 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：根仓 gradlew runGametest 卅四号（含⑥⑦）应 33 全过；versions/26.2
   gradlew runGametest 应 1 用例过=Modern 五域行为绿；26.2 runClient 日志应见
   "配方域适配器已注册（craft/smelt/remainder/brew/ench 五域全齐——m373）"。
+
+## m374 C 核名收官：26.2 客户端可合法稳定得到判官所需配方集（通道=fabric-recipe-api-v1，只核名不实现）
+
+- **任务（作者拍板路线）**：m373 CI 四 job 全绿（run 31998523296，getAnvilCost 高置信保留赌对、
+  备胎未动用，Recipe Domain 代际迁移正式封版）后开 C——只回答"26.2 客户端能否合法稳定得到
+  判官所需配方集"，不实现。
+- **消费面盘点（先把"客户端到底要什么"点死）**：真吃配方全集的只有 **craft 单域两处**=
+  StructureCoreScreen.buildCraftables()（枚举 CRAFTING 全集做合成目标选择器）与
+  CraftPlanner.plans(client.world,…)（m235 手选配方菜单）；药水 picker=Registries.POTION
+  静态注册表客户端自有、附魔 picker/targetStack=ENCHANTMENT 动态注册表原版就同步、
+  brewTargetStack=纯注册表、Smelt/Trade 零客户端配方触点。→ Phase 3 只需打通 craft 域。
+- **答案：能——通道=fabric-recipe-api-v1 的 RecipeSynchronization/SynchronizedRecipes**
+  （全编译级原文核到，且 **实测在项目 pin 的 fabric-api 0.157.0+26.2 tag 内**：codeload 拉
+  tag 数得 fabric-recipe-api-v1 下 132 文件——不是分支未发布物）。机制五件：
+  ①注册=RecipeSynchronization.synchronizeRecipeSerializer(serializer)，**双端主初始化器各调
+  一次**；javadoc 明许 vanilla serializer，官方 testmod 更是 allEntries 全注册（编译+运行级
+  先例）；要求 serializer.streamCodec() 非空。
+  ②握手降级=客户端 configuration 阶段（handleSelectKnownPacks TAIL mixin）自动申报已注册
+  serializer id 集，canSend 双向探测：服务端无通道不发、申报空不发、客户端保持 EMPTY 不炸。
+  ③同步时机=服务端挂 ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS 专属 phase→**进服与
+  /reload 都全量重发**；play 通道 registerLarge 上限 64MB。
+  ④客户端读法=level.recipeAccess().getSynchronizedRecipes()（FabricRecipeAccess 接口注入，
+  ClientRecipeContainer mixin 落值）；**ClientRecipeSynchronizedEvent=缓存重建的正确钩子**
+  （buildCraftables 类缓存挂它）。
+  ⑤数据形态=判官口径原样可跑：客户端拿到的是 streamCodec 反序列化的**真 ShapedRecipe/
+  ShapelessRecipe 实例装回真 RecipeMap**（SynchronizedRecipesImpl=record(RecipeMap)，
+  getAllOfType=RecipeMap.byType），placementInfo()/items()/assemble/残留链与服务端同一套
+  实例方法零特判。
+- **架构红利（Phase 3 立档）**：RecipeManagerMixin 给服务端 RecipeManager 也注入了
+  getSynchronizedRecipes()（apply HEAD 全量包 RecipeMap，**不过滤**）→
+  recipeAccess().getSynchronizedRecipes().getAllOfType(type) **双侧同形**（服务端=全量/
+  客户端=申报子集），ModernRecipeAccess 枚举口换这条即天然双侧可用；每次同步整 record 换新
+  实例=身份键缓存自动失效（与 m373 Brew 的 PotionBrewing 实例身份缓存同族打法）。
+- **覆盖面判定**：画布 craft 消费面只吃 shaped/shapeless（特殊配方 Legacy 本就 try/catch
+  空产物跳过）→申报 vanilla SHAPED/SHAPELESS 即足（26.2 另有 transmute 系，Phase 3 定夺
+  是否申报）；未申报 serializer 的他模组配方客户端不可见——与 Legacy"枚举到但 planner 也
+  不认"相比语义不降级。m371 立档①"26.2 客户端不可枚举配方（SynchronizedRecipes 候选）"
+  本笔销账为**已核实可行**。
+- **Phase 3 实施要点四条（不实现只立档）**：①ModernBootstrap 双端各调
+  synchronizeRecipeSerializer；②ModernRecipeAccess 枚举口换 getSynchronizedRecipes()
+  统一双侧；③客户端缓存重建挂 ClientRecipeSynchronizedEvent；④GameTest 单机=集成服同 JVM
+  自发自收走同链路，判官所需配方集客户端可得性由本通道保证。
+- **教训**：通道是 fabric API 非原版协议——升版本时 fabric-recipe-api-v1 存续性须随
+  fabric_api_version 一起核；核"模块是否在 pin 版里"用 tag 实测法（codeload 拉 tag 数模块
+  文件）比信分支 HEAD 可靠。
+- **配置**：零新键零 Java。**验证**：全部结论=fabric-api 26.2 分支 + 0.157.0+26.2 tag 源码
+  原文逐文件过目（SynchronizedRecipes/RecipeSynchronization/RecipeSyncImpl/双侧 mixin/
+  官方 testmod/testmodClient）；本仓消费面结论=StructureCoreScreen/三 planner 定向 grep。
+- **实机脚本**：随 Phase 3 实现笔（预告：26.2 runClient 进单机档开画布合成目标选择器应列出
+  全量可合成物；本笔纯核名无实机面）。
