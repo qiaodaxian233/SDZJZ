@@ -920,4 +920,20 @@ public class SdzjzGameTests implements FabricGameTest {
                 "无组件栈=空视图不炸");
         ctx.complete();
     }
+
+    /** m372 卅四号：配方域 SPI 行为契约（作者拍板 A 线）——判官只此一份在 Common
+     *  （platform.RecipeDomainAssertions，五类判定：任意木板/候选组同口径/熔炼稳定选序/
+     *  Ingredient 枚举口径/合成残留双口），本用例喂 LegacyRecipeAccess 真配方表；
+     *  26.2 侧 ModernRecipeDomainTests 喂 ModernRecipeAccess 跑**同一套断言**——
+     *  跨版本行为不变量，26.3/27.x 加版本零新增测试代码。 */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void recipe_domain_contract(TestContext ctx) {
+        try {
+            com.sdzjz.platform.RecipeDomainAssertions.runAll(ctx.getWorld(), com.sdzjz.platform.Platform.recipes());
+        } catch (AssertionError e) {
+            ctx.throwGameTestException("配方域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.complete();
+    }
 }

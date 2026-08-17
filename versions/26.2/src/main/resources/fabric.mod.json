@@ -15,6 +15,9 @@
   "entrypoints": {
     "main": [
       "com.sdzjz.modern.ModernBootstrap"
+    ],
+    "fabric-gametest": [
+      "com.sdzjz.modern.ModernRecipeDomainTests"
     ]
   },
   "depends": {

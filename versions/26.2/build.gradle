@@ -27,6 +27,20 @@ sourceSets {
     }
 }
 
+// m372：GameTest 运行配置（照 fabric-gametest-api-v1@26.2 官方 package-info 示例；
+// buildDir 属性 Gradle 9 已移除，换 layout API）。gradlew runGametest 起临时服务器跑完即退。
+loom {
+    runs {
+        gametest {
+            server()
+            name = "GameTest"
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get().asFile}/junit.xml"
+            runDir "build/gametest"
+        }
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") { expand "version": project.version }

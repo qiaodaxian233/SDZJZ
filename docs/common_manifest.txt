@@ -22,3 +22,4 @@ common/src/main/java/com/sdzjz/platform/CraftAccess.java
 common/src/main/java/com/sdzjz/platform/SmeltAccess.java
 common/src/main/java/com/sdzjz/platform/BrewAccess.java
 common/src/main/java/com/sdzjz/platform/EnchAccess.java
+common/src/main/java/com/sdzjz/platform/RecipeDomainAssertions.java

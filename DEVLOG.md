@@ -6285,3 +6285,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   一锅喂）；离线十二闸全绿；CI modern-bootstrap job=本笔真判官。
 - **实机脚本**：versions/26.2 gradlew runClient 日志应见"配方域适配器已注册"字样；
   功能面等 Modern GameTest 笔（下一刀候选）再验。
+
+## m372 配方域行为契约：共享判官双世代挂线（作者拍板 A 线，编译绿→行为绿）
+
+- **架构**：判官只此一份在 Common——新 platform/RecipeDomainAssertions.runAll(level, recipes)
+  （**进名册，22→23 文件**，人工确认零 MC 依赖+硬闸④检即验），Legacy GameTest 卅四号喂
+  LegacyRecipeAccess、Modern GameTest 喂 ModernRecipeAccess 跑**同一套断言**——作者原话
+  "同一套断言，不同实现"，26.3/27.x 加版本零新增测试代码，跨版本行为不变量就此立契。
+- **五类判定（作者拍板原文序号）**：①任意木板=云杉可满足+64 云杉=16 次+关口径=0；
+  ②候选组=混料 6/4 不虚算不重复消费+takeFor 实扣 8 与 maxCrafts 同口径+四板槽合并一组×4
+  （m343 口径）；③熔炼稳定选序=圆石→石头×1 真锚点+真候选乱序不变+合成三候选验
+  minecraft 优先/同空间 id 字典序/倒序不变（m346 口径）；④Ingredient 枚举口径=#planks tag
+  全量展开含 oak/spruce/crimson/warped 且零重复——**直接判 m371 的 Ingredient#items() 核名
+  结论**；⑤合成残留双口=craftRemainderOf(milk_bucket)=bucket+石头 null+蛋糕配方 needs 3 桶
+  奶/remainders 3 空桶——**直接判 Item#getCraftingRemainder() 核名结论**。
+- **Legacy 挂线**：SdzjzGameTests 新卅四号 recipe_domain_contract（注册用例 32→33），
+  AssertionError 翻译成 throwGameTestException。
+- **Modern 挂线**：新 ModernRecipeDomainTests（@GameTest 注解/GameTestHelper/succeed/
+  GameTestAssertException(Component,int) 全部照 fabric-api@26.2 官方测试原文），注册走
+  fabric.mod.json 同款 fabric-gametest 入口键（官方 26.2 testmod 核到）；build.gradle 挂
+  runGametest（照官方 package-info 示例，**buildDir 属性 Gradle 9 已移除换 layout API**——
+  官方示例照抄会炸的坑，入档）。
+- **CI 分 job（作者拍板口径：错误归 Modern 不污染 Legacy）**：modern job 升级三段=
+  编译出包→runGametest（服务器起来=ModernBootstrap 装载验证，用例绿=行为绿）→junit
+  报告 always 上传（modern-gametest-junit），timeout 40min 与 legacy gametest 同额。
+- **配置**：零新键。**验证**：硬闸 23 文件绿；javac 三树冒烟真语法错 0+新四类符号定向检
+  零命中（批外老类噪音已逐类甄别）；yaml/json 过解析；十二闸全绿。**本笔真判官=CI 双
+  gametest job**：Legacy 卅四号绿=判官自身与 Legacy 口径无漂移，Modern 绿=m371 编译绿
+  升级行为绿。
+- **实机脚本**：根仓 gradlew runGametest 应 33 全过；versions/26.2 gradlew runGametest
+  应 1 用例过（首个 Modern 行为判官）。
