@@ -25,4 +25,23 @@ public interface RecipeAccess {
     /** m363 熔炼候选全表：输入 id → 候选列表（每候选={recipeId, outputId, outCount}，全 String/Integer
      *  纯值）。稳定选序（m346 pickStable）留在 Common——实现侧只管收集不管裁决。 */
     java.util.Map<String, java.util.List<Object[]>> smeltingCandidates(Object level);
+
+    // ===== m364 酿造/附魔（解析层整体下沉：Brew=对酿造注册表的活栈 BFS 模拟、Ench=注册表校验+样板书，
+    // 本就属于"配方访问"；产物/样板=不透明句柄 Object（Legacy=ItemStack）——Common 只透传，
+    // 全部消费者（SCBE 产出/客户端徽章）都在版本侧，故 ItemView 值对象推迟到存储层需要时再设计）。 =====
+
+    /** 酿造计划：目标串（"药水id|p/s/l"）→ Plan（needs/steps/result 句柄）；非法/不可达=null。 */
+    com.sdzjz.machine.BrewPlanner.Plan brewingPlan(Object level, String target);
+
+    /** 酿造目标样板栈句柄（Legacy=ItemStack）；非法=null。客户端徽章/服务端校验共用，与 level 无关。 */
+    Object brewTargetStack(String target);
+
+    /** 附魔计划：目标串（"附魔id|等级"）→ Plan；非法=null。 */
+    com.sdzjz.machine.EnchantPlanner.Plan enchantingPlan(Object level, String target);
+
+    /** 附魔目标样板书句柄（Legacy=ItemStack）；非法=null。 */
+    Object enchantTargetStack(Object level, String target);
+
+    /** 附魔展示名句柄（Legacy=原版文本组件，罗马数字/诅咒红字）；非法=null。 */
+    Object enchantTargetName(Object level, String target);
 }

@@ -6096,3 +6096,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   =等价判官。
 - **配置**：零新键。**验证**：javac21 冒烟真语法错 0；地雷图 A 12→13、B 93→92。
 - **实机脚本**：万能熔炉全家行为同旧（稳定选序含 m346 用例回归）；datapack reload 重建表照旧。
+
+## m364 Brew/Ench 升 Common（不透明产物句柄——对源细读修正上笔立档）
+
+- **判断修正（诚实账）**：m363 立档说 Brew/Ench 等 ItemView——细读后推翻：Brew 的 resolve
+  是对 BrewingRecipeRegistry 的**活栈 BFS 模拟**，本身就是"配方访问"该整体下沉；且
+  Plan.result/targetStack 的全部消费者（SCBE 产出两处/客户端徽章四处）都在版本侧——
+  **Common 只需不透明句柄 Object，不需要 ItemView**。ItemView 的真客户=存储/精确账/
+  bigStacks 层（Phase 1 ⑤⑥），推迟到有真实消费者时设计，防闭门造车。
+- **修法**：①RecipeAccess 增五口（brewingPlan/brewTargetStack/enchantingPlan/
+  enchantTargetStack/enchantTargetName——样板栈/展示名=句柄，javadoc 措辞避 MC 字面防
+  扫描器误伤[本笔连踩两次的坑]）；②LegacyRecipeAccess 平移 Brew 四件（targetStack/key/
+  ingredients/resolve BFS）+Ench 五件（Parsed/parse/targetStack/targetName/resolve），
+  INGREDIENTS 材料缓存随迁+新 clearCaches 静态口挂 Sdzjz reload 钩（与四 planner
+  clearCache 同拍失效，孤儿字段/孤儿失效双查）；③两 planner：解析层全删、plan0 委托 SPI、
+  Plan.result→Object、targetStack/targetName 变句柄委托壳、World→Object、MC import
+  清零；④调用面六处强转拆封（SCBE 产出×2 + 客户端徽章×4）。
+- **地雷图**：A 13→15（四大 planner 全 Common），B 92→90。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0，八新符号定向检全净（命中全为
+  Legacy 侧缺 MC 类噪音=预期归属）；酿造/附魔既有链路（十八号附魔量产等用例）=等价判官。
+- **实机脚本**：酿造塔/附魔工厂产线与画布徽章逐帧同旧；datapack reload 后酿造材料缓存
+  失效重建照旧（走新 clearCaches 口）。

@@ -86,6 +86,7 @@ public class Sdzjz implements ModInitializer {
             com.sdzjz.machine.BrewPlanner.clearCache();
             com.sdzjz.machine.EnchantPlanner.clearCache();
             com.sdzjz.machine.SmeltPlanner.clearCache();
+            com.sdzjz.legacy.LegacyRecipeAccess.clearCaches(); // m364 解析层材料缓存同拍失效
         });
 
         // 网络：画布节点拖动位置 + 连线（C2S）

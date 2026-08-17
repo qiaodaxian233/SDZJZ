@@ -1128,8 +1128,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
                 }
             } else if (!isCrop && !t.isEmpty()) {
-                ItemStack ts = isBrew ? com.sdzjz.machine.BrewPlanner.targetStack(t)
-                        : isEnch ? com.sdzjz.machine.EnchantPlanner.targetStack(MinecraftClient.getInstance().world, t)
+                ItemStack ts = isBrew ? (ItemStack) com.sdzjz.machine.BrewPlanner.targetStack(t)
+                        : isEnch ? (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(MinecraftClient.getInstance().world, t)
                         : isTrade ? com.sdzjz.machine.TradePlanner.iconStack(t)
                         : new ItemStack(Registries.ITEM.get(net.minecraft.util.Identifier.of(t)));
                 if (ts == null) ts = new ItemStack(isEnch ? net.minecraft.item.Items.ENCHANTED_BOOK
@@ -1138,7 +1138,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.drawItem(ts, bx + 2, by + 2);
                 String tn = ts.getName().getString();
                 if (isEnch) { // m132 附魔书名恒为"附魔书"——徽章文字用附魔名（罗马数字自带）
-                    var en = com.sdzjz.machine.EnchantPlanner.targetName(MinecraftClient.getInstance().world, t);
+                    var en = (net.minecraft.text.Text) com.sdzjz.machine.EnchantPlanner.targetName(MinecraftClient.getInstance().world, t); // m364 句柄拆封
                     if (en != null) tn = en.getString();
                 }
                 if (isTrade) tn = com.sdzjz.machine.TradePlanner.displayName(t).getString(); // m146 徽章=整条交易
@@ -2887,7 +2887,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             String tgt = enchAllIds.get(k);
             net.minecraft.text.Text nm = enchAllNames.get(k);
             if (!q.isEmpty() && !nm.getString().toLowerCase().contains(q) && !tgt.contains(q)) continue;
-            ItemStack bs = com.sdzjz.machine.EnchantPlanner.targetStack(mc.world, tgt);
+            ItemStack bs = (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(mc.world, tgt); // m364 句柄拆封
             if (bs == null) continue;
             enchFiltered.add(bs);
             enchFilteredIds.add(tgt);
@@ -2906,7 +2906,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         for (net.minecraft.util.Identifier pid : potionIds) {
             if (brewForm == 0 && pid.getPath().equals("water")) continue; // 普通水瓶无酿造意义（喷溅水=水+火药可酿，保留）
             String tgt = pid + "|" + brewFormChar(brewForm);
-            ItemStack ps = com.sdzjz.machine.BrewPlanner.targetStack(tgt);
+            ItemStack ps = (ItemStack) com.sdzjz.machine.BrewPlanner.targetStack(tgt); // m364 句柄拆封
             if (ps == null) continue;
             if (q.isEmpty() || ps.getName().getString().toLowerCase().contains(q) || pid.getPath().contains(q)) {
                 potionFiltered.add(ps);

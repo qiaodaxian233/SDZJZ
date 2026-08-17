@@ -1,14 +1,5 @@
 package com.sdzjz.machine;
 
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,9 +35,19 @@ public final class EnchantPlanner {
      * needs: 物品消耗（书×1 + 青金石×3L）；xpCost: 每本书经验点（核心经验池扣）；
      * result: 目标附魔书样板栈（count=1，入库走 m130 精确账本）。
      */
-    public record Plan(Map<String, Integer> needs, int xpCost, ItemStack result) {}
+    public record Plan(Map<String, Integer> needs, int xpCost, Object result) {} // m364 不透明产物句柄（Legacy=原版物品栈），消费者全在版本侧
 
     private static final Map<String, Optional<Plan>> CACHE = new ConcurrentHashMap<>();
+
+    /** m364 目标样板书句柄（Legacy=原版物品栈）；非法=null。 */
+    public static Object targetStack(Object world, String target) {
+        return com.sdzjz.platform.Platform.recipes().enchantTargetStack(world, target);
+    }
+
+    /** m364 展示名句柄（Legacy=原版文本组件）；非法=null。 */
+    public static Object targetName(Object world, String target) {
+        return com.sdzjz.platform.Platform.recipes().enchantTargetName(world, target);
+    }
 
     public static void clearCache() {
         CACHE.clear();
@@ -54,65 +55,22 @@ public final class EnchantPlanner {
 
     /** 返回目标附魔书的生产计划；串非法/附魔不存在/等级越界返回 null。 */
     /** m357 计时壳（PHASES 关=直通零开销）。 */
-    public static Plan plan(World world, String target) {
+    public static Plan plan(Object world, String target) {
         if (!com.sdzjz.debug.CoreProfiler.PHASES) return plan0(world, target);
         long __t = System.nanoTime();
         try { return plan0(world, target); }
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_P_ENCH, System.nanoTime() - __t); }
     }
 
-    private static Plan plan0(World world, String target) {
-        return CACHE.computeIfAbsent(target, t -> Optional.ofNullable(resolve(world, t))).orElse(null);
+    private static Plan plan0(Object world, String target) {
+        return CACHE.computeIfAbsent(target, t -> Optional.ofNullable(
+                com.sdzjz.platform.Platform.recipes().enchantingPlan(world, t))).orElse(null); // m364 解析层下沉代际适配器
     }
 
     /** 目标串 → 附魔书样板栈；解析失败返回 null。客户端画徽章/选择器同用（无缓存）。 */
-    public static ItemStack targetStack(World world, String target) {
-        var e = parse(world, target);
-        if (e == null) return null;
-        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-        book.addEnchantment(e.entry(), e.level()); // m101 交易所同款 API（已编译验证）
-        return book;
-    }
 
     /** 目标串 → 展示名（原版 Enchantment.getName：自带罗马数字等级与诅咒红字）。 */
-    public static Text targetName(World world, String target) {
-        var e = parse(world, target);
-        return e == null ? null : Enchantment.getName(e.entry(), e.level());
-    }
 
-    private record Parsed(RegistryEntry<Enchantment> entry, int level) {}
 
-    /** 解析并校验目标串：附魔在注册表 且 1 ≤ 等级 ≤ maxLevel。 */
-    private static Parsed parse(World world, String target) {
-        if (world == null || target == null || target.length() < 3) return null;
-        int cut = target.lastIndexOf('|');
-        if (cut <= 0 || cut >= target.length() - 1) return null;
-        int lv;
-        try {
-            lv = Integer.parseInt(target.substring(cut + 1));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        Identifier id = Identifier.tryParse(target.substring(0, cut));
-        if (id == null) return null;
-        var reg = world.getRegistryManager().getWrapperOrThrow(RegistryKeys.ENCHANTMENT);
-        var entry = reg.getOptional(RegistryKey.of(RegistryKeys.ENCHANTMENT, id));
-        if (entry.isEmpty()) return null;
-        Enchantment ench = entry.get().value();
-        if (lv < 1 || lv > ench.getMaxLevel()) return null;
-        return new Parsed(entry.get(), lv);
-    }
 
-    private static Plan resolve(World world, String target) {
-        var e = parse(world, target);
-        if (e == null) return null;
-        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-        book.addEnchantment(e.entry(), e.level());
-        Map<String, Integer> needs = new HashMap<>();
-        needs.put(BOOK_ID, 1);
-        needs.put(LAPIS_ID, LAPIS_PER_LEVEL * e.level());
-        int bMul = Math.max(1, e.entry().value().getAnvilCost() / 2);
-        int xp = bMul * e.level() * XP_PER_WEIGHT;
-        return new Plan(needs, xp, book);
-    }
 }

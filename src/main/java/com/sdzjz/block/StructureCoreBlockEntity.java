@@ -635,7 +635,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 be.stat(i, 1);
                 int total = (int) Math.min(Integer.MAX_VALUE, crafts * com.sdzjz.machine.BrewPlanner.BOTTLES_PER_BATCH);
                 be.prodTally(total);
-                ItemStack brewOut = plan.result().copyWithCount(total);
+                ItemStack brewOut = ((ItemStack) plan.result()).copyWithCount(total); // m364 句柄拆封（Legacy=原版栈）
                 if (depositBt != null) be.depositOrBuffer(depositBt, brewOut);
                 else be.addOutput(brewOut);
                 produced = true;
@@ -683,7 +683,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 be.stat(i, 1);
                 int totalEf = (int) Math.min(Integer.MAX_VALUE, crafts);
                 be.prodTally(totalEf);
-                ItemStack enchOut = plan.result().copyWithCount(totalEf);
+                ItemStack enchOut = ((ItemStack) plan.result()).copyWithCount(totalEf); // m364 句柄拆封
                 if (depositEf != null) be.depositOrBuffer(depositEf, enchOut);
                 else be.addOutput(enchOut);
                 produced = true;
