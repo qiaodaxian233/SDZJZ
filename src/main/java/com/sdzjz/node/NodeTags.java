@@ -140,6 +140,32 @@ public final class NodeTags {
         return !n.contains("sl") || n.getBoolean("sl");
     }
 
+    // ===== m376 区块移除器（区块机器线第一台）：绑定与扫描游标全在节点 NBT，键 z 族 =====
+    /** 已绑定目标区块（zx/zz 成对存在才算，绑定动作见 ChunkRemoverItem#useOnBlock）。 */
+    public static boolean chunkBound(ItemStack s) {
+        NbtCompound n = viewOf(s);
+        return n.contains("zx") && n.contains("zz");
+    }
+
+    public static int chunkX(ItemStack s) { return viewOf(s).getInt("zx"); }
+
+    public static int chunkZ(ItemStack s) { return viewOf(s).getInt("zz"); }
+
+    /** 绑定时所在维度 id 串（跨维度核心不动别人区块，tick 侧对表）。 */
+    public static String chunkDim(ItemStack s) { return viewOf(s).getString("zd"); }
+
+    /** 扫描游标 Y（自顶向下推进）。 */
+    public static int chunkY(ItemStack s) { return viewOf(s).getInt("zy"); }
+
+    /** 扫描游标层内序号 0..255（lx=idx>>4, lz=idx&15）。 */
+    public static int chunkIdx(ItemStack s) { return viewOf(s).getInt("zi"); }
+
+    /** 整区块已清完（游标穿过世界底后置位；重绑清除）。 */
+    public static boolean chunkDone(ItemStack s) { return viewOf(s).getBoolean("zf"); }
+
+    /** 累计移除方块数（画布副行进度显示）。 */
+    public static long chunkRemoved(ItemStack s) { return viewOf(s).getLong("zn"); }
+
     public static int runningCount(ItemStack st, int parallelLv, int tier) {
         long r = (long) Math.max(1, st.getCount()) * (1L + Math.max(0, parallelLv)) * Math.max(1, tier);
         r <<= 3 * Math.min(3, Math.max(0, machineTier(st))); // m123 阶位战力 8^mt（4台份×2速/阶）

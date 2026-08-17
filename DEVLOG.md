@@ -6437,3 +6437,51 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：26.2 runClient 日志应见"配方同步已申报（shaped/shapeless——m375）"；
   进单机档后客户端 recipeAccess().getSynchronizedRecipes().recipes() 应非空（待客户端
   消费者笔做成可见验证）。
+
+## m376 区块移除器：区块机器线第一台（招牌线起点，作者拍板方向）
+
+- **任务（作者贴方向盘拍板）**：新增"区块机器"线——扫描器→移除器→过滤器→虚空→复制器五台
+  里程碑排队，第一台=区块移除器先落地。定位不是普通采矿机：指定一个区块→批量移除→所有
+  原本会掉落的产物进机器输出，"工业化采矿的终极机器"。
+- **玩法闭环**：手持机器对目标区块内任意方块右键=绑定（LinkerItem 同款 useOnBlock 存 NBT
+  打法，键 z 族：zx/zz 区块坐标、zd 维度、zy/zi 扫描游标、zf 完成位、zn 累计；可交互方块请
+  潜行右键；重绑=清进度重扫）→放入同维度核心画布→自顶向下逐层移除→掉落物进出线/存储网络。
+  免费型（挖矿原版也免费，成本=时间：默认 64 块/周期，384 高整区块≈9.8 万块≈51 分钟/台，
+  速度/数量/并发升级照常放大）。
+- **掉落口径**：Block.getDroppedStacks(state, ServerWorld, pos, blockEntity) 四参版=无 TOOL
+  参数的战利品表求值→"如同正确工具无附魔挖掘"（钻石矿出钻石、石头出圆石；精准/时运分支
+  走不到——需要工具上下文的条件全落默认分支）。出线走 id 计数派发（LinkedHashMap 聚合后
+  distribute），无出线走存储真栈 depositOrBuffer（组件保真）；无仓无线=兜底缓存封顶
+  64×OUTPUT_SLOTS（交易机同规，不蒸发不洪泛）。
+- **安全边界四条**：①基岩类硬度<0 永不动；②带方块实体的方块默认跳过
+  （chunkRemoverSkipBlockEntities=true，防误吞玩家基地箱子/刷怪笼/本模组核心——关掉后照拆，
+  但容器内容物按原版 onStateReplaced 散落原地**不进机器**，档案立此为记）；③仅同维度
+  （绑定存 zd，tick 对表不符=红灯）；④目标区块未加载=红灯**不强载**（m142 毒区块票教训：
+  绝不替玩家发加载票）。
+- **性能护栏**：每 tick 扫描位点上限=min(16384, max(1024, 预算×4))——空气/跳过段快进不吃
+  移除预算但吃扫描上限，防"整层空气一口气扫完整区块"打爆 tick；游标每拍落盘（含纯空气段，
+  只在有产出时存=断电丢进度）；换层置 statusDirty 借既有 1/s 节流同步进度副行。
+- **接线五件账**：tick=专属分支（复制机 m334 后位）；accepts=恒假（免费型 def 无输入，
+  落 accepts0 尾兜自然 false）；setNodeTarget=不适用（目标在世界内绑定非画布选，服务端闸
+  零改动）；徽章=副行进度文案 canvasLine（"区块(x,z) Y=… 已挖 n"/"未绑定：手持对目标区块内
+  方块右键"/"已清空·共 n"，无选择器按钮，阻塞时让位 m178 原因行）；chainWants=零需求
+  （不吃料自然不拉料，MachineItem 尾兜免费型恒 false）。typeBucket 落 SUB_T_MACHINE 不加
+  新桶；贴图静态不入 SodiumSpriteKicker。
+- **核名（在树优先+yarn 1.21.1 官方映射）**：setBlockState(pos,state,3)/isChunkLoaded/
+  ChunkPos/Registries.ITEM.getId/useOnBlock 绑定范式=在树原文；getDroppedStacks 四参
+  （method_9562）/hasBlockEntity（method_31709）/getTopY·getBottomY（HeightLimitView）/
+  getHardness(BlockView,BlockPos)=yarn 编译级。
+- **六件套+配置**：MachineDef 占位 def+ModItems 两处+Ⅲ档 bom（星2·重核1·信标1·下界合金镐4·
+  钻块8·黑曜石32·TNT16·活塞8·漏斗8·箱4=88 布局位≤144）+中英 lang+模型 json+128² 程序占位
+  贴图（等距地层立方+顶层剥离悬浮碎块+紫色能量束+深灰机身环，绘图名单已登记待画，同名覆盖
+  即换）；配置三键 chunkRemoverEnabled/BlocksPerCycle=64/SkipBlockEntities=true，
+  configVersion 46→47 纯加键迁移。docs 同步：机器数 95→96。
+- **教训**：区块级批量世界写入的机器，预算要拆"移除预算"和"扫描上限"两本账——只设前者，
+  空气段会把 O(区块体积) 的 getBlockState 全塞进一 tick。
+- **待编译验证（CI=真判官）**：getDroppedStacks/hasBlockEntity/getTopY/getBottomY 四个
+  yarn 编译级名（无在树先例），若红按映射文件逐个对拼写。
+- **实机脚本**：①创造拿区块移除器，对远处平原右键→actionbar"已绑定区块 (x, z)"；②放入
+  核心画布→副行显示"区块(x,z) Y=顶 已挖0"→绿灯后目标区块自顶向下肉眼可见逐层消失，
+  存储网络进圆石/泥土/矿物；③对照 config 关 chunkRemoverEnabled=节点黄灯待命；④绑定下界
+  区块放主世界核心=红灯"绑定区块在其它维度"；⑤挖完=待机"已清空·共 n"，重绑重扫；
+  ⑥基岩层保留、路径上的箱子原样跳过。

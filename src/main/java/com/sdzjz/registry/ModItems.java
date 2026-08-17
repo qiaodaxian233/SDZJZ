@@ -51,6 +51,7 @@ public class ModItems {
     public static final Item VILLAGER_DISCOUNT_MACHINE = reg("villager_discount_machine", new com.sdzjz.item.VillagerDiscountMachineItem(new Item.Settings(), Machines.VILLAGER_DISCOUNT_MACHINE));
     public static final Item VILLAGER_TRADER = reg("villager_trader", new com.sdzjz.item.VillagerTraderItem(new Item.Settings(), Machines.VILLAGER_TRADER));
     public static final Item DUPLICATOR = reg("duplicator", new com.sdzjz.item.DuplicatorItem(new Item.Settings(), Machines.DUPLICATOR)); // m334 无限复制机
+    public static final Item CHUNK_REMOVER = reg("chunk_remover", new com.sdzjz.item.ChunkRemoverItem(new Item.Settings(), Machines.CHUNK_REMOVER)); // m376 区块移除器
     public static final Item GRINDSTONE_RECYCLER = reg("grindstone_recycler", new MachineItem(new Item.Settings(), Machines.GRINDSTONE_RECYCLER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item TRASH_NODE = reg("trash_node", new com.sdzjz.item.TrashNodeItem(new Item.Settings(), Machines.TRASH_NODE));
@@ -171,6 +172,7 @@ public class ModItems {
             entries.add(VILLAGER_DISCOUNT_MACHINE);
             entries.add(VILLAGER_TRADER);
             entries.add(DUPLICATOR); // m334
+            entries.add(CHUNK_REMOVER); // m376
             entries.add(GRINDSTONE_RECYCLER);
             entries.add(FILTER_NODE);
             entries.add(TRASH_NODE);

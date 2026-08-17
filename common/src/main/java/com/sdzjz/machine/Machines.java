@@ -27,6 +27,9 @@ public final class Machines {
     public static final MachineDef ENCHANT_FACTORY = new MachineDef("enchant_factory", List.of(), 40, false, List.of());
     /** 无限复制机（m334）：目标物品画布徽章选（全物品注册表），母本压阵+经验池付费复制（组件不复制）。 */
     public static final MachineDef DUPLICATOR = new MachineDef("duplicator", List.of(), 40, false, List.of());
+    /** 区块移除器（m376，区块机器线第一台）：世界内右键绑定目标区块，自顶向下整区块移除，
+     *  掉落物进输出（tick 专属分支，掉落表空；基岩不动/方块实体默认跳过/仅同维度）。 */
+    public static final MachineDef CHUNK_REMOVER = new MachineDef("chunk_remover", List.of(), 40, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

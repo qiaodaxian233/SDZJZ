@@ -1149,6 +1149,9 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : isDup ? "选复制" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
+        if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem && !showWhy) // m376 区块移除器：目标在世界内绑定无选择器徽章，副行=绑定指引/挖掘进度
+            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.ChunkRemoverItem.canvasLine(st), NW - 50),
+                    x + 44, y + 38, com.sdzjz.node.NodeTags.chunkBound(st) ? ON : SUB, false);
         if (showWhy) // m178 错误解释：从"猜"到"可诊断"——缺料红字/阻塞金字，转绿自动消失
             ctx.drawText(this.textRenderer, fitText(why178, NW - 50), x + 44, y + 38, stv178 == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD, false);
     }

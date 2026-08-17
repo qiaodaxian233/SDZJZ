@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * - 老存档缺键由 GSON 取字段默认值，load() 后 save() 一次把缺键补齐回写。
  */
 public class SdzjzConfig {
-    public int configVersion = 46; // m352 节点双侧进出口开关（nodeDualSidePorts，作者点名）；m348 停机核心端点扫描降频开关（coreIdleScanRelief，外部审计）；m347 孤儿强加载声明核销开关（chunkClaimReconcile，外部审计）；m343 合成机槽位替代材料开关（craftIngredientAlternatives，外部审计P0）；m341 节点进出口互换开关（nodePortsSwapped）；m340 显式供料线补足开关（supplyTopUp）；m339 经验池公平层开关（xpFairShare）；m335 选择器查询语法开关（pickerQuerySyntax）；m334 无限复制机两键（duplicatorEnabled 开关/duplicatorXpPerItem 每件经验价）；m333 交易所等级系统两键（tradeLeveling 总开关/tradeXpMultiplier 经验倍率）；m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
+    public int configVersion = 47; // m376 区块移除器三键（chunkRemoverEnabled 开关/chunkRemoverBlocksPerCycle 每周期基础块数/chunkRemoverSkipBlockEntities 跳过方块实体）；m352 节点双侧进出口开关（nodeDualSidePorts，作者点名）；m348 停机核心端点扫描降频开关（coreIdleScanRelief，外部审计）；m347 孤儿强加载声明核销开关（chunkClaimReconcile，外部审计）；m343 合成机槽位替代材料开关（craftIngredientAlternatives，外部审计P0）；m341 节点进出口互换开关（nodePortsSwapped）；m340 显式供料线补足开关（supplyTopUp）；m339 经验池公平层开关（xpFairShare）；m335 选择器查询语法开关（pickerQuerySyntax）；m334 无限复制机两键（duplicatorEnabled 开关/duplicatorXpPerItem 每件经验价）；m333 交易所等级系统两键（tradeLeveling 总开关/tradeXpMultiplier 经验倍率）；m332 随身仓库专属仓位开关（portableVaultSlot，需双端一致）；m322 终端主快照缓存开关（panelMasterSnapshotCache）；m320 Sodium 图标动画保活开关（sodiumIconAnimFix）；m311 随身仓库两键（吸附半径/类型上限）；m310 原生大堆叠两键（bigStacks 开关 + bigStackMax 上限，替代 ItemStackProMax）；m293 类型安全硬顶；m289 配方书计仓储开关；m285 扁平扫光开关；m282 终端搜索首字母开关；m281 终端配方书开关；m280 压缩包内容物自转速度键；m270 服务器硬上限四键+核心tick预算真接线；m269 每玩家每tick C2S写包预算（防伪造包洪泛触发同步风暴）；m265 总线端点卡可拖下画布开关（关=全部按停靠渲染，落位数据保留）；m261 画布背景默认纯黑（旧默认空串迁移成 000000，用户自定义值不动）；m225 数据线抽取口两键（周期/每拍件数）；m221 整理布局间距三键（收紧默认并可调）；m220 画布装饰底图开关（设背景色自动隐图）；m219 画布状态区收纳开关；m218 多核心性能双开关；m217 画布背景四项（底色/网格色/网格浓度/暗角强度）；m215 画布上下栏紧凑化开关+总线卡尺寸落盘；m214 画布/终端主题分家（canvas* 7键默认暗夜，共用预设者终端回紫晶）；m207 画布新配色默认迁移；m200 终端主题7色；m198 连线分色；m197 线宽随缩放
 
     // ===== 生产限制（照设计文档 §7.4：不用传统电力，用结构完整度/吞吐/散热 + 每tick操作预算）=====
     public long maxRecipesPerCoreTick = 65_536L;        // 单生产核心每tick最大逻辑配方次数（m270 真接线：cyclesThisTick 全核共享预算，0或负=无限；默认值高于 节点cap20×512节点=10240 的理论峰值，默认不束缚纯作管理员旋钮）
@@ -30,6 +30,9 @@ public class SdzjzConfig {
     public int tradeXpMultiplier = 1;           // m333 每笔交易合同经验倍率（≥1，想快毕业调大）
     public boolean duplicatorEnabled = true;    // m334 无限复制机总开关（服主熔断阀：关=画布节点黄灯待命，不删档）
     public int duplicatorXpPerItem = 20;        // m334 每复制 1 件烧核心经验池的经验（≥1）——复制的唯一运行成本，服主按经济调
+    public boolean chunkRemoverEnabled = true;  // m376 区块移除器总开关（服主熔断阀：关=画布节点黄灯待命，不删档不丢绑定）
+    public int chunkRemoverBlocksPerCycle = 64; // m376 每周期基础移除方块数（速度/数量/并发升级另乘）；384 高整区块≈9.8 万块，默认约 51 分钟/台清完
+    public boolean chunkRemoverSkipBlockEntities = true; // m376 跳过带方块实体的方块（箱子/刷怪笼/本模组机器等，防误吞基地）；关=照拆，容器内容物按原版散落原地不进机器
     public boolean pickerQuerySyntax = true;    // m335 画布选择器查询语法（@模组/-排除/|并联，学JEI语法习惯自写实现）。关=回纯包含匹配
     public boolean chunkClaimReconcile = true; // m347 孤儿强加载声明核销（外部审计）：声明表区块连续三轮（≥30s）运行时零核心登记即撤票删声明。关=旧行为（孤儿声明永久钉住区块）
     public boolean coreIdleScanRelief = true; // m348 停机+无观众的核心端点扫描 40t→200t 慢拍保底（200%40=0 日历拍切换无缝；开机/开画布两转变沿哨兵强刷零陈旧窗）。关=恒 40t 旧行为
@@ -232,6 +235,7 @@ public class SdzjzConfig {
         if (cfg.configVersion < 44) cfg.configVersion = 44; // m347 纯加键（chunkClaimReconcile 孤儿声明核销开关），缺键走字段初值
         if (cfg.configVersion < 45) cfg.configVersion = 45; // m348 纯加键（coreIdleScanRelief 停机扫描降频开关），缺键走字段初值
         if (cfg.configVersion < 46) cfg.configVersion = 46; // m352 纯加键（nodeDualSidePorts 双侧进出口开关），缺键走字段初值
+        if (cfg.configVersion < 47) cfg.configVersion = 47; // m376 纯加键（chunkRemover 三键），缺键走字段初值
         cfg.bigStackMax = Math.max(64, Math.min(1_073_741_823, cfg.bigStackMax)); // m310 钳位：上界 2^30 防原版合并 a+b 溢出吃物品
 
         INSTANCE = cfg;
