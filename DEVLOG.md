@@ -6124,3 +6124,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   LAPIS_PER_LEVEL/XP_PER_WEIGHT）原类内直呼、搬家后未限定+ArrayList 漏 import——沙盒
   javac 缺 MC 类整文件归错掩盖。修=五常量带类名限定（常量归属仍在 Common planner 不动）
   +补 import。教训升级：**跨类平移必扫平移体裸大写常量与裸集合类**（进 m354b 教训族）。
+
+## m365 CoreProfiler+SdzjzConfig 升 Common（Phase 1 ⑤开动）
+
+- **顺位修正（自守 m364 规矩）**：原定下刀 NbtAdapter——自检"有真实消费者才设计"：
+  NodeTags/SCBE 短期全留 Legacy 侧，NbtAdapter 现在零 Common 消费者=投机抽象，缓。
+  改勘调度/剖析/配置族：全是真业务核心+薄触面（键类型+一个路径口）。
+- **修法**：①CoreProfiler：Stats.pos BlockPos→long、register(World,BlockPos)→
+  register(String dim,long pos)（键折算移到版本侧调用方），nbtSize(NbtCompound) 原文
+  平移 legacy.LegacyDebugUtil（NBT 尺子归代际侧）；SdzjzCommands 五处打印/命中
+  BlockPos.fromLong 还原、BenchRunner 逐核对表改 `c.pos == r.pos.asLong()`（Row.pos
+  待 m366 调度键洗时同净）；四 MC import 清零。②SdzjzConfig：Platform 增
+  initConfigDir/configDir（java.nio.file.Path=JDK 类型 Common 安全，未注册硬失败带
+  "必须第一行"指路），Sdzjz.onInitialize **第一行**注册（早于任何 SdzjzConfig.get()
+  的懒加载链），FabricLoader 两处换装 import 清零。
+- **地雷图**：A 15→17（+CoreProfiler+SdzjzConfig），B 90→89（+LegacyDebugUtil 新 B）。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0；Stats.pos 全仓用法复查零漏
+  （long 化后 .equals/.toShortString 族全清）；m364b 教训扫=平移体无裸常量。
+- **实机脚本**：/sdzjz profile 全家（列表/单核/dumpgraph 按最近核命中）行为同旧；
+  配置读写/迁移链同旧；bench 逐核明细 tick 均对表照旧。

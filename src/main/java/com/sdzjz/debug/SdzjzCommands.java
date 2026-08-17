@@ -148,7 +148,7 @@ public final class SdzjzCommands {
         src.sendFeedback(() -> Text.literal("§b[sdzjz] 活跃核心 ×" + list.size() + "（按均耗排序，窗口=最近100tick）"), false);
         for (CoreProfiler.Stats s : list) {
             String line = String.format("§f%s §7| 节点%d 边%d %s §7| tick §e均%.0fµs §6峰%.0fµs §7| 路由 %.1f/s 供料 %.1f/s 链查 %.1f/s §7编译%d",
-                    s.pos.toShortString(), s.nodes, s.edges, s.running ? "§a运行" : "§8停机",
+                    BlockPos.fromLong(s.pos).toShortString(), s.nodes, s.edges, s.running ? "§a运行" : "§8停机",
                     s.avgMicros(), s.maxMicros(),
                     s.perSec(s.routes), s.perSec(s.storageResolves), s.perSec(s.chainChecks), s.planCompiles);
             src.sendFeedback(() -> Text.literal(line), false);
@@ -218,22 +218,22 @@ public final class SdzjzCommands {
         String dim = src.getWorld().getRegistryKey().getValue().toString();
         CoreProfiler.Stats best = null; double bd = 64 * 64;
         for (CoreProfiler.Stats s : CoreProfiler.active(dim)) {
-            double d = s.pos.getSquaredDistance(me);
+            double d = BlockPos.fromLong(s.pos).getSquaredDistance(me);
             if (d < bd) { bd = d; best = s; }
         }
         if (best == null) {
             src.sendFeedback(() -> Text.literal("§7[sdzjz] 64 格内无活跃核心"), false);
             return 0;
         }
-        if (!(src.getWorld().getBlockEntity(best.pos) instanceof StructureCoreBlockEntity be)) {
+        if (!(src.getWorld().getBlockEntity(BlockPos.fromLong(best.pos)) instanceof StructureCoreBlockEntity be)) {
             src.sendFeedback(() -> Text.literal("§7[sdzjz] 核心方块实体未加载"), false);
             return 0;
         }
         String dump = be.debugDump();
-        Sdzjz.LOGGER.info("[sdzjz dumpgraph] {} @ {}\n{}", dim, best.pos.toShortString(), dump);
+        Sdzjz.LOGGER.info("[sdzjz dumpgraph] {} @ {}\n{}", dim, BlockPos.fromLong(best.pos).toShortString(), dump);
         final CoreProfiler.Stats fb = best;
         src.sendFeedback(() -> Text.literal(String.format(
-                "§a[sdzjz] 已转储核心 %s：节点 %d / 边 %d → 服务器日志 logs/latest.log", fb.pos.toShortString(), fb.nodes, fb.edges)), false);
+                "§a[sdzjz] 已转储核心 %s：节点 %d / 边 %d → 服务器日志 logs/latest.log", BlockPos.fromLong(fb.pos).toShortString(), fb.nodes, fb.edges)), false);
         return 1;
     }
 }

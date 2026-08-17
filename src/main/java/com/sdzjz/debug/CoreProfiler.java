@@ -1,12 +1,6 @@
 package com.sdzjz.debug;
 
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
-import java.io.DataOutputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +17,7 @@ public final class CoreProfiler {
 
     public static final class Stats {
         public final String dim;
-        public final BlockPos pos;
+        public final long pos; // m365 升 Common：位置打包长整型（打印/命中处由版本侧还原）
         final long[] win = new long[100];   // 最近 100 tick 耗时(ns)环形窗
         int idx, filled;
         public long routes, storageResolves, chainChecks;      // 窗口计数（reset 清）
@@ -35,7 +29,7 @@ public final class CoreProfiler {
         public long windowStartMs = System.currentTimeMillis(); // 计数窗起点
         public long lastSeenMs;                                  // 最近一次 tick（判活）
 
-        Stats(String dim, BlockPos pos) { this.dim = dim; this.pos = pos; }
+        Stats(String dim, long pos) { this.dim = dim; this.pos = pos; }
 
         public double avgMicros() {
             int n = filled; if (n == 0) return 0;
@@ -58,9 +52,9 @@ public final class CoreProfiler {
 
     private static final Map<String, Stats> MAP = new HashMap<>(); // 仅服务器线程访问
 
-    public static Stats register(World world, BlockPos pos) {
-        String key = world.getRegistryKey().getValue() + "@" + pos.asLong();
-        return MAP.computeIfAbsent(key, k -> new Stats(world.getRegistryKey().getValue().toString(), pos.toImmutable()));
+    public static Stats register(String dim, long pos) { // m365 升 Common：键=维度串+posLong（调用方在版本侧折算）
+        String key = dim + "@" + pos;
+        return MAP.computeIfAbsent(key, k -> new Stats(dim, pos));
     }
 
     public static void record(Stats s, int nodes, int edges, boolean running, long nanos) {
@@ -183,14 +177,4 @@ public final class CoreProfiler {
     }
 
     /** NBT 编码字节数（计数流上真编码一遍，只在 syncToClient 时调用，量级同同步本身）。 */
-    public static long nbtSize(NbtCompound nbt) {
-        final long[] n = {0};
-        try (DataOutputStream d = new DataOutputStream(new OutputStream() {
-            @Override public void write(int b) { n[0]++; }
-            @Override public void write(byte[] b, int off, int len) { n[0] += len; }
-        })) {
-            NbtIo.write(nbt, d);
-        } catch (Exception ignored) {}
-        return n[0];
-    }
 }

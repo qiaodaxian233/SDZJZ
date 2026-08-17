@@ -472,7 +472,7 @@ public final class BenchRunner {
         List<CoreProfiler.Stats> prof = CoreProfiler.active(dim);
         for (CoreScheduler.Row r : bench) {
             CoreProfiler.Stats s = null;
-            for (CoreProfiler.Stats c : prof) if (c.pos.equals(r.pos)) { s = c; break; }
+            for (CoreProfiler.Stats c : prof) if (c.pos == r.pos.asLong()) { s = c; break; } // m365 Stats.pos 已是 long（Row.pos 待 m366 同洗）
             sb.append(String.format("  %s granted=%d 记名=%d", r.pos.toShortString(), r.granted, r.zeroEvents));
             if (s != null) sb.append(String.format("  tick均%.0fµs 峰%.0fµs 编译%d", s.avgMicros(), s.maxMicros(), s.planCompiles));
             sb.append('\n');

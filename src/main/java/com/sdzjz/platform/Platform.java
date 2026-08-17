@@ -7,12 +7,23 @@ package com.sdzjz.platform;
  */
 public final class Platform {
     private static RecipeAccess recipes;
+    private static java.nio.file.Path configDir; // m365 配置目录（JDK 类型，Common 安全）
 
     private Platform() { }
 
     public static void initRecipes(RecipeAccess r) {
         if (recipes != null) throw new IllegalStateException("RecipeAccess 已注册，禁止二次注册");
         recipes = r;
+    }
+
+    public static void initConfigDir(java.nio.file.Path p) {
+        if (configDir != null) throw new IllegalStateException("configDir 已注册，禁止二次注册");
+        configDir = p;
+    }
+
+    public static java.nio.file.Path configDir() {
+        if (configDir == null) throw new IllegalStateException("configDir 未注册：代际引导端必须在 mod init 第一行注册（早于任何 SdzjzConfig.get()）");
+        return configDir;
     }
 
     public static RecipeAccess recipes() {

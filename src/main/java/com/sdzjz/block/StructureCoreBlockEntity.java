@@ -152,7 +152,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ================= 运行时（通用：按 MachineDef 跑任意机器）=================
     public static void tick(World world, BlockPos pos, BlockState state, StructureCoreBlockEntity be) {
         if (world.isClient) return;
-        if (be.prof == null) be.prof = com.sdzjz.debug.CoreProfiler.register(world, pos); // m177
+        if (be.prof == null) be.prof = com.sdzjz.debug.CoreProfiler.register(world.getRegistryKey().getValue().toString(), pos.asLong()); // m177（m365 键在版本侧折算）
         long t0 = System.nanoTime();
         try {
             tickInner(world, pos, state, be);
@@ -2878,7 +2878,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 NbtCompound snap = new NbtCompound();
                 writeRenderNbt(snap, sw.getRegistryManager());
                 pk = new com.sdzjz.net.CanvasSnapshotPayload(pos, snap);
-                if (prof != null) { try { prof.syncBytes += com.sdzjz.debug.CoreProfiler.nbtSize(snap); } catch (Exception ignored) {} } // m177 对表尺随刀迁移
+                if (prof != null) { try { prof.syncBytes += com.sdzjz.legacy.LegacyDebugUtil.nbtSize(snap); } catch (Exception ignored) {} } // m177 对表尺随刀迁移
             }
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
             if (prof != null) prof.syncPackets++; // m275 起口径=真实发出的快照包数（原=updateListeners 调用数）

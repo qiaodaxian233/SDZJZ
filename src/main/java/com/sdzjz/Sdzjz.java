@@ -33,6 +33,7 @@ public class Sdzjz implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        com.sdzjz.platform.Platform.initConfigDir(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()); // m365 必须第一行（早于任何 SdzjzConfig.get()）
         com.sdzjz.platform.Platform.initRecipes(new com.sdzjz.legacy.LegacyRecipeAccess()); // m362 代际引导：Legacy 配方 SPI 最早注册（Common 侧 planner 依赖）
         com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph
         com.sdzjz.debug.BenchRunner.init(); // m306 一键压测（IDLE 时 tick 零开销）

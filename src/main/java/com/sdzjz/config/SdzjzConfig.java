@@ -2,7 +2,6 @@ package com.sdzjz.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -141,7 +140,7 @@ public class SdzjzConfig {
     }
 
     public static void load() {
-        Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+        Path path = com.sdzjz.platform.Platform.configDir() /* m365 升 Common */.resolve(FILE_NAME);
         SdzjzConfig cfg = null;
         boolean skipWriteBack = false; // m272：读没成功且原文件还在原位时置真——本次不回写，防 save() 用默认值覆盖没读到的用户内容
         if (Files.exists(path)) {
@@ -235,7 +234,7 @@ public class SdzjzConfig {
 
     public static void save() {
         if (INSTANCE == null) return;
-        Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+        Path path = com.sdzjz.platform.Platform.configDir() /* m365 升 Common */.resolve(FILE_NAME);
         try {
             Files.createDirectories(path.getParent());
             try (Writer w = Files.newBufferedWriter(path)) {
