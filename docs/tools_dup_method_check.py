@@ -18,6 +18,7 @@ import sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SRC = os.path.join(ROOT, "src", "main", "java")
+SRC2 = os.path.join(ROOT, "common", "src", "main", "java")  # m369 双根
 
 # 方法声明行：修饰符开头…返回类型 方法名(参数) …{ ——排除控制流关键字与构造器噪音由签名归一化兜底
 DECL = re.compile(
@@ -60,7 +61,7 @@ def param_types(params: str) -> str:
 
 def main() -> int:
     hits = 0
-    for dirpath, _dirs, files in os.walk(SRC):
+    for dirpath, _dirs, files in (x for r in (SRC, SRC2) for x in os.walk(r)):
         for fn in files:
             if not fn.endswith(".java"):
                 continue

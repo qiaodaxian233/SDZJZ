@@ -16,7 +16,7 @@ import re
 import sys
 from collections import defaultdict
 
-SRC = "src/main/java"
+ROOTS = ["src/main/java", "common/src/main/java"]  # m369：Common 物理拆分后双根扫描
 
 # API 族 → 正则（FQN 内联用法极多，必须扫全文而非只扫 import）
 FAMILIES = {
@@ -47,7 +47,8 @@ def classify(path, body):
 
 def scan():
     rows = []  # (cls, path, {family: hits}, total_hits, loc)
-    for root, _, files in os.walk(SRC):
+    for base in ROOTS:
+     for root, _, files in os.walk(base):
         for fn in sorted(files):
             if not fn.endswith(".java"):
                 continue
@@ -96,17 +97,17 @@ def report(rows, out):
         return len(x[2]) ** 2 * math.log(max(2, x[3]))
     for cls, p, fam, tot, loc in sorted(by.get("B", []), key=lambda x: -score(x))[:15]:
         w("- 耦合分 %.0f｜%s（%d 行 / %d 用点 / %d 个 SPI 面：%s）\n" % (score((cls, p, fam, tot, loc)),
-              p.replace("src/main/java/com/sdzjz/", ""), loc, tot, len(fam),
+              p.replace("common/src/main/java/com/sdzjz/", "common:").replace("src/main/java/com/sdzjz/", ""), loc, tot, len(fam),
               ", ".join("%s×%d" % kv for kv in sorted(fam.items(), key=lambda x: -x[1])[:5])))
     w("\n## A 类清单（Phase 1 第一批直迁 common/）\n\n")
     for _, p, _, _, loc in sorted(by.get("A", [])):
-        w("- %s（%d 行）\n" % (p.replace("src/main/java/com/sdzjz/", ""), loc))
+        w("- %s（%d 行）\n" % (p.replace("common/src/main/java/com/sdzjz/", "common:").replace("src/main/java/com/sdzjz/", ""), loc))
     w("\n## E 类 Mixin 清单（§6 代际隔离对象）\n\n")
     for _, p, fam, _, _ in sorted(by.get("E", [])):
-        w("- %s（%s）\n" % (p.replace("src/main/java/com/sdzjz/", ""), ", ".join(fam) or "纯注入"))
+        w("- %s（%s）\n" % (p.replace("common/src/main/java/com/sdzjz/", "common:").replace("src/main/java/com/sdzjz/", ""), ", ".join(fam) or "纯注入"))
     w("\n## D 类 Client 清单\n\n")
     for _, p, _, tot, loc in sorted(by.get("D", []), key=lambda x: -x[3]):
-        w("- %s（%d 行 / %d 用点）\n" % (p.replace("src/main/java/com/sdzjz/", ""), loc, tot))
+        w("- %s（%d 行 / %d 用点）\n" % (p.replace("common/src/main/java/com/sdzjz/", "common:").replace("src/main/java/com/sdzjz/", ""), loc, tot))
 
 
 def main():

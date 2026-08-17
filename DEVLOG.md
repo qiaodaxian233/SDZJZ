@@ -6199,3 +6199,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   全绿；调用面零改动=接口继承拆分的结构保证。
 - **实机脚本**：无（结构件）。Phase 1.5 五项就此全销；下一站=作者实机回归（mixed 矩阵+
   产线过一遍）后开 Phase 2（26.2 Modern Bootstrap→ModernRecipeAccess 分域迁移）。
+
+## m369 代际骨架第一刀：Common 名册 22 文件物理拆分至 common/（顾问 Phase 2 骨架·前半）
+
+- **背景**：作者本地双世代工具链验收全通（B=现仓 runGametest 32 绿 / C=官方 26.2 模板
+  runClient 进游戏，JDK 21+25 并存，模板侧 org.gradle.java.home 钉 25），按约开骨架笔。
+- **修法**：docs/common_manifest.txt 全部 22 文件 git mv 至 `common/src/main/java/`（包名不动），
+  根 build.gradle 给 main 源集挂 `srcDir 'common/src/main/java'`——类照旧编进本 jar，
+  **Legacy 产物内容与迁移前逐字节相同**。刻意不做独立 java-library 子项目：纯 Java 子项目
+  产物不会自动进 Loom remap jar（需 shade/JiJ 平添打包风险），共享源集=零打包变化；
+  将来若要真 :common 子项目，文件树已就位，只动构建脚本即可升级。
+- **尺子随迁（七处）**：名册路径改写；tools_docs_sync/tools_m172_check 的 Machines.java 定点
+  换新家；tools_platform_scan（ROOTS 双根+common: 前缀缩写）/tools_dup_method_check/
+  tools_override_check/tools_tx_scope_audit 四把全树尺双根扫描——**覆盖面不因搬家缩水**
+  （m366b 教训的姊妹条：搬树必查"谁在扫这棵树"）。tools_common_gate 走名册零改动。
+- **配置**：零新键。**验证**：CI 全部离线闸本地预演绿（含 Common 硬闸 22 文件、docs_sync、
+  版本号对表）；platform_scan 双根重跑文件计数 128 对上；Java 内容零改动故免冒烟。
+- **实机脚本**：作者本地 `gradlew runGametest` 应仍 32 全过、`gradlew build` 出
+  sdzjz-0.1.369.jar 与旧版行为无异——这一笔的全部意义就是"搬了家但什么都没变"。

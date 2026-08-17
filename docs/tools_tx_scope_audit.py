@@ -22,6 +22,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src", "main", "java")
+SRC2 = os.path.join(ROOT, "common", "src", "main", "java")  # m369 双根
 OPEN_RE = re.compile(r"try\s*\(.*Transaction\s+\w+\s*=\s*Transaction\.open(Outer|Nested)")
 BAD_RE = re.compile(r"\.(withdrawExact|withdraw|depositExact|deposit)\s*\(")
 WAIVER = "tx手账豁免"
@@ -134,7 +135,7 @@ def main() -> int:
     # ② 全库扫描（排除 gametest：测试有权故意踩边界验语义）
     bad = []
     files = 0
-    for dirpath, _dirs, names in os.walk(SRC):
+    for dirpath, _dirs, names in (x for r in (SRC, SRC2) for x in os.walk(r)):
         if os.sep + "gametest" in dirpath:
             continue
         for name in names:

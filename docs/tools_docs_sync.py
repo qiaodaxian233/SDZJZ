@@ -3,7 +3,7 @@
 # 默认=校验模式(CI 用,漂移即红);--write 改写 README 标记块并重生成 机器清单.md。
 import re, os, sys, json
 os.chdir(os.path.join(os.path.dirname(__file__), '..'))
-mc = open('src/main/java/com/sdzjz/machine/Machines.java', encoding='utf-8').read()
+mc = open('common/src/main/java/com/sdzjz/machine/Machines.java', encoding='utf-8').read()
 defs = set(re.findall(r'def(?:Multi|Consume)?\("([a-z0-9_]+)"', mc)) | set(re.findall(r'new MachineDef\("([a-z0-9_]+)"', mc))
 NODES = {'filter_node','extractor_node','trash_node','sensor_node','switch_node','distributor_node'}
 machines = sorted(defs - NODES)

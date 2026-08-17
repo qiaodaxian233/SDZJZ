@@ -10,9 +10,10 @@ import os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'src')
+SRC2 = os.path.join(ROOT, 'common', 'src')  # m369 双根
 
 bad = []
-for dp, _, fs in os.walk(SRC):
+for dp, _, fs in (x for r in (SRC, SRC2) for x in os.walk(r)):
     for f in fs:
         if not f.endswith('.java'):
             continue

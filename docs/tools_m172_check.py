@@ -111,7 +111,7 @@ print('③ 生物笼计数=生物数 ✓')
 # ④ 六件套断言：新增机器逐项 grep
 new_ids = sys.argv[1:] or []
 mi = open('src/main/java/com/sdzjz/registry/ModItems.java').read()
-mc = open('src/main/java/com/sdzjz/machine/Machines.java').read()
+mc = open('common/src/main/java/com/sdzjz/machine/Machines.java').read()
 zh = json.load(open('src/main/resources/assets/sdzjz/lang/zh_cn.json'))
 en = json.load(open('src/main/resources/assets/sdzjz/lang/en_us.json'))
 for i in new_ids:

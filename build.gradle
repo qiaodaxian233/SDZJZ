@@ -45,6 +45,16 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+// m369 代际骨架第一刀：Common 名册 22 文件物理迁至 common/src/main/java（Common/Legacy/Modern
+// 三层的公共层），本源集直接挂载——类照旧编进本 jar，产物内容与迁移前逐字节相同。
+// 刻意不做独立 java-library 子项目：纯 Java 子项目的产物不会自动进 Loom remap jar（需 shade/JiJ
+// 平添打包风险），共享源集=零打包变化；versions/26.2 新世代构建同样挂载此目录（m370）。
+sourceSets {
+    main {
+        java { srcDir 'common/src/main/java' }
+    }
+}
+
 // m297：GameTest 运行配置（gradlew runGametest 起临时服务器跑完即退，报告出 build/junit.xml）
 loom {
 	runs {

@@ -45,28 +45,28 @@
 
 ## A 类清单（Phase 1 第一批直迁 common/）
 
-- config/SdzjzConfig.java（248 行）
-- debug/CoreProfiler.java（181 行）
-- debug/GcAccount.java（52 行）
-- graph/NodeKinds.java（22 行）
-- machine/BrewPlanner.java（74 行）
-- machine/CoreScheduler.java（200 行）
-- machine/CraftPlanner.java（321 行）
-- machine/CropFarms.java（43 行）
-- machine/EnchantPlanner.java（77 行）
-- machine/MachineDef.java（22 行）
-- machine/MachineXp.java（57 行）
-- machine/Machines.java（408 行）
-- machine/MobDrops.java（74 行）
-- machine/PickerQuery.java（46 行）
-- machine/SmeltPlanner.java（68 行）
-- machine/VillagerTrades.java（119 行）
-- platform/BrewAccess.java（29 行）
-- platform/CraftAccess.java（26 行）
-- platform/EnchAccess.java（27 行）
-- platform/Platform.java（34 行）
-- platform/RecipeAccess.java（23 行）
-- platform/SmeltAccess.java（23 行）
+- common:config/SdzjzConfig.java（248 行）
+- common:debug/CoreProfiler.java（181 行）
+- common:debug/GcAccount.java（52 行）
+- common:graph/NodeKinds.java（22 行）
+- common:machine/BrewPlanner.java（74 行）
+- common:machine/CoreScheduler.java（200 行）
+- common:machine/CraftPlanner.java（321 行）
+- common:machine/CropFarms.java（43 行）
+- common:machine/EnchantPlanner.java（77 行）
+- common:machine/MachineDef.java（22 行）
+- common:machine/MachineXp.java（57 行）
+- common:machine/Machines.java（408 行）
+- common:machine/MobDrops.java（74 行）
+- common:machine/PickerQuery.java（46 行）
+- common:machine/SmeltPlanner.java（68 行）
+- common:machine/VillagerTrades.java（119 行）
+- common:platform/BrewAccess.java（29 行）
+- common:platform/CraftAccess.java（26 行）
+- common:platform/EnchAccess.java（27 行）
+- common:platform/Platform.java（34 行）
+- common:platform/RecipeAccess.java（23 行）
+- common:platform/SmeltAccess.java（23 行）
 
 ## E 类 Mixin 清单（§6 代际隔离对象）
 
