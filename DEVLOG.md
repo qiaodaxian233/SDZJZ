@@ -6252,3 +6252,36 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机脚本**：①根仓照旧 `gradlew runGametest` 32 绿（m369+m370 对 Legacy 均零行为变化）；
   ②`versions/26.2` 里 IDEA Gradle JVM 选 25（或解开 java.home 注释）后 `gradlew runClient`
   进 26.2，日志搜 `[sdzjz] 26.2 新世代 bootstrap 在岗` 一行=双端锚点合龙。
+
+## m371 Modern 配方域适配器第一刀：craft/smelt/remainder 三口落地（Phase 2 开动）
+
+- **核名通道换代（无 yarn 的新打法，入族谱）**：官方名核名源=**fabric-api@26.2 全源本地
+  grep（在树先例）+ NeoForge port/26.2 的 patches 原版上下文行（补丁里空格前缀行=原版源码
+  原文）**。本笔核到：FabricRecipeManager#getAllOfType（官方给 RecipeManager 注入的枚举口，
+  =旧 listAllOfType）、Ingredient#items()→Stream<Holder<Item>>（fabric 自定义材料覆写 items()
+  =口径与 Legacy getMatchingStacks 对齐）、Item#getCraftingRemainder()→@Nullable
+  ItemStackTemplate（null=无残留，template.item()/create()）、assemble 单参（NeoForge 熔炼链
+  原文）、BuiltInRegistries.ITEM.getOptional/getKey、Identifier.parse/fromNamespaceAndPath、
+  holder.id().identifier()、level.recipeAccess()、PlacementInfo 存活（测试 override 实锤）。
+  **警惕反面教材**：NeoForge 补丁里 + 前缀行是 Neo 自加的（如 ShapelessRecipe#result()
+  访问器），照抄=编不过原版——只信空格前缀的上下文行。
+- **修法**：新 versions/26.2/.../ModernRecipeAccess——LegacyRecipeAccess 的 craft/smelt/
+  remainder 三口逐段对位换装（m180 刀法算法一字不改，只换 MC 触点）：枚举走 getAllOfType；
+  原料走 placementInfo().ingredients()+items()；合成产物走 assemble(空 CraftingInput)（shaped/
+  shapeless 的 result 是字段不看输入，特殊配方空输入 EMPTY/异常→try/catch 跳过=Legacy 对
+  getResult 同语义）；熔炼产物走 assemble(真输入=首候选)（NeoForge 同款）；m343 候选组/
+  m346 稳定选序上游口径逐位保留。**brew/ench 五口显式 UnsupportedOperationException 硬失败
+  立档**（指路 Phase 2 排期，PotionBrewing 补丁已核到在 port/26.2 备好当核名源）——比静默
+  空表诚实（未实现≠无配方）。
+- **ModernBootstrap 升代际引导端**：第一行 Platform.initConfigDir（m365 规矩早于懒加载链）
+  + initRecipes(ModernRecipeAccess)，与 Legacy 的 Sdzjz.onInitialize 对位。
+- **两条立档**：①26.2 客户端不可枚举配方（recipeAccess() 非 RecipeManager→返空表），
+  Legacy"客户端画布屏也调 plans"消费面属 Phase 3 议题（fabric SynchronizedRecipes=候选通道）；
+  ②行为等价判官=后续 Modern GameTest 里程碑（廿六号同款断言，@GameTest 注解形态已在
+  fabric 测试核到），本笔判官=CI 真编译。
+- **待编译验证**：placementInfo().ingredients() 读法（类与方法已核到，ingredients() 沿官方名；
+  红了备胎=display() 路，ShapedCraftingRecipeDisplay.ingredients() 已核到）。
+- **配置**：零新键。**验证**：javac 冒烟真语法错 0+自家符号定向检 0（24 文件 Common+Modern
+  一锅喂）；离线十二闸全绿；CI modern-bootstrap job=本笔真判官。
+- **实机脚本**：versions/26.2 gradlew runClient 日志应见"配方域适配器已注册"字样；
+  功能面等 Modern GameTest 笔（下一刀候选）再验。

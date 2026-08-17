@@ -20,8 +20,8 @@ Gradle JVM 选 **25** → sync。
 
 ## 这个构建现在是什么、不是什么
 
-- **是**：工具链骨架 + Common 层（`common/src/main/java`，与根仓共享同一份源码）在
-  26.2 下的真编译验证。装进游戏只打一行日志，没有任何玩法。
+- **是**：工具链骨架 + Common 层真编译验证 + 配方域适配器（m371：craft/smelt/remainder
+  三口已注册，brew/ench 显式硬失败待 Phase 2）。装进游戏打一行在岗日志，尚无玩法。
 - **不是**：可玩的 26.2 版模组。机器/存储/画布等全部功能在 Legacy 侧，迁移按
   Phase 2 顺位逐刀走（ModernRecipeAccess 等适配器分域实现，Common 一行不动）。
 
