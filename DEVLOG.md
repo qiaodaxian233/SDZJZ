@@ -6169,3 +6169,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - Row.pos long 化时 mine 集洗了、防哑账段的 seen(Set<BlockPos>)/silent 对账漏了——
   沙盒 javac 缺 MC 类掩盖类型冲突。修=seen 转 Long 集+对账 asLong。教训：**字段改型必
   grep 该字段全部消费点逐一过目，不许只改报错处**（盲区族第五案）。
+
+## m367 Phase 1.5 ①②③：Common 硬闸+句柄边界+Platform 防膨胀（顾问⑥轮制度化）
+
+- **修法**：①docs/common_manifest.txt 名册（18 文件，进册人工确认/出册须 DEVLOG 说明）
+  +docs/tools_common_gate.py 硬闸（剥注释/字符串后禁 MC/Fabric/Mojang 字面，import 与内联
+  FQN 一并抓——盲区五案的病根从此第一时间爆）挂 CI 必跑；②Object 句柄边界机器化：名册内
+  （platform/ 除外）禁止 Object **字段**（句柄只许形参/返回/record 组件透传；首跑误伤
+  SmeltPlanner 局部值元组→正则收紧为"字段必带修饰符+类级缩进"，值元组/局部天然豁免，
+  误伤案例当测试用例记档）；③Platform 服务字段硬顶 4（现 2），超顶=闸红指路顾问
+  "Platform 只做 bootstrap/registry"。
+- **铁律入档（HANDOVER）**：类型迁移六项扫描（定义点/全消费点/容器类型/Comparator与
+  Hashing/序列化/打印还原）——m366b 漏的就是容器消费点，从此过闸单化。
+- **配置**：零新键。**验证**：硬闸首跑绿（误伤修正后）；全闸预演含新闸绿。
+- **实机脚本**：无（制度件）；此后任何"平移漏点"由 CI Common 闸先于 gradle 编译报案。

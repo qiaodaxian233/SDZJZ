@@ -33,6 +33,8 @@ jobs:
         run: python3 docs/tools_core_scheduler_sim.py
       - name: 版本号对表(m317,mod_version=0.1.<DEVLOG最新里程碑号> 一笔一跳忘跳即红)
         run: python3 docs/tools_version_check.py
+      - name: Common 硬闸（Phase 1.5 ①②③）
+        run: python3 docs/tools_common_gate.py
       - name: 事务作用域手账审计(m327 回归尺,m323 规矩=事务内禁 withdraw/deposit 防同键前像复制窗)
         run: python3 docs/tools_tx_scope_audit.py
 

@@ -1,0 +1,20 @@
+# Common 名册（Phase 1.5 ①）：本册文件=业务核心，受 tools_common_gate 硬闸保护。
+# 规矩：进册需人工确认零 MC/Fabric/Mojang 依赖；出册（回退为版本耦合）必须 DEVLOG 说明缘由。
+src/main/java/com/sdzjz/debug/CoreProfiler.java
+src/main/java/com/sdzjz/debug/GcAccount.java
+src/main/java/com/sdzjz/graph/NodeKinds.java
+src/main/java/com/sdzjz/config/SdzjzConfig.java
+src/main/java/com/sdzjz/platform/Platform.java
+src/main/java/com/sdzjz/platform/RecipeAccess.java
+src/main/java/com/sdzjz/machine/BrewPlanner.java
+src/main/java/com/sdzjz/machine/CoreScheduler.java
+src/main/java/com/sdzjz/machine/CraftPlanner.java
+src/main/java/com/sdzjz/machine/CropFarms.java
+src/main/java/com/sdzjz/machine/EnchantPlanner.java
+src/main/java/com/sdzjz/machine/MachineDef.java
+src/main/java/com/sdzjz/machine/MachineXp.java
+src/main/java/com/sdzjz/machine/Machines.java
+src/main/java/com/sdzjz/machine/MobDrops.java
+src/main/java/com/sdzjz/machine/PickerQuery.java
+src/main/java/com/sdzjz/machine/SmeltPlanner.java
+src/main/java/com/sdzjz/machine/VillagerTrades.java
