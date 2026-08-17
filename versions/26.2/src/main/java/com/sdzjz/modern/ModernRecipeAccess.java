@@ -21,8 +21,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * m371 Modern(26.2) 配方查询实现——LegacyRecipeAccess 的 craft/smelt/remainder 三口同语义换装。
- * 结构与 Legacy 逐段对位（m180 刀法：算法一字不改，只换 MC 触点），口径差异全部立档：
+ * m371 Modern(26.2) 配方查询实现——LegacyRecipeAccess 的 craft/smelt/remainder 三口同语义换装；
+ * m373 起 brew/ench 五口经 ModernBrewAccess/ModernEnchantAccess 分域委托补齐（RecipeAccess
+ * 四域全承，与 Legacy 单实现类对位）。结构与 Legacy 逐段对位（m180 刀法：算法一字不改，
+ * 只换 MC 触点），口径差异全部立档：
  *
  * 【核名出处（一律有据，官方名无 yarn）】
  * - 枚举：fabric-api@26.2 给 RecipeManager 注入 FabricRecipeManager#getAllOfType（旧 listAllOfType
@@ -141,30 +143,31 @@ public final class ModernRecipeAccess implements com.sdzjz.platform.RecipeAccess
         return rem != null ? BuiltInRegistries.ITEM.getKey(rem.item().value()).toString() : null;
     }
 
-    // ===== 酿造/附魔域：Phase 2 后续刀（PotionBrewing 补丁已在 NeoForge port/26.2 备好当核名源） =====
+    // ===== 酿造/附魔域（m373 作者拍板 B 线收齐：分域适配器委托——m368 拆四域接口的
+    //  "26.x 可分域迁移各自 ModernXxxAccess 再组合"首兑现；核名出处见各适配器类注释） =====
 
     @Override
     public com.sdzjz.machine.BrewPlanner.Plan brewingPlan(Object level, String target) {
-        throw new UnsupportedOperationException("26.2 酿造适配器未落地（ModernRecipeAccess，Phase 2 排期）：Modern 侧暂不可调 BrewPlanner 链路");
+        return ModernBrewAccess.resolve((Level) level, target);
     }
 
     @Override
     public Object brewTargetStack(String target) {
-        throw new UnsupportedOperationException("26.2 酿造适配器未落地（ModernRecipeAccess，Phase 2 排期）");
+        return ModernBrewAccess.targetStack(target);
     }
 
     @Override
     public com.sdzjz.machine.EnchantPlanner.Plan enchantingPlan(Object level, String target) {
-        throw new UnsupportedOperationException("26.2 附魔适配器未落地（ModernRecipeAccess，Phase 2 排期）：Modern 侧暂不可调 EnchantPlanner 链路");
+        return ModernEnchantAccess.resolve((Level) level, target);
     }
 
     @Override
     public Object enchantTargetStack(Object level, String target) {
-        throw new UnsupportedOperationException("26.2 附魔适配器未落地（ModernRecipeAccess，Phase 2 排期）");
+        return ModernEnchantAccess.targetStack((Level) level, target);
     }
 
     @Override
     public Object enchantTargetName(Object level, String target) {
-        throw new UnsupportedOperationException("26.2 附魔适配器未落地（ModernRecipeAccess，Phase 2 排期）");
+        return ModernEnchantAccess.targetName((Level) level, target);
     }
 }

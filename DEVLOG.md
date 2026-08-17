@@ -6315,3 +6315,46 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   升级行为绿。
 - **实机脚本**：根仓 gradlew runGametest 应 33 全过；versions/26.2 gradlew runGametest
   应 1 用例过（首个 Modern 行为判官）。
+
+## m373 Modern 酿造/附魔域适配器收齐 + 共享判官扩七类（作者拍板 B 线，Recipe Domain 代际迁移收口候审）
+
+- **现象/任务**：m372 A 线全绿后作者拍板 B——把 brew/ench 补进 ModernRecipeAccess，严格限定
+  "只做值转换零规划算法"（Modern API→适配器→Planner，绝不部分 Planner 再回 Minecraft），
+  判官 5→7 类，四项架构红线（适配器 Object 字段/Common 存 MC 类型/Platform 新增 service/
+  Planner 直连 26.2）任一即红，Brew 必须测全路径而非"能规划"。
+- **实现**：新 ModernBrewAccess/ModernEnchantAccess 两分域适配器（m368"26.x 可分域迁移各自
+  ModernXxxAccess 再组合"首兑现），ModernRecipeAccess 五口硬失败换委托=RecipeAccess 四域全承。
+  Legacy 原文平移（m180 刀法）：Brew=BFS 一字不改只换触点（getBrewingRecipeRegistry→
+  Level#potionBrewing()、craft→mix 同参序、areItemsAndComponentsEqual→isSameItemSameComponents、
+  PotionContentsComponent.DEFAULT→PotionContents.EMPTY、getIdAsString→Holder#getRegisteredName）；
+  Ench=parse/resolve/样板书/展示名四件平移（getWrapperOrThrow→registryAccess().lookupOrThrow、
+  addEnchantment→enchant、Enchantment.getName→getFullname），成本常量引 EnchantPlanner 唯一源。
+- **缓存归属（作者架构要求"缓存属于 adapter 自身做 revision/lazy"）**：Brew 材料表缓存键=
+  PotionBrewing 实例身份且走 WeakReference——datapack reload 换新实例即身份失配自动重算，
+  弱引用保证适配器绝不强持服务端对象（比 Legacy INGREDIENTS 静态强持+reload 钩清拍更自愈）；
+  Ench 无状态零缓存。立档：Common 侧 Brew/EnchantPlanner.CACHE 在 Modern 的清拍挂钩随
+  Phase 3 生产消费者接线时补（现 Modern 无消费者，GameTest 单服单跑不受影响）。
+- **核名（fabric-api@26.2 全源 + NeoForge port/26.2 补丁原版行，m371 通道）**：
+  potionBrewing()/isIngredient/mix=BrewingStand 补丁原版行；POTION_CONTENTS/EMPTY/potion()=
+  补丁原版行；createItemStack(Item,Holder)/Potions.WATER=fabric content-registries GameTest
+  编译级；wrapAsHolder=NeoForge 编译级；registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
+  +ResourceKey.create+enchant(Holder,int)=NeoForge 测试编译级；lookup.get(key).orElse(null)=
+  TreeGrower 补丁原版行同形；getFullname=EnchantmentScreen 补丁被删原版行（-行=原版原文，
+  与"+行是 Neo 自加"的反面教材同族但方向合法）；getMaxLevel=EnchantmentHelper 补丁原版行。
+- **待编译验证（CI modern job=真判官）**：Enchantment#getAnvilCost()——两先例库补丁不覆盖该行
+  且全库零消费，唯 26.2 的 Enchantment.definition(...) 静态工厂第 6 参仍为 anvilCost（NeoForge
+  测试编译级）=记录形状未变高置信保留；若红换 definition().anvilCost()（definition() 已由
+  fabric EnchantmentUtil 编译级实锤）。
+- **判官⑥⑦（Common 纯值零 MC）**：⑥酿造全路径=迅捷 2 步（瓶×3/疣×1/糖×1 恰三项=基础物→
+  中间粗制→最终产物整条路径）+强化迅捷喷溅深链 4 步材料多重集全对（BFS 最短链定死，
+  疣/糖/荧石/火药各×1）+水瓶目标/非法串/非法形态码三路 null；⑦附魔=锋利V 书1+青金石15 恰两项、
+  经验对等级严格线性（e1×5==e5，判据刻意不吃 anvilCost 数据值——26.x 数据包改倍率不误伤）、
+  重复解析确定性、越上限/零级/不存在三路排除、样板书/展示名句柄非空+越界 null。
+- **架构红线自查四项全绿**：适配器零 Object 字段（MC 类型字段在版本侧=作者指定的缓存归属）、
+  Common 三文件零 net.minecraft/fabricmc 残留（硬闸①④同拍复验）、Platform.java 零改动、
+  两 Planner 零改动零新 import。
+- **教训**：无 yarn 时代"-行"与"+行"要分开对待——被删原版行是合法核名源（原版源码原文），
+  新增行才是 Neo 私货；m371 反面教材补全成对规矩。
+- **实机脚本**：根仓 gradlew runGametest 卅四号（含⑥⑦）应 33 全过；versions/26.2
+  gradlew runGametest 应 1 用例过=Modern 五域行为绿；26.2 runClient 日志应见
+  "配方域适配器已注册（craft/smelt/remainder/brew/ench 五域全齐——m373）"。

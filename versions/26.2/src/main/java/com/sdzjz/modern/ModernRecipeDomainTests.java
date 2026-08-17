@@ -12,7 +12,8 @@ import net.minecraft.network.chat.Component;
  * （com.sdzjz.platform.RecipeDomainAssertions，判官只此一份在 Common），
  * 数据源=26.2 真实 RecipeManager 经 ModernRecipeAccess。绿=编译绿升级行为绿：
  * m371 的两大核名结论（Ingredient#items() 枚举口径、Item#getCraftingRemainder() 残留口）
- * 与 placementInfo/assemble 取数路全部拿到运行时判决。
+ * 与 placementInfo/assemble 取数路全部拿到运行时判决；m373 起七类判定含 brew/ench 域
+ * （ModernBrewAccess 的 potionBrewing/mix 链与 ModernEnchantAccess 的注册表/成本链同拍受判）。
  *
  * 注解形态照 fabric-api@26.2 官方测试原文（@GameTest 默认 structure=
  * fabric-gametest-api-v1:empty，maxTicks 20——本套断言单 tick 同步跑完，富余）。

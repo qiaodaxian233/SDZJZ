@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  *
  * m371 起接管代际引导端职责（与 Legacy 的 Sdzjz.onInitialize 对位）：第一行注册 configDir
  * （早于任何 SdzjzConfig.get() 懒加载链——m365 规矩），随后注册 ModernRecipeAccess
- * （craft/smelt/remainder 三域已落地，brew/ench 显式硬失败立档待 Phase 2 后续刀）。
+ * （m373 起 craft/smelt/remainder/brew/ench 五口全承，brew/ench 经分域适配器委托）。
  * 仍不注册方块/物品/网络包——那些属 Phase 3。
  */
 public final class ModernBootstrap implements ModInitializer {
@@ -28,7 +28,7 @@ public final class ModernBootstrap implements ModInitializer {
         Platform.initConfigDir(FabricLoader.getInstance().getConfigDir());
         Platform.initRecipes(new ModernRecipeAccess());
         // 编译期强引用 Common 核心类=Common 挂载的最硬证据（类静态体仅缓存表，零副作用）。
-        LOGGER.info("[sdzjz] 26.2 新世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达），配方域适配器已注册（craft/smelt/remainder；brew/ench 待 Phase 2）",
+        LOGGER.info("[sdzjz] 26.2 新世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达），配方域适配器已注册（craft/smelt/remainder/brew/ench 五域全齐——m373）",
                 CraftPlanner.class.getSimpleName(),
                 CoreScheduler.class.getSimpleName(),
                 Platform.class.getSimpleName());
