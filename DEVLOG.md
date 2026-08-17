@@ -6117,3 +6117,10 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   Legacy 侧缺 MC 类噪音=预期归属）；酿造/附魔既有链路（十八号附魔量产等用例）=等价判官。
 - **实机脚本**：酿造塔/附魔工厂产线与画布徽章逐帧同旧；datapack reload 后酿造材料缓存
   失效重建照旧（走新 clearCaches 口）。
+
+### m364b 热修：平移体常量限定+ArrayList import（CI 抓获，沙盒盲区第四次）
+
+- 平移到 Legacy 的 resolve 体引用 planner 常量（BOTTLES_PER_BATCH/BOOK_ID/LAPIS_ID/
+  LAPIS_PER_LEVEL/XP_PER_WEIGHT）原类内直呼、搬家后未限定+ArrayList 漏 import——沙盒
+  javac 缺 MC 类整文件归错掩盖。修=五常量带类名限定（常量归属仍在 Common planner 不动）
+  +补 import。教训升级：**跨类平移必扫平移体裸大写常量与裸集合类**（进 m354b 教训族）。

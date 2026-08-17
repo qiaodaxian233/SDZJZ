@@ -20,6 +20,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -193,7 +194,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         if (!prev.containsKey(goalKey)) return null; // 不可达（如平凡药水串错/模组卸载）
 
         Map<String, Integer> needs = new HashMap<>();
-        needs.put("minecraft:glass_bottle", BOTTLES_PER_BATCH);
+        needs.put("minecraft:glass_bottle", com.sdzjz.machine.BrewPlanner.BOTTLES_PER_BATCH);
         int steps = 0;
         String walk = goalKey;
         while (true) {
@@ -249,10 +250,10 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
         book.addEnchantment(e.entry(), e.level());
         Map<String, Integer> needs = new HashMap<>();
-        needs.put(BOOK_ID, 1);
-        needs.put(LAPIS_ID, LAPIS_PER_LEVEL * e.level());
+        needs.put(com.sdzjz.machine.EnchantPlanner.BOOK_ID, 1);
+        needs.put(com.sdzjz.machine.EnchantPlanner.LAPIS_ID, com.sdzjz.machine.EnchantPlanner.LAPIS_PER_LEVEL * e.level());
         int bMul = Math.max(1, e.entry().value().getAnvilCost() / 2);
-        int xp = bMul * e.level() * XP_PER_WEIGHT;
+        int xp = bMul * e.level() * com.sdzjz.machine.EnchantPlanner.XP_PER_WEIGHT;
         return new com.sdzjz.machine.EnchantPlanner.Plan(needs, xp, book);
     }
 
