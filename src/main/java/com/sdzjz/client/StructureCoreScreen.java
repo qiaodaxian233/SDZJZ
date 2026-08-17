@@ -1072,6 +1072,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
+        if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 区块过滤器卡面：行1 名单摘要 / 行2 Y 挡名
+            int cfN = StructureCoreBlockEntity.filterList(st).size();
+            boolean cfB = StructureCoreBlockEntity.filterBlacklist(st);
+            ctx.drawText(this.textRenderer, cfN == 0 ? "[不限方块]" : (cfB ? "[黑名单·" : "[白名单·") + cfN + "]",
+                    x + 44, y + 26, cfN == 0 ? SUB : cfB ? SciSkin.GOLD : ON, false);
+            ctx.drawText(this.textRenderer, fitText("Y挡:" + com.sdzjz.item.ChunkFilterItem.presetName(st), NW - 50),
+                    x + 44, y + 38, CYAN, false);
+            return;
+        }
         if (StructureCoreBlockEntity.isFilter(st)) {
             boolean black = StructureCoreBlockEntity.filterBlacklist(st);
             ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
@@ -1601,7 +1610,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) { openCropPicker(idx); return; }
         if (StructureCoreBlockEntity.machineFilterable(st)) { openMachineFilterPicker(idx); return; }
         if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isTrash(st)
-                || StructureCoreBlockEntity.isExtractor(st)) openFilterPicker(idx);
+                || StructureCoreBlockEntity.isExtractor(st)
+                || st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) openFilterPicker(idx); // m377
     }
 
     /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
@@ -2009,6 +2019,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 名单+黑白全套复用过滤节点收包口，Y 挡走 #zy 哨兵
+            int cfM = StructureCoreBlockEntity.filterList(st).size();
+            addMenu("方块名单" + (cfM > 0 ? "(" + cfM + ")" : "·不限") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
+                    () -> openFilterPicker(idx));
+            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.item.Items.PAPER),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+            addMenu("Y挡: " + com.sdzjz.item.ChunkFilterItem.presetName(st) + " → 换挡", mi(net.minecraft.item.Items.LADDER),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zy")); });
+        }
         if (StructureCoreBlockEntity.isFilter(st)) {
             addMenu("配置过滤物品…", mi(net.minecraft.item.Items.COMPARATOR), 2, () -> openFilterPicker(idx));
             addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.item.Items.PAPER),

@@ -166,6 +166,9 @@ public final class NodeTags {
     /** 累计移除方块数（画布副行进度显示）。 */
     public static long chunkRemoved(ItemStack s) { return viewOf(s).getLong("zn"); }
 
+    /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
+    public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
+
     public static int runningCount(ItemStack st, int parallelLv, int tier) {
         long r = (long) Math.max(1, st.getCount()) * (1L + Math.max(0, parallelLv)) * Math.max(1, tier);
         r <<= 3 * Math.min(3, Math.max(0, machineTier(st))); // m123 阶位战力 8^mt（4台份×2速/阶）

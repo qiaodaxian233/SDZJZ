@@ -935,6 +935,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
                 be.xpPool -= (double) xpEach * attempts;
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) {
+                // m377 区块过滤器：规则牌坊不干活——规则由相连的区块移除器每拍主动来读（见下分支），
+                // 本体不收不产不转发（accepts/chainWants 恒假=MachineItem 免费型尾兜）。恒待机灰灯。
+                be.stat(i, 0);
             } else if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) {
                 // m376 区块移除器（区块机器线第一台）：世界内右键绑定目标区块（LinkerItem 同款
                 // useOnBlock 存 NBT），画布上自顶向下逐层移除，掉落物（getDroppedStacks=如同正确
@@ -956,23 +960,47 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!world.getChunkManager().isChunkLoaded(cxZ, czZ)) { be.statR(i, 3, "目标区块未加载（把核心放近些，本机不替你强载）"); continue; }
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
+                // m377 收集相连区块过滤器（任一方向连线即生效；多台=规则 AND；m110b 暂停即隔离；
+                // config chunkFilterEnabled 关=忽略过滤器按全量挖，文档已写明）。
+                java.util.List<ItemStack> rulesZ = null;
+                int fTopZ = world.getTopY() - 1, fBotZ = world.getBottomY();
+                if (cfg.chunkFilterEnabled) {
+                    for (int j = 0; j < be.machineNodes.size(); j++) {
+                        ItemStack fz = be.machineNodes.get(j);
+                        if (!(fz.getItem() instanceof com.sdzjz.item.ChunkFilterItem) || nodePaused(fz)) continue;
+                        boolean linkedZ = false;
+                        if (outT[i] != null) for (int t : outT[i]) if (t == j) { linkedZ = true; break; }
+                        if (!linkedZ && outT[j] != null) for (int t : outT[j]) if (t == i) { linkedZ = true; break; }
+                        if (!linkedZ) continue;
+                        if (rulesZ == null) rulesZ = new java.util.ArrayList<>(2);
+                        rulesZ.add(fz);
+                        fTopZ = Math.min(fTopZ, com.sdzjz.item.ChunkFilterItem.presetMaxY(fz));
+                        fBotZ = Math.max(fBotZ, com.sdzjz.item.ChunkFilterItem.presetMinY(fz));
+                    }
+                }
                 int running = runningCount(st, parallelLv, tier);
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
                 com.sdzjz.machine.StorageAccess depositZ = hasOut[i] ? null : be.depositFor(world, i);
                 if (!hasOut[i] && depositZ == null) budgetZ = Math.min(budgetZ, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规）
                 int yZ = com.sdzjz.node.NodeTags.chunkY(st), idxZ = com.sdzjz.node.NodeTags.chunkIdx(st);
                 int bottomZ = world.getBottomY();
+                if (yZ > fTopZ) { yZ = fTopZ; idxZ = 0; } // m377 Y 挡快进：窗顶以上直接跳过（游标单向不回卷，重扫=重绑）
                 long scanCapZ = Math.min(16384L, Math.max(1024L, budgetZ * 4L)); // 空气/跳过段快进上限：护 tick 预算
                 long removedZ = 0;
                 java.util.List<ItemStack> dropsZ = new java.util.ArrayList<>();
                 net.minecraft.util.math.BlockPos.Mutable mpZ = new net.minecraft.util.math.BlockPos.Mutable();
-                while (removedZ < budgetZ && scanCapZ-- > 0 && yZ >= bottomZ) {
+                while (removedZ < budgetZ && scanCapZ-- > 0 && yZ >= fBotZ) {
                     mpZ.set((cxZ << 4) + (idxZ >> 4), yZ, (czZ << 4) + (idxZ & 15));
                     net.minecraft.block.BlockState bsZ = world.getBlockState(mpZ);
                     boolean beHereZ = bsZ.hasBlockEntity();
                     boolean skipZ = bsZ.isAir()
                             || bsZ.getHardness(world, mpZ) < 0
                             || (cfg.chunkRemoverSkipBlockEntities && beHereZ);
+                    if (!skipZ && rulesZ != null) { // m377 方块名单 AND：任一过滤器不放行=留在世上
+                        String bidZ = Registries.ITEM.getId(bsZ.getBlock().asItem()).toString();
+                        for (int k = 0; k < rulesZ.size(); k++)
+                            if (!com.sdzjz.item.ChunkFilterItem.allowsBlock(rulesZ.get(k), bidZ)) { skipZ = true; break; }
+                    }
                     if (!skipZ) {
                         for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
                                 beHereZ ? world.getBlockEntity(mpZ) : null))
@@ -982,7 +1010,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     }
                     if (++idxZ >= 256) { idxZ = 0; yZ--; be.statusDirty = true; } // 换层顺带请求同步（进度副行走既有 1/s 节流）
                 }
-                boolean doneZ = yZ < bottomZ;
+                boolean doneZ = yZ < bottomZ; // 完成位只认真·世界底（过滤下限不算完，撤过滤器/换挡自动续挖）
+                boolean parkedZ = !doneZ && yZ < fBotZ; // m377 停在过滤器 Y 下限
                 com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), idxZ, removedZ, doneZ); // 空气快进段游标也要落盘
                 if (removedZ > 0) {
                     be.stat(i, 1);
@@ -999,8 +1028,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         for (ItemStack dZ : dropsZ) be.addOutput(dZ);
                     }
                     produced = true;
+                } else if (parkedZ) {
+                    be.statR(i, 2, "已达过滤器 Y 下限（换挡或撤过滤器自动续挖，全量重扫=重绑）");
                 } else {
-                    be.stat(i, doneZ ? 0 : 1); // 本拍全是空气段=游标在走照亮绿灯；恰好收尾=待机
+                    be.stat(i, doneZ ? 0 : 1); // 本拍全是空气/名单外段=游标在走照亮绿灯；真见底=待机
                 }
                 be.markDirty(); // 游标进度在节点 NBT 里，动了就存
             } else if (st.getItem() instanceof MachineItem vd && "villager_discount_machine".equals(vd.def().id())) {
@@ -1653,11 +1684,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             syncToClient();
             return;
         }
-        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s)) return;
+        if ("#zy".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 Y 挡循环复用此收包口（#xr 同款哨兵工艺）：全高度→地表下→深层→深板岩→地上→回全高度
+            NbtCompound nz = nbtOf(s);
+            nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nz));
+            markDirty();
+            syncToClient();
+            return;
+        }
+        boolean chunkF = s.getItem() instanceof com.sdzjz.item.ChunkFilterItem; // m377 区块过滤器：名单+黑白切换全套复用过滤节点收包口
+        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s) && !chunkF) return;
         // m149 机器加工过滤 / m160 抽取白名单+垃圾桶白名单（安全桶）同走此口
         NbtCompound n = nbtOf(s);
         if (id == null || id.isEmpty()) {
-            if (!isFilter(s)) return; // 机器侧永远白名单，无黑白切换
+            if (!isFilter(s) && !chunkF) return; // 机器侧永远白名单，无黑白切换（m377 区块过滤器有黑白）
             n.putBoolean("fb", !n.getBoolean("fb"));
         } else {
             NbtList l = n.getList("fl", NbtElement.STRING_TYPE);
