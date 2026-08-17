@@ -6163,3 +6163,9 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   语义逐位不变：同拍同键同账）。
 - **实机脚本**：/sdzjz bench 三档矩阵与逐核明细照旧；饥饿名单/区块账行为同旧；
   /sdzjz stats 低高档打印照旧。
+
+### m366b 热修：防哑账段 seen/silent 集漏洗（CI 抓获，沙盒盲区第五次）
+
+- Row.pos long 化时 mine 集洗了、防哑账段的 seen(Set<BlockPos>)/silent 对账漏了——
+  沙盒 javac 缺 MC 类掩盖类型冲突。修=seen 转 Long 集+对账 asLong。教训：**字段改型必
+  grep 该字段全部消费点逐一过目，不许只改报错处**（盲区族第五案）。

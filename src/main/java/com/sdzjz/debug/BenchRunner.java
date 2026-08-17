@@ -363,11 +363,11 @@ public final class BenchRunner {
         List<CoreScheduler.Row> bench = rows.stream().filter(r -> mine.contains(r.pos))
                 .sorted(java.util.Comparator.comparingLong(r -> r.granted)).toList();
         // m307 防哑账（首轮实测被 14/20 沉默核心骗出"达标"）：铺场清单逐一对上账,缺席点名
-        Set<BlockPos> seen = new HashSet<>(); for (CoreScheduler.Row r : bench) seen.add(r.pos);
+        Set<Long> seen = new HashSet<>(); for (CoreScheduler.Row r : bench) seen.add(r.pos); // m366b Row.pos 已 long
         List<BlockPos> silent = new ArrayList<>();
         for (int k = 0; k < SITES.size(); k++) { // m360 idle 站不生产不申请=豁免防哑账
             if (k < siteWl.length && siteWl[k] == Workload.IDLE) continue;
-            if (!seen.contains(SITES.get(k))) silent.add(SITES.get(k));
+            if (!seen.contains(SITES.get(k).asLong())) silent.add(SITES.get(k));
         }
         long otherGranted = rows.stream().filter(r -> !mine.contains(r.pos)).mapToLong(r -> r.granted).sum();
         long otherCores = rows.size() - bench.size();
