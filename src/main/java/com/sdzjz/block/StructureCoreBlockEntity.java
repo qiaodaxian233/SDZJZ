@@ -1203,18 +1203,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 && this.world instanceof net.minecraft.server.world.ServerWorld;
         if (cycles > 0 && chunkGate) {
             long head = com.sdzjz.machine.CoreScheduler.chunkHeadroom(
-                    (net.minecraft.server.world.ServerWorld) this.world, this.pos, cfg.maxRecipesPerChunkTick);
+                    this.world.getRegistryKey().getValue().toString(), net.minecraft.util.math.ChunkPos.toLong(this.pos),
+                    cfg.maxRecipesPerChunkTick, ((net.minecraft.server.world.ServerWorld) this.world).getServer().getTicks()); // m366 键/钟版本侧折算
             if (cycles > head) cycles = (int) Math.max(0L, head); // 耗尽同 m270 口径：只欠不丢，工作量累积下tick续
         }
         // m302 全服共享预算真接线（maxRecipesPerNetworkTick）+ 饥饿名单公平层：先核内后全服双层封顶；
         // 耗尽同 m270 口径只欠不丢（工作量累积下tick续），没吃到的核心下tick持保底1周期先食权。
         if (cycles > 0 && cfg.maxRecipesPerNetworkTick > 0
                 && this.world instanceof net.minecraft.server.world.ServerWorld sw302) {
-            cycles = com.sdzjz.machine.CoreScheduler.request(sw302, this.pos, cycles, cfg.maxRecipesPerNetworkTick);
+            cycles = com.sdzjz.machine.CoreScheduler.request(sw302.getRegistryKey().getValue().toString(), this.pos.asLong(), cycles, cfg.maxRecipesPerNetworkTick, sw302.getServer().getTicks()); // m366
         }
         if (cycles > 0 && chunkGate) { // m324 终账（先记后裁会把全服拒掉的量虚耗进区块账）
             com.sdzjz.machine.CoreScheduler.chunkCharge(
-                    (net.minecraft.server.world.ServerWorld) this.world, this.pos, cycles);
+                    this.world.getRegistryKey().getValue().toString(), net.minecraft.util.math.ChunkPos.toLong(this.pos),
+                    cycles, ((net.minecraft.server.world.ServerWorld) this.world).getServer().getTicks()); // m366
         }
         acc -= (double) cycles * base;
         if (acc > (double) base * cap) acc = (double) base * cap; // 被cap/预算截断时不无限囤积

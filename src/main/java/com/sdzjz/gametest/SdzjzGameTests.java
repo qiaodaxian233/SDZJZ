@@ -173,7 +173,7 @@ public class SdzjzGameTests implements FabricGameTest {
             if (ran[0] >= TICKS) return;
             ran[0]++;
             for (int i = 0; i < CORES; i++) // 固定序=BE tick 序稳定的最坏形
-                fed[i] += com.sdzjz.machine.CoreScheduler.request(ctx.getWorld(), new BlockPos(i, 300, -300), 1000, CAP);
+                fed[i] += com.sdzjz.machine.CoreScheduler.request(dimOf(ctx), new BlockPos(i, 300, -300).asLong(), 1000, CAP, ticksOf(ctx));
             if (ran[0] == TICKS) {
                 long min = Long.MAX_VALUE, max = 0, sum = 0;
                 for (long f : fed) { min = Math.min(min, f); max = Math.max(max, f); sum += f; }
@@ -204,7 +204,7 @@ public class SdzjzGameTests implements FabricGameTest {
             for (int i = 0; i < CORES; i++) {
                 long got = 0;
                 for (int r = 0; r < 4; r++)
-                    got += com.sdzjz.machine.CoreScheduler.request(ctx.getWorld(), new BlockPos(i, 300, -600), 20, CAP);
+                    got += com.sdzjz.machine.CoreScheduler.request(dimOf(ctx), new BlockPos(i, 300, -600).asLong(), 20, CAP, ticksOf(ctx));
                 if (count) fed[i] += got;
             }
             if (ran[0] == WARM + RUN) {
@@ -413,17 +413,17 @@ public class SdzjzGameTests implements FabricGameTest {
         BlockPos p1 = new BlockPos(1_234_567, 64, 1_234_567);
         BlockPos p2 = p1.add(3, 0, 0);   // 同区块
         BlockPos p3 = p1.add(160, 0, 0); // 异区块（隔 10 个区块）
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 10, "初始余量应=cap");
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, 0) == Long.MAX_VALUE, "cap<=0 应=闸关无限");
-        com.sdzjz.machine.CoreScheduler.chunkCharge(w, p1, 7);
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p2, cap) == 3,
-                "同区块同账：邻坐标余量应=3，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p2, cap));
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p3, cap) == 10, "异区块异账：远坐标余量应=10");
-        com.sdzjz.machine.CoreScheduler.chunkCharge(w, p2, 3);
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 0, "记满后余量应=0");
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), cap, ticksW(w)) == 10, "初始余量应=cap");
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), 0, ticksW(w)) == Long.MAX_VALUE, "cap<=0 应=闸关无限");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), 7, ticksW(w));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p2), cap, ticksW(w)) == 3,
+                "同区块同账：邻坐标余量应=3，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p2), cap, ticksW(w)));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p3), cap, ticksW(w)) == 10, "异区块异账：远坐标余量应=10");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p2), 3, ticksW(w));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), cap, ticksW(w)) == 0, "记满后余量应=0");
         ctx.waitAndRun(1, () -> { // 下一 server tick：区块账换拍复位（独立时钟，不依赖全服闸开）
-            ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap) == 10,
-                    "换拍后余量应复位=cap，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(w, p1, cap));
+            ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), cap, ticksW(w)) == 10,
+                    "换拍后余量应复位=cap，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.util.math.ChunkPos.toLong(p1), cap, ticksW(w)));
             ctx.complete();
         });
     }
@@ -816,6 +816,12 @@ public class SdzjzGameTests implements FabricGameTest {
             });
         });
     }
+
+    // m366 调度器升 Common 后键/钟折算助手（测试侧=版本侧）
+    private static String dimOf(TestContext ctx) { return ctx.getWorld().getRegistryKey().getValue().toString(); }
+    private static long ticksOf(TestContext ctx) { return ctx.getWorld().getServer().getTicks(); }
+    private static String dimW(net.minecraft.server.world.ServerWorld w) { return w.getRegistryKey().getValue().toString(); }
+    private static long ticksW(net.minecraft.server.world.ServerWorld w) { return w.getServer().getTicks(); }
 
     private static boolean hasEndpoint(com.sdzjz.block.StructureCoreBlockEntity be, long posLong) {
         for (long[] e : be.storageEndpointsView()) if (e[0] == posLong) return true;

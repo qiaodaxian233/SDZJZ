@@ -6143,3 +6143,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （long 化后 .equals/.toShortString 族全清）；m364b 教训扫=平移体无裸常量。
 - **实机脚本**：/sdzjz profile 全家（列表/单核/dumpgraph 按最近核命中）行为同旧；
   配置读写/迁移链同旧；bench 逐核明细 tick 均对表照旧。
+
+## m366 CoreScheduler 升 Common（Phase 1 ⑤收官：调度/预算/剖析/配置全 Common）
+
+- **修法**：调度器（全服预算/饥饿名单/资历闸/区块账四层）三类 MC 触点全洗——
+  ①键：RegistryKey<World>→String 维度串、BlockPos→Long 打包长整型（Row.pos 同净）；
+  ②时钟：world.getServer().getTicks() **入参化**（request/chunkHeadroom/chunkCharge 各带
+  now 尾参——调度器本就该是时间的纯函数，MC 时钟由版本侧折算传入）；③区块键：
+  ChunkPos.toLong 折算移调用方。四 MC import 清零。
+- **调用面**：SCBE 三处（键/钟/区块键就地折算）；GameTest 12 处换装+四个折算助手
+  （dimOf/ticksOf/dimW/ticksW，测试侧=版本侧）；BenchRunner mine 集 Set<BlockPos>→
+  Set<Long>、逐核对表双侧同 long、打印 fromLong 还原；SdzjzCommands 低/高档行同还原。
+- **地雷图**：A 17→18（调度/剖析/配置/四 planner/机器数据表全家=Common 业务核心成形），
+  B 89→88。**Phase 1 ⑤就此收官**——顾问清单里 MachineDef/四 Planner/Scheduler/Profiler/
+  Config 全部零 MC import，下一站=Storage 族（StockView 已是口，StorageAccess 接口触面
+  待勘）与压轴 SCBE。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0；旧签名全仓零残留；12 处换装
+  逐行抽查五参齐全；十四/十五号调度公平用例+卅号区块账六断言=等价判官（键/钟折算后
+  语义逐位不变：同拍同键同账）。
+- **实机脚本**：/sdzjz bench 三档矩阵与逐核明细照旧；饥饿名单/区块账行为同旧；
+  /sdzjz stats 低高档打印照旧。

@@ -186,12 +186,12 @@ public final class SdzjzCommands {
         int show = Math.min(3, rows.size());
         for (int i = 0; i < show; i++) {
             com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
-            final String line = String.format("§7  低│%s %s granted=%d 记名=%d", r.dim, r.pos.toShortString(), r.granted, r.zeroEvents);
+            final String line = String.format("§7  低│%s %s granted=%d 记名=%d", r.dim, BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents);
             src.sendFeedback(() -> Text.literal(line), false);
         }
         for (int i = Math.max(show, rows.size() - 3); i < rows.size(); i++) {
             com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
-            final String line = String.format("§7  高│%s %s granted=%d 记名=%d", r.dim, r.pos.toShortString(), r.granted, r.zeroEvents);
+            final String line = String.format("§7  高│%s %s granted=%d 记名=%d", r.dim, BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents);
             src.sendFeedback(() -> Text.literal(line), false);
         }
         return rows.size();

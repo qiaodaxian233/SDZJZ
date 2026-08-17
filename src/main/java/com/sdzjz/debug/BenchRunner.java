@@ -358,7 +358,7 @@ public final class BenchRunner {
         double[] busy = avgP95Max(busyNs, tickCount); // m307 负载口径（原版 tickTimes 真值）
         double[] wall = avgP95Max(tickNs, tickCount); // 健康脉搏（≈50ms=服务器有余力在睡）
 
-        Set<BlockPos> mine = new HashSet<>(SITES);
+        Set<Long> mine = new HashSet<>(); for (BlockPos sp0 : SITES) mine.add(sp0.asLong()); // m366 Row.pos 已 long 化
         List<CoreScheduler.Row> rows = CoreScheduler.statRows();
         List<CoreScheduler.Row> bench = rows.stream().filter(r -> mine.contains(r.pos))
                 .sorted(java.util.Comparator.comparingLong(r -> r.granted)).toList();
@@ -472,8 +472,8 @@ public final class BenchRunner {
         List<CoreProfiler.Stats> prof = CoreProfiler.active(dim);
         for (CoreScheduler.Row r : bench) {
             CoreProfiler.Stats s = null;
-            for (CoreProfiler.Stats c : prof) if (c.pos == r.pos.asLong()) { s = c; break; } // m365 Stats.pos 已是 long（Row.pos 待 m366 同洗）
-            sb.append(String.format("  %s granted=%d 记名=%d", r.pos.toShortString(), r.granted, r.zeroEvents));
+            for (CoreProfiler.Stats c : prof) if (c.pos == r.pos) { s = c; break; } // m366 双侧同 long
+            sb.append(String.format("  %s granted=%d 记名=%d", BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents));
             if (s != null) sb.append(String.format("  tick均%.0fµs 峰%.0fµs 编译%d", s.avgMicros(), s.maxMicros(), s.planCompiles));
             sb.append('\n');
         }
