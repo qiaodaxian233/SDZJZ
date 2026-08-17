@@ -90,10 +90,14 @@ def report(rows, out):
            "fabric-api": "loader 层"}
     for k in sorted(famh, key=lambda x: -famh[x]):
         w("| %s | %d | %d | %s |\n" % (k, famf[k], famh[k], spi.get(k, "?")))
-    w("\n## 耦合最重 TOP15（B 类按用点数）——Phase 1 最后动，先易后难\n\n")
-    for cls, p, fam, tot, loc in sorted(by.get("B", []), key=lambda x: -x[3])[:15]:
-        w("- %s（%d 行 / %d 用点：%s）\n" % (p.replace("src/main/java/com/sdzjz/", ""), loc, tot,
-                                               ", ".join("%s×%d" % kv for kv in sorted(fam.items(), key=lambda x: -x[1])[:4])))
+    w("\n## 耦合最重 TOP15（m368 耦合分排序：分=API 族数²×log(用点)——迁移难度看\"同时依赖几个 SPI 面\"而非用点绝对值，顾问⑥轮⑤）\n\n")
+    import math
+    def score(x):
+        return len(x[2]) ** 2 * math.log(max(2, x[3]))
+    for cls, p, fam, tot, loc in sorted(by.get("B", []), key=lambda x: -score(x))[:15]:
+        w("- 耦合分 %.0f｜%s（%d 行 / %d 用点 / %d 个 SPI 面：%s）\n" % (score((cls, p, fam, tot, loc)),
+              p.replace("src/main/java/com/sdzjz/", ""), loc, tot, len(fam),
+              ", ".join("%s×%d" % kv for kv in sorted(fam.items(), key=lambda x: -x[1])[:5])))
     w("\n## A 类清单（Phase 1 第一批直迁 common/）\n\n")
     for _, p, _, _, loc in sorted(by.get("A", [])):
         w("- %s（%d 行）\n" % (p.replace("src/main/java/com/sdzjz/", ""), loc))

@@ -6183,3 +6183,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   Hashing/序列化/打印还原）——m366b 漏的就是容器消费点，从此过闸单化。
 - **配置**：零新键。**验证**：硬闸首跑绿（误伤修正后）；全闸预演含新闸绿。
 - **实机脚本**：无（制度件）；此后任何"平移漏点"由 CI Common 闸先于 gradle 编译报案。
+
+## m368 Phase 1.5 ④⑤：RecipeAccess 拆四域接口+扫描器耦合分（顾问⑥轮收官）
+
+- **修法④**：RecipeAccess（八口触警戒线）拆 CraftAccess/SmeltAccess/BrewAccess/EnchAccess
+  四域接口，RecipeAccess 退化纯组合入口（extends 四域，javadoc 立死规矩：**此后不许再往
+  这里塞新方法，新域=新接口**）；Legacy 单实现类实现组合口=四域全承，Platform.recipes()
+  与全部调用面**零改动**；26.x 可分域迁移各自 ModernXxxAccess 再组合。四新接口入 Common
+  名册（22 文件）过硬闸。
+- **修法⑤**：地雷图 TOP 榜从"用点数排序"换**耦合分=API 族数²×log(用点)**——迁移难度看
+  "同时依赖几个 SPI 面"而非调用绝对值（顾问⑥轮原话）。首榜即改判：DataPanelScreenHandler
+  （9 面/196 点，分 428）跃居第二紧咬 SCBE（9 面/738 点，分 535），TerminalItem（7 面/
+  132 点）超过行数更多的 StorageCore——Phase 2 顺位以此为准。
+- **配置**：零新键。**验证**：javac21 冒烟真语法错 0；双闸（Common 硬闸 22 文件+五老闸）
+  全绿；调用面零改动=接口继承拆分的结构保证。
+- **实机脚本**：无（结构件）。Phase 1.5 五项就此全销；下一站=作者实机回归（mixed 矩阵+
+  产线过一遍）后开 Phase 2（26.2 Modern Bootstrap→ModernRecipeAccess 分域迁移）。

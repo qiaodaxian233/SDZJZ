@@ -18,3 +18,7 @@ src/main/java/com/sdzjz/machine/MobDrops.java
 src/main/java/com/sdzjz/machine/PickerQuery.java
 src/main/java/com/sdzjz/machine/SmeltPlanner.java
 src/main/java/com/sdzjz/machine/VillagerTrades.java
+src/main/java/com/sdzjz/platform/CraftAccess.java
+src/main/java/com/sdzjz/platform/SmeltAccess.java
+src/main/java/com/sdzjz/platform/BrewAccess.java
+src/main/java/com/sdzjz/platform/EnchAccess.java

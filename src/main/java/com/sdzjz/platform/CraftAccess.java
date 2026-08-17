@@ -1,7 +1,7 @@
 package com.sdzjz.platform;
 
 /**
- * 配方查询 SPI（多版本代际架构 Phase 1 第②刀，顾问方案 §9）。
+ * 合成配方口（m368 自 RecipeAccess 拆分，顾问⑥轮④：域接口可独立迁 Modern）。
  *
  * 约法三章：
  * - Common 侧（planner 族）只认本口，不认 RecipeManager/Registries/Identifier；
@@ -13,10 +13,13 @@ package com.sdzjz.platform;
  * 实现：Legacy(≤1.21.11)=com.sdzjz.legacy.LegacyRecipeAccess；Modern(26.x)=Phase 3 后补。
  * 酿造/附魔/熔炼三口随 m363 各 planner 收口时增补，不预开空方法（防"巨型 Platform 接口"）。
  */
-/**
- * 配方查询组合入口（m368 拆四域接口，顾问⑥轮④：RecipeAccess 已达八口触警戒线——拆
- * Craft/Smelt/Brew/Ench 四域，26.x 可分域迁移各自 ModernXxxAccess 再组合；本口只做聚合，
- * **此后不许再往这里塞新方法**——新域=新接口）。Legacy 单实现类实现本口=四域全承，调用面零改动。
- */
-public interface RecipeAccess extends CraftAccess, SmeltAccess, BrewAccess, EnchAccess {
+public interface CraftAccess {
+
+    /** 目标物品 id 的全部合成候选（顺位=minecraft 命名空间排前+配方 id 字典序，与 m234 逐位一致）。
+     *  无配方/id 非法=空表。结果由调用方缓存（CraftPlanner.CACHE），实现侧不必缓存。 */
+    java.util.List<com.sdzjz.machine.CraftPlanner.Plan> craftingPlans(Object level, String targetId);
+
+    /** 物品的合成残留容器 id（奶桶→桶）；无残留=null。纯注册表查询与 level 无关。 */
+    String craftRemainderOf(String itemId);
+
 }
