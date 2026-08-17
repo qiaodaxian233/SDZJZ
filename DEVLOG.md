@@ -6408,3 +6408,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   官方 testmod/testmodClient）；本仓消费面结论=StructureCoreScreen/三 planner 定向 grep。
 - **实机脚本**：随 Phase 3 实现笔（预告：26.2 runClient 进单机档开画布合成目标选择器应列出
   全量可合成物；本笔纯核名无实机面）。
+
+## m375 Phase 3 第一刀：Modern 配方同步申报 + 枚举口换双侧统一口（m374 核名兑现）
+
+- **任务**：作者拍板"继续按既定路线"——m374 立档四要点里沙箱可落的两件（①申报同步、
+  ②枚举口统一双侧）本笔兑现；要点③（客户端缓存重建挂 ClientRecipeSynchronizedEvent）
+  待 Modern 有客户端消费者的笔，要点④由 CI modern gametest 本笔顺带验。
+- **修法**：①ModernBootstrap.onInitialize 尾追配方同步申报=shaped/shapeless 两 serializer 过
+  RecipeSynchronization.synchronizeRecipeSerializer——**主初始化器物理双端各跑一次即"双端注册"
+  齐活**（客户端 configuration 阶段 fabric 自动把本集申报给服务端，canSend 缺通道优雅降级
+  EMPTY 不炸）；**走注册表 getOptional 路（m371 ITEM.getOptional 同款编译级）不赌
+  RecipeSerializer 常量名**（NeoForge 补丁不覆盖该类核不到，registry id
+  "minecraft:crafting_shaped/shapeless"=port/26.2 生成数据原文实锤）。
+  ②ModernRecipeAccess craft/smelt 两枚举口：instanceof FabricRecipeManager→instanceof
+  **FabricRecipeAccess**（FabricRecipeManager extends FabricRecipeAccess 源码实锤），
+  getAllOfType→**getSynchronizedRecipes().getAllOfType**（泛型签名同形）——服务端=
+  RecipeManager 全量不过滤（m372/m373 七类判官行为零变化），客户端=ClientRecipeContainer
+  申报子集。m371 立档"26.2 客户端不可枚举配方"销账。
+- **关键取舍（入族谱）**：**不走 recipeAccess().getSynchronizedRecipes() 裸调**——该口靠
+  classTweaker transitive-inject-interface 注入 RecipeAccess，本仓 26.2 侧是 implementation
+  纯依赖（无 remap 模板），**编译期接口注入不保证生效**；instanceof 强转与旧
+  FabricRecipeManager 打法同族、接口类必在 jar 里必可编、双侧通吃、非官方实现防御语义保留。
+- **配置**：零新键。**验证**：javac 冒烟真语法错 0，新触点（FabricRecipeAccess/
+  getSynchronizedRecipes/RecipeSynchronization/synchronizeRecipeSerializer）符号错逐条甄别
+  全为缺 fabric jar 噪音（import 行即 package not exist），拼写照 tag 源码原文；自家类符号
+  定向检零命中；**本笔真判官=CI modern job 三段（编译+装载+runGametest 七类判定跑的就是
+  换装后枚举口=行为判官零新增测试代码，m372 架构红利二次兑现）**。
+- **实机脚本**：26.2 runClient 日志应见"配方同步已申报（shaped/shapeless——m375）"；
+  进单机档后客户端 recipeAccess().getSynchronizedRecipes().recipes() 应非空（待客户端
+  消费者笔做成可见验证）。

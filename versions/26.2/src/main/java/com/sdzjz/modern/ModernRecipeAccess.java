@@ -1,7 +1,7 @@
 package com.sdzjz.modern;
 
 import com.sdzjz.machine.CraftPlanner;
-import net.fabricmc.fabric.api.recipe.v1.FabricRecipeManager;
+import net.fabricmc.fabric.api.recipe.v1.FabricRecipeAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -45,9 +45,13 @@ import java.util.Map;
  *   输入；特殊配方（烟花/染色等）看输入→空输入返 EMPTY 或抛异常→try/catch 跳过，与 Legacy
  *   对 getResult 的 try/catch 同语义。
  *
- * 【立档：26.2 客户端不可枚举配方】新世代配方不全量同步客户端，recipeAccess() 在客户端不是
- * RecipeManager→本实现返回空表。Legacy"客户端画布屏也调 plans"的消费面属 Phase 3 议题
- * （fabric SynchronizedRecipes 按序列化器选择性同步是候选通道），Modern 侧现无客户端消费者。
+ * 【m375 Phase 3 第一刀：枚举口换双侧统一口（m374 核名兑现）】craft/smelt 枚举改走
+ * recipeAccess().getSynchronizedRecipes().getAllOfType（经 FabricRecipeAccess instanceof 强转
+ * ——本仓 26.2 侧走 implementation 纯依赖，classTweaker 接口注入编译期不保证生效，强转与旧
+ * FabricRecipeManager 打法同族且双侧通吃）：服务端=RecipeManager 全量不过滤（m372 判官行为
+ * 零变化），客户端=ClientRecipeContainer 里 fabric 同步来的申报子集（ModernBootstrap 已申报
+ * shaped/shapeless）——m371 立档"26.2 客户端不可枚举配方"就此销账，客户端消费者接线时缓存
+ * 重建挂 ClientRecipeSynchronizedEvent（m374 立档要点③，待有客户端消费者的笔）。
  *
  * 无状态：level 随调用传，绝不持服务端引用（Legacy 同规矩）。
  */
@@ -61,9 +65,9 @@ public final class ModernRecipeAccess implements com.sdzjz.platform.RecipeAccess
         Level world = (Level) level; // 代际句柄向下转型：Modern 世界即官方名 Level
         Item target = BuiltInRegistries.ITEM.getOptional(Identifier.parse(targetId)).orElse(null);
         if (target == null) return java.util.List.of();
-        if (!(world.recipeAccess() instanceof FabricRecipeManager frm)) return java.util.List.of(); // 客户端：见类注释立档
+        if (!(world.recipeAccess() instanceof FabricRecipeAccess fra)) return java.util.List.of(); // 非官方实现防御（m375：双侧统一口后客户端也命中）
         java.util.List<Map.Entry<Identifier, CraftPlanner.Plan>> found = new java.util.ArrayList<>();
-        for (RecipeHolder<CraftingRecipe> holder : frm.<CraftingInput, CraftingRecipe>getAllOfType(RecipeType.CRAFTING)) {
+        for (RecipeHolder<CraftingRecipe> holder : fra.getSynchronizedRecipes().<CraftingInput, CraftingRecipe>getAllOfType(RecipeType.CRAFTING)) {
             CraftingRecipe r = holder.value();
             ItemStack out;
             try {
@@ -111,8 +115,8 @@ public final class ModernRecipeAccess implements com.sdzjz.platform.RecipeAccess
     public java.util.Map<String, java.util.List<Object[]>> smeltingCandidates(Object level) {
         Level world = (Level) level;
         java.util.Map<String, java.util.List<Object[]>> cands = new java.util.HashMap<>();
-        if (!(world.recipeAccess() instanceof FabricRecipeManager frm)) return cands; // 客户端：见类注释立档
-        for (RecipeHolder<SmeltingRecipe> holder : frm.<SingleRecipeInput, SmeltingRecipe>getAllOfType(RecipeType.SMELTING)) {
+        if (!(world.recipeAccess() instanceof FabricRecipeAccess fra)) return cands; // 非官方实现防御（m375：双侧统一口后客户端也命中）
+        for (RecipeHolder<SmeltingRecipe> holder : fra.getSynchronizedRecipes().<SingleRecipeInput, SmeltingRecipe>getAllOfType(RecipeType.SMELTING)) {
             try {
                 java.util.List<Ingredient> ings = holder.value().placementInfo().ingredients();
                 if (ings.isEmpty()) continue;
