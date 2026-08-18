@@ -1147,6 +1147,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 勾选）
                 int minBxZ = (cxZ - rZ) << 4, maxBxZ = ((cxZ + rZ) << 4) + 15; // m388 区域方块外沿（封判只查边界一圈，成本=周长非面积）
                 int minBzZ = (czZ - rZ) << 4, maxBzZ = ((czZ + rZ) << 4) + 15;
+                // m395 Bulk Engine 第一刀=世界写入标志位瘦身（仪表判决线兑现：MUTATE 占七段 68.5%、
+                // 单块 setBlockState 均 2042ns，这 2042ns 的大头就是 flag=3 里的 NOTIFY_NEIGHBORS——
+                // 每拆一块都要给六个邻居发方块更新（水/岩浆当场排流体刻、沙砾当场判掉落、红石/观察者
+                // 全线响应），外加邻居形状更新。这台机器是"整片区域全拆"，这些更新一律白干：反正邻居
+                // 下一拍也要被拆。快写=NOTIFY_LISTENERS|FORCE_STATE（客户端照收更新，跳邻居更新与形状
+                // 更新）；关掉即回 NOTIFY_ALL 逐位同旧，供对表与出事回滚。
+                final int wflagZ = cfg.chunkRemoverFastWrite
+                        ? (net.minecraft.block.Block.NOTIFY_LISTENERS | net.minecraft.block.Block.FORCE_STATE)
+                        : net.minecraft.block.Block.NOTIFY_ALL;
                 long sealFillZ = 0; // m388 空位补封数（重扫给已挖开的边界补石墙；不进 zn 移除账只吃预算）
                 long fluidZ = 0; // m390 本拍整层清水数（流体免费不吃移除预算，单独 4096 顶护 tick；计入 zq 湿账供复检环）
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
@@ -1213,7 +1222,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             }
                             long pM0Z = profZ ? System.nanoTime() : 0;
                             world.setBlockState(mpZ, (fSealZ ? net.minecraft.block.Blocks.STONE
-                                    : net.minecraft.block.Blocks.AIR).getDefaultState(), 3);
+                                    : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位
                             if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                             fluidZ++;
                         }
@@ -1257,7 +1266,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         }
                         long pM0Z = profZ ? System.nanoTime() : 0; // m391 MUTATE 段（评审判决线主角：均 ns=单块世界写入真成本）
                         world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.STONE
-                                : net.minecraft.block.Blocks.AIR).getDefaultState(), 3); // m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
+                                : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位；m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
@@ -1272,7 +1281,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         removedZ++;
                     } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补石墙（此前灌进内圈的水在名单豁免下按普通块清）
                         long pM0Z = profZ ? System.nanoTime() : 0;
-                        world.setBlockState(mpZ, net.minecraft.block.Blocks.STONE.getDefaultState(), 3);
+                        world.setBlockState(mpZ, net.minecraft.block.Blocks.STONE.getDefaultState(), wflagZ); // m395 快写标志位
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         sealFillZ++;
                     }
