@@ -1143,7 +1143,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int prevStZ = (i < be.nodeStatus.size()) ? be.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = runningCount(st, parallelLv, tier);
-                int modeZ = com.sdzjz.node.NodeTags.chunkMode(st); // m386 0=有掉落 1=无掉落极速
+                boolean voidOkZ = cfg.chunkRemoverVoidMode;
+                int modeZ = com.sdzjz.item.ChunkRemoverItem.mode(st, voidOkZ); // m386 0=有掉落 1=无掉落极速；m397 2=空置域（破基岩，config 关掉时按 1 用）
+                boolean voidZ = modeZ == 2;   // m397 空置域：硬度<0 的方块（基岩/屏障/末地传送门框）也拆
+                boolean voidBlockedZ = com.sdzjz.node.NodeTags.chunkMode(st) == 2 && !voidOkZ; // 选了但服主关了=黄灯说清楚，别静默按别的模式挖
                 boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 节点开关；m394 起节点侧默认开）
                 // m396 封边材料自定义（作者点名"默认铺可以改方块，但要检查不够会提醒"）：默认=免费石头
                 // （m389 口径不动）；选了自定义料就**从存储扣**，扣不到=本拍起回落免费石墙 + 黄灯提醒，
@@ -1177,9 +1180,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long sealFillZ = 0; // m388 空位补封数（重扫给已挖开的边界补石墙；不进 zn 移除账只吃预算）
                 long fluidZ = 0; // m390 本拍整层清水数（流体免费不吃移除预算，单独 4096 顶护 tick；计入 zq 湿账供复检环）
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
-                if (modeZ == 1) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // 无掉落快车道：免掉落表求值/免路由，预算直接乘倍
+                if (modeZ != 0) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // m397 无掉落/空置域同走快车道：免掉落表求值/免路由，预算直接乘倍
                 budgetZ = Math.min(budgetZ, 4096L); // 每拍硬顶：setBlockState 才是真成本，防倍率拉满打爆 tick
-                com.sdzjz.machine.StorageAccess depositZ = (modeZ == 1 || hasOut[i]) ? null : be.depositFor(world, i);
+                com.sdzjz.machine.StorageAccess depositZ = (modeZ != 0 || hasOut[i]) ? null : be.depositFor(world, i); // m397 空置域并入无掉落口径
                 if (modeZ == 0 && !hasOut[i] && depositZ == null) budgetZ = Math.min(budgetZ, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规）
                 int yZ = com.sdzjz.node.NodeTags.chunkY(st), idxZ = com.sdzjz.node.NodeTags.chunkIdx(st);
                 int ordZ = Math.min(Math.max(0, com.sdzjz.node.NodeTags.chunkOrd(st)), chunksZ - 1); // m382 分块序号（换挡后越界收敛）
@@ -1252,10 +1255,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     mpZ.set((curCxZ << 4) + (idxZ >> 4), yZ, (curCzZ << 4) + (idxZ & 15));
                     net.minecraft.block.BlockState bsZ = world.getBlockState(mpZ);
                     boolean beHereZ = bsZ.hasBlockEntity();
-                    boolean skipZ = bsZ.isAir() // m392 评审④"Block 分类缓存"判不做留证：1.21.1 反编译源里
+                    boolean skipZ = bsZ.isAir() // m397 空置域=不查硬度（连基岩一起拆），顺带省掉每块一次 getHardness。m392 评审④"Block 分类缓存"判不做留证：1.21.1 反编译源里
                             // getHardness=构造期缓存字段直读、hasBlockEntity=instanceof，每块已是 O(1) 字段级，
                             // 外挂 HashMap 分类缓存反而多一次哈希查找；m391 仪表 SCAN 段若实测打脸再回头。
-                            || bsZ.getHardness(world, mpZ) < 0
+                            || (!voidZ && bsZ.getHardness(world, mpZ) < 0) // m397 空置域：硬度<0 的基岩类不再豁免
                             || (cfg.chunkRemoverSkipBlockEntities && beHereZ);
                     boolean pureFluidZ = sealZ && !bsZ.getFluidState().isEmpty()
                             && bsZ.getBlock().asItem() == net.minecraft.item.Items.AIR; // m388 纯流体块（水/岩浆本体；含水台阶不算——那是建筑归名单管）
@@ -1361,7 +1364,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (profZ) com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_ROUTE,
                             System.nanoTime() - pR0Z, aggZ != null ? aggZ.size() : dropsZ.size());
                 }
-                if (haltZ) {
+                if (voidBlockedZ) { // m397 选了空置域但服主在 config 关了：说清楚按什么模式在挖，别静默降级
+                    be.statR(i, 2, "空置域模式已在配置停用（chunkRemoverVoidMode）：本机按无掉落·极速挖，基岩保留");
+                } else if (haltZ) {
                     be.statR(i, 2, haltWhyZ); // m387 改黄灯：未加载=等待非错误，红色撞"缺料"色语义作者实机误读（游标已落盘，加载恢复自动续）
                 } else if (sealShortZ) { // m396 作者点名"要检查如果不够会提醒"：料不足=黄灯带原因，活照干（回落免费石墙不让水灌）
                     be.statR(i, 2, "封边材料不足：" + com.sdzjz.item.ChunkRemoverItem.sealLabel(st)
@@ -2124,7 +2129,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
             NbtCompound nm = nbtOf(s);
-            nm.putInt("zm", nm.getInt("zm") == 1 ? 0 : 1);
+            nm.putInt("zm", com.sdzjz.item.ChunkRemoverItem.nextMode(nm.getInt("zm"),
+                    com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode)); // m397 三挡循环
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nm));
             markDirty();
             syncToClient();

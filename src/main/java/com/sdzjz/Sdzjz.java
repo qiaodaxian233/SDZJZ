@@ -189,7 +189,8 @@ public class Sdzjz implements ModInitializer {
                 if (!(s2.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) return;
                 int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
                 int r2 = Math.max(0, Math.min(payload.radius(), capR));
-                int m2 = payload.mode() == 1 ? 1 : 0;
+                int m2 = Math.max(0, Math.min(2, payload.mode())); // m397 三挡
+                if (m2 == 2 && !SdzjzConfig.get().chunkRemoverVoidMode) m2 = 1; // 服主关了空置域=按无掉落收，节点侧不留假挡
                 int w2 = payload.seal() == 1 ? 1 : 0; // m388 封边挡水
                 var n2 = s2.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
                         net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();

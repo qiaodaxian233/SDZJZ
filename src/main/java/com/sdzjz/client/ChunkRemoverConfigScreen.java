@@ -82,9 +82,10 @@ public class ChunkRemoverConfigScreen extends Screen {
         ctx.drawText(textRenderer, "掉落模式", x + 10, y + 86, SciSkin.TXT_SOFT, false);
         boolean hovM = in(mouseX, mouseY, x + 68, y + 82, 153, 16);
         ctx.fill(x + 68, y + 82, x + 221, y + 98, hovM ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
-        ctx.fill(x + 69, y + 83, x + 220, y + 97, m == 1 ? SciSkin.BTN_FACE_HOV : SciSkin.ON_DARK);
-        ctx.drawText(textRenderer, m == 1 ? "无掉落 · 极速（方块直接蒸发）" : "有掉落 · 出货（进出线/存储）",
-                x + 76, y + 87, m == 1 ? SciSkin.GOLD : SciSkin.ON, false);
+        ctx.fill(x + 69, y + 83, x + 220, y + 97, m != 0 ? SciSkin.BTN_FACE_HOV : SciSkin.ON_DARK);
+        ctx.drawText(textRenderer, com.sdzjz.item.ChunkRemoverItem.modeLabel(m) // m397 三挡
+                        + (m == 2 ? "（基岩也拆）" : m == 1 ? "（方块直接蒸发）" : "（进出线/存储）"),
+                x + 76, y + 87, m == 2 ? SciSkin.RED_SOFT : m == 1 ? SciSkin.GOLD : SciSkin.ON, false);
         // m388 封边挡水勾选行（config 总闸关=灰字不可点）
         boolean sealAllowed = SdzjzConfig.get().chunkRemoverSealFluids;
         boolean sealOn = NodeTags.chunkSealOn(s);
@@ -96,9 +97,10 @@ public class ChunkRemoverConfigScreen extends Screen {
                         : "封边挡水（服主已在 config 关闭）",
                 x + 27, y + 106, sealAllowed ? (sealOn ? SciSkin.TXT_HI : SciSkin.TXT) : SciSkin.SUB, false);
         // 提示两行
-        ctx.drawText(textRenderer, m == 1 ? "无掉落不产任何物品，清场专用请三思" : "无掉落模式速度 ×"
-                + Math.max(1, SdzjzConfig.get().chunkRemoverNoDropSpeedMult) + "（点上方切换）",
-                x + 10, y + 124, m == 1 ? SciSkin.RED_SOFT : SciSkin.SUB, false);
+        ctx.drawText(textRenderer, m == 2 ? "空置域：连基岩一起拆，坑底通虚空——掉下去摔没，三思" // m397 第三挡提示
+                        : m == 1 ? "无掉落不产任何物品，清场专用请三思"
+                        : "无掉落/空置域速度 ×" + Math.max(1, SdzjzConfig.get().chunkRemoverNoDropSpeedMult) + "（点上方切换）",
+                x + 10, y + 124, m != 0 ? SciSkin.RED_SOFT : SciSkin.SUB, false);
         ctx.drawText(textRenderer, "Esc 关闭 · 画布节点菜单亦可调 · 潜行右键空处快切模式", x + 10, y + 140, SciSkin.SUB, false);
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -134,8 +136,8 @@ public class ChunkRemoverConfigScreen extends Screen {
                 send(Math.max(0, Math.min(nr, cap)), m, w);
                 return true;
             }
-            if (in(mx, my, x + 68, y + 82, 153, 16)) {
-                send(r, m == 1 ? 0 : 1, w);
+            if (in(mx, my, x + 68, y + 82, 153, 16)) { // m397 三挡循环（服主关空置域时 0↔1）
+                send(r, com.sdzjz.item.ChunkRemoverItem.nextMode(m, SdzjzConfig.get().chunkRemoverVoidMode), w);
                 return true;
             }
             if (SdzjzConfig.get().chunkRemoverSealFluids && in(mx, my, x + 10, y + 104, 212, 12)) { // m388 勾选封边挡水

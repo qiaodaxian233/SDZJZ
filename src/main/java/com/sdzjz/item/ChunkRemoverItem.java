@@ -64,10 +64,10 @@ public class ChunkRemoverItem extends MachineItem {
         if (!player.isSneaking()) return net.minecraft.util.TypedActionResult.pass(s);
         if (!world.isClient) { // m386 区域自由调后循环换挡退役（cap=64 时循环 65 挡=灾难 UX），潜行右键空处改=快切掉落模式（野外随手切"这块不要掉落快拆"）
             NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-            int nm = n.getInt("zm") == 1 ? 0 : 1;
+            int nm = nextMode(n.getInt("zm"), com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode); // m397 三挡循环
             n.putInt("zm", nm);
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
-            player.sendMessage(Text.literal(nm == 1 ? "模式：无掉落·极速（方块直接蒸发）" : "模式：有掉落·出货"), true);
+            player.sendMessage(Text.literal("模式：" + modeLabel(nm) + (nm == 2 ? "（基岩也拆，坑底会通虚空）" : "")), true);
         }
         return net.minecraft.util.TypedActionResult.success(s, world.isClient);
     }
@@ -77,6 +77,27 @@ public class ChunkRemoverItem extends MachineItem {
         int w = 2 * Math.max(0, NodeTags.chunkRadius(s)) + 1;
         return w + "×" + w;
     }
+
+    /** m397 模式表（三挡，双端同源唯一权威；序号存节点 NBT 键 zm）：
+     *  0=有掉落·出货 / 1=无掉落·极速蒸发 / **2=空置域·破基岩**（作者点名新增：连基岩这类
+     *  硬度<0 的方块一起拆，把整片区域清成真空；无掉落，走极速快车道）。 */
+    public static final String[] MODE_NAME = {"有掉落 · 出货", "无掉落 · 极速蒸发", "空置域 · 破基岩"};
+
+    /** 越界读收 0（旧档/伪造包脏值）；config 关掉空置域时 2 按 1 用。 */
+    public static int mode(ItemStack s, boolean voidAllowed) {
+        int m = NodeTags.chunkMode(s);
+        if (m < 0 || m > 2) return 0;
+        return (m == 2 && !voidAllowed) ? 1 : m;
+    }
+
+    /** 循环换挡：0→1→2→0；config 关空置域时 0→1→0（不给玩家选一个不生效的挡）。 */
+    public static int nextMode(int cur, boolean voidAllowed) {
+        int max = voidAllowed ? 2 : 1;
+        int n = cur + 1;
+        return (n > max || n < 0) ? 0 : n;
+    }
+
+    public static String modeLabel(int m) { return MODE_NAME[(m < 0 || m > 2) ? 0 : m]; }
 
     /** m396 封边材料解析（作者点名"默认铺可以改方块、可以自定义"）：空串/非法/无方块形态=null=按默认
      *  **免费石头**（m389 口径：置石不扣料，防顶层没圆石封不上=水照灌的哑死）。自定义料则**从存储扣**，
@@ -103,7 +124,9 @@ public class ChunkRemoverItem extends MachineItem {
     public static String canvasLine(ItemStack s) {
         if (!NodeTags.chunkBound(s)) return "未绑定：手持对目标区块内方块右键";
         String at = regionLabel(s) + "@(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ")";
-        if (NodeTags.chunkMode(s) == 1) at += "·无掉"; // m386 模式标
+        int mL = NodeTags.chunkMode(s); // m397 模式标（三挡）
+        if (mL == 2) at += "·空置域";
+        else if (mL == 1) at += "·无掉";
         if (!NodeTags.chunkSealOn(s)) at += "·不堵水"; // m394 封边挡水默认开，只标关掉的（原为标开的，人人都开=白噪音）
         else if (!NodeTags.chunkSealBlock(s).isEmpty()) at += "·砌" + sealLabel(s); // m396 自定义封边材料
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
@@ -133,7 +156,9 @@ public class ChunkRemoverItem extends MachineItem {
         tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
                 + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
         tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式 / 封边挡水").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal((NodeTags.chunkMode(stack) == 1 ? "当前：无掉落·极速蒸发（不产任何物品）" : "当前：有掉落·出货") + "；潜行右键空处快切").formatted(NodeTags.chunkMode(stack) == 1 ? Formatting.GOLD : Formatting.GREEN));
+        int mT = NodeTags.chunkMode(stack);
+        tooltip.add(Text.literal("当前：" + modeLabel(mT) + (mT == 2 ? "（连基岩一起拆，坑底通虚空）" : mT == 1 ? "（不产任何物品）" : "（进出线/存储）") + "；潜行右键空处快切")
+                .formatted(mT == 2 ? Formatting.RED : mT == 1 ? Formatting.GOLD : Formatting.GREEN));
         tooltip.add(Text.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(Formatting.RED));
         if (NodeTags.chunkBound(stack))

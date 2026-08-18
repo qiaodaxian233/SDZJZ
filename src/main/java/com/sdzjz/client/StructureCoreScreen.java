@@ -2088,7 +2088,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? -10 : -1))); });
             addMenu("区域 ＋（Shift×10，重扫）", mi(net.minecraft.item.Items.GLOWSTONE_DUST),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? 10 : 1))); });
-            addMenu("模式: " + (com.sdzjz.node.NodeTags.chunkMode(st) == 1 ? "无掉落·极速" : "有掉落·出货") + " → 切换",
+            addMenu("模式: " + com.sdzjz.item.ChunkRemoverItem.modeLabel(com.sdzjz.node.NodeTags.chunkMode(st)) + " → 切换（三挡循环）", // m397 空置域并入
                     mi(net.minecraft.item.Items.TNT), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zm")); });
             addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（m394 起默认开）", // m389 贴水边界砌墙（作者拍板玻璃→石头）
