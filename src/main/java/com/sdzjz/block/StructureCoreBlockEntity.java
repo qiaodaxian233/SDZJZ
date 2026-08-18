@@ -435,6 +435,29 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.stat(i, 1);
                     produced = true;
                 }
+            } else if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) {
+                // m378 虚空处理器（垃圾桶 m150 同刀+汇率结算）：吞光输入缓存，按 voidXpPerItemsEaten
+                // 件=1 经验炼进本核心 xpPool（熔炼 0.1/件 产出侧同族先例；复制机/附魔工厂消费同一口池）。
+                // 余数记账进位（vc）不丢；停用=持料待命不吞不退（抽取器感应暂停同律），accepts 侧同步
+                // 拒收让上游走默认路由回仓。收料语义=垃圾桶同律（白名单空=连啥炼啥；直连仓不抽/
+                // 逻辑节点转接授权照拉；精确件经授权链抵达=抹组件炼掉，chainEndsInTrash 已并轨）。
+                if (be.ticks % 5 != 0) continue;
+                java.util.Map<String, Long> ownV = be.nodeBuf(i);
+                if (ownV.isEmpty()) continue;
+                if (!cfg.voidProcessorEnabled) { be.statR(i, 2, "虚空处理器已在配置停用（voidProcessorEnabled）——持料待命"); continue; }
+                long ateV = 0;
+                final int dnV = be.fillDrain(ownV); ownV.clear(); // m350 整锅转存再清
+                for (int dk = 0; dk < dnV; dk++) if (be.drainAmts[dk] > 0) ateV += be.drainAmts[dk];
+                if (ateV > 0) {
+                    int rateV = Math.max(1, cfg.voidXpPerItemsEaten);
+                    long carryV = com.sdzjz.node.NodeTags.voidCarry(st) + ateV; // 饱和风险：carry<rate≤int 上限，加吞吐不溢 long
+                    long xpV = carryV / rateV;
+                    com.sdzjz.item.VoidProcessorItem.settle(st, ateV, carryV % rateV, xpV);
+                    if (xpV > 0) be.xpPool += xpV;
+                    be.markDirty();
+                    be.stat(i, 1);
+                    produced = true;
+                }
             } else if (StructureCoreBlockEntity.isExtractor(st)) {
                 // m154 抽取节点（用户点名：点击抽取才开始，抽走物品流动）：开=主动泵——拉料回路
                 // pump 分支已无条件抽上游仓入缓存，这里把缓存沿出线推给"收的"目标；推不出去的
@@ -471,7 +494,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             for (int t : tgX) {
                                 if (left <= 0) break;
                                 if (t < 0 || t >= be.machineNodes.size()) continue;
-                                if ((pass == 0) == StructureCoreBlockEntity.isTrash(be.machineNodes.get(t))) continue;
+                                if ((pass == 0) == (StructureCoreBlockEntity.isTrash(be.machineNodes.get(t))
+                                        || be.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                                 if (!be.accepts(world, t, id)) continue;
                                 java.util.Map<String, Long> mX = be.nodeBuf(t);
                                 if (!be.bufTypeOk(mX, id)) continue; // m270 类型上限：跳过满型目标，残量留源头/走下面搬仓
@@ -1490,7 +1514,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m354 机器类型桶判定（每节点每 tick 一次，PHASES 闸内；instanceof 链=纳秒级）。 */
     private static int typeBucket(ItemStack st) {
-        if (isFilter(st) || isSwitch(st) || isSensor(st) || isDistributor(st) || isExtractor(st) || isTrash(st))
+        if (isFilter(st) || isSwitch(st) || isSensor(st) || isDistributor(st) || isExtractor(st) || isTrash(st)
+                || st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 终端件归逻辑桶
             return com.sdzjz.debug.CoreProfiler.SUB_T_LOGIC;
         if (st.getItem() instanceof AutoCrafterItem) return com.sdzjz.debug.CoreProfiler.SUB_T_CRAFT;
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) return com.sdzjz.debug.CoreProfiler.SUB_T_BREW;
@@ -1693,7 +1718,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         boolean chunkF = s.getItem() instanceof com.sdzjz.item.ChunkFilterItem; // m377 区块过滤器：名单+黑白切换全套复用过滤节点收包口
-        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s) && !chunkF) return;
+        boolean voidP = s.getItem() instanceof com.sdzjz.item.VoidProcessorItem; // m378 虚空处理器：白名单复用（永远白名单无黑白，垃圾桶同律）
+        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s) && !chunkF && !voidP) return;
         // m149 机器加工过滤 / m160 抽取白名单+垃圾桶白名单（安全桶）同走此口
         NbtCompound n = nbtOf(s);
         if (id == null || id.isEmpty()) {
@@ -2320,6 +2346,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         ItemStack st = machineNodes.get(i);
         if (nodePaused(st)) return false;
         if (isTrash(st)) return machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
+        if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 炼掉=销毁终点同格（磨石回收附魔经验的工业版）
+            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
         if (isFilter(st) && !filterPasses(st, id)) return false;
         if (isSwitch(st) && !switchOn(st)) return false;
         if (isExtractor(st) && (!extractorLive(world, i, st) || !machineFilterAllows(st, id))) return false; // m160
@@ -2393,6 +2421,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             // 经逻辑节点转接 = 玩家明确布线授权，垃圾桶作为终端什么都"想要"；
             // 直连仓依然不抽（拉料回路的节点类型清单本就不含垃圾桶，m150 防手滑边界不动）。
             return true;
+        } else if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) {
+            // m378 虚空处理器链式需求=垃圾桶 m153 同律：经逻辑节点转接=玩家明确布线授权；
+            // 收敛一步：只"想要"白名单放行的（与 accepts 同口径，省得拉来又退回）；停用=不想要。
+            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
         } else if (isSensor(st) || isDistributor(st)) {
             // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行
         } else if (st.getItem() instanceof AutoCrafterItem) {
@@ -2768,7 +2800,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int t : targets) {            // 垃圾桶永远是最后去处，与连线先后无关（不然想要的会被吞）
                     if (amt <= 0) return;
                     if (t < 0 || t >= machineNodes.size()) continue;
-                    if ((pass == 0) == isTrash(machineNodes.get(t))) continue;
+                    if ((pass == 0) == (isTrash(machineNodes.get(t))
+                            || machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                     if (!accepts(world, t, id)) continue;
                     java.util.Map<String, Long> m = nodeBuf(t);
                     if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面定向存储/默认路由
@@ -2802,6 +2835,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
         if (isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
         if (isTrash(st)) return machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥，非空=只吞名单内
+        if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 垃圾桶同律；停用=拒收让上游走默认路由回仓
+            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
         if (isExtractor(st))                                  // m154 开=收 / m160 感应联动+白名单一起闸
             return extractorLive(world, target, st) && machineFilterAllows(st, id);
         if (st.getItem() instanceof AutoCrafterItem) {

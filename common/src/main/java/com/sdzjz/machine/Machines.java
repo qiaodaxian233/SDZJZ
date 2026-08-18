@@ -33,6 +33,9 @@ public final class Machines {
     /** 区块过滤器（m377）：区块移除器的规则挂件——画布连线即生效（方向随意，多台 AND 叠加），
      *  方块名单(fl/fb 复用，空=不限)+Y 五挡循环(zp)；本体不收不产不转发（tick 恒待机）。 */
     public static final MachineDef CHUNK_FILTER = new MachineDef("chunk_filter", List.of(), 5, false, List.of());
+    /** 虚空处理器（m378）：垃圾炼经验——吞路由进来的物品按汇率入本核心经验池（垃圾桶升级款，
+     *  白名单空=连啥炼啥；直连仓不抽/逻辑节点转接=授权照拉，m150/m153 同律）。 */
+    public static final MachineDef VOID_PROCESSOR = new MachineDef("void_processor", List.of(), 5, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

@@ -1072,6 +1072,12 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
+        if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 卡面：行1 名单摘要 / 行2 吞炼账
+            int vfN = StructureCoreBlockEntity.filterList(st).size();
+            ctx.drawText(this.textRenderer, vfN > 0 ? "[白名单·" + vfN + "]" : "[全炼]", x + 44, y + 26, SciSkin.GOLD, false);
+            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
+            return;
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 区块过滤器卡面：行1 名单摘要 / 行2 Y 挡名
             int cfN = StructureCoreBlockEntity.filterList(st).size();
             boolean cfB = StructureCoreBlockEntity.filterBlacklist(st);
@@ -1611,7 +1617,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (StructureCoreBlockEntity.machineFilterable(st)) { openMachineFilterPicker(idx); return; }
         if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isTrash(st)
                 || StructureCoreBlockEntity.isExtractor(st)
-                || st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) openFilterPicker(idx); // m377
+                || st.getItem() instanceof com.sdzjz.item.ChunkFilterItem
+                || st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) openFilterPicker(idx); // m377/m378
     }
 
     /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
@@ -2070,6 +2077,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (StructureCoreBlockEntity.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
             int tfN = StructureCoreBlockEntity.filterList(st).size();
             addMenu("吞噬白名单" + (tfN > 0 ? "(" + tfN + ")" : "·全吞") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
+                    () -> openFilterPicker(idx));
+        }
+        if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 白名单复用（永远白名单，垃圾桶同律）
+            int vfN = StructureCoreBlockEntity.filterList(st).size();
+            addMenu("吞炼白名单" + (vfN > 0 ? "(" + vfN + ")" : "·全炼") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
         }
         if (groupsOn()) { // m264 组合两入口（作者点名：Shift左键多选后能组合，相连的也能组合）——纯客户端拼成员集走 m191 建组包

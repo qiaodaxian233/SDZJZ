@@ -826,6 +826,7 @@ public final class SuperBenchRecipes {
         // 逻辑节点小件（灵魂件各异 → 多重集互相唯一；9 件的小多重集也不可能撞机器 BOM）
         addSmall("sdzjz:filter_node", "minecraft:hopper");
         addSmall("sdzjz:chunk_filter", "minecraft:stonecutter"); // m377 灵魂件=切石机（切方块/筛地层）
+        addSmall("sdzjz:void_processor", "minecraft:soul_campfire"); // m378 灵魂件=灵魂营火（烧成灵魂/经验）
         addSmall("sdzjz:sensor_node", "minecraft:comparator");
         addSmall("sdzjz:switch_node", "minecraft:lever");
         addSmall("sdzjz:distributor_node", "minecraft:dropper");

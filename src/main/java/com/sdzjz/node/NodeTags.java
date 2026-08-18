@@ -169,6 +169,13 @@ public final class NodeTags {
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
 
+    // ===== m378 虚空处理器（垃圾炼经验）三键：va 累计吞 / vc 汇率余数 / vn 累计炼得经验 =====
+    public static long voidEaten(ItemStack s) { return viewOf(s).getLong("va"); }
+
+    public static long voidCarry(ItemStack s) { return viewOf(s).getLong("vc"); }
+
+    public static long voidXp(ItemStack s) { return viewOf(s).getLong("vn"); }
+
     public static int runningCount(ItemStack st, int parallelLv, int tier) {
         long r = (long) Math.max(1, st.getCount()) * (1L + Math.max(0, parallelLv)) * Math.max(1, tier);
         r <<= 3 * Math.min(3, Math.max(0, machineTier(st))); // m123 阶位战力 8^mt（4台份×2速/阶）
