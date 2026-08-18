@@ -2091,9 +2091,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("模式: " + (com.sdzjz.node.NodeTags.chunkMode(st) == 1 ? "无掉落·极速" : "有掉落·出货") + " → 切换",
                     mi(net.minecraft.item.Items.TNT), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zm")); });
-            addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（开=重扫补封）", // m389 贴水边界砌石墙（作者拍板玻璃→石头）
+            addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（m394 起默认开）", // m389 贴水边界砌墙（作者拍板玻璃→石头）
                     mi(net.minecraft.item.Items.STONE), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zw")); });
+            addMenu("封边材料: " + com.sdzjz.item.ChunkRemoverItem.sealLabel(st) + " → 换", // m396 自定义封边材料（复用 setNodeTarget 零新协议）
+                    mi(net.minecraft.item.Items.BRICKS), () -> openSealPicker(idx));
+            if (!com.sdzjz.node.NodeTags.chunkSealBlock(st).isEmpty())
+                addMenu("封边材料回默认（石头·免费）", mi(net.minecraft.item.Items.COBBLESTONE),
+                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zsbd")); });
         }
                 if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
             if (com.sdzjz.node.NodeTags.chunkBound(st))
@@ -2908,6 +2913,21 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs();
         if (allItems == null) buildAllItems();
         pickerSrcOverride = allItems;
+        pickerField.setText("");
+        refilterPicker();
+        this.setFocused(pickerField);
+        pickerField.setFocused(true);
+    }
+
+    /** m396 封边材料选择器：全物品注册表网格（复用 m334 复制机同款 mode0+srcOverride），
+     *  服务端 setNodeTarget 侧校验"必须有方块形态"，选到没有方块形态的物品=服务端静默不收。 */
+    private void openSealPicker(int node) {
+        pickerMode = 0;
+        pickerNode = node;
+        pickerOpenMs = net.minecraft.util.Util.getMeasuringTimeMs();
+        if (allItems == null) buildAllItems();
+        pickerSrcOverride = allItems;
+        pickerTitleOverride = "选择封边材料（要有方块形态；自定义料从存储扣，不够=黄灯提醒并回落免费石墙）";
         pickerField.setText("");
         refilterPicker();
         this.setFocused(pickerField);

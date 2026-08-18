@@ -78,12 +78,34 @@ public class ChunkRemoverItem extends MachineItem {
         return w + "×" + w;
     }
 
+    /** m396 封边材料解析（作者点名"默认铺可以改方块、可以自定义"）：空串/非法/无方块形态=null=按默认
+     *  **免费石头**（m389 口径：置石不扣料，防顶层没圆石封不上=水照灌的哑死）。自定义料则**从存储扣**，
+     *  扣不到=黄灯提醒并当拍回落免费石墙——绝不静默停封让水灌进来（m99 精神）。 */
+    public static net.minecraft.block.Block sealBlockOf(String id) {
+        if (id == null || id.isEmpty()) return null;
+        net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(id);
+        if (ident == null) return null;
+        net.minecraft.item.Item it = net.minecraft.registry.Registries.ITEM.get(ident);
+        if (!(it instanceof net.minecraft.item.BlockItem bi)) return null; // 没有方块形态的物品当不了墙
+        net.minecraft.block.Block b = bi.getBlock();
+        return b == net.minecraft.block.Blocks.AIR ? null : b;
+    }
+
+    public static boolean validSealBlock(String id) { return sealBlockOf(id) != null; }
+
+    /** 材料显示名（菜单/面板/副行唯一口径）。 */
+    public static String sealLabel(ItemStack s) {
+        net.minecraft.block.Block b = sealBlockOf(NodeTags.chunkSealBlock(s));
+        return b == null ? "石头（免费）" : new ItemStack(b.asItem()).getName().getString();
+    }
+
     /** 画布节点副行文案（客户端徽章行唯一口径；showWhy 阻塞时让位 m178 原因行）。 */
     public static String canvasLine(ItemStack s) {
         if (!NodeTags.chunkBound(s)) return "未绑定：手持对目标区块内方块右键";
         String at = regionLabel(s) + "@(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ")";
         if (NodeTags.chunkMode(s) == 1) at += "·无掉"; // m386 模式标
         if (!NodeTags.chunkSealOn(s)) at += "·不堵水"; // m394 封边挡水默认开，只标关掉的（原为标开的，人人都开=白噪音）
+        else if (!NodeTags.chunkSealBlock(s).isEmpty()) at += "·砌" + sealLabel(s); // m396 自定义封边材料
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }

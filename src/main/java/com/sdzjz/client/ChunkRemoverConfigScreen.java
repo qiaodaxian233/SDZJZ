@@ -92,7 +92,7 @@ public class ChunkRemoverConfigScreen extends Screen {
         ctx.fill(x + 10, y + 104, x + 22, y + 116, hovS ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(x + 11, y + 105, x + 21, y + 115, sealOn ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
         if (sealOn) ctx.drawText(textRenderer, "✔", x + 13, y + 106, SciSkin.ON, false);
-        ctx.drawText(textRenderer, sealAllowed ? "封边挡水：贴水/岩浆边界砌石墙（默认开；关掉=不砌，水照灌）"
+        ctx.drawText(textRenderer, sealAllowed ? ("封边挡水：贴水边界砌 " + com.sdzjz.item.ChunkRemoverItem.sealLabel(s) + "（默认开·材料在画布菜单换）")
                         : "封边挡水（服主已在 config 关闭）",
                 x + 27, y + 106, sealAllowed ? (sealOn ? SciSkin.TXT_HI : SciSkin.TXT) : SciSkin.SUB, false);
         // 提示两行

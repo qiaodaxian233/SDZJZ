@@ -182,6 +182,9 @@ public final class NodeTags {
      *  zw=1 语义不变；关掉写 2。刻意不换键：换键=老档丢设定，三态是零迁移的写法。 */
     public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") != 2; }
 
+    /** m396 封边材料 id（空=默认免费石头）。自定义料从存储扣，扣不到=黄灯提醒并回落石墙。 */
+    public static String chunkSealBlock(ItemStack s) { return viewOf(s).getString("zsb"); }
+
     /** m390 本轮湿账：本遍游标累计"清过的流体+补过的封"数——>0 表示这一遍碰过水，到底后
      *  不置完成位、从顶再复检一遍（残水复检环），直到全程零流体才算清完。 */
     public static long chunkWetPass(ItemStack s) { return viewOf(s).getLong("zq"); }

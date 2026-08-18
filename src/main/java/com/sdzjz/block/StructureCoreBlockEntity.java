@@ -1144,7 +1144,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = runningCount(st, parallelLv, tier);
                 int modeZ = com.sdzjz.node.NodeTags.chunkMode(st); // m386 0=有掉落 1=无掉落极速
-                boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 勾选）
+                boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 节点开关；m394 起节点侧默认开）
+                // m396 封边材料自定义（作者点名"默认铺可以改方块，但要检查不够会提醒"）：默认=免费石头
+                // （m389 口径不动）；选了自定义料就**从存储扣**，扣不到=本拍起回落免费石墙 + 黄灯提醒，
+                // 绝不静默停封让水灌进来（m99：静默无效比慢更伤）。取料口与复制机母本同姿势：
+                // 定向存储线优先、退回核心输入源。
+                String sealIdZ = cfg.chunkRemoverSealCustom ? com.sdzjz.node.NodeTags.chunkSealBlock(st) : "";
+                net.minecraft.block.Block sealCurZ = sealZ ? com.sdzjz.item.ChunkRemoverItem.sealBlockOf(sealIdZ) : null;
+                boolean sealPayZ = sealCurZ != null;                       // 本拍仍在用（付费的）自定义料
+                boolean sealShortZ = false;                                // 本拍出现过料不足（末尾出黄灯提醒）
+                if (sealCurZ == null) sealCurZ = net.minecraft.block.Blocks.STONE; // 免费兜底料
+                com.sdzjz.machine.StorageAccess sealAccZ = null;
+                if (sealPayZ) {
+                    sealAccZ = be.supplyFor(world, i);
+                    if (sealAccZ == null) {
+                        if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                        sealAccZ = src;
+                    }
+                    if (sealAccZ == null) { sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.block.Blocks.STONE; }
+                }
                 int minBxZ = (cxZ - rZ) << 4, maxBxZ = ((cxZ + rZ) << 4) + 15; // m388 区域方块外沿（封判只查边界一圈，成本=周长非面积）
                 int minBzZ = (czZ - rZ) << 4, maxBzZ = ((czZ + rZ) << 4) + 15;
                 // m395 Bulk Engine 第一刀=世界写入标志位瘦身（仪表判决线兑现：MUTATE 占七段 68.5%、
@@ -1221,8 +1239,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 if (profZ) { pfSealZ += System.nanoTime() - pS0Z; pcSealZ++; }
                             }
                             long pM0Z = profZ ? System.nanoTime() : 0;
-                            world.setBlockState(mpZ, (fSealZ ? net.minecraft.block.Blocks.STONE
-                                    : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位
+                            if (fSealZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=本拍起回落免费石墙+末尾提醒
+                                sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.block.Blocks.STONE;
+                            }
+                            world.setBlockState(mpZ, (fSealZ ? sealCurZ
+                                    : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位；m396 封边材料
                             if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                             fluidZ++;
                         }
@@ -1251,7 +1272,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         long pS0Z = profZ ? System.nanoTime() : 0;
                         sealHereZ = chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
                         if (profZ) { pfSealZ += System.nanoTime() - pS0Z; pcSealZ++; }
-                        if (sealHereZ && bsZ.getBlock() == net.minecraft.block.Blocks.STONE) { sealHereZ = false; skipZ = true; } // m389 石墙已在（自家封边或天然石头都白捡当墙）：不拆不放直接跳过；外侧没水了才当普通石头拆。m388 旧玻璃墙不在保留名单=重扫时被当普通块拆掉同拍置石，自动升级石墙
+                        if (sealHereZ && bsZ.getBlock() == sealCurZ) { sealHereZ = false; skipZ = true; } // m396 口径跟着当前材料走：选了自定义料时天然石头**不再**白捡当墙（要的就是整面统一材质），已是本料的照旧不拆不放。m389 石墙已在（自家封边或天然石头都白捡当墙）：不拆不放直接跳过；外侧没水了才当普通石头拆。m388 旧玻璃墙不在保留名单=重扫时被当普通块拆掉同拍置石，自动升级石墙
                     }
                     if (!skipZ) {
                         if (modeZ == 0) { // m386 无掉落模式：直接蒸发不过战利品表（快在这）
@@ -1265,8 +1286,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (profZ) { pfLootZ += System.nanoTime() - pL0Z; pcLootZ++; }
                         }
                         long pM0Z = profZ ? System.nanoTime() : 0; // m391 MUTATE 段（评审判决线主角：均 ns=单块世界写入真成本）
-                        world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.STONE
-                                : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位；m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
+                        if (sealHereZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
+                            sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.block.Blocks.STONE;
+                        }
+                        world.setBlockState(mpZ, (sealHereZ ? sealCurZ
+                                : net.minecraft.block.Blocks.AIR).getDefaultState(), wflagZ); // m395 快写标志位；m396 封边材料；m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
@@ -1281,7 +1305,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         removedZ++;
                     } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补石墙（此前灌进内圈的水在名单豁免下按普通块清）
                         long pM0Z = profZ ? System.nanoTime() : 0;
-                        world.setBlockState(mpZ, net.minecraft.block.Blocks.STONE.getDefaultState(), wflagZ); // m395 快写标志位
+                        if (sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
+                            sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.block.Blocks.STONE;
+                        }
+                        world.setBlockState(mpZ, sealCurZ.getDefaultState(), wflagZ); // m395 快写标志位；m396 封边材料
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         sealFillZ++;
                     }
@@ -1336,6 +1363,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 if (haltZ) {
                     be.statR(i, 2, haltWhyZ); // m387 改黄灯：未加载=等待非错误，红色撞"缺料"色语义作者实机误读（游标已落盘，加载恢复自动续）
+                } else if (sealShortZ) { // m396 作者点名"要检查如果不够会提醒"：料不足=黄灯带原因，活照干（回落免费石墙不让水灌）
+                    be.statR(i, 2, "封边材料不足：" + com.sdzjz.item.ChunkRemoverItem.sealLabel(st)
+                            + " 取不到（"
+                            + (sealAccZ == null ? "这台没接存储线/仓——拉一条到有料的存储上" : "库存见底——往连着的存储补货")
+                            + "）；本轮已回落免费石墙，不让水灌进来，补上料即自动恢复");
                 } else if (removedZ > 0) {
                     be.stat(i, 1);
                 } else if (parkedZ) {
@@ -2082,6 +2114,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
             return;
         }
+        if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
+            NbtCompound nb = nbtOf(s);
+            nb.remove("zsb");
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nb));
+            markDirty();
+            syncToClient();
+            return;
+        }
         if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
             NbtCompound nm = nbtOf(s);
             nm.putInt("zm", nm.getInt("zm") == 1 ? 0 : 1);
@@ -2251,9 +2291,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 && com.sdzjz.machine.TradePlanner.valid(id); // m146 目标串服务端校验
         boolean dupOk = s.getItem() instanceof com.sdzjz.item.DuplicatorItem
                 && com.sdzjz.item.DuplicatorItem.validTarget(id); // m334 目标=物品id 服务端校验
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk && !dupOk) return;
+        boolean sealOk = s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem
+                && com.sdzjz.item.ChunkRemoverItem.validSealBlock(id); // m396 封边材料（移除器的 setNodeTarget 槽 m376 起本就空着=复用零新协议；服务端校验"必须有方块形态"）
+        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk && !dupOk && !sealOk) return;
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-        if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
+        if (sealOk) { // m396 封边材料：单选写 zsb（清回默认走菜单 #zsbd 哨兵）
+            n.putString("zsb", id);
+        } else if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
             java.util.List<String> cur = cropList(s);
             if (cur.contains(id)) cur.remove(id);
             else if (cur.size() < 8) cur.add(id);
