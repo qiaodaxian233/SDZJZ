@@ -172,6 +172,9 @@ public final class NodeTags {
     /** m382 层主序游标的分块序号 0..w²-1。 */
     public static int chunkOrd(ItemStack s) { return viewOf(s).getInt("zc"); }
 
+    /** m386 掉落模式：0=有掉落·出货（默认），1=无掉落·极速蒸发。 */
+    public static int chunkMode(ItemStack s) { return viewOf(s).getInt("zm"); }
+
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
 

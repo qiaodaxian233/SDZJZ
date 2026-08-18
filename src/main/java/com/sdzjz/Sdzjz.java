@@ -108,6 +108,7 @@ public class Sdzjz implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSwitchPayload.ID, com.sdzjz.net.NodeSwitchPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.ChunkRemoverConfigPayload.ID, com.sdzjz.net.ChunkRemoverConfigPayload.CODEC); // m386
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupPayload.ID, com.sdzjz.net.NodeGroupPayload.CODEC); // m191 画布打组
         PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupMovePayload.ID, com.sdzjz.net.NodeGroupMovePayload.CODEC); // m191 组整体位移
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeGroupPayload.ID, (payload, context) -> { // m191：一包三义按字段组合分派（建组/重命名/解散）
@@ -178,6 +179,30 @@ public class Sdzjz implements ModInitializer {
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
                     core.toggleFilterEntry(payload.index(), payload.entry());
                 }
+            });
+        });
+        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.ChunkRemoverConfigPayload.ID, (payload, context) -> { // m386 手持设置面板写包：先验手上确为移除器再落 NBT，半径变更=重扫（#zrd 同口径）
+            ServerPlayerEntity p = context.player();
+            p.getServer().execute(() -> {
+                var h = payload.hand() == 0 ? net.minecraft.util.Hand.MAIN_HAND : net.minecraft.util.Hand.OFF_HAND;
+                var s2 = p.getStackInHand(h);
+                if (!(s2.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) return;
+                int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
+                int r2 = Math.max(0, Math.min(payload.radius(), capR));
+                int m2 = payload.mode() == 1 ? 1 : 0;
+                var n2 = s2.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                        net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
+                boolean rCh = n2.getInt("zr") != r2;
+                n2.putInt("zr", r2);
+                n2.putInt("zm", m2);
+                if (rCh) { // 改区域=新工程重扫（zn 总账保留）
+                    n2.putInt("zy", p.getWorld().getTopY() - 1);
+                    n2.putInt("zi", 0);
+                    n2.putInt("zc", 0);
+                    n2.remove("zf");
+                }
+                s2.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
+                        net.minecraft.component.type.NbtComponent.of(n2));
             });
         });
         ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSensorPayload.ID, (payload, context) -> {

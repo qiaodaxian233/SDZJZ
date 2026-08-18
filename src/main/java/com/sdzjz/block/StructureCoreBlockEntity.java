@@ -1140,9 +1140,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int prevStZ = (i < be.nodeStatus.size()) ? be.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = runningCount(st, parallelLv, tier);
+                int modeZ = com.sdzjz.node.NodeTags.chunkMode(st); // m386 0=有掉落 1=无掉落极速
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
-                com.sdzjz.machine.StorageAccess depositZ = hasOut[i] ? null : be.depositFor(world, i);
-                if (!hasOut[i] && depositZ == null) budgetZ = Math.min(budgetZ, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规）
+                if (modeZ == 1) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // 无掉落快车道：免掉落表求值/免路由，预算直接乘倍
+                budgetZ = Math.min(budgetZ, 4096L); // 每拍硬顶：setBlockState 才是真成本，防倍率拉满打爆 tick
+                com.sdzjz.machine.StorageAccess depositZ = (modeZ == 1 || hasOut[i]) ? null : be.depositFor(world, i);
+                if (modeZ == 0 && !hasOut[i] && depositZ == null) budgetZ = Math.min(budgetZ, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规）
                 int yZ = com.sdzjz.node.NodeTags.chunkY(st), idxZ = com.sdzjz.node.NodeTags.chunkIdx(st);
                 int ordZ = Math.min(Math.max(0, com.sdzjz.node.NodeTags.chunkOrd(st)), chunksZ - 1); // m382 分块序号（换挡后越界收敛）
                 int bottomZ = world.getBottomY();
@@ -1189,9 +1192,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (!com.sdzjz.item.ChunkFilterItem.allowsBlock(rulesZ.get(k), bidZ)) { skipZ = true; break; }
                     }
                     if (!skipZ) {
-                        for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
-                                beHereZ ? world.getBlockEntity(mpZ) : null))
-                            if (!dZ.isEmpty()) dropsZ.add(dZ);
+                        if (modeZ == 0) // m386 无掉落模式：直接蒸发不过战利品表（快在这）
+                            for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
+                                    beHereZ ? world.getBlockEntity(mpZ) : null))
+                                if (!dZ.isEmpty()) dropsZ.add(dZ);
                         world.setBlockState(mpZ, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
@@ -1219,15 +1223,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), ordZ, idxZ, removedZ, doneZ); // 空气快进段游标也要落盘
                 if (removedZ > 0) { // m382 产出与状态分账：停摆拍已挖的掉落照常出货绝不丢
                     be.prodTally(removedZ);
-                    if (hasOut[i]) { // 出线走 id 计数派发（掉落物极少带组件，方块实体默认已跳过）
+                    if (modeZ == 0 && hasOut[i]) { // 出线走 id 计数派发（掉落物极少带组件，方块实体默认已跳过）
                         java.util.LinkedHashMap<String, Long> aggZ = new java.util.LinkedHashMap<>();
                         for (ItemStack dZ : dropsZ)
                             aggZ.merge(Registries.ITEM.getId(dZ.getItem()).toString(), (long) dZ.getCount(), Long::sum);
                         for (java.util.Map.Entry<String, Long> eZ : aggZ.entrySet())
                             be.distribute(world, i, outT[i], eZ.getKey(), eZ.getValue());
-                    } else if (depositZ != null) {
+                    } else if (modeZ == 0 && depositZ != null) {
                         for (ItemStack dZ : dropsZ) be.depositOrBuffer(depositZ, dZ); // 存储通道走真栈（组件保真）
-                    } else {
+                    } else if (modeZ == 0) {
                         for (ItemStack dZ : dropsZ) be.addOutput(dZ);
                     }
                     produced = true;
@@ -1917,15 +1921,29 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             syncToClient();
             return;
         }
-        if ("#zr".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m382 移除范围换挡：1×1→3×3→…→回 1×1（换挡=新工程清进度回顶重扫，zn 总账保留）
+        if (id != null && id.startsWith("#zrd:") && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调（替 m382 三挡循环）：带符号增量，服务端钳 0..上限；变更=新工程重扫 zn 保留
+            int dR;
+            try { dR = Integer.parseInt(id.substring(5)); } catch (NumberFormatException e) { return; }
+            if (dR < -1024 || dR > 1024) return; // 伪造包尺寸熔断
             NbtCompound nr = nbtOf(s);
             int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
-            nr.putInt("zr", (Math.max(0, nr.getInt("zr")) + 1) % (capR + 1));
-            nr.putInt("zy", world != null ? world.getTopY() - 1 : 319);
-            nr.putInt("zi", 0);
-            nr.putInt("zc", 0);
-            nr.remove("zf");
-            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nr));
+            int nv = Math.max(0, Math.min(Math.max(0, nr.getInt("zr")) + dR, capR));
+            if (nv != nr.getInt("zr")) {
+                nr.putInt("zr", nv);
+                nr.putInt("zy", world != null ? world.getTopY() - 1 : 319);
+                nr.putInt("zi", 0);
+                nr.putInt("zc", 0);
+                nr.remove("zf");
+                s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nr));
+                markDirty();
+                syncToClient();
+            }
+            return;
+        }
+        if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
+            NbtCompound nm = nbtOf(s);
+            nm.putInt("zm", nm.getInt("zm") == 1 ? 0 : 1);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nm));
             markDirty();
             syncToClient();
             return;

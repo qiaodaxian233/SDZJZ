@@ -61,18 +61,12 @@ public class ChunkRemoverItem extends MachineItem {
     public net.minecraft.util.TypedActionResult<ItemStack> use(World world, net.minecraft.entity.player.PlayerEntity player, net.minecraft.util.Hand hand) {
         ItemStack s = player.getStackInHand(hand);
         if (!player.isSneaking()) return net.minecraft.util.TypedActionResult.pass(s);
-        if (!world.isClient) {
+        if (!world.isClient) { // m386 区域自由调后循环换挡退役（cap=64 时循环 65 挡=灾难 UX），潜行右键空处改=快切掉落模式（野外随手切"这块不要掉落快拆"）
             NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-            int capR = Math.max(0, com.sdzjz.config.SdzjzConfig.get().chunkRemoverMaxRadius);
-            int nr = (Math.max(0, n.getInt("zr")) + 1) % (capR + 1);
-            n.putInt("zr", nr);
-            n.putInt("zy", world.getTopY() - 1);
-            n.putInt("zi", 0);
-            n.putInt("zc", 0);
-            n.remove("zf");
+            int nm = n.getInt("zm") == 1 ? 0 : 1;
+            n.putInt("zm", nm);
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
-            int wN = 2 * nr + 1;
-            player.sendMessage(Text.literal("移除范围：" + wN + "×" + wN + (NodeTags.chunkBound(s) ? "（选区框已更新，进度重扫）" : "")), true);
+            player.sendMessage(Text.literal(nm == 1 ? "模式：无掉落·极速（方块直接蒸发）" : "模式：有掉落·出货"), true);
         }
         return net.minecraft.util.TypedActionResult.success(s, world.isClient);
     }
@@ -87,6 +81,7 @@ public class ChunkRemoverItem extends MachineItem {
     public static String canvasLine(ItemStack s) {
         if (!NodeTags.chunkBound(s)) return "未绑定：手持对目标区块内方块右键";
         String at = regionLabel(s) + "@(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ")";
+        if (NodeTags.chunkMode(s) == 1) at += "·无掉"; // m386 模式标
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }
@@ -108,7 +103,8 @@ public class ChunkRemoverItem extends MachineItem {
         tooltip.add(Text.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
                 + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal("移除范围 " + regionLabel(stack) + "（手持潜行右键空处/画布节点菜单换挡；换挡=重扫）").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式切换").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal((NodeTags.chunkMode(stack) == 1 ? "当前：无掉落·极速蒸发（不产任何物品）" : "当前：有掉落·出货") + "；潜行右键空处快切").formatted(NodeTags.chunkMode(stack) == 1 ? Formatting.GOLD : Formatting.GREEN));
         tooltip.add(Text.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(Formatting.RED));
         if (NodeTags.chunkBound(stack))

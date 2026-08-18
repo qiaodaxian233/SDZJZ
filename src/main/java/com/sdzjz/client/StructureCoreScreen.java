@@ -2055,12 +2055,16 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
-        if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m382 移除范围换挡（#zr 哨兵；文案自带"重扫"提醒防 m99 静默惊讶）
-            addMenu("移除范围: " + com.sdzjz.item.ChunkRemoverItem.regionLabel(st) + " → 换挡(重扫)",
+        if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调(#zrd 增量哨兵)+模式切换(#zm)；完整面板=手持按设置键
+            addMenu("区域 " + com.sdzjz.item.ChunkRemoverItem.regionLabel(st) + " −（Shift×10，重扫）", mi(net.minecraft.item.Items.REDSTONE),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? -10 : -1))); });
+            addMenu("区域 ＋（Shift×10，重扫）", mi(net.minecraft.item.Items.GLOWSTONE_DUST),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? 10 : 1))); });
+            addMenu("模式: " + (com.sdzjz.node.NodeTags.chunkMode(st) == 1 ? "无掉落·极速" : "有掉落·出货") + " → 切换",
                     mi(net.minecraft.item.Items.TNT), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zr")); });
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zm")); });
         }
-        if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
+                if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
             if (com.sdzjz.node.NodeTags.chunkBound(st))
                 addMenu("重新扫描", mi(net.minecraft.item.Items.SPYGLASS), 2,
                         () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zs")); });

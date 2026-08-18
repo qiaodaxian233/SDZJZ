@@ -73,6 +73,18 @@ public class SdzjzClient implements ClientModInitializer {
                 .register(com.sdzjz.client.SodiumSpriteKicker::tick);
         // m384 选区高亮：手持已绑定移除器=世界内紫色能量框罩住选区（"技能选中"圈）
         com.sdzjz.client.ChunkRegionHighlighter.register();
+        // m386 手持设置面板快捷键（默认 R 可改键位）：手持移除器时开屏，否则无事
+        var chunkCfgKey = net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.registerKeyBinding(
+                new net.minecraft.client.option.KeyBinding("key.sdzjz.chunk_config",
+                        net.minecraft.client.util.InputUtil.Type.KEYSYM, org.lwjgl.glfw.GLFW.GLFW_KEY_R, "category.sdzjz"));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            while (chunkCfgKey.wasPressed()) {
+                if (mc.player == null || mc.currentScreen != null) continue;
+                int handK = mc.player.getMainHandStack().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 0
+                        : mc.player.getOffHandStack().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 1 : -1;
+                if (handK >= 0) mc.setScreen(new com.sdzjz.client.ChunkRemoverConfigScreen(handK));
+            }
+        });
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }
 }

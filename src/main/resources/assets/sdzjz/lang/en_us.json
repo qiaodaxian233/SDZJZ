@@ -105,6 +105,8 @@
   "item.sdzjz.villager_trader": "Infinite Villager Trader",
   "item.sdzjz.duplicator": "Infinite Duplicator",
   "item.sdzjz.chunk_remover": "Chunk Remover",
+  "key.sdzjz.chunk_config": "Open Chunk Machine Settings",
+  "category.sdzjz": "SDZJZ",
   "item.sdzjz.chunk_filter": "Chunk Filter",
   "item.sdzjz.void_processor": "Void Processor",
   "item.sdzjz.chunk_scanner": "Chunk Scanner",

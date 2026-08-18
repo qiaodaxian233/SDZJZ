@@ -105,6 +105,8 @@
   "item.sdzjz.villager_trader": "村民无限交易机",
   "item.sdzjz.duplicator": "无限复制机",
   "item.sdzjz.chunk_remover": "区块移除器",
+  "key.sdzjz.chunk_config": "打开区块机器设置",
+  "category.sdzjz": "生电终结者",
   "item.sdzjz.chunk_filter": "区块过滤器",
   "item.sdzjz.void_processor": "虚空处理器",
   "item.sdzjz.chunk_scanner": "区块扫描器",
