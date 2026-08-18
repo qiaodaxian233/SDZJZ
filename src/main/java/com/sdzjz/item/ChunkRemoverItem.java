@@ -54,6 +54,29 @@ public class ChunkRemoverItem extends MachineItem {
         return ActionResult.SUCCESS;
     }
 
+    /** m384 手上换挡：潜行右键【空处】循环区域挡（对方块潜行右键仍是绑定，useOnBlock 先响）——
+     *  瑞剑体验闭环：手持预览框（m384 高亮器）随挡即时变大变小，先圈定再上画布。
+     *  服务端权威（客户端只回 SUCCESS 摆手）；换挡=新工程同 #zr 口径（清游标回顶，zn 保留）。 */
+    @Override
+    public net.minecraft.util.TypedActionResult<ItemStack> use(World world, net.minecraft.entity.player.PlayerEntity player, net.minecraft.util.Hand hand) {
+        ItemStack s = player.getStackInHand(hand);
+        if (!player.isSneaking()) return net.minecraft.util.TypedActionResult.pass(s);
+        if (!world.isClient) {
+            NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+            int capR = Math.max(0, com.sdzjz.config.SdzjzConfig.get().chunkRemoverMaxRadius);
+            int nr = (Math.max(0, n.getInt("zr")) + 1) % (capR + 1);
+            n.putInt("zr", nr);
+            n.putInt("zy", world.getTopY() - 1);
+            n.putInt("zi", 0);
+            n.putInt("zc", 0);
+            n.remove("zf");
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+            int wN = 2 * nr + 1;
+            player.sendMessage(Text.literal("移除范围：" + wN + "×" + wN + (NodeTags.chunkBound(s) ? "（选区框已更新，进度重扫）" : "")), true);
+        }
+        return net.minecraft.util.TypedActionResult.success(s, world.isClient);
+    }
+
     /** m382 区域挡名（1×1/3×3/…，菜单与副行同源）。 */
     public static String regionLabel(ItemStack s) {
         int w = 2 * Math.max(0, NodeTags.chunkRadius(s)) + 1;
@@ -85,7 +108,8 @@ public class ChunkRemoverItem extends MachineItem {
         tooltip.add(Text.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
                 + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal("移除范围 " + regionLabel(stack) + "（画布右键节点菜单换挡，最大随 config；换挡=重扫）").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal("移除范围 " + regionLabel(stack) + "（手持潜行右键空处/画布节点菜单换挡；换挡=重扫）").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(Formatting.RED));
         if (NodeTags.chunkBound(stack))
             tooltip.add(Text.literal("当前绑定：" + canvasLine(stack) + "（重绑=重扫）").formatted(Formatting.GREEN));

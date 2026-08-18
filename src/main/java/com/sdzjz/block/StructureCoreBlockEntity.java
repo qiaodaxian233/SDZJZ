@@ -1137,6 +1137,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         fBotZ = Math.max(fBotZ, com.sdzjz.item.ChunkFilterItem.presetMinY(fz));
                     }
                 }
+                int prevStZ = (i < be.nodeStatus.size()) ? be.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
+                int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = runningCount(st, parallelLv, tier);
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
                 com.sdzjz.machine.StorageAccess depositZ = hasOut[i] ? null : be.depositFor(world, i);
@@ -1173,6 +1175,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 beHereZ ? world.getBlockEntity(mpZ) : null))
                             if (!dZ.isEmpty()) dropsZ.add(dZ);
                         world.setBlockState(mpZ, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
+                            if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
+                                chunkFxBurst(swz, cxZ, czZ, rZ, Math.min(fTopZ + 1, world.getTopY() - 1));
+                            if (fxNZ < 6) { // 前沿流：削切面冒紫色传送门粒子（每拍封顶 6 点防包风暴）
+                                swz.spawnParticles(net.minecraft.particle.ParticleTypes.PORTAL,
+                                        mpZ.getX() + 0.5, mpZ.getY() + 0.5, mpZ.getZ() + 0.5, 6, 0.35, 0.35, 0.35, 0.05);
+                                fxNZ++;
+                            }
+                        }
                         removedZ++;
                     }
                     if (++idxZ >= 256) {
@@ -1789,6 +1800,22 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
     public static boolean nodePaused(ItemStack s) { return com.sdzjz.node.NodeTags.nodePaused(s); }
+
+    /** m384 区块移除器"技能锁定"爆发：选区顶面周长粒子环（采样步长 4 格封顶 96 点）+中心信标激活音。
+     *  只在首铲沿触发（非运行→运行），暂停恢复/过滤续挖也算重新施法——审美上正确，机制上免追状态。 */
+    private static void chunkFxBurst(net.minecraft.server.world.ServerWorld sw, int cx, int cz, int r, int yTop) {
+        int x1 = (cx - r) << 4, z1 = (cz - r) << 4;
+        int side = (2 * r + 1) << 4;
+        for (int d = 0; d < side; d += 4) { // 四边同步描点：最大 5×5=80格/边→20点×4边=80≤封顶
+            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + side - 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + side - 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+        }
+        net.minecraft.util.math.BlockPos ctr = new net.minecraft.util.math.BlockPos(x1 + side / 2, yTop, z1 + side / 2);
+        sw.playSound(null, ctr, net.minecraft.sound.SoundEvents.BLOCK_BEACON_ACTIVATE,
+                net.minecraft.sound.SoundCategory.BLOCKS, 0.8f, 1.25f);
+    }
 
     /** 切换节点 暂停/运行（m110b）。 */
     public void togglePause(int index) {

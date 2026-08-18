@@ -71,6 +71,8 @@ public class SdzjzClient implements ClientModInitializer {
         // ——每客户端 tick 给四件动画物品精灵标活跃；未装 Sodium 垫片自动熔断零开销。
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
                 .register(com.sdzjz.client.SodiumSpriteKicker::tick);
+        // m384 选区高亮：手持已绑定移除器=世界内紫色能量框罩住选区（"技能选中"圈）
+        com.sdzjz.client.ChunkRegionHighlighter.register();
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }
 }

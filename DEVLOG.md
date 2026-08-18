@@ -6700,3 +6700,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   chunk_region_wall.png 能量墙贴图仍为特效 v2 备选不阻塞。
 - 零 Java 零新键（尺寸/模型/SPRITES 全原位，纯贴图替换 m336 同规），版本 0.1.383。
 - 实机：背包/创造栏/画布节点图标五张换新即验；Sodium 侧静态图无保活议题。
+
+## m384 区块移除器"技能选中"特效：选区显示+锁定爆发+前沿粒子（三连需求②③收官）
+
+- **三件套**：①**手持选区框**（客户端）——新 client/ChunkRegionHighlighter 挂
+  WorldRenderEvents.AFTER_TRANSLUCENT（fabric-rendering-v1，pin 分支原文核到事件与
+  matrixStack()/camera()/consumers() 三口，consumers 官方标 @Nullable 已判空）：手持已绑定
+  移除器=世界内紫色全高线框罩住 w×w 选区+呼吸脉动（sin 300ms），r>0 画分块格线（退化盒
+  drawBox x1==x2 塌成矩形框，省手搓 lines 顶点+法线）；纯客户端直读手上物品 NBT 零协议。
+  **drawBox 归属考古**：1.21.1 里还在 WorldRenderer（method_22980 yarn 编译级），
+  VertexRendering 是 1.21.2+ 才搬家——版本考古先于写码，防"新版类名写旧版"。
+  ②**锁定爆发**（服务端）——首铲沿（removedZ==0 && 上拍灯态!=1）：选区顶面周长 END_ROD
+  粒子环（步长 4 格四边同步描点，5×5 封顶 80 点）+中心信标激活音 0.8/1.25；暂停恢复/过滤
+  续挖也算重新施法（审美正确，机制免追状态）。③**前沿粒子流**（服务端）——削切面每移除位
+  冒 PORTAL 粒子，每台每拍封顶 6 点防包风暴；spawnParticles 广播口周围玩家都看得见零协议。
+- **手上换挡闭环**（选区框的体验补完）：潜行右键【空处】=手上直接循环区域挡（对方块潜行
+  右键仍是绑定，useOnBlock 先响），服务端权威+actionbar 报数，选区框即时变大变小——
+  圈定→上画布→开工锁定，"技能施法"三拍完整。#zr 画布菜单口径共享（清游标回顶 zn 保留）。
+- **配置**：chunkFxEnabled 总开关 v53（客户端选区框本地读+服务端两式粒子同闸）。
+- **待编译验证（CI=真判官）**：ParticleTypes.PORTAL/END_ROD、SoundEvents.BLOCK_BEACON_ACTIVATE
+  ——.mapping 文件里注册表常量类字段 grep 不到（31 行只有 codec），但在树 SoundEvents 双常量
+  （EXPERIENCE_ORB_PICKUP/PLAYER_BURP）CI 已验通行=同族证据链；红了备胎=Registries.
+  PARTICLE_TYPE/SOUND_EVENT 按 id 查表。WorldRenderEvents/TypedActionResult.use=原文/在树。
+- **返工留痕**：批量脚本又栽 replace 漏右括号（本轮第二次）——升级为写完先
+  grep "'''$" 查裸收尾再跑；且脚本半途炸=前半文件已写后半没写，冒烟必须在脚本全绿后重跑
+  （本次第一跑的"0 错误"测的是旧树，差点假绿放行）。
+- **实机脚本**：①手持绑定的移除器=紫色选区框呼吸脉动，潜行右键空处=框即时 1×1↔3×3↔5×5；
+  ②收手/换维度/未绑定=框消失；③放画布首铲=顶面粒子环一圈+信标音，站在选区里能听清；
+  ④挖掘中削切面持续紫粒子随层下沉；⑤暂停再开=再来一次锁定爆发；⑥chunkFxEnabled=false=
+  框/环/流全灭零残留；⑦多台同挖各自出粒子不串区。
