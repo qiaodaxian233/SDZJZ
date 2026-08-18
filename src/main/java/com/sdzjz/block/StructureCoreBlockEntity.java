@@ -1009,6 +1009,90 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.stat(i, 1);
                 }
                 be.markDirty();
+            } else if (st.getItem() instanceof com.sdzjz.item.ChunkVaultItem) {
+                // m381 区块储存器（三件套第二刀·第100台）：只读全量扫描→模板入 ChunkTemplateStore→
+                // 产"区块数据核心"×1。模板不变量=入模板的位可付可建：空气/硬度<0/方块实体（决策2）/
+                // asItem==AIR（火/传送门/纯液体一条规则全出局）不入。数据核心=组件物品**永走真栈**
+                // （deposit 自动精确账本/addOutput m131b 保组件），出线 id 派发对本机不生效（会抹
+                // NBT 合并同类=模板引用蒸发）。暂存器 transient：半途重启回顶重扫；库满=红灯保留
+                // 暂存逐拍重试入库（不重扫不烧 CPU）。接线五件账：tick=本分支；accepts/chainWants=
+                // 恒假（只读机器免费型尾兜）；setNodeTarget=不适用；徽章=卡面自绘三态。
+                if (!cfg.chunkVaultEnabled) { be.statR(i, 2, "区块储存器已在配置停用（chunkVaultEnabled）"); continue; }
+                if (!com.sdzjz.node.NodeTags.chunkBound(st)) { be.stat(i, 0); continue; }
+                if (com.sdzjz.node.NodeTags.vaultDone(st)) { be.stat(i, 0); continue; } // 已存档=待机（重绑=新扫）
+                if (!(world instanceof net.minecraft.server.world.ServerWorld swV)) continue;
+                String dimV = world.getRegistryKey().getValue().toString();
+                if (!dimV.equals(com.sdzjz.node.NodeTags.chunkDim(st))) { be.statR(i, 3, "绑定区块在其它维度（" + com.sdzjz.node.NodeTags.chunkDim(st) + "），换同维度核心或重绑"); continue; }
+                int cxV = com.sdzjz.node.NodeTags.chunkX(st), czV = com.sdzjz.node.NodeTags.chunkZ(st);
+                if (!world.getChunkManager().isChunkLoaded(cxV, czV)) { be.statR(i, 3, "目标区块未加载（把核心放近些，本机不替你强载）"); continue; }
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                if (be.vaultAcc == null) be.vaultAcc = new java.util.HashMap<>();
+                com.sdzjz.item.ChunkVaultItem.Acc accV = be.vaultAcc.get(i);
+                if (accV != null && (accV.cx != cxV || accV.cz != czV)) { be.vaultAcc.remove(i); accV = null; } // 节点下标复用/换绑=弃旧账
+                int topV = world.getTopY() - 1, bottomV = world.getBottomY();
+                int yV = com.sdzjz.node.NodeTags.chunkY(st), idxV = com.sdzjz.node.NodeTags.chunkIdx(st);
+                if (accV == null) {
+                    if (yV != topV || idxV != 0) { yV = topV; idxV = 0; } // 半途重启：暂存器空+游标在半路=回顶重扫自愈
+                    accV = new com.sdzjz.item.ChunkVaultItem.Acc(cxV, czV);
+                    be.vaultAcc.put(i, accV);
+                }
+                if (!accV.scanComplete) {
+                    int running = runningCount(st, parallelLv, tier);
+                    long budgetV = Math.min(16384L, (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkVaultBlocksPerCycle));
+                    net.minecraft.util.math.BlockPos.Mutable mpV = new net.minecraft.util.math.BlockPos.Mutable();
+                    while (budgetV-- > 0 && yV >= bottomV) {
+                        mpV.set((cxV << 4) + (idxV >> 4), yV, (czV << 4) + (idxV & 15));
+                        net.minecraft.block.BlockState bsV = world.getBlockState(mpV);
+                        if (!bsV.isAir() && bsV.getHardness(world, mpV) >= 0 && !bsV.hasBlockEntity()) {
+                            net.minecraft.item.Item itV = bsV.getBlock().asItem();
+                            if (itV != net.minecraft.item.Items.AIR) {
+                                int piV = accV.record(bsV);
+                                if (piV >= 0) { // 调色板封顶位跳过（病态数据包防线）
+                                    int secY = yV >> 4;
+                                    int[] arrV = accV.secs.computeIfAbsent(secY, k2 -> new int[4096]);
+                                    arrV[((yV & 15) << 8) | idxV] = piV + 1; // 段内序=(y&15)*256+lx*16+lz，idx 恰为 lx*16+lz
+                                    accV.bom.merge(Registries.ITEM.getId(itV).toString(), 1L, Long::sum);
+                                    accV.total++;
+                                }
+                            }
+                        }
+                        if (++idxV >= 256) { idxV = 0; yV--; be.statusDirty = true; }
+                    }
+                    com.sdzjz.item.ChunkVaultItem.cursor(st, Math.max(yV, bottomV), idxV);
+                    if (yV < bottomV) accV.scanComplete = true;
+                }
+                if (accV.scanComplete) {
+                    net.minecraft.nbt.NbtCompound tplV = new net.minecraft.nbt.NbtCompound();
+                    tplV.putInt("ox", cxV);
+                    tplV.putInt("oz", czV);
+                    tplV.putString("dim", dimV);
+                    tplV.putLong("total", accV.total);
+                    net.minecraft.nbt.NbtList palV = new net.minecraft.nbt.NbtList();
+                    for (net.minecraft.block.BlockState psV : accV.pal) palV.add(net.minecraft.nbt.NbtHelper.fromBlockState(psV));
+                    tplV.put("pal", palV);
+                    net.minecraft.nbt.NbtCompound secsV = new net.minecraft.nbt.NbtCompound();
+                    for (java.util.Map.Entry<Integer, int[]> eV : accV.secs.entrySet()) secsV.putIntArray(String.valueOf(eV.getKey()), eV.getValue());
+                    tplV.put("secs", secsV);
+                    net.minecraft.nbt.NbtCompound bomV = new net.minecraft.nbt.NbtCompound();
+                    for (java.util.Map.Entry<String, Long> eV : accV.bom.entrySet()) bomV.putLong(eV.getKey(), eV.getValue());
+                    tplV.put("bom", bomV);
+                    java.util.UUID uidV = com.sdzjz.block.ChunkTemplateStore.of(swV.getServer()).put(tplV, cfg.chunkTemplateMaxCount);
+                    if (uidV == null) { be.statR(i, 3, "模板库已满（chunkTemplateMaxCount=" + cfg.chunkTemplateMaxCount + "），清理后自动续存"); continue; } // 暂存保留逐拍重试
+                    ItemStack coreV = com.sdzjz.item.ChunkDataCoreItem.make(com.sdzjz.registry.ModItems.CHUNK_DATA_CORE,
+                            uidV.toString(), cxV, czV, dimV, accV.total, accV.bom.size());
+                    com.sdzjz.machine.StorageAccess depV = be.depositFor(world, i);
+                    if (depV != null) be.depositOrBuffer(depV, coreV); else be.addOutput(coreV); // 真栈两口，绝不 distribute
+                    com.sdzjz.item.ChunkVaultItem.finish(st, uidV.toString(), accV.total);
+                    be.vaultAcc.remove(i);
+                    be.prodTally(1);
+                    be.statusDirty = true;
+                    be.stat(i, 0); // 存档收讫=待机
+                    produced = true;
+                } else {
+                    be.stat(i, 1);
+                }
+                be.markDirty();
             } else if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) {
                 // m377 区块过滤器：规则牌坊不干活——规则由相连的区块移除器每拍主动来读（见下分支），
                 // 本体不收不产不转发（accepts/chainWants 恒假=MachineItem 免费型尾兜）。恒待机灰灯。
@@ -2425,6 +2509,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ===== m350 供料热路径复用 scratch（外部审计③轮②：每 5t 清运/泵料的 ArrayList(entrySet/keySet)
     // 防御性拷贝逐拍重配下岗）——map 转存进 grow-only 双数组后立即处理，不跨节点不跨 tick 不可重入；
     // 需要"实扣看返回值"的路径（泵/熔炉 withdraw）照旧当场扣，绝不按快照值虚记账（聚合视图可能陈旧）。 =====
+    /** m381 区块储存器暂存器（节点下标→半成品模板；刻意 transient 不落盘——半成品几百 KB 逐拍写
+     *  节点 NBT 会打爆画布快照，半途重启=回顶重扫自愈；Acc 内存绑定坐标防节点下标复用串账）。 */
+    private transient java.util.HashMap<Integer, com.sdzjz.item.ChunkVaultItem.Acc> vaultAcc;
+
     private transient String[] drainIds = new String[16];
     private transient int[] evenOk = new int[8]; // m357 均分目标 scratch（distributeEven0 每次一个 ArrayList 下岗，审计⑤轮④）
     private transient long[] drainAmts = new long[16];

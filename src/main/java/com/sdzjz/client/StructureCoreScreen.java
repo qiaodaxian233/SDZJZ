@@ -1078,6 +1078,19 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
             return;
         }
+        if (st.getItem() instanceof com.sdzjz.item.ChunkVaultItem) { // m381 卡面三态：未绑定/存档中/已存档
+            if (!com.sdzjz.node.NodeTags.chunkBound(st)) {
+                ctx.drawText(this.textRenderer, "[储存器]", x + 44, y + 26, SUB, false);
+                ctx.drawText(this.textRenderer, "手持右键目标区块", x + 44, y + 38, SUB, false);
+            } else if (!com.sdzjz.node.NodeTags.vaultDone(st)) {
+                ctx.drawText(this.textRenderer, "存档中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
+                ctx.drawText(this.textRenderer, "区块(" + com.sdzjz.node.NodeTags.chunkX(st) + "," + com.sdzjz.node.NodeTags.chunkZ(st) + ")", x + 44, y + 38, SUB, false);
+            } else {
+                ctx.drawText(this.textRenderer, "已存档 ✔", x + 44, y + 26, ON, false);
+                ctx.drawText(this.textRenderer, fitText("可重建 " + fmtNum(com.sdzjz.node.NodeTags.vaultTotal(st)) + "·核心已产出", NW - 50), x + 44, y + 38, SciSkin.GOLD, false);
+            }
+            return;
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 卡面三态：未绑定/扫描中/报告摘要（m180 铁律：NodeTags 直连）
             if (!com.sdzjz.node.NodeTags.chunkBound(st)) {
                 ctx.drawText(this.textRenderer, "[扫描器]", x + 44, y + 26, SUB, false);

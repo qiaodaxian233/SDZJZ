@@ -39,6 +39,9 @@ public final class Machines {
     /** 区块扫描器（m380，三件套 m379 第一刀）：只读侦察——绑定区块自顶向下扫描出统计报告
      *  （方块/类型/矿物/容器/生物+Top榜），不动世界不收不产。 */
     public static final MachineDef CHUNK_SCANNER = new MachineDef("chunk_scanner", List.of(), 40, false, List.of());
+    /** 区块储存器（m381，三件套第二刀·第 100 台）：只读扫描区块→模板入服务端库→产"区块数据核心"×1
+     *  （引用式凭证，组件物品永走真栈通道）。 */
+    public static final MachineDef CHUNK_VAULT = new MachineDef("chunk_vault", List.of(), 40, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

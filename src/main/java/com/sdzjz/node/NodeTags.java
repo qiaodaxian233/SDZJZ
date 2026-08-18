@@ -183,6 +183,13 @@ public final class NodeTags {
     /** 类型榜只读视图（viewOf 铁律：绝对只读，消费端只许遍历取数）。 */
     public static NbtCompound scanTypes(ItemStack s) { return viewOf(s).getCompound("sm"); }
 
+    // ===== m381 区块储存器三键（绑定/游标复用 z 族）：tf 就绪位 / tu 模板UUID / tt 可重建总数 =====
+    public static boolean vaultDone(ItemStack s) { return viewOf(s).getBoolean("tf"); }
+
+    public static String vaultUuid(ItemStack s) { return viewOf(s).getString("tu"); }
+
+    public static long vaultTotal(ItemStack s) { return viewOf(s).getLong("tt"); }
+
     // ===== m378 虚空处理器（垃圾炼经验）三键：va 累计吞 / vc 汇率余数 / vn 累计炼得经验 =====
     public static long voidEaten(ItemStack s) { return viewOf(s).getLong("va"); }
 

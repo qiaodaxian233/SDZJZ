@@ -44,7 +44,7 @@ public final class SuperBenchRecipes {
         "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm",
         "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm",
         "sdzjz:wither_rose_farm", "sdzjz:wither_killer", "sdzjz:dragon_cannon",
-        "sdzjz:duplicator", "sdzjz:chunk_remover"); // m168-m174：工程款与新线终局全入Ⅲ档；m334 复制机=终局中的终局；m376 区块移除器=区块机器线第一台
+        "sdzjz:duplicator", "sdzjz:chunk_remover", "sdzjz:chunk_vault"); // m168-m174：工程款与新线终局全入Ⅲ档；m334 复制机=终局中的终局；m376 区块移除器=区块机器线第一台
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -109,6 +109,10 @@ public final class SuperBenchRecipes {
                 "minecraft:nether_star", 2, "minecraft:heavy_core", 1, "minecraft:beacon", 1,
                 "minecraft:netherite_pickaxe", 4, "minecraft:diamond_block", 8, "minecraft:obsidian", 32,
                 "minecraft:tnt", 16, PIS, 8, HOP, 8, CHE, 4); // 合计 84+核心模块4=88 布局位（≤144）
+        bom("sdzjz:chunk_vault", "", // m381 区块储存器=第100台（存档主题：末影箱阵+潜影壳+紫晶+重核）
+                "minecraft:nether_star", 2, "minecraft:heavy_core", 1, "minecraft:ender_chest", 8,
+                "minecraft:shulker_shell", 4, "minecraft:amethyst_block", 16, "minecraft:obsidian", 32,
+                "minecraft:diamond_block", 8, HOP, 8, CHE, 4); // 合计 83+核心模块4=87 布局位（≤144）
         bom("sdzjz:grindstone_recycler", "", "minecraft:grindstone", 2, "minecraft:book", 4,
                 "minecraft:stone", 8, "minecraft:iron_ingot", 8, HOP, 4, CHE, 2);
         bom("sdzjz:bamboo_farm", "", "minecraft:bamboo", 8, OSV, 8, PIS, 8, RSD, 8, SST, 24, HOP, 4, CHE, 2);
