@@ -48,6 +48,7 @@ public class ChunkRemoverItem extends MachineItem {
         n.putInt("zc", 0); // m382 分块序号归零（区域挡位 zr 保留——范围是机器设定随机走）
         n.remove("zf"); // 重绑=清完成位+清累计（重新开扫）
         n.remove("zn");
+        n.remove("zq"); // m390 湿账随新工程归零
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
         if (ctx.getPlayer() != null)
             ctx.getPlayer().sendMessage(Text.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开挖"), true);
@@ -87,13 +88,18 @@ public class ChunkRemoverItem extends MachineItem {
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }
 
-    /** tick 侧游标推进落盘（每 tick 一次，含空气快进段——游标动了就得存，别只在有产出时存）。 */
-    public static void advance(ItemStack s, int y, int ord, int idx, long removedDelta, boolean done) {
+    /** tick 侧游标推进落盘（每 tick 一次，含空气快进段——游标动了就得存，别只在有产出时存）。
+     *  m390 追加湿账两参：wetDelta=本拍"清过的流体+补过的封"数（zq 累加，残水复检环的判据）；
+     *  wetReset=真则清 zq（复检环开新一遍 / 真完成收尾），reset 优先于 delta（旧遍的账不带进新遍）。 */
+    public static void advance(ItemStack s, int y, int ord, int idx, long removedDelta, boolean done,
+                               long wetDelta, boolean wetReset) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         n.putInt("zy", y);
         n.putInt("zc", ord); // m382 层主序分块序号
         n.putInt("zi", idx);
         if (removedDelta > 0) n.putLong("zn", n.getLong("zn") + removedDelta);
+        if (wetReset) n.remove("zq");
+        else if (wetDelta > 0) n.putLong("zq", n.getLong("zq") + wetDelta); // m390
         if (done) n.putBoolean("zf", true);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
     }

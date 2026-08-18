@@ -203,6 +203,7 @@ public class Sdzjz implements ModInitializer {
                     n2.putInt("zi", 0);
                     n2.putInt("zc", 0);
                     n2.remove("zf");
+                    n2.remove("zq"); // m390 湿账随新工程归零
                 }
                 s2.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
                         net.minecraft.component.type.NbtComponent.of(n2));

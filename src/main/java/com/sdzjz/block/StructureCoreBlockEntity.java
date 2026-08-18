@@ -1144,7 +1144,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 勾选）
                 int minBxZ = (cxZ - rZ) << 4, maxBxZ = ((cxZ + rZ) << 4) + 15; // m388 区域方块外沿（封判只查边界一圈，成本=周长非面积）
                 int minBzZ = (czZ - rZ) << 4, maxBzZ = ((czZ + rZ) << 4) + 15;
-                long sealFillZ = 0; // m388 空位补封数（重扫给已挖开的边界补玻璃；不进 zn 移除账只吃预算）
+                long sealFillZ = 0; // m388 空位补封数（重扫给已挖开的边界补石墙；不进 zn 移除账只吃预算）
+                long fluidZ = 0; // m390 本拍整层清水数（流体免费不吃移除预算，单独 4096 顶护 tick；计入 zq 湿账供复检环）
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
                 if (modeZ == 1) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // 无掉落快车道：免掉落表求值/免路由，预算直接乘倍
                 budgetZ = Math.min(budgetZ, 4096L); // 每拍硬顶：setBlockState 才是真成本，防倍率拉满打爆 tick
@@ -1181,6 +1182,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                 if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                             }
                             continue;
+                        }
+                    }
+                    if (sealZ && idxZ == 0) { // m390 水域整层一拍清（作者截图报修"封边没封住+没有支撑的异常水"两案同根）：
+                        // 逐位预算把清水拆到多拍，而海洋是自愈的——两个源方块夹空位=当拍再生新源（原版无限水），
+                        // 游标身后无限再生=悬浮"异常水"永远清不完。同一游戏刻内流体不更新，进驻(分块,层)先把
+                        // 纯流体 256 位一口气原子清完=分块内零再生（分块缝/角的再生交给下方残水复检环兜底）。
+                        // 流体无掉落表=免费，不吃移除预算，单独 fluidZ 记账；边界贴水位同拍直接砌石。
+                        if (fluidZ > 3840) break; // 每拍清水硬顶（4096 同哲学）：满了游标停在本层入口，下拍续清
+                        for (int fi = 0; fi < 256; fi++) {
+                            mpZ.set((curCxZ << 4) + (fi >> 4), yZ, (curCzZ << 4) + (fi & 15));
+                            net.minecraft.block.BlockState fsZ = world.getBlockState(mpZ);
+                            if (fsZ.getFluidState().isEmpty()
+                                    || fsZ.getBlock().asItem() != net.minecraft.item.Items.AIR) continue; // 只清纯流体（海草/含水方块留给常规循环按名单结账，遗留再生由复检环收）
+                            boolean fSealZ = (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ)
+                                    && chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
+                            world.setBlockState(mpZ, (fSealZ ? net.minecraft.block.Blocks.STONE
+                                    : net.minecraft.block.Blocks.AIR).getDefaultState(), 3);
+                            fluidZ++;
                         }
                     }
                     scanCapZ--;
@@ -1235,8 +1254,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     } // 换层顺带请求同步（进度副行走既有 1/s 节流）
                 }
                 boolean doneZ = yZ < bottomZ; // 完成位只认真·世界底（过滤下限不算完，撤过滤器/换挡自动续挖）
-                boolean parkedZ = !doneZ && !haltZ && yZ < fBotZ; // m377 停在过滤器 Y 下限
-                com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), ordZ, idxZ, removedZ, doneZ); // 空气快进段游标也要落盘
+                boolean repassZ = false;
+                if (doneZ && sealZ && com.sdzjz.node.NodeTags.chunkWetPass(st) + fluidZ + sealFillZ > 0) {
+                    // m390 残水复检环：本遍但凡碰过流体/补过封=不置完成位，从顶再复检一整遍（空段快跳
+                    // =复检近乎免费），直到全程零流体才算清完。封边快照的盲区由此自愈：外侧当时干、
+                    // 水后来才到的漏点，复检时进来的水被清且此刻外侧有水=当场补石；分块缝再生的源
+                    // 方块同样被复检逐遍收干。外侧顶灌（过滤窗顶上方来水）收不干=机器长期当抽水机
+                    // 转不置完成位，属正确行为（停勾选即按普通挖收工）。
+                    doneZ = false; repassZ = true;
+                    yZ = world.getTopY() - 1; ordZ = 0; idxZ = 0;
+                }
+                boolean parkedZ = !doneZ && !haltZ && !repassZ && yZ < fBotZ; // m377 停在过滤器 Y 下限
+                com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), ordZ, idxZ, removedZ, doneZ,
+                        fluidZ + sealFillZ, repassZ || doneZ); // 空气快进段游标也要落盘；湿账随遍结转（开新遍/真完成即清）
                 if (removedZ > 0) { // m382 产出与状态分账：停摆拍已挖的掉落照常出货绝不丢
                     be.prodTally(removedZ);
                     if (modeZ == 0 && hasOut[i]) { // 出线走 id 计数派发（掉落物极少带组件，方块实体默认已跳过）
@@ -1968,6 +1998,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 nr.putInt("zi", 0);
                 nr.putInt("zc", 0);
                 nr.remove("zf");
+                nr.remove("zq"); // m390 湿账随新工程归零
                 s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nr));
                 markDirty();
                 syncToClient();
@@ -1991,6 +2022,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 nw.putInt("zi", 0);
                 nw.putInt("zc", 0);
                 nw.remove("zf");
+                nw.remove("zq"); // m390
             }
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nw));
             markDirty();

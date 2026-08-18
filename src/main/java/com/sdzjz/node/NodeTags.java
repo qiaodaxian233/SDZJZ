@@ -175,9 +175,13 @@ public final class NodeTags {
     /** m386 掉落模式：0=有掉落·出货（默认），1=无掉落·极速蒸发。 */
     public static int chunkMode(ItemStack s) { return viewOf(s).getInt("zm"); }
 
-    /** m388 封边挡水：1=区域边界外侧贴水/岩浆处放玻璃幕墙代替空气（勾选在手持面板/节点菜单，
-     *  config chunkRemoverSealFluids 总闸另有；开=重扫补封，关不动游标）。 */
+    /** m388 封边挡水：1=区域边界外侧贴水/岩浆处砌石墙代替空气（勾选在手持面板/节点菜单，
+     *  config chunkRemoverSealFluids 总闸另有；开=重扫补封，关不动游标；m389 材料玻璃→石头）。 */
     public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") == 1; }
+
+    /** m390 本轮湿账：本遍游标累计"清过的流体+补过的封"数——>0 表示这一遍碰过水，到底后
+     *  不置完成位、从顶再复检一遍（残水复检环），直到全程零流体才算清完。 */
+    public static long chunkWetPass(ItemStack s) { return viewOf(s).getLong("zq"); }
 
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
