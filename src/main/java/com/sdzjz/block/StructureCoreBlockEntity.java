@@ -1141,6 +1141,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = runningCount(st, parallelLv, tier);
                 int modeZ = com.sdzjz.node.NodeTags.chunkMode(st); // m386 0=有掉落 1=无掉落极速
+                boolean sealZ = cfg.chunkRemoverSealFluids && com.sdzjz.node.NodeTags.chunkSealOn(st); // m388 封边挡水（config 总闸 AND 勾选）
+                int minBxZ = (cxZ - rZ) << 4, maxBxZ = ((cxZ + rZ) << 4) + 15; // m388 区域方块外沿（封判只查边界一圈，成本=周长非面积）
+                int minBzZ = (czZ - rZ) << 4, maxBzZ = ((czZ + rZ) << 4) + 15;
+                long sealFillZ = 0; // m388 空位补封数（重扫给已挖开的边界补玻璃；不进 zn 移除账只吃预算）
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
                 if (modeZ == 1) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // 无掉落快车道：免掉落表求值/免路由，预算直接乘倍
                 budgetZ = Math.min(budgetZ, 4096L); // 每拍硬顶：setBlockState 才是真成本，防倍率拉满打爆 tick
@@ -1162,7 +1166,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean haltZ = false;
                 String haltWhyZ = null;
                 if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
-                while (!haltZ && removedZ < budgetZ && scanCapZ > 0 && yZ >= fBotZ) {
+                while (!haltZ && removedZ + sealFillZ < budgetZ && scanCapZ > 0 && yZ >= fBotZ) { // m388 补封也是 setBlockState 真成本，与移除同吃预算
                     // m385 空段快跳（实机报修根因：层主序从 Y=顶起步，天上纯空气逐位吃扫描上限——
                     // 1×1 空扫约两分钟才见土，3×3/5×5 是其 9/25 倍观感=死机）：本(分块,层)所在
                     // 16³ 段全空→整 256 位一步跨过，几乎零成本不吃扫描上限（护栏 emptyGuard 防病态）。
@@ -1186,17 +1190,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     boolean skipZ = bsZ.isAir()
                             || bsZ.getHardness(world, mpZ) < 0
                             || (cfg.chunkRemoverSkipBlockEntities && beHereZ);
-                    if (!skipZ && rulesZ != null) { // m377 方块名单 AND：任一过滤器不放行=留在世上
+                    boolean pureFluidZ = sealZ && !bsZ.getFluidState().isEmpty()
+                            && bsZ.getBlock().asItem() == net.minecraft.item.Items.AIR; // m388 纯流体块（水/岩浆本体；含水台阶不算——那是建筑归名单管）
+                    if (!skipZ && rulesZ != null && !pureFluidZ) { // m377 方块名单 AND：任一过滤器不放行=留在世上（m388 堵水时纯流体豁免名单——流体不是建筑，留着=水从名单缝里灌）
                         String bidZ = Registries.ITEM.getId(bsZ.getBlock().asItem()).toString();
                         for (int k = 0; k < rulesZ.size(); k++)
                             if (!com.sdzjz.item.ChunkFilterItem.allowsBlock(rulesZ.get(k), bidZ)) { skipZ = true; break; }
+                    }
+                    boolean sealHereZ = false; // m388 本位需封边：区域边界位且外侧贴邻（1~2 个，角双面）有流体
+                    if (sealZ && (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ)
+                            && (!skipZ || bsZ.isAir())) { // 被名单/方块实体/基岩留下的块自身就是墙，无需封判
+                        sealHereZ = chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
+                        if (sealHereZ && bsZ.getBlock() == net.minecraft.block.Blocks.GLASS) { sealHereZ = false; skipZ = true; } // 幕墙已在：重扫不拆自家封边（外侧没水了才当普通玻璃拆）
                     }
                     if (!skipZ) {
                         if (modeZ == 0) // m386 无掉落模式：直接蒸发不过战利品表（快在这）
                             for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
                                     beHereZ ? world.getBlockEntity(mpZ) : null))
                                 if (!dZ.isEmpty()) dropsZ.add(dZ);
-                        world.setBlockState(mpZ, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.GLASS
+                                : net.minecraft.block.Blocks.AIR).getDefaultState(), 3); // m388 贴水边界位=玻璃幕墙代替空气（玻璃无精准采集不掉落，无白捡漏洞）
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
                                 chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
@@ -1207,6 +1220,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             }
                         }
                         removedZ++;
+                    } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补玻璃墙（此前灌进内圈的水在名单豁免下按普通块清）
+                        world.setBlockState(mpZ, net.minecraft.block.Blocks.GLASS.getDefaultState(), 3);
+                        sealFillZ++;
                     }
                     if (++idxZ >= 256) {
                         idxZ = 0;
@@ -1839,6 +1855,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 net.minecraft.sound.SoundCategory.BLOCKS, 0.8f, 1.25f);
     }
 
+    /** m388 封边挡水判定：区域边界位 (bx,y,bz) 的外侧贴邻（西/东/北/南按所在面取，角=两面）是否有
+     *  流体——getFluidState 非空=水/岩浆/含水方块通吃。水不斜流不上流，四横邻足够，无需查上下。 */
+    private static boolean chunkSealNeeded(net.minecraft.world.World world, int bx, int y, int bz,
+                                           int minBx, int maxBx, int minBz, int maxBz) {
+        if (bx == minBx && chunkSealFluidAt(world, bx - 1, y, bz)) return true;
+        if (bx == maxBx && chunkSealFluidAt(world, bx + 1, y, bz)) return true;
+        if (bz == minBz && chunkSealFluidAt(world, bx, y, bz - 1)) return true;
+        return bz == maxBz && chunkSealFluidAt(world, bx, y, bz + 1);
+    }
+
+    /** m388 外邻流体探针：外邻分块未加载=按无流体处理，绝不触发同步加载（m142 毒区块票同系警惕：
+     *  World.getFluidState 落在未加载区块会强载）。未加载分块不 tick 也灌不进水，等它加载后水若
+     *  贴上来，玩家重扫（重开勾选/重绑）即可补封。 */
+    private static boolean chunkSealFluidAt(net.minecraft.world.World world, int x, int y, int z) {
+        if (!world.getChunkManager().isChunkLoaded(x >> 4, z >> 4)) return false;
+        return !world.getFluidState(new BlockPos(x, y, z)).isEmpty();
+    }
+
     /** 切换节点 暂停/运行（m110b）。 */
     public void togglePause(int index) {
         if (index < 0 || index >= machineNodes.size()) return;
@@ -1944,6 +1978,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             NbtCompound nm = nbtOf(s);
             nm.putInt("zm", nm.getInt("zm") == 1 ? 0 : 1);
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nm));
+            markDirty();
+            syncToClient();
+            return;
+        }
+        if ("#zw".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m388 封边挡水切换（开=重扫补封：已挖开的边界回补玻璃墙、灌进的水按普通块清；关不动游标）
+            NbtCompound nw = nbtOf(s);
+            boolean sealOnW = nw.getInt("zw") != 1;
+            nw.putInt("zw", sealOnW ? 1 : 0);
+            if (sealOnW) { // 开堵水=新工程重扫（zn 总账保留，#zrd 同口径）
+                nw.putInt("zy", world != null ? world.getTopY() - 1 : 319);
+                nw.putInt("zi", 0);
+                nw.putInt("zc", 0);
+                nw.remove("zf");
+            }
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nw));
             markDirty();
             syncToClient();
             return;

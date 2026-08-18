@@ -190,12 +190,15 @@ public class Sdzjz implements ModInitializer {
                 int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
                 int r2 = Math.max(0, Math.min(payload.radius(), capR));
                 int m2 = payload.mode() == 1 ? 1 : 0;
+                int w2 = payload.seal() == 1 ? 1 : 0; // m388 封边挡水
                 var n2 = s2.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
                         net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
                 boolean rCh = n2.getInt("zr") != r2;
+                boolean wOn = w2 == 1 && n2.getInt("zw") != 1; // m388 开堵水=重扫补封（已挖开的边界回补玻璃墙、灌进来的水按普通块清掉；关堵水不动游标）
                 n2.putInt("zr", r2);
                 n2.putInt("zm", m2);
-                if (rCh) { // 改区域=新工程重扫（zn 总账保留）
+                n2.putInt("zw", w2);
+                if (rCh || wOn) { // 改区域/开堵水=新工程重扫（zn 总账保留）
                     n2.putInt("zy", p.getWorld().getTopY() - 1);
                     n2.putInt("zi", 0);
                     n2.putInt("zc", 0);

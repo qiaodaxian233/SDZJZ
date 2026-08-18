@@ -82,6 +82,7 @@ public class ChunkRemoverItem extends MachineItem {
         if (!NodeTags.chunkBound(s)) return "未绑定：手持对目标区块内方块右键";
         String at = regionLabel(s) + "@(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ")";
         if (NodeTags.chunkMode(s) == 1) at += "·无掉"; // m386 模式标
+        if (NodeTags.chunkSealOn(s)) at += "·堵水"; // m388 封边挡水标
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }
@@ -103,7 +104,7 @@ public class ChunkRemoverItem extends MachineItem {
         tooltip.add(Text.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
                 + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式切换").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式 / 封边挡水").formatted(Formatting.LIGHT_PURPLE));
         tooltip.add(Text.literal((NodeTags.chunkMode(stack) == 1 ? "当前：无掉落·极速蒸发（不产任何物品）" : "当前：有掉落·出货") + "；潜行右键空处快切").formatted(NodeTags.chunkMode(stack) == 1 ? Formatting.GOLD : Formatting.GREEN));
         tooltip.add(Text.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(Formatting.RED));

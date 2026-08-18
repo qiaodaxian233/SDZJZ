@@ -175,6 +175,10 @@ public final class NodeTags {
     /** m386 掉落模式：0=有掉落·出货（默认），1=无掉落·极速蒸发。 */
     public static int chunkMode(ItemStack s) { return viewOf(s).getInt("zm"); }
 
+    /** m388 封边挡水：1=区域边界外侧贴水/岩浆处放玻璃幕墙代替空气（勾选在手持面板/节点菜单，
+     *  config chunkRemoverSealFluids 总闸另有；开=重扫补封，关不动游标）。 */
+    public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") == 1; }
+
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
 

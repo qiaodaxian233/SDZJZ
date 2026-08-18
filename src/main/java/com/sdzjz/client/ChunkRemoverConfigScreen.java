@@ -20,7 +20,7 @@ import net.minecraft.util.Hand;
  */
 public class ChunkRemoverConfigScreen extends Screen {
 
-    private static final int W = 236, H = 148;
+    private static final int W = 236, H = 164; // m388 +16：封边挡水勾选行
     private final int hand; // 0=主手 1=副手
 
     public ChunkRemoverConfigScreen(int hand) {
@@ -39,6 +39,14 @@ public class ChunkRemoverConfigScreen extends Screen {
 
     @Override
     public boolean shouldPause() { return false; }
+
+    /** m388 去模糊（作者实机点名"面板是模糊的"）：1.21 原版 Screen.renderBackground 会跑菜单
+     *  模糊 shader 把整个世界糊掉，本屏是手持快捷面板要的是"看着世界调参数"，覆写成只画
+     *  游戏内半透明暗化渐变（renderInGameBackground）。本屏只在世界内打开，无需全景图分支。 */
+    @Override
+    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        renderInGameBackground(ctx);
+    }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -77,11 +85,21 @@ public class ChunkRemoverConfigScreen extends Screen {
         ctx.fill(x + 69, y + 83, x + 220, y + 97, m == 1 ? SciSkin.BTN_FACE_HOV : SciSkin.ON_DARK);
         ctx.drawText(textRenderer, m == 1 ? "无掉落 · 极速（方块直接蒸发）" : "有掉落 · 出货（进出线/存储）",
                 x + 76, y + 87, m == 1 ? SciSkin.GOLD : SciSkin.ON, false);
+        // m388 封边挡水勾选行（config 总闸关=灰字不可点）
+        boolean sealAllowed = SdzjzConfig.get().chunkRemoverSealFluids;
+        boolean sealOn = NodeTags.chunkSealOn(s);
+        boolean hovS = sealAllowed && in(mouseX, mouseY, x + 10, y + 104, 212, 12);
+        ctx.fill(x + 10, y + 104, x + 22, y + 116, hovS ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
+        ctx.fill(x + 11, y + 105, x + 21, y + 115, sealOn ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
+        if (sealOn) ctx.drawText(textRenderer, "✔", x + 13, y + 106, SciSkin.ON, false);
+        ctx.drawText(textRenderer, sealAllowed ? "封边挡水：贴水/岩浆边界放玻璃（开=重扫补封）"
+                        : "封边挡水（服主已在 config 关闭）",
+                x + 27, y + 106, sealAllowed ? (sealOn ? SciSkin.TXT_HI : SciSkin.TXT) : SciSkin.SUB, false);
         // 提示两行
         ctx.drawText(textRenderer, m == 1 ? "无掉落不产任何物品，清场专用请三思" : "无掉落模式速度 ×"
                 + Math.max(1, SdzjzConfig.get().chunkRemoverNoDropSpeedMult) + "（点上方切换）",
-                x + 10, y + 108, m == 1 ? SciSkin.RED_SOFT : SciSkin.SUB, false);
-        ctx.drawText(textRenderer, "Esc 关闭 · 画布节点菜单亦可调 · 潜行右键空处快切模式", x + 10, y + 124, SciSkin.SUB, false);
+                x + 10, y + 124, m == 1 ? SciSkin.RED_SOFT : SciSkin.SUB, false);
+        ctx.drawText(textRenderer, "Esc 关闭 · 画布节点菜单亦可调 · 潜行右键空处快切模式", x + 10, y + 140, SciSkin.SUB, false);
         super.render(ctx, mouseX, mouseY, delta);
     }
 
@@ -105,6 +123,7 @@ public class ChunkRemoverConfigScreen extends Screen {
             int mx = (int) mouseX, my = (int) mouseY;
             int r = Math.max(0, NodeTags.chunkRadius(s));
             int m = NodeTags.chunkMode(s);
+            int w = NodeTags.chunkSealOn(s) ? 1 : 0; // m388
             int cap = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
             Integer nr = null;
             if (in(mx, my, x + 68, y + 44, 26, 16)) nr = r - 10;
@@ -112,18 +131,22 @@ public class ChunkRemoverConfigScreen extends Screen {
             else if (in(mx, my, x + 172, y + 44, 20, 16)) nr = r + 1;
             else if (in(mx, my, x + 195, y + 44, 26, 16)) nr = r + 10;
             if (nr != null) {
-                send(Math.max(0, Math.min(nr, cap)), m);
+                send(Math.max(0, Math.min(nr, cap)), m, w);
                 return true;
             }
             if (in(mx, my, x + 68, y + 82, 153, 16)) {
-                send(r, m == 1 ? 0 : 1);
+                send(r, m == 1 ? 0 : 1, w);
+                return true;
+            }
+            if (SdzjzConfig.get().chunkRemoverSealFluids && in(mx, my, x + 10, y + 104, 212, 12)) { // m388 勾选封边挡水
+                send(r, m, w == 1 ? 0 : 1);
                 return true;
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private void send(int radius, int mode) {
-        ClientPlayNetworking.send(new ChunkRemoverConfigPayload(hand, radius, mode));
+    private void send(int radius, int mode, int seal) {
+        ClientPlayNetworking.send(new ChunkRemoverConfigPayload(hand, radius, mode, seal));
     }
 }
