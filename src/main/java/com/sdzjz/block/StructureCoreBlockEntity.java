@@ -1156,6 +1156,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int bottomZ = world.getBottomY();
                 if (yZ > fTopZ) { yZ = fTopZ; idxZ = 0; ordZ = 0; } // m377 Y 挡快进：窗顶以上直接跳过（游标单向不回卷，重扫=重绑）
                 long scanCapZ = Math.min(16384L, Math.max(1024L, budgetZ * 4L)); // 空气/跳过段快进上限：护 tick 预算
+                final boolean profZ = com.sdzjz.debug.CoreProfiler.PHASES; // m391 七段账（评审路线仪表笔：关时全部计时零成本）
+                final long scanCap0Z = scanCapZ;
+                long pfFilterZ = 0, pfLootZ = 0, pfMutZ = 0, pfSealZ = 0, pfFxZ = 0; // 段耗时（ns）
+                long pcFilterZ = 0, pcLootZ = 0, pcMutZ = 0, pcSealZ = 0, pcFxZ = 0; // 段调用数（MUTATE 次数=真实写块数）
+                long pT0Z = profZ ? System.nanoTime() : 0;
                 long emptyGuardZ = 262144L; // m385 空段快跳硬护栏（isEmpty 位检查几乎零成本，只防病态死循环）
                 long removedZ = 0;
                 java.util.List<ItemStack> dropsZ = new java.util.ArrayList<>();
@@ -1195,10 +1200,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             net.minecraft.block.BlockState fsZ = world.getBlockState(mpZ);
                             if (fsZ.getFluidState().isEmpty()
                                     || fsZ.getBlock().asItem() != net.minecraft.item.Items.AIR) continue; // 只清纯流体（海草/含水方块留给常规循环按名单结账，遗留再生由复检环收）
-                            boolean fSealZ = (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ)
-                                    && chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
+                            boolean fSealZ = false;
+                            if (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ) {
+                                long pS0Z = profZ ? System.nanoTime() : 0;
+                                fSealZ = chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
+                                if (profZ) { pfSealZ += System.nanoTime() - pS0Z; pcSealZ++; }
+                            }
+                            long pM0Z = profZ ? System.nanoTime() : 0;
                             world.setBlockState(mpZ, (fSealZ ? net.minecraft.block.Blocks.STONE
                                     : net.minecraft.block.Blocks.AIR).getDefaultState(), 3);
+                            if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                             fluidZ++;
                         }
                     }
@@ -1212,35 +1223,48 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     boolean pureFluidZ = sealZ && !bsZ.getFluidState().isEmpty()
                             && bsZ.getBlock().asItem() == net.minecraft.item.Items.AIR; // m388 纯流体块（水/岩浆本体；含水台阶不算——那是建筑归名单管）
                     if (!skipZ && rulesZ != null && !pureFluidZ) { // m377 方块名单 AND：任一过滤器不放行=留在世上（m388 堵水时纯流体豁免名单——流体不是建筑，留着=水从名单缝里灌）
+                        long pF0Z = profZ ? System.nanoTime() : 0; // m391 FILTER 段（评审②的"String 化判定"就在这，先记账后判刀）
                         String bidZ = Registries.ITEM.getId(bsZ.getBlock().asItem()).toString();
                         for (int k = 0; k < rulesZ.size(); k++)
                             if (!com.sdzjz.item.ChunkFilterItem.allowsBlock(rulesZ.get(k), bidZ)) { skipZ = true; break; }
+                        if (profZ) { pfFilterZ += System.nanoTime() - pF0Z; pcFilterZ++; }
                     }
                     boolean sealHereZ = false; // m388 本位需封边：区域边界位且外侧贴邻（1~2 个，角双面）有流体
                     if (sealZ && (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ)
                             && (!skipZ || bsZ.isAir())) { // 被名单/方块实体/基岩留下的块自身就是墙，无需封判
+                        long pS0Z = profZ ? System.nanoTime() : 0;
                         sealHereZ = chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
+                        if (profZ) { pfSealZ += System.nanoTime() - pS0Z; pcSealZ++; }
                         if (sealHereZ && bsZ.getBlock() == net.minecraft.block.Blocks.STONE) { sealHereZ = false; skipZ = true; } // m389 石墙已在（自家封边或天然石头都白捡当墙）：不拆不放直接跳过；外侧没水了才当普通石头拆。m388 旧玻璃墙不在保留名单=重扫时被当普通块拆掉同拍置石，自动升级石墙
                     }
                     if (!skipZ) {
-                        if (modeZ == 0) // m386 无掉落模式：直接蒸发不过战利品表（快在这）
+                        if (modeZ == 0) { // m386 无掉落模式：直接蒸发不过战利品表（快在这）
+                            long pL0Z = profZ ? System.nanoTime() : 0; // m391 LOOT 段
                             for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
                                     beHereZ ? world.getBlockEntity(mpZ) : null))
                                 if (!dZ.isEmpty()) dropsZ.add(dZ);
+                            if (profZ) { pfLootZ += System.nanoTime() - pL0Z; pcLootZ++; }
+                        }
+                        long pM0Z = profZ ? System.nanoTime() : 0; // m391 MUTATE 段（评审判决线主角：均 ns=单块世界写入真成本）
                         world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.STONE
                                 : net.minecraft.block.Blocks.AIR).getDefaultState(), 3); // m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
+                        if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
                                 chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
                             if (fxNZ < 10) { // 前沿流：削切面冒龙息紫云（m385 换装：PORTAL 白天几乎隐形，龙息拖尾才有"崩解"感；每拍封顶 10 点）
+                                long pX0Z = profZ ? System.nanoTime() : 0; // m391 FX 段（爆发环走首铲一次不单记，前沿流才是每拍常客）
                                 swz.spawnParticles(net.minecraft.particle.ParticleTypes.DRAGON_BREATH,
                                         mpZ.getX() + 0.5, mpZ.getY() + 0.6, mpZ.getZ() + 0.5, 5, 0.3, 0.2, 0.3, 0.02);
+                                if (profZ) { pfFxZ += System.nanoTime() - pX0Z; pcFxZ++; }
                                 fxNZ++;
                             }
                         }
                         removedZ++;
                     } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补石墙（此前灌进内圈的水在名单豁免下按普通块清）
+                        long pM0Z = profZ ? System.nanoTime() : 0;
                         world.setBlockState(mpZ, net.minecraft.block.Blocks.STONE.getDefaultState(), 3);
+                        if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         sealFillZ++;
                     }
                     if (++idxZ >= 256) {
@@ -1252,6 +1276,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                         }
                     } // 换层顺带请求同步（进度副行走既有 1/s 节流）
+                }
+                if (profZ) { // m391 七段账结算（每 tick 一次批量入桶；SCAN=循环墙钟刨去五段=游标/读态/空跳纯开销）
+                    long pTotZ = System.nanoTime() - pT0Z;
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_SCAN,
+                            pTotZ - pfFilterZ - pfLootZ - pfMutZ - pfSealZ - pfFxZ, scanCap0Z - scanCapZ);
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_FILTER, pfFilterZ, pcFilterZ);
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_LOOT, pfLootZ, pcLootZ);
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_MUTATE, pfMutZ, pcMutZ);
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_SEAL, pfSealZ, pcSealZ);
+                    com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_FX, pfFxZ, pcFxZ);
                 }
                 boolean doneZ = yZ < bottomZ; // 完成位只认真·世界底（过滤下限不算完，撤过滤器/换挡自动续挖）
                 boolean repassZ = false;
@@ -1267,6 +1301,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean parkedZ = !doneZ && !haltZ && !repassZ && yZ < fBotZ; // m377 停在过滤器 Y 下限
                 com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), ordZ, idxZ, removedZ, doneZ,
                         fluidZ + sealFillZ, repassZ || doneZ); // 空气快进段游标也要落盘；湿账随遍结转（开新遍/真完成即清）
+                long pR0Z = profZ ? System.nanoTime() : 0; // m391 ROUTE 段（出线聚合/存储真栈/兜底缓存三通道同账）
                 if (removedZ > 0) { // m382 产出与状态分账：停摆拍已挖的掉落照常出货绝不丢
                     be.prodTally(removedZ);
                     if (modeZ == 0 && hasOut[i]) { // 出线走 id 计数派发（掉落物极少带组件，方块实体默认已跳过）
@@ -1281,6 +1316,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         for (ItemStack dZ : dropsZ) be.addOutput(dZ);
                     }
                     produced = true;
+                    if (profZ) com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_ROUTE,
+                            System.nanoTime() - pR0Z, dropsZ.size());
                 }
                 if (haltZ) {
                     be.statR(i, 2, haltWhyZ); // m387 改黄灯：未加载=等待非错误，红色撞"缺料"色语义作者实机误读（游标已落盘，加载恢复自动续）

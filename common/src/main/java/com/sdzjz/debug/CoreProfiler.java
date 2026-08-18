@@ -97,7 +97,11 @@ public final class CoreProfiler {
             SUB_P_EXEC = 14, SUB_P_BREW = 15, SUB_P_ENCH = 16, SUB_P_SMELT = 17,
             // m357 端点扫描三段账（审计⑤轮⑤：低频高单次成本项，为 StorageCore revision 决策供数）
             SUB_SCAN_DISC = 18, SUB_SCAN_AGG = 19, SUB_SCAN_SORT = 20,
-            SUB_ACCEPTS = 21, SUB_N = 22; // m359 accepts 收货判定（分发/均分每目标每 id 一次，作者拍板 A 点名出账）
+            SUB_ACCEPTS = 21, // m359 accepts 收货判定（分发/均分每目标每 id 一次，作者拍板 A 点名出账）
+            // m391 移除器七段账（性能小阶段仪表笔：外部评审路线第一刀"先拿真实账"——热路径逐块
+            // getDroppedStacks→setBlockState 是否值得上 Bulk Engine，由 MUTATE 占比说话不靠猜）
+            SUB_R_SCAN = 22, SUB_R_FILTER = 23, SUB_R_LOOT = 24, SUB_R_MUTATE = 25,
+            SUB_R_SEAL = 26, SUB_R_ROUTE = 27, SUB_R_FX = 28, SUB_N = 29;
     private static final String[] SUB_NAME = {
             "chainWants 链需求判定", "scanStorageEndpoints 端点扫描(总)", "distribute/Even 分发路由",
             "depositOrBuffer 入仓", "supplyFor/depositFor 存储解析", "CraftPlanner.plans 配方规划(查长期缓存)",
@@ -106,7 +110,10 @@ public final class CoreProfiler {
             "CraftPlanner.exec 合成执行(快照+选+扣)", "BrewPlanner.plan 酿造规划(查缓存)",
             "EnchantPlanner.plan 附魔规划(查缓存)", "SmeltPlanner.resultOf 熔炼查表",
             "[扫描段]发现BFS+离线核销", "[扫描段]总线聚合(仓账+精确账)", "[扫描段]排序top400+同步",
-            "accepts 收货判定"};
+            "accepts 收货判定",
+            "[移除器]扫描/游标(七段其余)", "[移除器]过滤名单判定", "[移除器]掉落表 getDroppedStacks",
+            "[移除器]setBlockState 世界写入", "[移除器]封边判定 chunkSealNeeded",
+            "[移除器]出货路由(出线/存储)", "[移除器]特效粒子"};
     private static final long[] phNs = new long[PH_N];
     private static final long[] subNs = new long[SUB_N];
     private static final long[] subCalls = new long[SUB_N];
@@ -139,6 +146,34 @@ public final class CoreProfiler {
         return o.toString();
     }
     public static void sub(int i, long ns) { subNs[i] += ns; subCalls[i]++; }
+
+    /** m391 批量记账口（移除器七段每 tick 结算一次；calls=段内真实调用/块数，均值口径与逐调用 sub 同义）。 */
+    public static void subAdd(int i, long ns, long calls) {
+        if (ns <= 0 && calls <= 0) return;
+        subNs[i] += Math.max(0, ns);
+        subCalls[i] += Math.max(0, calls);
+    }
+
+    /** m391 移除器七段账报告（先拿真实账再动刀）。判决线：MUTATE 占比>60% → Bulk Engine 开工。 */
+    public static List<String> removerReport() {
+        List<String> out = new ArrayList<>();
+        int[] rs = {SUB_R_SCAN, SUB_R_FILTER, SUB_R_LOOT, SUB_R_MUTATE, SUB_R_SEAL, SUB_R_ROUTE, SUB_R_FX};
+        long tot = 0; boolean any = false;
+        for (int i : rs) { tot += subNs[i]; if (subCalls[i] > 0 || subNs[i] > 0) any = true; }
+        if (!any) {
+            out.add("移除器账为空——/sdzjz profile phase on 开细分计时，让移除器跑一阵（挖真地形）再来看");
+            return out;
+        }
+        out.add(String.format("移除器七段账（窗口合计 %.1f ms；PHASES=%s，off 后本账冻结可慢慢读）：",
+                tot / 1e6, PHASES ? "开" : "关"));
+        for (int i : rs)
+            out.add(String.format("  %-24s 总 %8.2f ms · %,d 次 · 均 %,d ns · 占 %5.1f%%",
+                    SUB_NAME[i].replace("[移除器]", ""), subNs[i] / 1e6, subCalls[i],
+                    subNs[i] / Math.max(1, subCalls[i]), 100.0 * subNs[i] / Math.max(1, tot)));
+        out.add(String.format("  判决线：setBlockState 占七段 %.1f%%（>60%%=按评审路线进 Bulk Engine；其均 ns=单块世界写入真成本）",
+                100.0 * subNs[SUB_R_MUTATE] / Math.max(1, tot)));
+        return out;
+    }
     static void phaseTick(long totalNs) { phTicks++; phTotalNs += totalNs; }
 
     public static void resetPhases() {

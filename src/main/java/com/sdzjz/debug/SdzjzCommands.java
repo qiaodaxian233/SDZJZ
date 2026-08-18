@@ -15,6 +15,7 @@ import static net.minecraft.server.command.CommandManager.literal;
  * m177 调试命令（审查报告三之调试三件套，OP2 权限）：
  *   /sdzjz profile core    —— 本维度活跃核心逐个报：节点/边/tick 均值峰值/路由/供料/链查 速率
  *   /sdzjz profile network —— 全服同步账单：核心 NBT 包数与字节、端点直发包数与条目\n *   /sdzjz profile sched   —— m304 调度器账单：cap/上拍消费/名单数 + 各核 granted 分布（压测判据直出）
+ *   /sdzjz profile remover —— m391 移除器七段账（SCAN/FILTER/LOOT/MUTATE/SEAL/ROUTE/FX，phase on 期间累计）
  *   /sdzjz profile reset   —— 计数窗清零（耗时环形窗自然滚动不用清）
  *   /sdzjz dumpgraph       —— 就近核心整图转储进服务器日志（节点/连线/状态），聊天给摘要\n *   /sdzjz bench start [核数] [每核节点] [秒] [cap] / stop —— m306 一键压测：自动铺场→满载→\n *       报告落 <游戏目录>/sdzjz_bench_时间戳.txt →自动清场复原配置（默认 20×64×60s×cap100）
  */
@@ -44,6 +45,11 @@ public final class SdzjzCommands {
                                             c.getSource().sendFeedback(() -> Text.literal("§a[sdzjz] 细分计时已关"), false);
                                             return 1;
                                         })))
+                                .then(literal("remover").executes(c -> { // m391 移除器七段账（性能小阶段仪表）
+                                    for (String ln : CoreProfiler.removerReport())
+                                        c.getSource().sendFeedback(() -> Text.literal("§7" + ln), false);
+                                    return 1;
+                                }))
                                 .then(literal("reset").executes(c -> {
                                     CoreProfiler.resetAll();
                                     com.sdzjz.machine.CoreScheduler.resetStats(); // m304 只清计数不动名单
