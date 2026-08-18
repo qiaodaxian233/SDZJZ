@@ -2091,8 +2091,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("模式: " + (com.sdzjz.node.NodeTags.chunkMode(st) == 1 ? "无掉落·极速" : "有掉落·出货") + " → 切换",
                     mi(net.minecraft.item.Items.TNT), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zm")); });
-            addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（开=重扫补封）", // m388 贴水边界放玻璃幕墙
-                    mi(net.minecraft.item.Items.GLASS), 2,
+            addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（开=重扫补封）", // m389 贴水边界砌石墙（作者拍板玻璃→石头）
+                    mi(net.minecraft.item.Items.STONE), 2,
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zw")); });
         }
                 if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）

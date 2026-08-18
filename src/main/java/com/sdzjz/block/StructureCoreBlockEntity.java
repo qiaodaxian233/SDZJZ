@@ -1201,15 +1201,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (sealZ && (mpZ.getX() == minBxZ || mpZ.getX() == maxBxZ || mpZ.getZ() == minBzZ || mpZ.getZ() == maxBzZ)
                             && (!skipZ || bsZ.isAir())) { // 被名单/方块实体/基岩留下的块自身就是墙，无需封判
                         sealHereZ = chunkSealNeeded(world, mpZ.getX(), yZ, mpZ.getZ(), minBxZ, maxBxZ, minBzZ, maxBzZ);
-                        if (sealHereZ && bsZ.getBlock() == net.minecraft.block.Blocks.GLASS) { sealHereZ = false; skipZ = true; } // 幕墙已在：重扫不拆自家封边（外侧没水了才当普通玻璃拆）
+                        if (sealHereZ && bsZ.getBlock() == net.minecraft.block.Blocks.STONE) { sealHereZ = false; skipZ = true; } // m389 石墙已在（自家封边或天然石头都白捡当墙）：不拆不放直接跳过；外侧没水了才当普通石头拆。m388 旧玻璃墙不在保留名单=重扫时被当普通块拆掉同拍置石，自动升级石墙
                     }
                     if (!skipZ) {
                         if (modeZ == 0) // m386 无掉落模式：直接蒸发不过战利品表（快在这）
                             for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
                                     beHereZ ? world.getBlockEntity(mpZ) : null))
                                 if (!dZ.isEmpty()) dropsZ.add(dZ);
-                        world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.GLASS
-                                : net.minecraft.block.Blocks.AIR).getDefaultState(), 3); // m388 贴水边界位=玻璃幕墙代替空气（玻璃无精准采集不掉落，无白捡漏洞）
+                        world.setBlockState(mpZ, (sealHereZ ? net.minecraft.block.Blocks.STONE
+                                : net.minecraft.block.Blocks.AIR).getDefaultState(), 3); // m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
                                 chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
@@ -1220,8 +1220,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             }
                         }
                         removedZ++;
-                    } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补玻璃墙（此前灌进内圈的水在名单豁免下按普通块清）
-                        world.setBlockState(mpZ, net.minecraft.block.Blocks.GLASS.getDefaultState(), 3);
+                    } else if (sealHereZ && bsZ.isAir()) { // m388 空位补封：开堵水重扫时给已挖开的边界补石墙（此前灌进内圈的水在名单豁免下按普通块清）
+                        world.setBlockState(mpZ, net.minecraft.block.Blocks.STONE.getDefaultState(), 3);
                         sealFillZ++;
                     }
                     if (++idxZ >= 256) {
