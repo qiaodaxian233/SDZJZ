@@ -1121,7 +1121,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (cycles <= 0) continue;
                 // m377 收集相连区块过滤器（任一方向连线即生效；多台=规则 AND；m110b 暂停即隔离；
                 // config chunkFilterEnabled 关=忽略过滤器按全量挖，文档已写明）。
-                java.util.List<ItemStack> rulesZ = null;
+                java.util.List<com.sdzjz.item.ChunkFilterItem.CompiledRule> rulesZ = null; // m392 评审②：收集期一次编译（Set<Item> 身份查找），热路径零 NBT 读零 String 化
+                // m392 评审①"邻接预编译"判不做留证：本收集是每机器周期一次的冷路径（≤512 次 instanceof
+                // +小数组扫），量级 µs；真热的是每块×每滤的名单判定（已由②编译解决）。若 m391 仪表
+                // SCAN 段实测打脸再回头做拓扑期编译。
                 int fTopZ = world.getTopY() - 1, fBotZ = world.getBottomY();
                 if (cfg.chunkFilterEnabled) {
                     for (int j = 0; j < be.machineNodes.size(); j++) {
@@ -1132,7 +1135,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (!linkedZ && outT[j] != null) for (int t : outT[j]) if (t == i) { linkedZ = true; break; }
                         if (!linkedZ) continue;
                         if (rulesZ == null) rulesZ = new java.util.ArrayList<>(2);
-                        rulesZ.add(fz);
+                        rulesZ.add(com.sdzjz.item.ChunkFilterItem.compile(fz)); // m392 名单→Set<Item> 一次编译
                         fTopZ = Math.min(fTopZ, com.sdzjz.item.ChunkFilterItem.presetMaxY(fz));
                         fBotZ = Math.max(fBotZ, com.sdzjz.item.ChunkFilterItem.presetMinY(fz));
                     }
@@ -1164,6 +1167,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long emptyGuardZ = 262144L; // m385 空段快跳硬护栏（isEmpty 位检查几乎零成本，只防病态死循环）
                 long removedZ = 0;
                 java.util.List<ItemStack> dropsZ = new java.util.ArrayList<>();
+                java.util.LinkedHashMap<net.minecraft.item.Item, Long> aggZ =
+                        (modeZ == 0 && hasOut[i]) ? new java.util.LinkedHashMap<>() : null; // m392 评审③：出线路径边掉落边聚合（Item 身份键），消中间 List 与逐掉落 String 化；存储/兜底缓存两通道保留真栈（组件保真）
                 net.minecraft.util.math.BlockPos.Mutable mpZ = new net.minecraft.util.math.BlockPos.Mutable();
                 // m382 层主序扫描：位(256)→分块(w×w)→层(Y)——Y 仍是最外层，m377 过滤下限停靠/
                 // 自动续挖语义逐位保真；分块逐个到访时点名查加载，未加载=红灯整单停摆不强载（m142），
@@ -1217,16 +1222,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     mpZ.set((curCxZ << 4) + (idxZ >> 4), yZ, (curCzZ << 4) + (idxZ & 15));
                     net.minecraft.block.BlockState bsZ = world.getBlockState(mpZ);
                     boolean beHereZ = bsZ.hasBlockEntity();
-                    boolean skipZ = bsZ.isAir()
+                    boolean skipZ = bsZ.isAir() // m392 评审④"Block 分类缓存"判不做留证：1.21.1 反编译源里
+                            // getHardness=构造期缓存字段直读、hasBlockEntity=instanceof，每块已是 O(1) 字段级，
+                            // 外挂 HashMap 分类缓存反而多一次哈希查找；m391 仪表 SCAN 段若实测打脸再回头。
                             || bsZ.getHardness(world, mpZ) < 0
                             || (cfg.chunkRemoverSkipBlockEntities && beHereZ);
                     boolean pureFluidZ = sealZ && !bsZ.getFluidState().isEmpty()
                             && bsZ.getBlock().asItem() == net.minecraft.item.Items.AIR; // m388 纯流体块（水/岩浆本体；含水台阶不算——那是建筑归名单管）
                     if (!skipZ && rulesZ != null && !pureFluidZ) { // m377 方块名单 AND：任一过滤器不放行=留在世上（m388 堵水时纯流体豁免名单——流体不是建筑，留着=水从名单缝里灌）
-                        long pF0Z = profZ ? System.nanoTime() : 0; // m391 FILTER 段（评审②的"String 化判定"就在这，先记账后判刀）
-                        String bidZ = Registries.ITEM.getId(bsZ.getBlock().asItem()).toString();
+                        long pF0Z = profZ ? System.nanoTime() : 0; // m391 FILTER 段
+                        net.minecraft.item.Item bitZ = bsZ.getBlock().asItem(); // m392 评审②落刀：身份查编译集，原"每块新 String+每滤整表重建 NBT 拷贝"退役
                         for (int k = 0; k < rulesZ.size(); k++)
-                            if (!com.sdzjz.item.ChunkFilterItem.allowsBlock(rulesZ.get(k), bidZ)) { skipZ = true; break; }
+                            if (!rulesZ.get(k).allows(bitZ)) { skipZ = true; break; }
                         if (profZ) { pfFilterZ += System.nanoTime() - pF0Z; pcFilterZ++; }
                     }
                     boolean sealHereZ = false; // m388 本位需封边：区域边界位且外侧贴邻（1~2 个，角双面）有流体
@@ -1241,8 +1248,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (modeZ == 0) { // m386 无掉落模式：直接蒸发不过战利品表（快在这）
                             long pL0Z = profZ ? System.nanoTime() : 0; // m391 LOOT 段
                             for (ItemStack dZ : net.minecraft.block.Block.getDroppedStacks(bsZ, swz, mpZ,
-                                    beHereZ ? world.getBlockEntity(mpZ) : null))
-                                if (!dZ.isEmpty()) dropsZ.add(dZ);
+                                    beHereZ ? world.getBlockEntity(mpZ) : null)) {
+                                if (dZ.isEmpty()) continue;
+                                if (aggZ != null) aggZ.merge(dZ.getItem(), (long) dZ.getCount(), Long::sum); // m392 出线=id 计数通道，边掉边聚合（插入序=首见序与旧口径逐位一致）
+                                else dropsZ.add(dZ);
+                            }
                             if (profZ) { pfLootZ += System.nanoTime() - pL0Z; pcLootZ++; }
                         }
                         long pM0Z = profZ ? System.nanoTime() : 0; // m391 MUTATE 段（评审判决线主角：均 ns=单块世界写入真成本）
@@ -1305,11 +1315,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (removedZ > 0) { // m382 产出与状态分账：停摆拍已挖的掉落照常出货绝不丢
                     be.prodTally(removedZ);
                     if (modeZ == 0 && hasOut[i]) { // 出线走 id 计数派发（掉落物极少带组件，方块实体默认已跳过）
-                        java.util.LinkedHashMap<String, Long> aggZ = new java.util.LinkedHashMap<>();
-                        for (ItemStack dZ : dropsZ)
-                            aggZ.merge(Registries.ITEM.getId(dZ.getItem()).toString(), (long) dZ.getCount(), Long::sum);
-                        for (java.util.Map.Entry<String, Long> eZ : aggZ.entrySet())
-                            be.distribute(world, i, outT[i], eZ.getKey(), eZ.getValue());
+                        for (java.util.Map.Entry<net.minecraft.item.Item, Long> eZ : aggZ.entrySet()) // m392 掉落已在 LOOT 段聚合，此处每"类型"一次 String 化（原每"掉落"一次）
+                            be.distribute(world, i, outT[i], Registries.ITEM.getId(eZ.getKey()).toString(), eZ.getValue());
                     } else if (modeZ == 0 && depositZ != null) {
                         for (ItemStack dZ : dropsZ) be.depositOrBuffer(depositZ, dZ); // 存储通道走真栈（组件保真）
                     } else if (modeZ == 0) {
@@ -1317,7 +1324,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     }
                     produced = true;
                     if (profZ) com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_ROUTE,
-                            System.nanoTime() - pR0Z, dropsZ.size());
+                            System.nanoTime() - pR0Z, aggZ != null ? aggZ.size() : dropsZ.size());
                 }
                 if (haltZ) {
                     be.statR(i, 2, haltWhyZ); // m387 改黄灯：未加载=等待非错误，红色撞"缺料"色语义作者实机误读（游标已落盘，加载恢复自动续）

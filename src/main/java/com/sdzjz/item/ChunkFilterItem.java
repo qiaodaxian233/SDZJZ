@@ -53,6 +53,32 @@ public class ChunkFilterItem extends MachineItem {
         return NodeTags.filterBlacklist(filterNode) ? !in : in;
     }
 
+    /** m392 编译型规则（评审②落刀）：allowsBlock 每调都从 NBT 整表重建 ArrayList + String 比对，
+     *  移除器 4096 块/拍×每滤=每拍数千次分配。收集期一次编成 Set<Item>（身份查找），热路径零 NBT
+     *  读零 String 化。语义与 allowsBlock 逐位一致：空名单=不限（m377 独立口径）；未注册 id 反查会
+     *  兜底落 AIR——原 String 比对下这类死条目永远匹配不上任何真实方块，故编译期直接剔除，防误伤
+     *  asItem==AIR 的方块（水/火）；名单里手写 "minecraft:air" 的照收（原语义就能匹配水）。 */
+    public static CompiledRule compile(ItemStack filterNode) {
+        List<String> l = NodeTags.filterList(filterNode);
+        java.util.Set<net.minecraft.item.Item> set = new java.util.HashSet<>(Math.max(4, l.size() * 2));
+        for (String id : l) {
+            net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(id);
+            if (ident == null) continue;
+            net.minecraft.item.Item it = net.minecraft.registry.Registries.ITEM.get(ident);
+            if (it == net.minecraft.item.Items.AIR && !"minecraft:air".equals(id)) continue;
+            set.add(it);
+        }
+        return new CompiledRule(set, NodeTags.filterBlacklist(filterNode));
+    }
+
+    /** m392 编译产物：items 空=不限；否则 黑名单 XOR 命中。 */
+    public record CompiledRule(java.util.Set<net.minecraft.item.Item> items, boolean blacklist) {
+        public boolean allows(net.minecraft.item.Item it) {
+            if (items.isEmpty()) return true; // 空名单=不限方块（m377 独立口径原样）
+            return blacklist != items.contains(it);
+        }
+    }
+
     @Override
     public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
         tooltip.add(Text.literal("区块移除器的规则挂件：画布上与移除器连线即生效（方向随意）").formatted(Formatting.AQUA));
