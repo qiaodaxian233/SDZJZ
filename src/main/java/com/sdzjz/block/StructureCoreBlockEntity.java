@@ -1117,6 +1117,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int cxZ = com.sdzjz.node.NodeTags.chunkX(st), czZ = com.sdzjz.node.NodeTags.chunkZ(st);
                 int rZ = Math.min(Math.max(0, com.sdzjz.node.NodeTags.chunkRadius(st)), Math.max(0, cfg.chunkRemoverMaxRadius)); // m382 区域半径（配置收顶/脏值收底）
                 int wZ = 2 * rZ + 1, chunksZ = wZ * wZ; // 区域=以绑定区块为中心的 w×w 分块方阵
+                // m398 自适应时间预算（评审路线第四笔）：每台每拍先领一个**墙钟时间片**，
+                // 全服所有移除器共用一个池。池见底也保底 1ms/台（绝不整拍不干活=m99 防哑死），
+                // 于是"到底能挖多快"由真实机器性能决定，不再由一个拍脑袋的方块数决定。
+                long sliceNsZ = 0L;
+                if (cfg.chunkRemoverTimeSliceMs > 0) {
+                    int nowTickZ = swz.getServer().getTicks();
+                    if (nowTickZ != remPoolTick) { remPoolTick = nowTickZ; remPoolUsedNs = 0L; }
+                    long sliceWantZ = (long) Math.max(1, cfg.chunkRemoverTimeSliceMs) * 1_000_000L;
+                    if (cfg.chunkRemoverTimePoolMs > 0) {
+                        long leftZ = (long) cfg.chunkRemoverTimePoolMs * 1_000_000L - remPoolUsedNs;
+                        sliceNsZ = Math.max(1_000_000L, Math.min(sliceWantZ, leftZ)); // 池空也给 1ms 保底
+                    } else sliceNsZ = sliceWantZ;
+                }
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
                 // m377 收集相连区块过滤器（任一方向连线即生效；多台=规则 AND；m110b 暂停即隔离；
@@ -1181,14 +1194,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long fluidZ = 0; // m390 本拍整层清水数（流体免费不吃移除预算，单独 4096 顶护 tick；计入 zq 湿账供复检环）
                 long budgetZ = (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkRemoverBlocksPerCycle);
                 if (modeZ != 0) budgetZ *= Math.max(1, cfg.chunkRemoverNoDropSpeedMult); // m397 无掉落/空置域同走快车道：免掉落表求值/免路由，预算直接乘倍
-                budgetZ = Math.min(budgetZ, 4096L); // 每拍硬顶：setBlockState 才是真成本，防倍率拉满打爆 tick
+                long capBlocksZ = Math.max(256, cfg.chunkRemoverMaxBlocksPerTick); // m398 每拍方块硬顶可配（原写死 4096，默认抬到 16384：m395 快写后单块便宜多了，且下面还有时间片兜着 tick）
+                boolean cappedZ = budgetZ > capBlocksZ;                            // 升级算出来的量被硬顶削掉了=副行要说出来（m99：静默无效比慢更伤）
+                budgetZ = Math.min(budgetZ, capBlocksZ);
                 com.sdzjz.machine.StorageAccess depositZ = (modeZ != 0 || hasOut[i]) ? null : be.depositFor(world, i); // m397 空置域并入无掉落口径
                 if (modeZ == 0 && !hasOut[i] && depositZ == null) budgetZ = Math.min(budgetZ, 64L * OUTPUT_SLOTS); // 兜底缓存封顶（交易机同规）
                 int yZ = com.sdzjz.node.NodeTags.chunkY(st), idxZ = com.sdzjz.node.NodeTags.chunkIdx(st);
                 int ordZ = Math.min(Math.max(0, com.sdzjz.node.NodeTags.chunkOrd(st)), chunksZ - 1); // m382 分块序号（换挡后越界收敛）
                 int bottomZ = world.getBottomY();
                 if (yZ > fTopZ) { yZ = fTopZ; idxZ = 0; ordZ = 0; } // m377 Y 挡快进：窗顶以上直接跳过（游标单向不回卷，重扫=重绑）
-                long scanCapZ = Math.min(16384L, Math.max(1024L, budgetZ * 4L)); // 空气/跳过段快进上限：护 tick 预算
+                long scanCapZ = Math.min(65536L, Math.max(1024L, budgetZ * 4L)); // m398 随硬顶同比抬（真正护 tick 的现在是时间片）；空气/跳过段快进上限
                 final boolean profZ = com.sdzjz.debug.CoreProfiler.PHASES; // m391 七段账（评审路线仪表笔：关时全部计时零成本）
                 final long scanCap0Z = scanCapZ;
                 long pfFilterZ = 0, pfLootZ = 0, pfMutZ = 0, pfSealZ = 0, pfFxZ = 0; // 段耗时（ns）
@@ -1205,9 +1220,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 绝不静默跳块留窟隆。
                 int curCxZ = cxZ + (ordZ % wZ) - rZ, curCzZ = czZ + (ordZ / wZ) - rZ;
                 boolean haltZ = false;
+                int limitedZ = 0;          // m398 本拍撞了什么上限：0=没撞 1=方块硬顶 2=时间片（副行说人话）
+                long opsZ = 0;             // 时间片检查的采样计数（每 128 位查一次墙钟，开销可忽略）
+                long tS0Z = System.nanoTime();
                 String haltWhyZ = null;
                 if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                 while (!haltZ && removedZ + sealFillZ < budgetZ && scanCapZ > 0 && yZ >= fBotZ) { // m388 补封也是 setBlockState 真成本，与移除同吃预算
+                    if (sliceNsZ > 0 && (opsZ++ & 127L) == 0L && System.nanoTime() - tS0Z > sliceNsZ) { limitedZ = 2; break; } // m398 时间片到点：游标已落盘，下拍无缝续
                     // m385 空段快跳（实机报修根因：层主序从 Y=顶起步，天上纯空气逐位吃扫描上限——
                     // 1×1 空扫约两分钟才见土，3×3/5×5 是其 9/25 倍观感=死机）：本(分块,层)所在
                     // 16³ 段全空→整 256 位一步跨过，几乎零成本不吃扫描上限（护栏 emptyGuard 防病态）。
@@ -1229,7 +1248,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         // 游标身后无限再生=悬浮"异常水"永远清不完。同一游戏刻内流体不更新，进驻(分块,层)先把
                         // 纯流体 256 位一口气原子清完=分块内零再生（分块缝/角的再生交给下方残水复检环兜底）。
                         // 流体无掉落表=免费，不吃移除预算，单独 fluidZ 记账；边界贴水位同拍直接砌石。
-                        if (fluidZ > 3840) break; // 每拍清水硬顶（4096 同哲学）：满了游标停在本层入口，下拍续清
+                        if (fluidZ > capBlocksZ - 256) break; // m398 每拍清水硬顶随方块硬顶走（原写死 3840=4096-256 同哲学）：满了游标停在本层入口，下拍续清
                         for (int fi = 0; fi < 256; fi++) {
                             mpZ.set((curCxZ << 4) + (fi >> 4), yZ, (curCzZ << 4) + (fi & 15));
                             net.minecraft.block.BlockState fsZ = world.getBlockState(mpZ);
@@ -1335,6 +1354,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_SEAL, pfSealZ, pcSealZ);
                     com.sdzjz.debug.CoreProfiler.subAdd(com.sdzjz.debug.CoreProfiler.SUB_R_FX, pfFxZ, pcFxZ);
                 }
+                if (cfg.chunkRemoverTimeSliceMs > 0 && cfg.chunkRemoverTimePoolMs > 0)
+                    remPoolUsedNs += System.nanoTime() - tS0Z; // m398 本台实际花掉的墙钟记进全服池
+                if (limitedZ == 0 && cappedZ && removedZ + sealFillZ >= budgetZ) limitedZ = 1; // 挖满了被削后的预算=硬顶在拦
                 boolean doneZ = yZ < bottomZ; // 完成位只认真·世界底（过滤下限不算完，撤过滤器/换挡自动续挖）
                 boolean repassZ = false;
                 if (doneZ && sealZ && com.sdzjz.node.NodeTags.chunkWetPass(st) + fluidZ + sealFillZ > 0) {
@@ -1348,7 +1370,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 boolean parkedZ = !doneZ && !haltZ && !repassZ && yZ < fBotZ; // m377 停在过滤器 Y 下限
                 com.sdzjz.item.ChunkRemoverItem.advance(st, Math.max(yZ, bottomZ), ordZ, idxZ, removedZ, doneZ,
-                        fluidZ + sealFillZ, repassZ || doneZ); // 空气快进段游标也要落盘；湿账随遍结转（开新遍/真完成即清）
+                        fluidZ + sealFillZ, repassZ || doneZ, limitedZ); // 空气快进段游标也要落盘；湿账随遍结转（开新遍/真完成即清）；m398 上限位随拍落盘供副行显示
                 long pR0Z = profZ ? System.nanoTime() : 0; // m391 ROUTE 段（出线聚合/存储真栈/兜底缓存三通道同账）
                 if (removedZ > 0) { // m382 产出与状态分账：停摆拍已挖的掉落照常出货绝不丢
                     be.prodTally(removedZ);
@@ -1954,6 +1976,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         return idx;
     }
+
+    /** m398 全服移除器每拍**墙钟时间池**（所有移除器共享，按服务器 tick 归零；作者报"加速拉满还是慢"
+     *  的正解=瓶颈从来不是升级级数而是每拍上限，改成按时间收费才用得上真机器）。跨世界共用一份：
+     *  服务器 tick 是全局的，池的语义就是"本拍所有移除器一共可以花多少毫秒"。 */
+    private static int remPoolTick = Integer.MIN_VALUE;
+    private static long remPoolUsedNs = 0L;
 
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
     public static boolean nodePaused(ItemStack s) { return com.sdzjz.node.NodeTags.nodePaused(s); }

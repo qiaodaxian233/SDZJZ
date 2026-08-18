@@ -130,6 +130,9 @@ public class ChunkRemoverItem extends MachineItem {
         if (!NodeTags.chunkSealOn(s)) at += "·不堵水"; // m394 封边挡水默认开，只标关掉的（原为标开的，人人都开=白噪音）
         else if (!NodeTags.chunkSealBlock(s).isEmpty()) at += "·砌" + sealLabel(s); // m396 自定义封边材料
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
+        int lim = NodeTags.chunkLimited(s); // m398 满载标（作者报"升级拉满还是慢"=把天花板摆到脸上，别让人以为升级还有用）
+        if (lim == 1) at += "·满载(每拍方块硬顶)";
+        else if (lim == 2) at += "·满载(时间片)";
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }
 
@@ -137,7 +140,7 @@ public class ChunkRemoverItem extends MachineItem {
      *  m390 追加湿账两参：wetDelta=本拍"清过的流体+补过的封"数（zq 累加，残水复检环的判据）；
      *  wetReset=真则清 zq（复检环开新一遍 / 真完成收尾），reset 优先于 delta（旧遍的账不带进新遍）。 */
     public static void advance(ItemStack s, int y, int ord, int idx, long removedDelta, boolean done,
-                               long wetDelta, boolean wetReset) {
+                               long wetDelta, boolean wetReset, int limited) {
         NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         n.putInt("zy", y);
         n.putInt("zc", ord); // m382 层主序分块序号
@@ -146,6 +149,7 @@ public class ChunkRemoverItem extends MachineItem {
         if (wetReset) n.remove("zq");
         else if (wetDelta > 0) n.putLong("zq", n.getLong("zq") + wetDelta); // m390
         if (done) n.putBoolean("zf", true);
+        if (limited > 0) n.putInt("zl", limited); else n.remove("zl"); // m398 上限位（0=不写键，老档缺键=没撞）
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
     }
 
@@ -155,6 +159,9 @@ public class ChunkRemoverItem extends MachineItem {
         tooltip.add(Text.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(Formatting.AQUA));
         tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
                 + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Text.literal("到顶提醒：每拍最多 " + Math.max(256, com.sdzjz.config.SdzjzConfig.get().chunkRemoverMaxBlocksPerTick)
+                + " 块且每台每拍限 " + Math.max(0, com.sdzjz.config.SdzjzConfig.get().chunkRemoverTimeSliceMs)
+                + "ms——副行显示\"满载\"时再加升级没用，改 config 三键或多放几台各绑一片").formatted(Formatting.YELLOW));
         tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式 / 封边挡水").formatted(Formatting.LIGHT_PURPLE));
         int mT = NodeTags.chunkMode(stack);
         tooltip.add(Text.literal("当前：" + modeLabel(mT) + (mT == 2 ? "（连基岩一起拆，坑底通虚空）" : mT == 1 ? "（不产任何物品）" : "（进出线/存储）") + "；潜行右键空处快切")

@@ -182,6 +182,9 @@ public final class NodeTags {
      *  zw=1 语义不变；关掉写 2。刻意不换键：换键=老档丢设定，三态是零迁移的写法。 */
     public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") != 2; }
 
+    /** m398 本拍撞到的上限（0=没撞 1=每拍方块硬顶 2=墙钟时间片）——副行说人话用，m99 反静默。 */
+    public static int chunkLimited(ItemStack s) { return viewOf(s).getInt("zl"); }
+
     /** m396 封边材料 id（空=默认免费石头）。自定义料从存储扣，扣不到=黄灯提醒并回落石墙。 */
     public static String chunkSealBlock(ItemStack s) { return viewOf(s).getString("zsb"); }
 
