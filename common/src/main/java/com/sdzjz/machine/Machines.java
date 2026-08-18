@@ -36,6 +36,9 @@ public final class Machines {
     /** 虚空处理器（m378）：垃圾炼经验——吞路由进来的物品按汇率入本核心经验池（垃圾桶升级款，
      *  白名单空=连啥炼啥；直连仓不抽/逻辑节点转接=授权照拉，m150/m153 同律）。 */
     public static final MachineDef VOID_PROCESSOR = new MachineDef("void_processor", List.of(), 5, false, List.of());
+    /** 区块扫描器（m380，三件套 m379 第一刀）：只读侦察——绑定区块自顶向下扫描出统计报告
+     *  （方块/类型/矿物/容器/生物+Top榜），不动世界不收不产。 */
+    public static final MachineDef CHUNK_SCANNER = new MachineDef("chunk_scanner", List.of(), 40, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

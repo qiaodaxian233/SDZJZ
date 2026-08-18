@@ -959,6 +959,56 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 else be.addOutput(new ItemStack(Registries.ITEM.get(Identifier.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
                 be.xpPool -= (double) xpEach * attempts;
                 produced = true;
+            } else if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) {
+                // m380 区块扫描器（三件套 m379 第一刀，只读侦察）：绑定/游标复用移除器 z 族键，
+                // 自顶向下只读扫描出统计报告（方块总数/矿物 c:ores∪_ore 后缀∪远古残骸/容器
+                // instanceof Inventory/类型榜封顶64溢出归#其他桶），完成拍一次性清点生物
+                // （getEntitiesByClass 全高箱——实体会动，边扫边数是假账）。单本预算账
+                // （读扫即工作，无移除/扫描拆账需求）+tick 硬顶 16384。接线五件账：tick=本分支；
+                // accepts/chainWants=恒假（免费型尾兜，只读机器）；setNodeTarget=不适用；
+                // 徽章=卡面自绘三态（未绑定/扫描中/报告摘要），Top8 明细走节点菜单信息行。
+                if (!cfg.chunkScannerEnabled) { be.statR(i, 2, "区块扫描器已在配置停用（chunkScannerEnabled）"); continue; }
+                if (!com.sdzjz.node.NodeTags.chunkBound(st)) { be.stat(i, 0); continue; }
+                if (com.sdzjz.node.NodeTags.scanDone(st)) { be.stat(i, 0); continue; } // 报告就绪=待机（重扫走菜单/重绑）
+                String dimS = world.getRegistryKey().getValue().toString();
+                if (!dimS.equals(com.sdzjz.node.NodeTags.chunkDim(st))) { be.statR(i, 3, "绑定区块在其它维度（" + com.sdzjz.node.NodeTags.chunkDim(st) + "），换同维度核心或重绑"); continue; }
+                int cxS = com.sdzjz.node.NodeTags.chunkX(st), czS = com.sdzjz.node.NodeTags.chunkZ(st);
+                if (!world.getChunkManager().isChunkLoaded(cxS, czS)) { be.statR(i, 3, "目标区块未加载（把核心放近些，本机不替你强载）"); continue; }
+                int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
+                if (cycles <= 0) continue;
+                int running = runningCount(st, parallelLv, tier);
+                long budgetS = Math.min(16384L, (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkScannerBlocksPerCycle));
+                int yS = com.sdzjz.node.NodeTags.chunkY(st), idxS = com.sdzjz.node.NodeTags.chunkIdx(st);
+                int bottomS = world.getBottomY();
+                long totS = 0, oreS = 0, conS = 0;
+                java.util.LinkedHashMap<String, Long> typS = new java.util.LinkedHashMap<>();
+                net.minecraft.util.math.BlockPos.Mutable mpS = new net.minecraft.util.math.BlockPos.Mutable();
+                while (budgetS-- > 0 && yS >= bottomS) {
+                    mpS.set((cxS << 4) + (idxS >> 4), yS, (czS << 4) + (idxS & 15));
+                    net.minecraft.block.BlockState bsS = world.getBlockState(mpS);
+                    if (!bsS.isAir()) {
+                        totS++;
+                        String bidS = Registries.BLOCK.getId(bsS.getBlock()).toString(); // 报告用方块 id（比物品形态口径准，火/传送门也入榜）
+                        typS.merge(bidS, 1L, Long::sum);
+                        if (bsS.isIn(com.sdzjz.item.ChunkScannerItem.C_ORES) || bidS.endsWith("_ore") || bidS.endsWith("ancient_debris")) oreS++;
+                        if (bsS.hasBlockEntity() && world.getBlockEntity(mpS) instanceof net.minecraft.inventory.Inventory) conS++;
+                    }
+                    if (++idxS >= 256) { idxS = 0; yS--; be.statusDirty = true; }
+                }
+                boolean doneS = yS < bottomS;
+                com.sdzjz.item.ChunkScannerItem.accumulate(st, Math.max(yS, bottomS), idxS, totS, oreS, conS, typS);
+                if (doneS) {
+                    int bxS = cxS << 4, bzS = czS << 4;
+                    long entsS = world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class,
+                            new net.minecraft.util.math.Box(bxS, world.getBottomY(), bzS, bxS + 16, world.getTopY(), bzS + 16),
+                            e2 -> true).size();
+                    com.sdzjz.item.ChunkScannerItem.finish(st, entsS);
+                    be.statusDirty = true;
+                    be.stat(i, 0); // 报告就绪=待机
+                } else {
+                    be.stat(i, 1);
+                }
+                be.markDirty();
             } else if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) {
                 // m377 区块过滤器：规则牌坊不干活——规则由相连的区块移除器每拍主动来读（见下分支），
                 // 本体不收不产不转发（accepts/chainWants 恒假=MachineItem 免费型尾兜）。恒待机灰灯。
@@ -1713,6 +1763,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             NbtCompound nz = nbtOf(s);
             nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
             s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nz));
+            markDirty();
+            syncToClient();
+            return;
+        }
+        if ("#zs".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 重新扫描（#zy 同款哨兵工艺）
+            com.sdzjz.item.ChunkScannerItem.resetScan(s, world != null ? world.getTopY() - 1 : 319);
             markDirty();
             syncToClient();
             return;

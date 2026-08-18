@@ -1078,6 +1078,22 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
             return;
         }
+        if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 卡面三态：未绑定/扫描中/报告摘要（m180 铁律：NodeTags 直连）
+            if (!com.sdzjz.node.NodeTags.chunkBound(st)) {
+                ctx.drawText(this.textRenderer, "[扫描器]", x + 44, y + 26, SUB, false);
+                ctx.drawText(this.textRenderer, "手持右键目标区块", x + 44, y + 38, SUB, false);
+            } else if (!com.sdzjz.node.NodeTags.scanDone(st)) {
+                ctx.drawText(this.textRenderer, "扫描中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
+                ctx.drawText(this.textRenderer, "方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st)), x + 44, y + 38, SUB, false);
+            } else {
+                ctx.drawText(this.textRenderer, fitText("方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st))
+                        + "·类 " + com.sdzjz.node.NodeTags.scanTypes(st).getKeys().size(), NW - 50), x + 44, y + 26, ON, false);
+                ctx.drawText(this.textRenderer, fitText("矿 " + fmtNum(com.sdzjz.node.NodeTags.scanOre(st))
+                        + "·柜 " + com.sdzjz.node.NodeTags.scanContainers(st)
+                        + "·怪 " + com.sdzjz.node.NodeTags.scanEntities(st), NW - 50), x + 44, y + 38, SciSkin.GOLD, false);
+            }
+            return;
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 区块过滤器卡面：行1 名单摘要 / 行2 Y 挡名
             int cfN = StructureCoreBlockEntity.filterList(st).size();
             boolean cfB = StructureCoreBlockEntity.filterBlacklist(st);
@@ -2026,6 +2042,29 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
+            if (com.sdzjz.node.NodeTags.chunkBound(st))
+                addMenu("重新扫描", mi(net.minecraft.item.Items.SPYGLASS), 2,
+                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zs")); });
+            if (com.sdzjz.node.NodeTags.scanDone(st)) {
+                var smS = com.sdzjz.node.NodeTags.scanTypes(st);
+                java.util.List<java.util.Map.Entry<String, Long>> topS = new java.util.ArrayList<>();
+                for (String k : smS.getKeys()) topS.add(java.util.Map.entry(k, smS.getLong(k)));
+                topS.sort((a2, b2) -> Long.compare(b2.getValue(), a2.getValue()));
+                int shownS = Math.min(8, topS.size());
+                for (int k = 0; k < shownS; k++) {
+                    var eS = topS.get(k);
+                    net.minecraft.item.Item icS = eS.getKey().startsWith("#") ? net.minecraft.item.Items.BUNDLE
+                            : Registries.ITEM.get(Identifier.of(eS.getKey()));
+                    boolean okIcS = icS != net.minecraft.item.Items.AIR;
+                    String nmS = eS.getKey().startsWith("#") ? "其他" // 溢出桶
+                            : okIcS ? new ItemStack(icS).getName().getString() // 本地化名（拼音搜索同款体验）
+                            : eS.getKey().substring(eS.getKey().indexOf(':') + 1); // 无物品形态方块退 id 路径
+                    addMenu((k + 1) + ". " + nmS + " " + fmtNum(eS.getValue()),
+                            mi(okIcS ? icS : net.minecraft.item.Items.BARRIER), () -> {});
+                }
+            }
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 名单+黑白全套复用过滤节点收包口，Y 挡走 #zy 哨兵
             int cfM = StructureCoreBlockEntity.filterList(st).size();
             addMenu("方块名单" + (cfM > 0 ? "(" + cfM + ")" : "·不限") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,

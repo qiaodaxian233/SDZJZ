@@ -169,6 +169,20 @@ public final class NodeTags {
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
 
+    // ===== m380 区块扫描器报告键（绑定/游标复用上面 z 族）：sa 方块总数 / so 矿物 / sc 容器 / se 生物 / sf 就绪位 / sm 类型榜 =====
+    public static long scanTotal(ItemStack s) { return viewOf(s).getLong("sa"); }
+
+    public static long scanOre(ItemStack s) { return viewOf(s).getLong("so"); }
+
+    public static long scanContainers(ItemStack s) { return viewOf(s).getLong("sc"); }
+
+    public static long scanEntities(ItemStack s) { return viewOf(s).getLong("se"); }
+
+    public static boolean scanDone(ItemStack s) { return viewOf(s).getBoolean("sf"); }
+
+    /** 类型榜只读视图（viewOf 铁律：绝对只读，消费端只许遍历取数）。 */
+    public static NbtCompound scanTypes(ItemStack s) { return viewOf(s).getCompound("sm"); }
+
     // ===== m378 虚空处理器（垃圾炼经验）三键：va 累计吞 / vc 汇率余数 / vn 累计炼得经验 =====
     public static long voidEaten(ItemStack s) { return viewOf(s).getLong("va"); }
 

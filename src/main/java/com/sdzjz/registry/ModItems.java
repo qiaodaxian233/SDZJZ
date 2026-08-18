@@ -54,6 +54,7 @@ public class ModItems {
     public static final Item CHUNK_REMOVER = reg("chunk_remover", new com.sdzjz.item.ChunkRemoverItem(new Item.Settings(), Machines.CHUNK_REMOVER)); // m376 区块移除器
     public static final Item CHUNK_FILTER = reg("chunk_filter", new com.sdzjz.item.ChunkFilterItem(new Item.Settings(), Machines.CHUNK_FILTER)); // m377 区块过滤器
     public static final Item VOID_PROCESSOR = reg("void_processor", new com.sdzjz.item.VoidProcessorItem(new Item.Settings(), Machines.VOID_PROCESSOR)); // m378 虚空处理器
+    public static final Item CHUNK_SCANNER = reg("chunk_scanner", new com.sdzjz.item.ChunkScannerItem(new Item.Settings(), Machines.CHUNK_SCANNER)); // m380 区块扫描器
     public static final Item GRINDSTONE_RECYCLER = reg("grindstone_recycler", new MachineItem(new Item.Settings(), Machines.GRINDSTONE_RECYCLER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
     public static final Item TRASH_NODE = reg("trash_node", new com.sdzjz.item.TrashNodeItem(new Item.Settings(), Machines.TRASH_NODE));
@@ -177,6 +178,7 @@ public class ModItems {
             entries.add(CHUNK_REMOVER); // m376
             entries.add(CHUNK_FILTER); // m377
             entries.add(VOID_PROCESSOR); // m378
+            entries.add(CHUNK_SCANNER); // m380
             entries.add(GRINDSTONE_RECYCLER);
             entries.add(FILTER_NODE);
             entries.add(TRASH_NODE);
