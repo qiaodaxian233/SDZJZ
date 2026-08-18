@@ -47,7 +47,7 @@ public class SdzjzConfig {
     public int chunkRemoverNoDropSpeedMult = 8; // m386 无掉落模式预算倍率（免掉落表/免路由=真便宜，每拍另有 4096 硬顶护 tick）
     public int chunkRemoverMaxRadius = 64;     // m382 移除区域半径上限（0=只许 1×1，2=最大 5×5=25 分块；预算不变区域越大越慢，服主按服情收顶）
     public boolean chunkRemoverSkipBlockEntities = true; // m376 跳过带方块实体的方块（箱子/刷怪笼/本模组机器等，防误吞基地）；关=照拆，容器内容物按原版散落原地不进机器
-    public boolean chunkRemoverSealFluids = true; // m388 封边挡水总闸：开=移除器可勾选"封边挡水"（拆到区域边界时，外侧贴水/岩浆的位置砌石墙代替空气，堵住回灌；m389 作者拍板玻璃→石头：本来就挖石头，置石免费不从产出扣料防顶层无圆石封不上；边界位本来就是石头=白捡当墙不拆不放）；关=勾选无效按普通挖
+    public boolean chunkRemoverSealFluids = true; // m394 起是"默认铺"（作者拍板：本来就该默认砌墙，不是勾了才砌；节点侧 zw 三态 0=缺省即开）。m388 封边挡水总闸：开=移除器可勾选"封边挡水"（拆到区域边界时，外侧贴水/岩浆的位置砌石墙代替空气，堵住回灌；m389 作者拍板玻璃→石头：本来就挖石头，置石免费不从产出扣料防顶层无圆石封不上；边界位本来就是石头=白捡当墙不拆不放）；关=勾选无效按普通挖
     public boolean pickerQuerySyntax = true;    // m335 画布选择器查询语法（@模组/-排除/|并联，学JEI语法习惯自写实现）。关=回纯包含匹配
     public boolean chunkClaimReconcile = true; // m347 孤儿强加载声明核销（外部审计）：声明表区块连续三轮（≥30s）运行时零核心登记即撤票删声明。关=旧行为（孤儿声明永久钉住区块）
     public boolean coreIdleScanRelief = true; // m348 停机+无观众的核心端点扫描 40t→200t 慢拍保底（200%40=0 日历拍切换无缝；开机/开画布两转变沿哨兵强刷零陈旧窗）。关=恒 40t 旧行为

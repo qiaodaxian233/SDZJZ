@@ -83,7 +83,7 @@ public class ChunkRemoverItem extends MachineItem {
         if (!NodeTags.chunkBound(s)) return "未绑定：手持对目标区块内方块右键";
         String at = regionLabel(s) + "@(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ")";
         if (NodeTags.chunkMode(s) == 1) at += "·无掉"; // m386 模式标
-        if (NodeTags.chunkSealOn(s)) at += "·堵水"; // m388 封边挡水标
+        if (!NodeTags.chunkSealOn(s)) at += "·不堵水"; // m394 封边挡水默认开，只标关掉的（原为标开的，人人都开=白噪音）
         if (NodeTags.chunkDone(s)) return at + " 已清空·共" + NodeTags.chunkRemoved(s);
         return at + " Y=" + NodeTags.chunkY(s) + " 已挖" + NodeTags.chunkRemoved(s);
     }

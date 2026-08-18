@@ -1262,7 +1262,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
                                 chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
-                            if (fxNZ < 3 && (removedZ & 1023L) == 0L) { // m393 激光雕刻（作者点名"能不能像激光雕刻机"）：每拍最多三束，且按本拍进度铺开（默认预算下=每拍一束跟着游标走；满预算 4096 块/拍时沿削切面撒三束）
+                            if (fxNZ < 4 && (removedZ & 255L) == 0L) { // m393 激光雕刻：每拍最多四束，按本拍进度铺开（默认预算 64 块/拍=每拍一束跟着游标走；满预算 4096 块/拍时沿削切面撒四束。m394 步长 1024→256：粒子看不见的另一半是太稀）
                                 long pX0Z = profZ ? System.nanoTime() : 0; // m391 FX 段（爆发环走首铲一次不单记，前沿流才是每拍常客）
                                 chunkFxLaser(swz, mpZ.getX(), mpZ.getY(), mpZ.getZ());
                                 if (profZ) { pfFxZ += System.nanoTime() - pX0Z; pcFxZ++; }
@@ -1912,16 +1912,29 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
     public static boolean nodePaused(ItemStack s) { return com.sdzjz.node.NodeTags.nodePaused(s); }
 
-    /** m393 激光雕刻观感（作者点名"运行这个效果能不能像激光雕刻机差不多"）：削切点正上方一道
-     *  END_ROD 白热光柱（**一次** spawnParticles 用纵向高斯 dy 铺满柱体=一束，横向散布近零故是细束）
-     *  + 落点白热火花 + 龙息烟羽（切割冒烟）。三次调用/束，每拍封顶三束——比 m385 的"前沿十朵龙息云"
-     *  更省（10 次调用→9 次）且方向感强：光从上方打下来，游标走到哪切到哪。粒子是服务端广播，
-     *  附近玩家全看得见，零协议。 */
+    /** m394 远距送达（作者报"我现在看不到激光特效"的真根因）：原版 `ServerWorld.spawnParticles`
+     *  只发**32 格内**的玩家——移除器一个 5×5 区域就 80 格宽，削切面还常在脚下几十上百格深，
+     *  站边上看整台机器一个粒子都收不到。改成逐玩家走 force 重载（原版 force=true 判距 512 格），
+     *  另自设 192 格门槛省包。m384 的锁定爆发环同病同治。 */
+    private static void fxAt(net.minecraft.server.world.ServerWorld sw, net.minecraft.particle.ParticleEffect pe,
+                             double x, double y, double z, int count, double dx, double dy, double dz, double speed) {
+        for (net.minecraft.server.network.ServerPlayerEntity sp : sw.getServer().getPlayerManager().getPlayerList()) {
+            if (sp.getWorld() != sw) continue;
+            if (sp.squaredDistanceTo(x, y, z) > 192.0 * 192.0) continue;
+            sw.spawnParticles(sp, pe, true, x, y, z, count, dx, dy, dz, speed);
+        }
+    }
+
+    /** m393 激光雕刻观感（作者点名"运行这个效果能不能像激光雕刻机差不多"）/ m394 加密加长+远距送达：
+     *  削切点正上方一道 END_ROD 白热光柱（**一次** spawnParticles 用纵向高斯 dy 铺满柱体=一束，横向
+     *  散布近零故是细束）+ 落点白热火花 + 龙息烟羽（切割冒烟）。三次调用/束，每拍封顶四束；END_ROD
+     *  粒子寿命约三秒，正好把基础速度下"每 40 拍才动一次"的间隙连成一道常亮的光柱（速度升级越高
+     *  越连续）。方向感=光从上方打下来，游标走到哪切到哪。 */
     private static void chunkFxLaser(net.minecraft.server.world.ServerWorld sw, int x, int y, int z) {
         double cx = x + 0.5, cz = z + 0.5;
-        sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 4.2, cz, 14, 0.02, 1.9, 0.02, 0.0); // 光柱：纵向铺约 8 格，横向 0.02=细
-        sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 0.6, cz, 6, 0.12, 0.05, 0.12, 0.06); // 落点火花（带速度=溅开）
-        sw.spawnParticles(net.minecraft.particle.ParticleTypes.DRAGON_BREATH, cx, y + 0.9, cz, 2, 0.08, 0.02, 0.08, 0.01); // 切割烟羽
+        fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 5.0, cz, 20, 0.03, 2.6, 0.03, 0.0); // 光柱：纵向铺约 10 格，横向 0.03=细束
+        fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 0.6, cz, 8, 0.15, 0.06, 0.15, 0.08); // 落点白热火花（带速度=溅开）
+        fxAt(sw, net.minecraft.particle.ParticleTypes.DRAGON_BREATH, cx, y + 0.9, cz, 3, 0.08, 0.02, 0.08, 0.01); // 切割烟羽
     }
 
     /** m384 区块移除器"技能锁定"爆发：选区顶面周长粒子环（采样步长 4 格封顶 96 点）+中心信标激活音。
@@ -1929,11 +1942,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private static void chunkFxBurst(net.minecraft.server.world.ServerWorld sw, int cx, int cz, int r, int yTop) {
         int x1 = (cx - r) << 4, z1 = (cz - r) << 4;
         int side = (2 * r + 1) << 4;
-        for (int d = 0; d < side; d += 4) { // 四边同步描点：最大 5×5=80格/边→20点×4边=80≤封顶
-            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
-            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + side - 0.5, 2, 0.1, 0.3, 0.1, 0.01);
-            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
-            sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, x1 + side - 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+        for (int d = 0; d < side; d += 4) { // 四边同步描点：最大 5×5=80格/边→20点×4边=80≤封顶（m394 全部改远距送达 fxAt，原 32 格内才收得到=站边上看不见自己的施法圈）
+            fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, x1 + d + 0.5, yTop + 1.2, z1 + side - 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, x1 + 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
+            fxAt(sw, net.minecraft.particle.ParticleTypes.END_ROD, x1 + side - 0.5, yTop + 1.2, z1 + d + 0.5, 2, 0.1, 0.3, 0.1, 0.01);
         }
         net.minecraft.util.math.BlockPos ctr = new net.minecraft.util.math.BlockPos(x1 + side / 2, yTop, z1 + side / 2);
         sw.playSound(null, ctr, net.minecraft.sound.SoundEvents.BLOCK_BEACON_ACTIVATE,
@@ -2070,8 +2083,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         if ("#zw".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m388 封边挡水切换（开=重扫补封：已挖开的边界回补玻璃墙、灌进的水按普通块清；关不动游标）
             NbtCompound nw = nbtOf(s);
-            boolean sealOnW = nw.getInt("zw") != 1;
-            nw.putInt("zw", sealOnW ? 1 : 0);
+            boolean sealOnW = nw.getInt("zw") == 2; // m394 三态：切换后的新状态（原为关=2 则开）
+            nw.putInt("zw", sealOnW ? 1 : 2);
             if (sealOnW) { // 开堵水=新工程重扫（zn 总账保留，#zrd 同口径）
                 nw.putInt("zy", world != null ? world.getTopY() - 1 : 319);
                 nw.putInt("zi", 0);

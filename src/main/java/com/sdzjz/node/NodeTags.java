@@ -177,7 +177,10 @@ public final class NodeTags {
 
     /** m388 封边挡水：1=区域边界外侧贴水/岩浆处砌石墙代替空气（勾选在手持面板/节点菜单，
      *  config chunkRemoverSealFluids 总闸另有；开=重扫补封，关不动游标；m389 材料玻璃→石头）。 */
-    public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") == 1; }
+    /** m394 封边挡水（作者拍板"默认就该铺，不是说了才铺"）：zw 三态——**0=缺省即开** / 1=显式开 /
+     *  2=显式关。老档 zw 缺键或 0 的机器升级后自动变成"堵水开"（要的就是这个），老档显式勾过的
+     *  zw=1 语义不变；关掉写 2。刻意不换键：换键=老档丢设定，三态是零迁移的写法。 */
+    public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") != 2; }
 
     /** m390 本轮湿账：本遍游标累计"清过的流体+补过的封"数——>0 表示这一遍碰过水，到底后
      *  不置完成位、从顶再复检一遍（残水复检环），直到全程零流体才算清完。 */
