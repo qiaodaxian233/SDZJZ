@@ -973,7 +973,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 String dimS = world.getRegistryKey().getValue().toString();
                 if (!dimS.equals(com.sdzjz.node.NodeTags.chunkDim(st))) { be.statR(i, 3, "绑定区块在其它维度（" + com.sdzjz.node.NodeTags.chunkDim(st) + "），换同维度核心或重绑"); continue; }
                 int cxS = com.sdzjz.node.NodeTags.chunkX(st), czS = com.sdzjz.node.NodeTags.chunkZ(st);
-                if (!world.getChunkManager().isChunkLoaded(cxS, czS)) { be.statR(i, 3, "目标区块未加载（把核心放近些，本机不替你强载）"); continue; }
+                if (!world.getChunkManager().isChunkLoaded(cxS, czS)) { be.statR(i, 2, "目标区块未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"); continue; }
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
                 int running = runningCount(st, parallelLv, tier);
@@ -1024,7 +1024,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 String dimV = world.getRegistryKey().getValue().toString();
                 if (!dimV.equals(com.sdzjz.node.NodeTags.chunkDim(st))) { be.statR(i, 3, "绑定区块在其它维度（" + com.sdzjz.node.NodeTags.chunkDim(st) + "），换同维度核心或重绑"); continue; }
                 int cxV = com.sdzjz.node.NodeTags.chunkX(st), czV = com.sdzjz.node.NodeTags.chunkZ(st);
-                if (!world.getChunkManager().isChunkLoaded(cxV, czV)) { be.statR(i, 3, "目标区块未加载（把核心放近些，本机不替你强载）"); continue; }
+                if (!world.getChunkManager().isChunkLoaded(cxV, czV)) { be.statR(i, 2, "目标区块未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"); continue; }
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
                 if (be.vaultAcc == null) be.vaultAcc = new java.util.HashMap<>();
@@ -1161,7 +1161,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int curCxZ = cxZ + (ordZ % wZ) - rZ, curCzZ = czZ + (ordZ / wZ) - rZ;
                 boolean haltZ = false;
                 String haltWhyZ = null;
-                if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载（把核心放近些，本机不强载）"; }
+                if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                 while (!haltZ && removedZ < budgetZ && scanCapZ > 0 && yZ >= fBotZ) {
                     // m385 空段快跳（实机报修根因：层主序从 Y=顶起步，天上纯空气逐位吃扫描上限——
                     // 1×1 空扫约两分钟才见土，3×3/5×5 是其 9/25 倍观感=死机）：本(分块,层)所在
@@ -1174,7 +1174,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (yZ >= fBotZ) {
                                 curCxZ = cxZ + (ordZ % wZ) - rZ;
                                 curCzZ = czZ + (ordZ / wZ) - rZ;
-                                if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载（把核心放近些，本机不强载）"; }
+                                if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                             }
                             continue;
                         }
@@ -1214,7 +1214,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (yZ >= fBotZ) {
                             curCxZ = cxZ + (ordZ % wZ) - rZ;
                             curCzZ = czZ + (ordZ / wZ) - rZ;
-                            if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载（把核心放近些，本机不强载）"; }
+                            if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"; }
                         }
                     } // 换层顺带请求同步（进度副行走既有 1/s 节流）
                 }
@@ -1237,7 +1237,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     produced = true;
                 }
                 if (haltZ) {
-                    be.statR(i, 3, haltWhyZ); // m382 分块未加载=红灯整单停摆（游标已落盘，加载恢复自动续）
+                    be.statR(i, 2, haltWhyZ); // m387 改黄灯：未加载=等待非错误，红色撞"缺料"色语义作者实机误读（游标已落盘，加载恢复自动续）
                 } else if (removedZ > 0) {
                     be.stat(i, 1);
                 } else if (parkedZ) {

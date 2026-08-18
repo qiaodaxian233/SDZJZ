@@ -752,6 +752,34 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 ctx.drawText(this.textRenderer, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
             }
         }
+        { // m387 悬停原因浮窗（全机器通用）：黄/红灯节点悬停=完整原因全文——卡面副行
+          // fitText(NW-50)≈56px 把"分块(12,6)未加载…"截成“分块(12,6)…”被读成缺料（作者实机报修）。
+          // 画在画布坐标系内随缩放（与卡同比例），颜色全走 SciSkin（m239 铁律），只认最顶层命中。
+            double hmxR = wmx(mouseX), hmyR = wmy(mouseY);
+            for (int i = nodes.size() - 1; i >= 0; i--) {
+                int nxR = wnx(be, nodes, i), nyR = wny(be, nodes, i);
+                if (hmxR < nxR || hmxR > nxR + NW || hmyR < nyR || hmyR > nyR + NH) continue;
+                String whyR = be.nodeReason(i);
+                int stvR = be.nodeStatus(i);
+                if ((stvR == 2 || stvR == 3) && !whyR.isEmpty()) {
+                    java.util.List<net.minecraft.text.OrderedText> lsR =
+                            this.textRenderer.wrapLines(net.minecraft.text.Text.literal(whyR), 190);
+                    int twR = 0;
+                    for (net.minecraft.text.OrderedText l : lsR) twR = Math.max(twR, this.textRenderer.getWidth(l));
+                    int thR = lsR.size() * 10 + 8;
+                    int bxR = nxR, byR = nyR - thR - 6;
+                    int frameR = stvR == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD;
+                    ctx.fill(bxR - 1, byR - 1, bxR + twR + 13, byR + thR + 1, frameR);
+                    ctx.fill(bxR, byR, bxR + twR + 12, byR + thR, SciSkin.CELL);
+                    int tyR = byR + 4;
+                    for (net.minecraft.text.OrderedText l : lsR) {
+                        ctx.drawText(this.textRenderer, l, bxR + 6, tyR, SciSkin.TXT, false);
+                        tyR += 10;
+                    }
+                }
+                break; // 只认最顶层命中
+            }
+        }
         if (groupsOn() && !selected.isEmpty()) { // m192 选中高亮（青描边；服务端删点后失效下标顺手清）
             selected.removeIf(i -> i >= nodes.size());
             for (int i : selected) {
