@@ -6935,3 +6935,53 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   同理反向；③名单里手动塞一条已卸载模组的 id=行为不变（死条目原本就匹配不上）；④出线机器的
   派发种类与数量对账=与 m391 同一工地同一份；⑤`/sdzjz profile remover` 对比 m391 数据：FILTER
   段均 ns 应显著下降，LOOT/ROUTE 合计应小降——把前后两份截图发我入档。
+
+## m393 选区框双源+激光雕刻观感（作者三点名：像激光雕刻机 / 放核心里也要有框 / 手持看不见框）
+
+- **现象**：①"运行这个效果能不能像激光雕刻机差不多"；②"东西放在核心里也显示边框，现在放进去就
+  没边框了"；③"我现在手持都看不见边框了"。
+- **根因（③是真 BUG，而且从 m384 起就一次都没画出来过）**：高亮器挂在
+  `WorldRenderEvents.AFTER_TRANSLUCENT`——fabric 官方 javadoc 白纸黑字：`WorldRenderContext.consumers()`
+  在 BEFORE_ENTITIES **之前**与 BEFORE_DEBUG_RENDER **之后恒为 null**（原文：the consumer buffers are
+  not available before or drawn after that），该阶段的渲染必须直接写帧缓冲。于是每帧都走
+  `consumers==null` 早退，一根线也没进缓冲。m385 加的四态诊断其实一直在日志里喊"首次被闸：
+  consumers=null"，只是没催作者回传就先怀疑了画质档。
+- **修①=改挂阶段（治③）**：`AFTER_TRANSLUCENT` → **`AFTER_ENTITIES`**（该阶段 matrixStack 与 consumers
+  双双非 null，且是官方推荐"往实体缓冲追加方块相关面片"的位置），线条随原版 LINES 层一并冲出；
+  gateLog/drawLog 文案同步改口。
+- **修②=高亮器升双源（治②，零协议）**：新增**工作态**源——客户端每 500ms 扫玩家周边
+  `chunkHighlightScanChunks`（默认 8）分块内**已加载**分块的方块实体表，收核心画布里"已绑定+未清完+
+  未暂停+同维度"的移除器节点，画青绿框；**手持瞄准态**仍画紫框。数据白捡：`machineNodes` 本来就在
+  m275 渲染子集里，随区块初始包（m276 toInitialChunkDataNbt 已改渲染子集）到客户端，不用发一个字节
+  新包。同一区域两源都命中=按中心分块键去重，工作态先画即占位。未加载分块直接跳过，绝不调会触发
+  加载的口（m142 精神的客户端版）。选区数封顶 32。
+- **修③=激光雕刻观感（治①）**：前沿特效从"十朵龙息紫云"换成**激光束**——削切点正上方一次
+  `spawnParticles` 用纵向高斯 dy 铺出 END_ROD 白热光柱（横向散布 0.02=细束）+落点白热火花（带速度溅开）
+  +龙息烟羽（切割冒烟）；三次调用一束，每拍封顶**三束**且按 `removedZ & 1023` 沿本拍进度铺开
+  （默认预算=每拍一束跟着游标走，满预算 4096 块/拍时削切面上撒三束）。调用数 10→9 反而更省。
+  另加**穿墙透视线**（`RenderLayer.getDebugLineStrip`，原版 F3+G 区块边界同款层）：站在坑里/地下也
+  看得见自己圈了多大一片——这条同时治了"框全高但立柱埋在地形里=等于没有"的观感坑。
+- **透视线的坑**：DEBUG_LINE_STRIP 是**连续笔画**，一次单笔走完 12 条棱（回描不影响观感，路径见代码
+  注释），且**每个选区画完当场 `Immediate.draw(layer)` 冲一次**——不冲的话下一个选区的首点会跟上一个
+  选区的末点连成一条横跨天际的飞线。
+- **配置**：三键 v56 纯加键——`chunkHighlightRunning`（工作态框，默认开）/`chunkHighlightXray`（透视线，
+  默认开）/`chunkHighlightScanChunks`（扫描半径分块，默认 8 钳 1..16）；总闸仍是 `chunkFxEnabled`。
+- **yarn 编译级核名**：`WorldRenderEvents.AFTER_ENTITIES`/`AfterEntities.afterEntities` 与 consumers 可用
+  区间（fabric 1.21.1 分支原文）；`RenderLayer.getDebugLineStrip(D)`=method_49043、
+  `VertexConsumerProvider.Immediate.draw(RenderLayer)`=method_22994、`VertexConsumer.vertex(Matrix4f,FFF)`
+  =method_22918 与 `.color(FFFF)`=method_22915（SciSkin.vGrad 在树同款写法）、`WorldChunk.getBlockEntities`
+  =method_12214、`ChunkManager.isChunkLoaded(II)`=method_12123 与 `getWorldChunk(II)`=method_21730。
+  粒子只用在树已 CI 验过的 END_ROD/DRAGON_BREATH 两枚，不引入未核名常量。
+- **已知边界（入档不修）**：非画布观众的客户端只在**区块初始包**拿到节点快照（m275 起定向同步只发
+  观众），故工作态框的"已清完/已解绑"是最近一次同步的口径——机器挖完后框可能残留到重进区块或开一次
+  画布才消失；反过来框在=区域仍被某台机器占着，实用上不误导。
+- **教训**：①Fabric 事件选阶段必读**该事件与 context 各口的可用区间**——"注册上了"≠"给了你缓冲口"，
+  往 null 缓冲画一整帧不会报错只会静默消失；②自己加的诊断日志要**主动催回**，m385 加的四态诊断其实
+  一击命中，白等了三笔（下次报"看不见"类问题，第一句就该是"把 latest.log 搜这行发我"）。
+- **实机脚本**：①手持已绑定的移除器=世界里出现紫色全高选区框（呼吸脉动，5×5 有分块格线），
+  站在坑底/地下也能透视看见；②把移除器放进核心画布=**框还在**（换青绿色），手上空着也看得见；
+  ③两台机器绑不同区域=两个框各画各的，中间**没有**飞线（透视线冲缓冲验收点）；④同一台机器手持+
+  已在核心里=只画一个框（青绿，去重验收点）；⑤开挖=削切点上方一道白光柱打下来+落点火花+烟羽，
+  游标走到哪打到哪；⑥暂停该节点=工作态框消失（≤0.5s 内），恢复即回；⑦config 关 chunkHighlightXray=
+  框只剩会被地形挡住的实线；关 chunkHighlightRunning=只有手持才有框；关 chunkFxEnabled=框与激光全灭；
+  ⑧日志搜 `ChunkRegionHighlighter` 应出现"已绘制（m393 挂 AFTER_ENTITIES）"，不再是"首次被闸"。

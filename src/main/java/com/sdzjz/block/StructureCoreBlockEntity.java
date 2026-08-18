@@ -1262,10 +1262,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
                                 chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
-                            if (fxNZ < 10) { // 前沿流：削切面冒龙息紫云（m385 换装：PORTAL 白天几乎隐形，龙息拖尾才有"崩解"感；每拍封顶 10 点）
+                            if (fxNZ < 3 && (removedZ & 1023L) == 0L) { // m393 激光雕刻（作者点名"能不能像激光雕刻机"）：每拍最多三束，且按本拍进度铺开（默认预算下=每拍一束跟着游标走；满预算 4096 块/拍时沿削切面撒三束）
                                 long pX0Z = profZ ? System.nanoTime() : 0; // m391 FX 段（爆发环走首铲一次不单记，前沿流才是每拍常客）
-                                swz.spawnParticles(net.minecraft.particle.ParticleTypes.DRAGON_BREATH,
-                                        mpZ.getX() + 0.5, mpZ.getY() + 0.6, mpZ.getZ() + 0.5, 5, 0.3, 0.2, 0.3, 0.02);
+                                chunkFxLaser(swz, mpZ.getX(), mpZ.getY(), mpZ.getZ());
                                 if (profZ) { pfFxZ += System.nanoTime() - pX0Z; pcFxZ++; }
                                 fxNZ++;
                             }
@@ -1912,6 +1911,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
     public static boolean nodePaused(ItemStack s) { return com.sdzjz.node.NodeTags.nodePaused(s); }
+
+    /** m393 激光雕刻观感（作者点名"运行这个效果能不能像激光雕刻机差不多"）：削切点正上方一道
+     *  END_ROD 白热光柱（**一次** spawnParticles 用纵向高斯 dy 铺满柱体=一束，横向散布近零故是细束）
+     *  + 落点白热火花 + 龙息烟羽（切割冒烟）。三次调用/束，每拍封顶三束——比 m385 的"前沿十朵龙息云"
+     *  更省（10 次调用→9 次）且方向感强：光从上方打下来，游标走到哪切到哪。粒子是服务端广播，
+     *  附近玩家全看得见，零协议。 */
+    private static void chunkFxLaser(net.minecraft.server.world.ServerWorld sw, int x, int y, int z) {
+        double cx = x + 0.5, cz = z + 0.5;
+        sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 4.2, cz, 14, 0.02, 1.9, 0.02, 0.0); // 光柱：纵向铺约 8 格，横向 0.02=细
+        sw.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, cx, y + 0.6, cz, 6, 0.12, 0.05, 0.12, 0.06); // 落点火花（带速度=溅开）
+        sw.spawnParticles(net.minecraft.particle.ParticleTypes.DRAGON_BREATH, cx, y + 0.9, cz, 2, 0.08, 0.02, 0.08, 0.01); // 切割烟羽
+    }
 
     /** m384 区块移除器"技能锁定"爆发：选区顶面周长粒子环（采样步长 4 格封顶 96 点）+中心信标激活音。
      *  只在首铲沿触发（非运行→运行），暂停恢复/过滤续挖也算重新施法——审美上正确，机制上免追状态。 */
