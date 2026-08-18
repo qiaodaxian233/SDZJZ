@@ -2055,6 +2055,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m382 移除范围换挡（#zr 哨兵；文案自带"重扫"提醒防 m99 静默惊讶）
+            addMenu("移除范围: " + com.sdzjz.item.ChunkRemoverItem.regionLabel(st) + " → 换挡(重扫)",
+                    mi(net.minecraft.item.Items.TNT), 2,
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zr")); });
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
             if (com.sdzjz.node.NodeTags.chunkBound(st))
                 addMenu("重新扫描", mi(net.minecraft.item.Items.SPYGLASS), 2,

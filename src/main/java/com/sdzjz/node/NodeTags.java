@@ -166,6 +166,12 @@ public final class NodeTags {
     /** 累计移除方块数（画布副行进度显示）。 */
     public static long chunkRemoved(ItemStack s) { return viewOf(s).getLong("zn"); }
 
+    /** m382 区块移除器区域半径（0=1×1，1=3×3…；配置收顶在 tick 侧）。 */
+    public static int chunkRadius(ItemStack s) { return viewOf(s).getInt("zr"); }
+
+    /** m382 层主序游标的分块序号 0..w²-1。 */
+    public static int chunkOrd(ItemStack s) { return viewOf(s).getInt("zc"); }
+
     /** m377 区块过滤器 Y 挡位序号（挡位表唯一权威=ChunkFilterItem，此处只管取数）。 */
     public static int chunkFilterPreset(ItemStack s) { return viewOf(s).getInt("zp"); }
 
