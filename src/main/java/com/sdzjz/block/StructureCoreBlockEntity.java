@@ -1148,6 +1148,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int bottomZ = world.getBottomY();
                 if (yZ > fTopZ) { yZ = fTopZ; idxZ = 0; ordZ = 0; } // m377 Y 挡快进：窗顶以上直接跳过（游标单向不回卷，重扫=重绑）
                 long scanCapZ = Math.min(16384L, Math.max(1024L, budgetZ * 4L)); // 空气/跳过段快进上限：护 tick 预算
+                long emptyGuardZ = 262144L; // m385 空段快跳硬护栏（isEmpty 位检查几乎零成本，只防病态死循环）
                 long removedZ = 0;
                 java.util.List<ItemStack> dropsZ = new java.util.ArrayList<>();
                 net.minecraft.util.math.BlockPos.Mutable mpZ = new net.minecraft.util.math.BlockPos.Mutable();
@@ -1158,7 +1159,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean haltZ = false;
                 String haltWhyZ = null;
                 if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载（把核心放近些，本机不强载）"; }
-                while (!haltZ && removedZ < budgetZ && scanCapZ-- > 0 && yZ >= fBotZ) {
+                while (!haltZ && removedZ < budgetZ && scanCapZ > 0 && yZ >= fBotZ) {
+                    // m385 空段快跳（实机报修根因：层主序从 Y=顶起步，天上纯空气逐位吃扫描上限——
+                    // 1×1 空扫约两分钟才见土，3×3/5×5 是其 9/25 倍观感=死机）：本(分块,层)所在
+                    // 16³ 段全空→整 256 位一步跨过，几乎零成本不吃扫描上限（护栏 emptyGuard 防病态）。
+                    // getWorldChunk 在 isChunkLoaded 已拦路后调用=绝不触发同步加载（m142 同系警惕）。
+                    if (idxZ == 0 && emptyGuardZ-- > 0) {
+                        mpZ.set(curCxZ << 4, yZ, curCzZ << 4);
+                        if (world.getWorldChunk(mpZ).getSectionArray()[world.getSectionIndex(yZ)].isEmpty()) {
+                            if (++ordZ >= chunksZ) { ordZ = 0; yZ--; be.statusDirty = true; }
+                            if (yZ >= fBotZ) {
+                                curCxZ = cxZ + (ordZ % wZ) - rZ;
+                                curCzZ = czZ + (ordZ / wZ) - rZ;
+                                if (!world.getChunkManager().isChunkLoaded(curCxZ, curCzZ)) { haltZ = true; haltWhyZ = "分块(" + curCxZ + "," + curCzZ + ")未加载（把核心放近些，本机不强载）"; }
+                            }
+                            continue;
+                        }
+                    }
+                    scanCapZ--;
                     mpZ.set((curCxZ << 4) + (idxZ >> 4), yZ, (curCzZ << 4) + (idxZ & 15));
                     net.minecraft.block.BlockState bsZ = world.getBlockState(mpZ);
                     boolean beHereZ = bsZ.hasBlockEntity();
@@ -1177,10 +1195,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         world.setBlockState(mpZ, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
                             if (removedZ == 0 && prevStZ != 1) // 首铲且上拍非运行=技能锁定：选区顶粒子环+信标激活音
-                                chunkFxBurst(swz, cxZ, czZ, rZ, Math.min(fTopZ + 1, world.getTopY() - 1));
-                            if (fxNZ < 6) { // 前沿流：削切面冒紫色传送门粒子（每拍封顶 6 点防包风暴）
-                                swz.spawnParticles(net.minecraft.particle.ParticleTypes.PORTAL,
-                                        mpZ.getX() + 0.5, mpZ.getY() + 0.5, mpZ.getZ() + 0.5, 6, 0.35, 0.35, 0.35, 0.05);
+                                chunkFxBurst(swz, cxZ, czZ, rZ, mpZ.getY()); // m385 环在首铲实际层（原 fTop=世界顶天上放烟花）
+                            if (fxNZ < 10) { // 前沿流：削切面冒龙息紫云（m385 换装：PORTAL 白天几乎隐形，龙息拖尾才有"崩解"感；每拍封顶 10 点）
+                                swz.spawnParticles(net.minecraft.particle.ParticleTypes.DRAGON_BREATH,
+                                        mpZ.getX() + 0.5, mpZ.getY() + 0.6, mpZ.getZ() + 0.5, 5, 0.3, 0.2, 0.3, 0.02);
                                 fxNZ++;
                             }
                         }

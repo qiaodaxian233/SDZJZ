@@ -29,21 +29,31 @@ public final class ChunkRegionHighlighter {
 
     private ChunkRegionHighlighter() {}
 
+    /** m385 远程诊断（m320b 四态刀法瘦身版）：首次真绘/首次被闸各出声一次，
+     *  日志搜 ChunkRegionHighlighter 一行定位：有"已绘制"无框=渲染层问题；只有"被闸"=数据/开关问题。 */
+    private static boolean loggedDraw = false, loggedGate = false;
+
+    private static void gateLog(String why) {
+        if (loggedGate) return;
+        loggedGate = true;
+        com.sdzjz.Sdzjz.LOGGER.info("[ChunkRegionHighlighter] 首次被闸：" + why);
+    }
+
     public static void register() {
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ChunkRegionHighlighter::render);
     }
 
     private static void render(WorldRenderContext ctx) {
-        if (!SdzjzConfig.get().chunkFxEnabled) return;
+        if (!SdzjzConfig.get().chunkFxEnabled) { gateLog("chunkFxEnabled=false"); return; }
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.world == null) return;
         VertexConsumerProvider consumers = ctx.consumers();
-        if (consumers == null) return;
+        if (consumers == null) { gateLog("consumers=null（渲染事件无缓冲口）"); return; }
         ItemStack held = mc.player.getMainHandStack();
         if (!(held.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) held = mc.player.getOffHandStack();
         if (!(held.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) return;
-        if (!NodeTags.chunkBound(held)) return;
-        if (!mc.world.getRegistryKey().getValue().toString().equals(NodeTags.chunkDim(held))) return;
+        if (!NodeTags.chunkBound(held)) { gateLog("手上移除器未绑定（客户端 NBT 未同步？）"); return; }
+        if (!mc.world.getRegistryKey().getValue().toString().equals(NodeTags.chunkDim(held))) { gateLog("维度不符"); return; }
 
         int cx = NodeTags.chunkX(held), cz = NodeTags.chunkZ(held);
         int r = Math.max(0, Math.min(NodeTags.chunkRadius(held), Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius)));
@@ -60,6 +70,11 @@ public final class ChunkRegionHighlighter {
         // 主框：紫色呼吸脉动（"技能选中"圈）
         float pulse = 0.55f + 0.35f * (float) Math.sin(Util.getMeasuringTimeMs() / 300.0);
         WorldRenderer.drawBox(ms, vc, x1, y1, z1, x2, y2, z2, 0.72f, 0.35f, 1.0f, pulse);
+        WorldRenderer.drawBox(ms, vc, x1 + 0.06, y1, z1 + 0.06, x2 - 0.06, y2, z2 - 0.06, 0.85f, 0.55f, 1.0f, pulse * 0.8f); // m385 双画内缩伪加粗
+        if (!loggedDraw) {
+            loggedDraw = true;
+            com.sdzjz.Sdzjz.LOGGER.info("[ChunkRegionHighlighter] 已绘制 region=(" + x1 + "," + z1 + ")~(" + x2 + "," + z2 + ")；若游戏内仍无框=渲染层问题请报喨画质档位");
+        }
         // r>0：内部分块格线（退化盒=恒淡竖直隔板框，玩家一眼读出 3×3/5×5）
         if (r > 0) {
             for (int gi = 1; gi < w; gi++) {
