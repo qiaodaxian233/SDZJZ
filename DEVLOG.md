@@ -7418,3 +7418,26 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   StructureCoreScreen 3074 行），每批全绿才推 → 合并后 NeoForge 那格挂上 xplat，**第二个加载器才算真活**。
 - **明确不做**：不建第二份业务副本、不靠第三方桥、迁移期不夹带新玩法（否则"改名炸了还是新功能炸了"分不清）。
 - 零 Java 改动、零新配置键；等作者一句"开工"或"先不动"。
+
+## m410 映射迁移工装：把"改名"从手艺活变成对表活（作者拍板"按你的想法来"，开工第一件）
+
+- **决定**：按 m409 推荐走**全仓转 Mojmap**（不建第二份业务副本）。但开工第一件事不是动源码，
+  是先把**对照表**这件事从"凭记忆写名字"变成"查表"——本仓铁律"不猜接口"在改名这件事上尤其致命：
+  猜错一个方法名，编译器报的是几百行连锁错误，根本分不清哪个是病灶。
+- **交付 `docs/tools_mapping_bridge.py` + `docs/MAPPING_TODO.md`**。三段桥，两段沙箱当场自证：
+  - `Yarn ↔ intermediary`：拉 `FabricMC/yarn`@1.21.1 全仓 tarball（5 360 个 `.mapping`），**已跑通**；
+  - `obf ↔ intermediary`：`FabricMC/intermediary` 的 `1.21.1.tiny`（87 168 行），**已跑通**；
+  - `obf ↔ Mojmap`：Mojang 官方 proguard，**沙箱域名不可达**，作者本地一条 curl 即得，
+    喂给工具 `--mojmap client.txt` 第三列自动补齐。
+- **实测口径（自动扫描，非估）**：全库在用的 Yarn 类型 **167 个 / 1 506 处用点**（先前 271 是含成员后缀的毛数，
+  工装把 `Items.AIR` 这类归并到 `Items` 后是净数）。头部集中度极高：
+  Identifier 88 · Text 75 · Items 73 · ItemStack 71 · BlockPos 65 · Item 56 · Formatting 49 · Registries 42…
+  **intermediary 列已 167/167 全部补齐**，Mojmap 列待作者喂 proguard。
+- **工装红线写进类注释**：只产出对照表，**绝不自动改源码**。改名动作要么走 Loom 的
+  `migrateMappings`，要么按本表脚本替换后过 CI 五 job + GameTest（m409 定的判官口径）。
+- **作者只需二选一**（两条都在你机器上跑，maven/mojang 都够得着）：
+  1. `gradlew migrateMappings`（Loom 自带，先拿一个小包试）；
+  2. 从 `piston-meta.mojang.com` 的 version_manifest_v2 → 1.21.1 → `downloads.client_mappings.url`
+     下 `client.txt`，然后 `python3 docs/tools_mapping_bridge.py --yarn <yarn仓> --inter <1.21.1.tiny> --mojmap client.txt`。
+  两条路都产出同一件东西：**可核对的改名依据**。有了它，第一批（`net/` 24 个 payload）当天就能推。
+- 零 Java 改动、零新配置键（工装是 docs 侧报告尺，不挂 CI 闸）。
