@@ -7340,3 +7340,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **十三道闸全绿**（含新挂的分层闸），语法冒烟零错、自家包引用零错；零行为变化、零新配置键。
 - **下一步 P3**：销那 9 条待接口化，然后 `src/main/java` 整体改嫁 `versions/1.21.1/fabric/`，
   同期开 `versions/1.21.1/neoforge/` 写第一份 Neo 实现（结构性接口那批到那时才有落脚点）。
+
+## m407 本地构建炸在 JDK 25（作者报修"更新失败：Unsupported class file major version 69"）
+
+- **先立正：不是 m406 搬家的锅**。报错发生在 `'semantic analysis' in source unit '_BuildScript_'`——
+  连 `build.gradle` **自己**都没编过去，一行业务代码都还没轮到；同一个 commit 的 CI 四 job 全绿
+  （根构建那两个 job 钉的是 JDK 21）。
+- **根因：两代际两 JDK 撞车**。根构建=MC 1.21.1 / Gradle 8.10 / Loom 1.7.4，**只能跑 JDK 21**
+  （Gradle 8.10 不认 Java 23+）；`versions/26.2` 子构建=Gradle 9.5.1，**要 JDK 25**。
+  作者为了 26.2 装了 JDK 25 并成了默认 `JAVA_HOME`，根构建的守护进程随之用 25 起，
+  于是 class file major version **69（=Java 25）**直接把 build 脚本顶回来。
+- **修**：新增 `gradle/gradle-daemon-jvm.properties`（Gradle 8.8+ 的 Daemon JVM criteria）钉
+  `toolchainVersion=21`。此后**无论 `JAVA_HOME` 指向谁**，根构建都会挑本机已装的 JDK 21 起守护进程；
+  找不到 21 会明说"没有匹配的 Java 安装"，比 class 版本号那句黑话好懂十倍。
+  临时兜底（不改仓库时）：`gradlew.bat -Dorg.gradle.java.home="<jdk21 路径>" build`。
+- **刻意不做**：不把根构建升到 Gradle 9——Loom 1.7.4 只吃 Gradle 8.x，且根 `build.gradle` 还在用
+  Gradle 9 已移除的 `project.buildDir`（m372 早已立档）。升级要单独一笔，判官=CI 真编译。
+- **入铁律区第 8 条「两代际两 JDK」**：以后动构建、换 Gradle 版本，先问这条。
+- **教训**：多代际共存的仓库里，**"本机默认 JDK"是共享可变全局状态**——一个子构建的需求会悄悄
+  改掉另一个的运行环境。凡是各代际对 JDK/Gradle 有不同要求的，都该在仓库里把各自的判据钉死，
+  别靠人肉记得切 `JAVA_HOME`。零 Java 改动、零新配置键。
