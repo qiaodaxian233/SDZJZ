@@ -15,10 +15,10 @@ m268 的 isForcedNow 定义了两遍，本地冒烟全绿、CI 红了三笔（fc
 import os
 import re
 import sys
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-SRC = os.path.join(ROOT, "src", "main", "java")
-SRC2 = os.path.join(ROOT, "common", "src", "main", "java")  # m369 双根
+SRC_ROOTS = [os.path.join(ROOT, *r.split("/")) for r in srcroots.ROOTS]  # m369 双根 → m406 多源集
 
 # 方法声明行：修饰符开头…返回类型 方法名(参数) …{ ——排除控制流关键字与构造器噪音由签名归一化兜底
 DECL = re.compile(
@@ -61,7 +61,7 @@ def param_types(params: str) -> str:
 
 def main() -> int:
     hits = 0
-    for dirpath, _dirs, files in (x for r in (SRC, SRC2) for x in os.walk(r)):
+    for dirpath, _dirs, files in (x for r in SRC_ROOTS for x in os.walk(r)):
         for fn in files:
             if not fn.endswith(".java"):
                 continue

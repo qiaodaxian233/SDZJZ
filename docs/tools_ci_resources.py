@@ -3,6 +3,7 @@
 # ① resources 下所有 JSON 可解析 ② 中英语言键集合一致 ③ 每张物品模型的 layer0 贴图实存
 # ④ 每个 reg("id") 有 模型+双语言键 ⑤ 每条 bom 结果 id 已注册 ⑥ 贴图断言(128×128 RGBA 或 16 倍数)
 import json, os, re, sys, struct
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 
 os.chdir(os.path.join(os.path.dirname(__file__), '..'))
 RES = 'src/main/resources'
@@ -57,7 +58,7 @@ for f in sorted(os.listdir(mdir)):
 print(f'③⑥ 模型贴图配对+尺寸 ×{n_tex}' + ('' if not fails else ' …'))
 
 # ④ 注册项 → 模型+双语言
-mi = open('src/main/java/com/sdzjz/registry/ModItems.java', encoding='utf-8').read()
+mi = srcroots.read('com/sdzjz/registry/ModItems.java')
 ids = re.findall(r'reg\("([a-z0-9_]+)"', mi)
 for i in ids:
     if not os.path.exists(f'{mdir}/{i}.json'): fails.append(f'注册缺模型: {i}')
@@ -66,8 +67,8 @@ for i in ids:
 print(f'④ 注册项资源闭环 ×{len(ids)}')
 
 # ⑤ 配方结果已注册（物品 或 方块）
-src = open('src/main/java/com/sdzjz/machine/SuperBenchRecipes.java', encoding='utf-8').read()
-mb = open('src/main/java/com/sdzjz/registry/ModBlocks.java', encoding='utf-8').read()
+src = srcroots.read('com/sdzjz/machine/SuperBenchRecipes.java')
+mb = srcroots.read('com/sdzjz/registry/ModBlocks.java')
 regset = set(ids) | set(re.findall(r'reg\("([a-z0-9_]+)"', mb))
 for r in re.findall(r'bom\("sdzjz:([a-z0-9_]+)"', src) + re.findall(r'addSmall\w*\("sdzjz:([a-z0-9_]+)"', src):
     if r not in regset: fails.append(f'配方结果未注册: {r}')

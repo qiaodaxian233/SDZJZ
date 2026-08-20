@@ -4,8 +4,9 @@
 # scopeCanvas 只在 render try/finally 内开，事件路径裸读会取到终端主题；再写回配置即 m239 污染。
 # 用法：python3 docs/tools_color_scope_audit.py   （命中即退出码 1，可挂 CI）
 import re, sys, os
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 
-SRC = os.path.join(os.path.dirname(__file__), '..', 'src/main/java/com/sdzjz/client/StructureCoreScreen.java')
+SRC = srcroots.find('com/sdzjz/client/StructureCoreScreen.java')
 EVT = ['init', 'removed', 'mouseScrolled', 'mouseClicked', 'mouseDragged', 'mouseReleased', 'keyPressed', 'charTyped']
 SAFE = {'settColorVal'}  # m239 收口：自带 scopedCanvas 保存/恢复，事件路径可用
 

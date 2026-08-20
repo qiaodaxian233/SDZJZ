@@ -7,13 +7,13 @@
 private 或 static 方法——这两类在 Java 里永远不可能是覆写，必错。教训同款：str_replace 锚必须
 带上方法前的注解行，光锚签名行会把插入物楔进注解和方法之间。自锚定路径（m259 教训）。"""
 import os, re, sys
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'src')
-SRC2 = os.path.join(ROOT, 'common', 'src')  # m369 双根
+SRC_ROOTS = [os.path.join(ROOT, *r.split('/')) for r in srcroots.ROOTS]  # m369 双根 → m406 多源集
 
 bad = []
-for dp, _, fs in (x for r in (SRC, SRC2) for x in os.walk(r)):
+for dp, _, fs in (x for r in SRC_ROOTS for x in os.walk(r)):
     for f in fs:
         if not f.endswith('.java'):
             continue

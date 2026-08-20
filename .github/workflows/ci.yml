@@ -37,6 +37,8 @@ jobs:
         run: python3 docs/tools_common_gate.py
       - name: 事务作用域手账审计(m327 回归尺,m323 规矩=事务内禁 withdraw/deposit 防同键前像复制窗)
         run: python3 docs/tools_tx_scope_audit.py
+      - name: 分层硬闸(m406 多源集,xplat 零加载器引用+待接口化清单)
+        run: python3 docs/tools_layer_gate.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；

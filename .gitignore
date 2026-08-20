@@ -5,3 +5,6 @@ run/
 .idea/
 .DS_Store
 javac.*.args
+
+# m406 尺子共用模块产生的字节码缓存
+docs/__pycache__/

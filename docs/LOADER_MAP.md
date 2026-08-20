@@ -3,7 +3,7 @@
 > 口径：只数 `net.fabricmc.*` 与 Fabric 专属入口/注解的用点。换 Forge/NeoForge 时，
 > 这些点要么抽进 `platform/` SPI 由各加载器实现，要么在各加载器源集里各写一份。
 
-扫描文件数（含 fabric 字样）：24；有耦合用点的文件：21
+扫描文件数（含 fabric 字样）：27；有耦合用点的文件：21
 
 ## 按 API 族（决定 SPI 补齐顺序）
 
@@ -16,8 +16,8 @@
 | keybinding 键位 | 2 | 1 |
 | transfer 传输API | 53 | 4 |
 | screenhandler 屏 | 11 | 6 |
-| gametest 测试 | 4 | 2 |
-| loader 环境/入口 | 15 | 4 |
+| gametest 测试 | 5 | 2 |
+| loader 环境/入口 | 20 | 4 |
 | resource 资源/标签 | 0 | 0 |
 
 ## 按文件排行（前 25，决定改写顺序）

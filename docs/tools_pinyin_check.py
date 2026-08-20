@@ -6,9 +6,10 @@
 ③ 端到端：按 Java 同款算法（python 参照实现）对一批 MC 物品名断言首字母输出（含二级字"燧/鹦/鹉"实锤位）。
 自锚定路径（m259 教训：不写死沙箱路径）。"""
 import re, sys, os
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'src/main/java/com/sdzjz/client/PinyinInitials.java')
+SRC = srcroots.find('com/sdzjz/client/PinyinInitials.java')
 
 CLASSIC_B1 = [0xB0A1, 0xB0C5, 0xB2C1, 0xB4EE, 0xB6EA, 0xB7A2, 0xB8C1, 0xB9FE, 0xBBF7, 0xBFA6, 0xC0AC,
               0xC2E8, 0xC4C3, 0xC5B6, 0xC5BE, 0xC6DA, 0xC8BB, 0xC8F6, 0xCBFA, 0xCDDA, 0xCEF4, 0xD1B9, 0xD4D1]

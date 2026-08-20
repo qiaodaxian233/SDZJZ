@@ -51,7 +51,10 @@ java {
 // 平添打包风险），共享源集=零打包变化；versions/26.2 新世代构建同样挂载此目录（m370）。
 sourceSets {
     main {
-        java { srcDir 'common/src/main/java' }
+        java {
+            srcDir 'common/src/main/java'     // Core（零 MC，m369）
+            srcDir 'xplat/src/main/java'      // m406 业务层（见 MC、不见加载器）
+        }
     }
 }
 

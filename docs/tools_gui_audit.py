@@ -69,7 +69,10 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.project).expanduser().resolve()
-    src = root / "src/main/java/com/sdzjz"
+    # m406 多源集：客户端屏已迁 xplat，取存在的那个（路径逻辑见 docs/srcroots.py）
+    src = root / "xplat/src/main/java/com/sdzjz"
+    if not (src / "client").is_dir():
+        src = root / "src/main/java/com/sdzjz"
     client = src / "client"
     resources = root / "src/main/resources/assets/sdzjz"
     gui = resources / "textures/gui"

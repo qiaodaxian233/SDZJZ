@@ -3,9 +3,10 @@
 # ① 全表配方多重集两两唯一 ② 每方 BOM 总件数≤144、种数≤18 ③ 生物笼计数=生物数
 # ④ 注册六件套计数断言（MachineDef/ModItems reg+创造栏/配方/双语言/模型/贴图）
 import re, json, sys, os
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))  # m259 自锚定仓库根：CI 跑批机不在 /home/claude
 
-src = open('src/main/java/com/sdzjz/machine/SuperBenchRecipes.java').read()
+src = srcroots.read('com/sdzjz/machine/SuperBenchRecipes.java')
 
 # ---- 解析 bom(...) 调用 ----
 def parse_calls(name):
@@ -110,8 +111,8 @@ print('③ 生物笼计数=生物数 ✓')
 
 # ④ 六件套断言：新增机器逐项 grep
 new_ids = sys.argv[1:] or []
-mi = open('src/main/java/com/sdzjz/registry/ModItems.java').read()
-mc = open('common/src/main/java/com/sdzjz/machine/Machines.java').read()
+mi = srcroots.read('com/sdzjz/registry/ModItems.java')
+mc = srcroots.read('com/sdzjz/machine/Machines.java')
 zh = json.load(open('src/main/resources/assets/sdzjz/lang/zh_cn.json'))
 en = json.load(open('src/main/resources/assets/sdzjz/lang/en_us.json'))
 for i in new_ids:

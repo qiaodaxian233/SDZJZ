@@ -14,9 +14,10 @@
 import os
 import re
 import sys
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 from collections import defaultdict
 
-ROOTS = ["src/main/java", "common/src/main/java"]  # m369：Common 物理拆分后双根扫描
+ROOTS = srcroots.ROOTS  # m369 双根 → m406 多源集统一走解析器
 
 # API 族 → 正则（FQN 内联用法极多，必须扫全文而非只扫 import）
 FAMILIES = {

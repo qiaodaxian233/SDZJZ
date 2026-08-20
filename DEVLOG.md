@@ -7311,3 +7311,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   改成 **调用点抽完 → 先拆源集骨架（P2）→ 再在源集里处理结构性接口**。继续按旧表硬抽 screenhandler/
   rendering 只会得到一堆"为抽而抽"的包装类，换加载器时照样重写。
 - 零行为变化、零新配置键；判官=CI 真编译 + GameTest 全套。
+
+## m406 多加载器 P2：xplat 业务层落地（111 文件一次 git mv）+ 分层硬闸 + 尺子源根解析器
+
+- **m403 立的顺序铁律兑现**："先抽口、再搬目录"——m402~m405 把调用点四族收完之后，
+  搬家果然是**一次成功、编译不断**的机械动作：全库 132 个 java 文件里，
+  **111 个（15 215 行）已经零加载器引用**，一次 `git mv` 全进 `xplat/src/main/java`；
+  剩 21 个（8 411 行）留在 `src/main/java` 当 Fabric 1.21.1 加载器层。
+- **三层现在是物理的**（对照 m403 的对表，Core 那栏没变、业务层从"混在一起"变成独立源根）：
+
+  | 源根 | 文件 | 行 | 角色 |
+  |---|---:|---:|---|
+  | `common/src/main/java` | 23 | 2 427 | Core（零 MC，硬闸守着） |
+  | `xplat/src/main/java` | **111** | **15 215** | 业务层（见 MC、不见加载器） |
+  | `src/main/java` | 21 | 8 411 | Fabric 1.21.1 加载器层（漏斗 6 + 结构性接口 + 入口 + 注册 + GameTest） |
+
+  构建照 m369 老规矩走 **srcDir 拼接不做子项目**（Loom 打包风险为零，产物逐字节同旧）。
+- **新闸：`docs/tools_layer_gate.py`（CI 第十三道）**——①**xplat 零加载器符号**（`net.fabricmc`/
+  `FabricLoader`/`ModInitializer`），破了即红；②**待接口化清单**（报告不红）：xplat 里引用加载器层
+  漏斗类的文件逐个点名，当前 **9 个**（四屏+JEI 的 `ClientNet`、`DataCableBlock` 的 `Xfer`、
+  `ProjectEFCompat` 的 `Env`、`BenchRunner` 的 `Hooks`、`DataPanelScreenHandler` 的 `Net`）。
+  这 9 条就是 P3 的活：把静态漏斗改成"xplat 定接口 + 各加载器源集给实现 + Platform 定位器取"，改一个销一个。
+- **顺手拆掉一颗定时炸弹：`docs/srcroots.py` 源根解析器**。此前十一把尺子里散着十几处写死的
+  `src/main/java/com/sdzjz/xxx.java`，搬家会让它们**静默失明**（m402 刚栽过：有界 Codec 尺按旧写法
+  找目标，不报错只报"0 个包全部有界"）。现在路径逻辑只此一份，尺子只说"我要哪个类"不说"它住哪"；
+  三把全树尺（重复方法/@Override/事务作用域）的双根也一并换成解析器多源集——
+  **本笔搬家后 tx 尺从 43 个文件回到 159 个，正是差点失明的现场**。
+- **十三道闸全绿**（含新挂的分层闸），语法冒烟零错、自家包引用零错；零行为变化、零新配置键。
+- **下一步 P3**：销那 9 条待接口化，然后 `src/main/java` 整体改嫁 `versions/1.21.1/fabric/`，
+  同期开 `versions/1.21.1/neoforge/` 写第一份 Neo 实现（结构性接口那批到那时才有落脚点）。

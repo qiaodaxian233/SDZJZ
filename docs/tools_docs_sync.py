@@ -2,8 +2,9 @@
 # m176 文档同步:机器数唯一数据源=Machines.java(不含 6 个逻辑节点)。
 # 默认=校验模式(CI 用,漂移即红);--write 改写 README 标记块并重生成 机器清单.md。
 import re, os, sys, json
+import srcroots  # m406 源根解析（路径逻辑唯一出口）
 os.chdir(os.path.join(os.path.dirname(__file__), '..'))
-mc = open('common/src/main/java/com/sdzjz/machine/Machines.java', encoding='utf-8').read()
+mc = srcroots.read('com/sdzjz/machine/Machines.java')
 defs = set(re.findall(r'def(?:Multi|Consume)?\("([a-z0-9_]+)"', mc)) | set(re.findall(r'new MachineDef\("([a-z0-9_]+)"', mc))
 NODES = {'filter_node','extractor_node','trash_node','sensor_node','switch_node','distributor_node'}
 machines = sorted(defs - NODES)
@@ -15,7 +16,7 @@ assert m, 'README 缺 <!--MC--> 标记块'
 
 zh = json.load(open('src/main/resources/assets/sdzjz/lang/zh_cn.json', encoding='utf-8'))
 en = json.load(open('src/main/resources/assets/sdzjz/lang/en_us.json', encoding='utf-8'))
-sr = open('src/main/java/com/sdzjz/machine/SuperBenchRecipes.java', encoding='utf-8').read()
+sr = srcroots.read('com/sdzjz/machine/SuperBenchRecipes.java')
 t1 = set(re.findall(r'"sdzjz:([a-z0-9_]+)"', sr.split('TIER1 = ')[1].split(');')[0]))
 t3 = set(re.findall(r'"sdzjz:([a-z0-9_]+)"', sr.split('TIER3 = ')[1].split(');')[0]))
 def tier(i): return 'Ⅰ' if i in t1 else 'Ⅲ' if i in t3 else 'Ⅱ'
