@@ -3,7 +3,7 @@
 name: CI
 on:
   push:
-    branches: [ main ]
+    branches: [ main, mojmap ]   # m413：迁移工作面分支也要跑 CI（PR 开不了=PAT 无权，push 事件用本分支的工作流文件）
   pull_request:
   workflow_dispatch:
 
