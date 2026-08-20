@@ -11,8 +11,10 @@ import sys
 ROOTS = ['src/main/java', 'common/src/main/java', 'versions']
 # 族名 → 匹配片段（按 FQN 片段判，剥注释后再扫）
 FAMILIES = [
-    ('networking 网络包', ['fabricmc.fabric.api.networking', 'ServerPlayNetworking', 'ClientPlayNetworking',
-                          'CustomPayload', 'PayloadTypeRegistry']),
+    # m402 口径修正：CustomPayload 是**原版**类型（可移植，不该算加载器耦合），首版误收进来虚高了基数；
+    # 这一族只数 Fabric 专属符号。
+    ('networking 网络包', ['fabricmc.fabric.api.networking', 'fabricmc.fabric.api.client.networking',
+                          'ServerPlayNetworking', 'ClientPlayNetworking', 'PayloadTypeRegistry']),
     ('registry 注册', ['fabricmc.fabric.api.itemgroup', 'FabricItemGroup', 'fabricmc.fabric.api.object.builder']),
     ('events 生命周期/事件', ['fabricmc.fabric.api.event', 'ServerTickEvents', 'ServerLifecycleEvents',
                           'UseBlockCallback', 'ClientTickEvents']),

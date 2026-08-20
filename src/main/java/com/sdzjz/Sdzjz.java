@@ -20,8 +20,6 @@ import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -91,28 +89,27 @@ public class Sdzjz implements ModInitializer {
         });
 
         // 网络：画布节点拖动位置 + 连线（C2S）
-        PayloadTypeRegistry.playC2S().register(NodeMovePayload.ID, NodeMovePayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(NodeLinkPayload.ID, NodeLinkPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(NodeUpgradePayload.ID, NodeUpgradePayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(NodeAddPayload.ID, NodeAddPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.VaultTakePayload.ID, com.sdzjz.net.VaultTakePayload.CODEC); // m312
-        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
-        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.TerminalStockPayload.ID, com.sdzjz.net.TerminalStockPayload.CODEC); // m289 终端库存摘要→配方书
-        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.StorageNodeHomePayload.ID, com.sdzjz.net.StorageNodeHomePayload.CODEC); // m265 端点画布落位（CanvasEnds 姊妹包）
-        PayloadTypeRegistry.playS2C().register(com.sdzjz.net.CanvasSnapshotPayload.ID, com.sdzjz.net.CanvasSnapshotPayload.CODEC); // m275 观众定向渲染快照（审计第3条：取代 vanilla 全量 NBT 区块广播）
-        PayloadTypeRegistry.playC2S().register(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeSwitchPayload.ID, com.sdzjz.net.NodeSwitchPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.ChunkRemoverConfigPayload.ID, com.sdzjz.net.ChunkRemoverConfigPayload.CODEC); // m386
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupPayload.ID, com.sdzjz.net.NodeGroupPayload.CODEC); // m191 画布打组
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeGroupMovePayload.ID, com.sdzjz.net.NodeGroupMovePayload.CODEC); // m191 组整体位移
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeGroupPayload.ID, (payload, context) -> { // m191：一包三义按字段组合分派（建组/重命名/解散）
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.c2s(NodeMovePayload.ID, NodeMovePayload.CODEC);
+        com.sdzjz.net.Net.c2s(NodeLinkPayload.ID, NodeLinkPayload.CODEC);
+        com.sdzjz.net.Net.c2s(NodeUpgradePayload.ID, NodeUpgradePayload.CODEC);
+        com.sdzjz.net.Net.c2s(NodeTargetPayload.ID, NodeTargetPayload.CODEC);
+        com.sdzjz.net.Net.c2s(NodeRemovePayload.ID, NodeRemovePayload.CODEC);
+        com.sdzjz.net.Net.c2s(NodeAddPayload.ID, NodeAddPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.VaultTakePayload.ID, com.sdzjz.net.VaultTakePayload.CODEC); // m312
+        com.sdzjz.net.Net.s2c(com.sdzjz.net.CanvasEndsPayload.ID, com.sdzjz.net.CanvasEndsPayload.CODEC); // m89
+        com.sdzjz.net.Net.s2c(com.sdzjz.net.TerminalStockPayload.ID, com.sdzjz.net.TerminalStockPayload.CODEC); // m289 终端库存摘要→配方书
+        com.sdzjz.net.Net.s2c(com.sdzjz.net.StorageNodeHomePayload.ID, com.sdzjz.net.StorageNodeHomePayload.CODEC); // m265 端点画布落位（CanvasEnds 姊妹包）
+        com.sdzjz.net.Net.s2c(com.sdzjz.net.CanvasSnapshotPayload.ID, com.sdzjz.net.CanvasSnapshotPayload.CODEC); // m275 观众定向渲染快照（审计第3条：取代 vanilla 全量 NBT 区块广播）
+        com.sdzjz.net.Net.c2s(DataPanelViewPayload.ID, DataPanelViewPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.StorageLinkPayload.ID, com.sdzjz.net.StorageLinkPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.StorageNodeMovePayload.ID, com.sdzjz.net.StorageNodeMovePayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeFilterPayload.ID, com.sdzjz.net.NodeFilterPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeSensorPayload.ID, com.sdzjz.net.NodeSensorPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeSwitchPayload.ID, com.sdzjz.net.NodeSwitchPayload.CODEC);
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.ChunkRemoverConfigPayload.ID, com.sdzjz.net.ChunkRemoverConfigPayload.CODEC); // m386
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeGroupPayload.ID, com.sdzjz.net.NodeGroupPayload.CODEC); // m191 画布打组
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeGroupMovePayload.ID, com.sdzjz.net.NodeGroupMovePayload.CODEC); // m191 组整体位移
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeGroupPayload.ID, (payload, p) -> { // m191：一包三义按字段组合分派（建组/重命名/解散）
             p.getServer().execute(() -> {
                 if (!SdzjzConfig.get().canvasGroupsEnabled) return;               // 总开关把门
                 if (payload.name().length() > 64 || payload.members().size() > 512) return; // 伪造包尺寸熔断（正常组远小于此）
@@ -124,8 +121,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeGroupMovePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeGroupMovePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!SdzjzConfig.get().canvasGroupsEnabled) return;
                 if (!viewingCore(p, payload.pos())) return;
@@ -134,8 +130,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSwitchPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeSwitchPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -143,9 +138,8 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodeFusePayload.ID, com.sdzjz.net.NodeFusePayload.CODEC); // m123
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFusePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodeFusePayload.ID, com.sdzjz.net.NodeFusePayload.CODEC); // m123
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeFusePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -153,10 +147,9 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.NodePausePayload.ID, com.sdzjz.net.NodePausePayload.CODEC); // m110b
-        PayloadTypeRegistry.playC2S().register(com.sdzjz.net.JeiFillPayload.ID, com.sdzjz.net.JeiFillPayload.CODEC); // m212
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodePausePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.NodePausePayload.ID, com.sdzjz.net.NodePausePayload.CODEC); // m110b
+        com.sdzjz.net.Net.c2s(com.sdzjz.net.JeiFillPayload.ID, com.sdzjz.net.JeiFillPayload.CODEC); // m212
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodePausePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -164,16 +157,14 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.JeiFillPayload.ID, (payload, context) -> { // m212 JEI"+"填料：服务端权威取料（仓储优先、背包兜底）
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.JeiFillPayload.ID, (payload, p) -> { // m212 JEI"+"填料：服务端权威取料（仓储优先、背包兜底）
             p.getServer().execute(() -> {
                 if (!viewingPanel(p, payload.pos())) return; // 资格：面板开着且坐标对上（伪造包直接丢弃）
                 if (p.currentScreenHandler instanceof DataPanelScreenHandler h)
                     h.jeiFill(p, payload.recipeId(), payload.max());
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeFilterPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeFilterPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (payload.entry().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -181,8 +172,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.ChunkRemoverConfigPayload.ID, (payload, context) -> { // m386 手持设置面板写包：先验手上确为移除器再落 NBT，半径变更=重扫（#zrd 同口径）
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.ChunkRemoverConfigPayload.ID, (payload, p) -> { // m386 手持设置面板写包：先验手上确为移除器再落 NBT，半径变更=重扫（#zrd 同口径）
             p.getServer().execute(() -> {
                 var h = payload.hand() == 0 ? net.minecraft.util.Hand.MAIN_HAND : net.minecraft.util.Hand.OFF_HAND;
                 var s2 = p.getStackInHand(h);
@@ -210,8 +200,7 @@ public class Sdzjz implements ModInitializer {
                         net.minecraft.component.type.NbtComponent.of(n2));
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.NodeSensorPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeSensorPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (payload.item().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -219,8 +208,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.StorageLinkPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.StorageLinkPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (payload.dim().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -228,8 +216,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.StorageNodeMovePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.StorageNodeMovePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -238,8 +225,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeMovePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeMovePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return; // 防伪造包操纵任意坐标的核心
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -247,8 +233,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeLinkPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeLinkPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -256,8 +241,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeUpgradePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeUpgradePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -273,8 +257,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeTargetPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeTargetPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (payload.target().length() > 128 || !viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -282,15 +265,13 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(com.sdzjz.net.VaultTakePayload.ID, (payload, context) -> { // m312 随身仓库取物
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(com.sdzjz.net.VaultTakePayload.ID, (payload, p) -> { // m312 随身仓库取物
             p.getServer().execute(() -> {
                 if (writeBudget(p) && p.currentScreenHandler instanceof com.sdzjz.screen.PortableVaultScreenHandler h) // m329：补 m269 写包预算——16 接收器唯一漏点（取物触发背包同步回包，洪泛=放大器）
                     h.take(p, payload.itemId(), payload.mode());
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeAddPayload.ID, (payload, context) -> { // m88 机器库侧栏
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeAddPayload.ID, (payload, p) -> { // m88 机器库侧栏
             p.getServer().execute(() -> {
                 if (payload.itemId().length() > 128 || !viewingCore(p, payload.pos())) return; // m269 长度闸与其余字符串包对齐
                 if (!(p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core)) return;
@@ -311,8 +292,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(NodeRemovePayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(NodeRemovePayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingCore(p, payload.pos())) return;
                 if (p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core) {
@@ -320,8 +300,7 @@ public class Sdzjz implements ModInitializer {
                 }
             });
         });
-        ServerPlayNetworking.registerGlobalReceiver(DataPanelViewPayload.ID, (payload, context) -> {
-            ServerPlayerEntity p = context.player();
+        com.sdzjz.net.Net.onServer(DataPanelViewPayload.ID, (payload, p) -> {
             p.getServer().execute(() -> {
                 if (!viewingPanel(p, payload.pos())) return; // 校验走界面而非距离——手持终端可远程开面板
                 if (p.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h) {

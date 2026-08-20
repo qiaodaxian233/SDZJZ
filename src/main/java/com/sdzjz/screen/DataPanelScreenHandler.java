@@ -755,7 +755,7 @@ public class DataPanelScreenHandler extends net.minecraft.screen.AbstractRecipeS
             ids.add(top.get(i).getKey());
             cnts.add((int) Math.min(top.get(i).getValue(), 9999));
         }
-        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
+        com.sdzjz.net.Net.toPlayer(sp,
                 new com.sdzjz.net.TerminalStockPayload(this.syncId, ids, cnts, trunc));
     }
 

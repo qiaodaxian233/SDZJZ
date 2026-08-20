@@ -34,34 +34,28 @@ public class SdzjzClient implements ClientModInitializer {
                 com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK,
                 new com.sdzjz.client.CompressedPackRenderer(com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK_FRAME));
         // m89：画布端点直发包 → 静态缓存（画布优先读缓存，BE 数据后备）
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
-                com.sdzjz.net.CanvasEndsPayload.ID,
-                (payload, context) -> context.client().execute(() ->
-                        com.sdzjz.client.StructureCoreScreen.applyEndsPayload(payload)));
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver( // m265 端点画布落位
-                com.sdzjz.net.StorageNodeHomePayload.ID,
-                (payload, context) -> context.client().execute(() ->
-                        com.sdzjz.client.StructureCoreScreen.applyHomesPayload(payload)));
+        com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.CanvasEndsPayload.ID,
+                (payload, client) -> com.sdzjz.client.StructureCoreScreen.applyEndsPayload(payload));
+        com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.StorageNodeHomePayload.ID, // m265 端点画布落位
+                (payload, client) -> com.sdzjz.client.StructureCoreScreen.applyHomesPayload(payload));
         // m275：观众定向渲染快照 → 写回客户端 BE 渲染字段（画布屏 be() 读法零改动）
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
-                com.sdzjz.net.CanvasSnapshotPayload.ID,
-                (payload, context) -> context.client().execute(() -> {
-                    var w = context.client().world;
+        com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.CanvasSnapshotPayload.ID,
+                (payload, client) -> {
+                    var w = client.world;
                     if (w != null && w.getBlockEntity(payload.pos()) instanceof com.sdzjz.block.StructureCoreBlockEntity be)
                         be.applyRenderSnapshot(payload.nbt(), w.getRegistryManager());
-                }));
+                });
         // m289：终端库存摘要 → 灌进正开着的终端 handler 并催书重算"可合成"
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
-                com.sdzjz.net.TerminalStockPayload.ID,
-                (payload, context) -> context.client().execute(() -> {
-                    var pl = context.client().player;
+        com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.TerminalStockPayload.ID,
+                (payload, client) -> {
+                    var pl = client.player;
                     if (pl != null && pl.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h
                             && h.syncId == payload.syncId()) {
                         h.applyStock(payload.ids(), payload.counts(), payload.truncated()); // m298
-                        if (context.client().currentScreen instanceof com.sdzjz.client.DataPanelScreen ds)
+                        if (client.currentScreen instanceof com.sdzjz.client.DataPanelScreen ds)
                             ds.onStockSync();
                     }
-                }));
+                });
         // m80：全模组物品 tooltip 水印
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))

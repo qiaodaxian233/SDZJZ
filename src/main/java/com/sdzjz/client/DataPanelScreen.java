@@ -3,7 +3,6 @@ package com.sdzjz.client;
 import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.screen.DataPanelScreenHandler;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -128,7 +127,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         BlockPos p = this.handler.blockPos();
         if (p == null) return;
         String q = search == null ? "" : search.getText();
-        ClientPlayNetworking.send(new DataPanelViewPayload(p, q, scroll, matchByLocalName(q)));
+        com.sdzjz.client.ClientNet.toServer(new DataPanelViewPayload(p, q, scroll, matchByLocalName(q)));
     }
 
     /** 用客户端本地化显示名匹配物品 id（支持中文搜索），上限 200 条防包过大。 */

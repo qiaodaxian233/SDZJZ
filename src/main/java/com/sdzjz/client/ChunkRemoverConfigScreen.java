@@ -3,7 +3,6 @@ package com.sdzjz.client;
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.net.ChunkRemoverConfigPayload;
 import com.sdzjz.node.NodeTags;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
@@ -149,6 +148,6 @@ public class ChunkRemoverConfigScreen extends Screen {
     }
 
     private void send(int radius, int mode, int seal) {
-        ClientPlayNetworking.send(new ChunkRemoverConfigPayload(hand, radius, mode, seal));
+        com.sdzjz.client.ClientNet.toServer(new ChunkRemoverConfigPayload(hand, radius, mode, seal));
     }
 }

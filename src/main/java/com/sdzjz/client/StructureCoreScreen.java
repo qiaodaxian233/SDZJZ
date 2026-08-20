@@ -16,7 +16,6 @@ import com.sdzjz.net.StorageLinkPayload;
 import com.sdzjz.net.StorageNodeMovePayload;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.StructureCoreScreenHandler;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -1688,7 +1687,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         List<Integer> ms = new ArrayList<>();
         for (int i : selected) if (i >= 0 && i < be.nodes().size()) ms.add(i);
         if (ms.size() < 2) return;
-        ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", ms));
+        com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, -1, "", ms));
         selected.clear();
     }
 
@@ -1701,7 +1700,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuTitle = be.groupsView().getOrDefault(gid, "组" + gid);
         addMenu("重命名组…", mt("group_rename"), 0, () -> openRename(gid)); // m313 用户图标
         addMenu("解散该组", mt("group_disband"), 1,
-                () -> ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
+                () -> com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
         addMenu("取消", (ItemStack) null, 2, () -> {});
         openMenu(atX, atY);
     }
@@ -1724,7 +1723,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         BlockPos p = this.handler.blockPos();
         String nm = renameField.getText().trim();
         if (p != null && renameGid >= 0 && !nm.isEmpty())
-            ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, renameGid, nm, java.util.List.of()));
+            com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, renameGid, nm, java.util.List.of()));
         closeRename();
     }
 
@@ -2040,10 +2039,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         menuTitle = st.getName().getString(); // m148 标题带=机器名
         if (StructureCoreBlockEntity.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
             addMenu("恢复运行", mi(net.minecraft.item.Items.LIME_DYE),
-                    () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
         else
             addMenu("暂停节点", mt("pause_node"), 0,
-                    () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(p, idx)); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
         if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
             int mt = StructureCoreBlockEntity.machineTier(st);
             String[] TN = {"普通", "超级", "神级", "GM"};
@@ -2054,10 +2053,10 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (o.getItem() == st.getItem() && StructureCoreBlockEntity.machineTier(o) == mt) sameTotal += o.getCount();
             if (mt < 3 && sameTotal >= 4)
                 addMenu("融合：4台→" + TN[mt + 1] + "×1", mi(net.minecraft.item.Items.ANVIL), 2,
-                        () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
             if (mt > 0)
                 addMenu("拆解：1台→" + TN[mt - 1] + "×4", mi(net.minecraft.item.Items.GRINDSTONE),
-                        () -> { if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeFusePayload(p, idx, false)); });
         }
         addMenu("断开全部连线", mt("disconnect_all"), 2, () -> clearLinksOfMachine(idx)); // m313 用户图标
         if (st.getItem() instanceof AutoCrafterItem) {
@@ -2071,7 +2070,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     String lbl = "配方: 自动(按库存)";
                     for (var pp : psR) if (pp.recipeId().equals(curR)) { lbl = "配方: " + planLabel(pp); break; }
                     addMenu(lbl + " → 换", mi(net.minecraft.item.Items.KNOWLEDGE_BOOK),
-                            () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#cr")); });
+                            () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#cr")); });
                 }
             }
         }
@@ -2088,32 +2087,32 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         if (st.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 无限距离信标：效果/等级两哨兵循环
             addMenu("效果: " + com.sdzjz.item.InfiniteBeaconItem.effectName(com.sdzjz.item.InfiniteBeaconItem.effectIndex(st)) + " → 切换（六选一）",
                     mi(net.minecraft.item.Items.BEACON), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#bfx")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#bfx")); });
             addMenu("等级: " + (com.sdzjz.item.InfiniteBeaconItem.level(st) == 1 ? "II（料 ×" + Math.max(1, com.sdzjz.config.SdzjzConfig.get().infiniteBeaconLevel2Cost) + "）" : "I") + " → 切换",
                     mi(net.minecraft.item.Items.NETHER_STAR),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#bfl")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#bfl")); });
         }
         if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调(#zrd 增量哨兵)+模式切换(#zm)；完整面板=手持按设置键
             addMenu("区域 " + com.sdzjz.item.ChunkRemoverItem.regionLabel(st) + " −（Shift×10，重扫）", mi(net.minecraft.item.Items.REDSTONE),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? -10 : -1))); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? -10 : -1))); });
             addMenu("区域 ＋（Shift×10，重扫）", mi(net.minecraft.item.Items.GLOWSTONE_DUST),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? 10 : 1))); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? 10 : 1))); });
             addMenu("模式: " + com.sdzjz.item.ChunkRemoverItem.modeLabel(com.sdzjz.node.NodeTags.chunkMode(st)) + " → 切换（三挡循环）", // m397 空置域并入
                     mi(net.minecraft.item.Items.TNT), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zm")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zm")); });
             addMenu("封边挡水: " + (com.sdzjz.node.NodeTags.chunkSealOn(st) ? "开" : "关") + " → 切换（m394 起默认开）", // m389 贴水边界砌墙（作者拍板玻璃→石头）
                     mi(net.minecraft.item.Items.STONE), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zw")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zw")); });
             addMenu("封边材料: " + com.sdzjz.item.ChunkRemoverItem.sealLabel(st) + " → 换", // m396 自定义封边材料（复用 setNodeTarget 零新协议）
                     mi(net.minecraft.item.Items.BRICKS), () -> openSealPicker(idx));
             if (!com.sdzjz.node.NodeTags.chunkSealBlock(st).isEmpty())
                 addMenu("封边材料回默认（石头·免费）", mi(net.minecraft.item.Items.COBBLESTONE),
-                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zsbd")); });
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zsbd")); });
         }
                 if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 报告明细+重扫（#zs 哨兵；m180 铁律：NodeTags 直连）
             if (com.sdzjz.node.NodeTags.chunkBound(st))
                 addMenu("重新扫描", mi(net.minecraft.item.Items.SPYGLASS), 2,
-                        () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zs")); });
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zs")); });
             if (com.sdzjz.node.NodeTags.scanDone(st)) {
                 var smS = com.sdzjz.node.NodeTags.scanTypes(st);
                 java.util.List<java.util.Map.Entry<String, Long>> topS = new java.util.ArrayList<>();
@@ -2138,25 +2137,25 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("方块名单" + (cfM > 0 ? "(" + cfM + ")" : "·不限") + "…", mi(net.minecraft.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
             addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.item.Items.PAPER),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "")); });
             addMenu("Y挡: " + com.sdzjz.item.ChunkFilterItem.presetName(st) + " → 换挡", mi(net.minecraft.item.Items.LADDER),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zy")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zy")); });
         }
         if (StructureCoreBlockEntity.isFilter(st)) {
             addMenu("配置过滤物品…", mi(net.minecraft.item.Items.COMPARATOR), 2, () -> openFilterPicker(idx));
             addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.item.Items.PAPER),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "")); });
         }
         if (StructureCoreBlockEntity.isSwitch(st)) {
             addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.item.Items.LEVER), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, idx)); });
         }
         if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停复用开关收包口
             addMenu(StructureCoreBlockEntity.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.item.Items.PISTON), 2,
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, idx)); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, idx)); });
             addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m163a 五挡循环 64→512→4096→32768→262144
                     mi(net.minecraft.item.Items.HOPPER),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#xr")); });
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#xr")); });
             int flN = StructureCoreBlockEntity.filterList(st).size(); // m160 内置白名单
             addMenu("抽取白名单" + (flN > 0 ? "(" + flN + ")" : "") + "…", mi(net.minecraft.item.Items.COMPARATOR),
                     () -> openFilterPicker(idx));
@@ -2164,17 +2163,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (!StructureCoreBlockEntity.sensorItem(st).isEmpty()) {
                 addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值才抽" : "改为:低于阈值才抽",
                         mi(net.minecraft.item.Items.REPEATER),
-                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "",
                                 StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
                 addMenu("清除自动启停", mi(net.minecraft.item.Items.BARRIER),
-                        () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "§clear",
+                        () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "§clear",
                                 StructureCoreBlockEntity.sensorThreshold(st), StructureCoreBlockEntity.sensorLess(st))); });
             }
         }
         if (StructureCoreBlockEntity.isSensor(st)) {
             addMenu("监测物品…", mi(net.minecraft.item.Items.OBSERVER), 2, () -> openSensorPicker(idx));
             addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行", mi(net.minecraft.item.Items.REPEATER),
-                    () -> { if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, idx, "",
+                    () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "",
                             StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
         }
         if (StructureCoreBlockEntity.machineFilterable(st)) { // m149 二级界面：熔炉选烧什么/多产物机选产物（m313 双图标分家）
@@ -2198,17 +2197,17 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (selPlus.size() >= 2 && selPlus.size() <= 512) { // 512=服务端伪造包熔断上限，超限不给静默哑口（m99 教训）
                 final java.util.List<Integer> msSel = new ArrayList<>(selPlus);
                 addMenu("组合所选(" + msSel.size() + "台)", mt("group_selected"), 2, () -> { // m313 用户图标
-                    if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", msSel)); selected.clear(); }
+                    if (p != null) { com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, -1, "", msSel)); selected.clear(); }
                 });
             }
             final java.util.List<Integer> comp = connectedComponent(be, idx); // 沿连线收齐"连在一起"的整串
             if (comp.size() >= 2 && comp.size() <= 512)
                 addMenu("组合相连(" + comp.size() + "台)", mi(net.minecraft.item.Items.CHAIN), selPlus.size() >= 2 ? 0 : 2, () -> {
-                    if (p != null) { ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(p, -1, "", comp)); selected.clear(); }
+                    if (p != null) { com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, -1, "", comp)); selected.clear(); }
                 });
         }
         addMenu("取出机器", mt("remove_machine"), 1,
-                () -> { if (p != null) ClientPlayNetworking.send(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显；m313 用户图标
+                () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeRemovePayload(p, idx)); }); // m148 危险项垫底红显；m313 用户图标
         addMenu("取消", (ItemStack) null, 2, () -> {});
         openMenu(atX, atY);
     }
@@ -2303,14 +2302,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         BlockPos p = this.handler.blockPos();
         if (be == null || p == null) return;
         for (int[] c : new ArrayList<>(be.connections()))
-            if (c[0] == idx || c[1] == idx) ClientPlayNetworking.send(new NodeLinkPayload(p, c[0], c[1]));
+            if (c[0] == idx || c[1] == idx) com.sdzjz.client.ClientNet.toServer(new NodeLinkPayload(p, c[0], c[1]));
         List<String> dims = endDimsOf(be);
         List<long[]> ends = endsOf(be);
         for (long[] e : new ArrayList<>(be.storageEdgesView()))
             if (e[0] == idx) {
                 int j = endpointIndex(ends, e[1]);
                 String dim = j >= 0 && j < dims.size() ? dims.get(j) : "";
-                ClientPlayNetworking.send(new StorageLinkPayload(p, (int) e[0], e[1], (int) e[2], dim));
+                com.sdzjz.client.ClientNet.toServer(new StorageLinkPayload(p, (int) e[0], e[1], (int) e[2], dim));
             }
     }
 
@@ -2323,7 +2322,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int j = endpointIndex(ends, pl);
         String dim = j >= 0 && j < dims.size() ? dims.get(j) : "";
         for (long[] e : new ArrayList<>(be.storageEdgesView()))
-            if (e[1] == pl) ClientPlayNetworking.send(new StorageLinkPayload(p, (int) e[0], e[1], (int) e[2], dim));
+            if (e[1] == pl) com.sdzjz.client.ClientNet.toServer(new StorageLinkPayload(p, (int) e[0], e[1], (int) e[2], dim));
     }
 
     /** 整理布局：机器排网格，存储排右列。 */
@@ -2336,14 +2335,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
         int stepX = NW + Math.max(0, c.canvasLayoutGapX);                    // 卡宽 100 + 默认间隙 30 = 130
         int stepY = NH + 28 + Math.max(0, c.canvasLayoutGapY);               // 卡高 52+28(升级格/徽章带，fitView 同口径) + 默认间隙 24 = 104
         for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
-            ClientPlayNetworking.send(new NodeMovePayload(p, i, 20 + (i / rows) * stepX, 20 + (i % rows) * stepY));
+            com.sdzjz.client.ClientNet.toServer(new NodeMovePayload(p, i, 20 + (i / rows) * stepX, 20 + (i % rows) * stepY));
         List<long[]> ends = endsOf(be);
         for (int j = 0; j < ends.size(); j++) { // m265 只整理已放置的卡（右列竖排）；停靠卡不被强行拖下画布
             long pl = ends.get(j)[0];
             if (!endPlaced(be, pl)) continue;
             holdHome(pl, new int[]{760, 20 + j * 72});
             be.setStorageNodePos(pl, 760, 20 + j * 72);
-            ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, 760, 20 + j * 72, false));
+            com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(p, pl, 760, 20 + j * 72, false));
         }
     }
 
@@ -2379,7 +2378,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 int r = (int) ((mouseY - (ly + 16)) / rowH);
                 if (mouseY >= ly + 16 && r >= 0 && r < visible && r + libScroll < lib.size()) {
                     BlockPos p = this.handler.blockPos();
-                    if (p != null) ClientPlayNetworking.send(new com.sdzjz.net.NodeAddPayload(p,
+                    if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeAddPayload(p,
                             Registries.ITEM.getId(lib.get(r + libScroll).getItem()).toString()));
                 }
             }
@@ -2420,7 +2419,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
                         BlockPos bpp = this.handler.blockPos();
                         if (bpp != null && button == 0)
-                            ClientPlayNetworking.send(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
+                            com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
                         closePicker();
                         return true;
                     }
@@ -2435,7 +2434,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
                         BlockPos bpt = this.handler.blockPos();
                         if (bpt != null && button == 0)
-                            ClientPlayNetworking.send(new NodeTargetPayload(bpt, pickerNode, tradeFilteredIds.get(k)));
+                            com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpt, pickerNode, tradeFilteredIds.get(k)));
                         closePicker();
                         return true;
                     }
@@ -2450,7 +2449,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
                         BlockPos bpe = this.handler.blockPos();
                         if (bpe != null && button == 0)
-                            ClientPlayNetworking.send(new NodeTargetPayload(bpe, pickerNode, enchFilteredIds.get(k)));
+                            com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpe, pickerNode, enchFilteredIds.get(k)));
                         closePicker();
                         return true;
                     }
@@ -2466,18 +2465,18 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     String iid = Registries.ITEM.getId(pickerFiltered.get(k)).toString();
                     if (bp != null) {
                         if (pickerMode == 1) { // 过滤多选：切名单项，不关窗
-                            ClientPlayNetworking.send(new NodeFilterPayload(bp, pickerNode, iid));
+                            com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(bp, pickerNode, iid));
                             return true;
                         }
                         if (pickerMode == 2) { // 传感器：换监测物品，保留阈值/方向
                             StructureCoreBlockEntity be2 = be();
                             ItemStack ns = be2 != null && pickerNode < be2.nodes().size() ? be2.nodes().get(pickerNode) : ItemStack.EMPTY;
-                            ClientPlayNetworking.send(new NodeSensorPayload(bp, pickerNode, iid,
+                            com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(bp, pickerNode, iid,
                                     StructureCoreBlockEntity.sensorThreshold(ns), StructureCoreBlockEntity.sensorLess(ns)));
                             closePicker();
                             return true;
                         }
-                        ClientPlayNetworking.send(new NodeTargetPayload(bp, pickerNode, iid));
+                        com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bp, pickerNode, iid));
                         if (pickerMode == 3) return true; // m93 多选作物：toggle 后不关面板，继续点选
                     }
                     closePicker();
@@ -2512,7 +2511,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         if (wx >= sx && wx <= sx + 24 && wy >= sy && wy <= sy + 18) {
                             BlockPos p = this.handler.blockPos();
                             // m115a：Shift+点击=批量（一次至多64个，服务端按背包/格内实况截断）
-                            if (p != null) ClientPlayNetworking.send(new NodeUpgradePayload(p, i, k, button == 0, hasShiftDown() ? 64 : 1));
+                            if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeUpgradePayload(p, i, k, button == 0, hasShiftDown() ? 64 : 1));
                             return true;
                         }
                     }
@@ -2543,7 +2542,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                                         holdHome(pl, null);
                                         StructureCoreBlockEntity beD = be();
                                         if (beD != null) beD.dockStorageNode(pl); // 客户端 BE 顺手同写（后备读一致）
-                                        ClientPlayNetworking.send(new StorageNodeMovePayload(pDock, pl, 0, 0, true));
+                                        com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(pDock, pl, 0, 0, true));
                                     }
                                 });
                             }
@@ -2615,7 +2614,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx + 43 && wx <= nx + 91 && wy >= ny + 23 && wy <= ny + 45) {
                             BlockPos p = this.handler.blockPos();
-                            if (p != null) ClientPlayNetworking.send(new NodeSwitchPayload(p, i));
+                            if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, i));
                             return true;
                         }
                     }
@@ -2635,7 +2634,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                             long step = hasShiftDown() ? 1000 : 100;
                             long th = Math.max(0, StructureCoreBlockEntity.sensorThreshold(nodes.get(i)) + hit * step);
                             BlockPos p = this.handler.blockPos();
-                            if (p != null) ClientPlayNetworking.send(new NodeSensorPayload(p, i, "", th,
+                            if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, i, "", th,
                                     StructureCoreBlockEntity.sensorLess(nodes.get(i))));
                             return true;
                         }
@@ -2780,11 +2779,11 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     int wy = Math.max(-1_000_000, Math.min(1_000_000, (int) Math.round((relY - panY) / zoom)));
                     holdHome(pl, new int[]{wx, wy});
                     be.setStorageNodePos(pl, wx, wy); // 客户端 BE 顺手同写（缓存未热身的后备读一致）
-                    ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, wx, wy, false));
+                    com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(p, pl, wx, wy, false));
                 } else if (dragEndWasPlaced) { // 拖回带内=收回停靠
                     holdHome(pl, null);
                     be.dockStorageNode(pl);
-                    ClientPlayNetworking.send(new StorageNodeMovePayload(p, pl, 0, 0, true));
+                    com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(p, pl, 0, 0, true));
                 }
             }
             return true;
@@ -2805,7 +2804,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         if (!busVisible() && !endPlaced(be, pl)) continue;
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx - 6 && mouseX <= sx + bw() + 6 && mouseY >= sy - 4 && mouseY <= sy + bh() + 10) { // m122 覆盖下缘凸出的收料口
-                            ClientPlayNetworking.send(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));
+                            com.sdzjz.client.ClientNet.toServer(new StorageLinkPayload(p, linkFrom, pl, 0, dims.get(j)));
                             done = true;
                             break;
                         }
@@ -2815,7 +2814,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         for (int i = nodes.size() - 1; i >= 0; i--) {
                             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                             if (wx >= nx - pad && wx <= nx + NW + pad && wy >= ny - pad && wy <= ny + NH + pad) {
-                                if (i != linkFrom) ClientPlayNetworking.send(new NodeLinkPayload(p, linkFrom, i));
+                                if (i != linkFrom) com.sdzjz.client.ClientNet.toServer(new NodeLinkPayload(p, linkFrom, i));
                                 break;
                             }
                         }
@@ -2827,7 +2826,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         if (!busVisible() && !endPlaced(be, pl)) continue;
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx - 6 && mouseX <= sx + bw() + 6 && mouseY >= sy - 4 && mouseY <= sy + bh() + 10) {
-                            ClientPlayNetworking.send(new StorageLinkPayload(p, linkInto, pl, 1, dims.get(j))); // 供料线：仓→我
+                            com.sdzjz.client.ClientNet.toServer(new StorageLinkPayload(p, linkInto, pl, 1, dims.get(j))); // 供料线：仓→我
                             doneI = true;
                             break;
                         }
@@ -2837,7 +2836,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                         for (int i = nodes.size() - 1; i >= 0; i--) {
                             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                             if (wx >= nx - padI && wx <= nx + NW + padI && wy >= ny - padI && wy <= ny + NH + padI) {
-                                if (i != linkInto) ClientPlayNetworking.send(new NodeLinkPayload(p, i, linkInto)); // 对方出→我进
+                                if (i != linkInto) com.sdzjz.client.ClientNet.toServer(new NodeLinkPayload(p, i, linkInto)); // 对方出→我进
                                 break;
                             }
                         }
@@ -2850,7 +2849,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                     for (int i = nodes.size() - 1; i >= 0; i--) {
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx - pad2 && wx <= nx + NW + pad2 && wy >= ny - pad2 && wy <= ny + NH + pad2) {
-                            ClientPlayNetworking.send(new StorageLinkPayload(p, i, linkStor, 1, dim));
+                            com.sdzjz.client.ClientNet.toServer(new StorageLinkPayload(p, i, linkStor, 1, dim));
                             break;
                         }
                     }
@@ -2864,7 +2863,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             BlockPos p = this.handler.blockPos();
             if (be != null && p != null && dragIndex < be.nodes().size()) {
                 be.setNodePos(dragIndex, dragCurX, dragCurY); // m196 本地定格 + 发包用覆盖坐标——从 BE 回读会被中途同步盖成旧值(漂移元凶)
-                ClientPlayNetworking.send(new NodeMovePayload(p, dragIndex, dragCurX, dragCurY));
+                com.sdzjz.client.ClientNet.toServer(new NodeMovePayload(p, dragIndex, dragCurX, dragCurY));
             }
             dragIndex = -1;
             return true;
@@ -2876,7 +2875,7 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (en.getKey() < gbe.nodes().size())
                     gbe.setNodePos(en.getKey(), en.getValue()[0] + dragGidDx, en.getValue()[1] + dragGidDy);
             if (p != null && (dragGidDx != 0 || dragGidDy != 0))
-                ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupMovePayload(p, dragGid, dragGidDx, dragGidDy));
+                com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupMovePayload(p, dragGid, dragGidDx, dragGidDy));
             dragGid = -1;
             dragGidSnap.clear();
             return true;
@@ -3404,15 +3403,15 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             if (keyCode == 71 && hasShiftDown() && hv >= 0 && kp != null) { // Shift+G=解散悬停节点所属组（解散纯视觉，先于普通 G）
                 int gid = groupOfNode(hv);
                 if (gid >= 0) {
-                    ClientPlayNetworking.send(new com.sdzjz.net.NodeGroupPayload(kp, gid, "", java.util.List.of()));
+                    com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(kp, gid, "", java.util.List.of()));
                     return true;
                 }
             }
             if (hv >= 0 && kp != null) {
                 switch (keyCode) {
-                    case 80 -> { ClientPlayNetworking.send(new com.sdzjz.net.NodePausePayload(kp, hv)); return true; } // P=暂停/恢复
+                    case 80 -> { com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(kp, hv)); return true; } // P=暂停/恢复
                     case 88 -> { clearLinksOfMachine(hv); return true; }                                                // X=断开全部连线
-                    case 261 -> { ClientPlayNetworking.send(new NodeRemovePayload(kp, hv)); return true; }              // Del=取出机器
+                    case 261 -> { com.sdzjz.client.ClientNet.toServer(new NodeRemovePayload(kp, hv)); return true; }              // Del=取出机器
                     case 86 -> { openPrimaryPicker(hv); return true; }                                                  // V=选择(产物/烧什么/目标…)
                     case 291 -> { int gid = groupOfNode(hv); if (gid >= 0) { openRename(gid); return true; } }          // F2=重命名所属组
                 }

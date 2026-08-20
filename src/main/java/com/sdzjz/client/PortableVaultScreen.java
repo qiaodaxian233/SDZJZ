@@ -3,7 +3,6 @@ package com.sdzjz.client;
 import com.sdzjz.item.PortableVaultItem;
 import com.sdzjz.net.VaultTakePayload;
 import com.sdzjz.screen.PortableVaultScreenHandler;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerInventory;
@@ -159,7 +158,7 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
             int idx = scroll + row;
             if (idx >= 0 && idx < ids.size()) {
                 int mode = button == 1 ? 1 : (hasShiftDown() ? 2 : 0);
-                ClientPlayNetworking.send(new VaultTakePayload(ids.get(idx), mode));
+                com.sdzjz.client.ClientNet.toServer(new VaultTakePayload(ids.get(idx), mode));
                 return true;
             }
         }

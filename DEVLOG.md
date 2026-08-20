@@ -7201,3 +7201,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   引 Architectury 等于推平地基重来）③1.20.1 做不做（推荐排最后）④机械动力具体联动什么
   （推荐"物流对接"，JEI 分类共存白捡，接应力=改经济模型另行拍板）。
 - 零 Java 改动、零新配置键（纯文档+报告尺，m379 同规）。
+
+## m402 多加载器 P1 第一刀：网络口收进两个漏斗（作者拍板"四锚点 + Create 能支持就支持"）
+
+- **作者拍板落地**：版本四锚点 `1.20.1 / 1.21.1 / 26.1 / 26.2`（小版本不做）；**机械动力按上游能力办**
+  ——m401 实测 Create 只到 mc1.21.1，故 Create 联动限 1.20.1/1.21.1 两代，26.x 不做也不等
+  （矩阵里那两格直接标"上游无"）。其余三条待拍板项按 m401 推荐缺省执行。
+- **本刀=SPI 补齐第一族（networking，耦合尺排名第一）**：新增两个漏斗
+  `net/Net.java`（通用/服务端：`c2s`/`s2c` 注册、`onServer` 接收器、`toPlayer` 发包）与
+  `client/ClientNet.java`（客户端：`toServer` 发包、`onClient` 接收器，内部保留原 `client.execute` 包裹）。
+  **业务侧从此只见 Minecraft 类型**（CustomPayload/ServerPlayerEntity/MinecraftClient），一个 Fabric 符号不见；
+  换 NeoForge/Forge 时只需给这两个类各写一份实现。
+- **换装账（全部机械等价，行为逐位一致）**：C2S 注册 19 + S2C 注册 4 + 服务端接收器 19 +
+  `ClientPlayNetworking.send` 60 + `ServerPlayNetworking.send` 4 + 客户端接收器 4 = **110 个用点**；
+  接收器统一由 `(payload, context) -> { ServerPlayerEntity p = context.player(); …}` 收成
+  `(payload, p) -> { … }`（体内一行不动），六处 `import` 随之下岗。
+- **刻意的边界**：客户端专属两口放 `client/ClientNet`，**不塞进 `Net`**——专用服务端不该因为一次类加载
+  就去解析 `MinecraftClient`。这是 m180"新代码直连"精神的加载期版本。
+- **尺子口径修正（自查打自己脸）**：m401 首版把**原版**类型 `CustomPayload` 也算进了 networking 族，
+  把基数虚高了。修正后只数 Fabric 专属符号，**同口径对比：networking 124→13 用点、9→3 文件**
+  （剩下 13 点全在两个漏斗里，外加 `Sdzjz.java` 一处 `ServerPlayConnectionEvents.DISCONNECT`
+  ——那是生命周期事件，归 events 族下一刀处理）；全库合计 **254→143 用点**（修正口径的改前基数为 139+…，
+  以尺子当下口径为准，详见 `docs/LOADER_MAP.md` 重生成版）。
+- **下一刀顺位（按尺子读）**：`transfer 传输 API 69 用点 / 6 文件`（`ItemVariant`/`StorageUtil`/`ItemStorage`，
+  NeoForge 对应 `Capability`+`IItemHandler`）——排行首位的 `DataCableBlockEntity`(27) 与
+  `StorageCoreBlockEntity`(25) 都是它。再往后 loader 入口 15 / events 12 / rendering 12 / screenhandler 11。
+- **顺手抓到一把失明的尺**：m291 有界 Codec 回归尺靠 `playC2S().register(` 认 C2S 包，本刀换写法后它
+  **静默报"0 个 C2S 包全部有界"**——尺子没红，但它什么也没量了（m109"坏尺子"同族，这次是重构导致的失明）。
+  已让它两种写法都认（`Net.c2s(` 与老 `playC2S().register(`），复跑回到 **19 个包**。
+  **教训入档：改注册/收口写法时，必须回头看有没有尺子是按旧写法找目标的——尺子失明比尺子报错危险得多。**
+- **零行为变化、零新配置键**；判官=CI 真编译（沙箱仍到不了 maven）+ 既有 GameTest 全套。

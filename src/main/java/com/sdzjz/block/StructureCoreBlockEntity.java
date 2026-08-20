@@ -216,8 +216,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!(sp.currentScreenHandler instanceof com.sdzjz.screen.StructureCoreScreenHandler h)
                         || !pos.equals(h.blockPos())) { itv.remove(); be.snapshotSent.remove(sp.getUuid()); continue; }
                 if (pk == null) pk = be.buildEndsPayload(pos);
-                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
-                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, be.buildHomesPayload(pos)); // m265 放置落位姊妹包（同拍同通道，只含已放置项通常极小）
+                com.sdzjz.net.Net.toPlayer(sp, pk);
+                com.sdzjz.net.Net.toPlayer(sp, be.buildHomesPayload(pos)); // m265 放置落位姊妹包（同拍同通道，只含已放置项通常极小）
                 if (be.prof != null) { be.prof.endsPackets++; be.prof.endsEntries += pk.endPos().size(); } // m177
             }
         }
@@ -3550,7 +3550,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 pk = new com.sdzjz.net.CanvasSnapshotPayload(pos, snap);
                 if (prof != null) { try { prof.syncBytes += com.sdzjz.legacy.LegacyDebugUtil.nbtSize(snap); } catch (Exception ignored) {} } // m177 对表尺随刀迁移
             }
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp, pk);
+            com.sdzjz.net.Net.toPlayer(sp, pk);
             if (prof != null) prof.syncPackets++; // m275 起口径=真实发出的快照包数（原=updateListeners 调用数）
             snapshotSent.put(sp.getUuid(), snapshotRev);
         }
