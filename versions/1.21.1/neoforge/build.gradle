@@ -1,0 +1,58 @@
+// m408 NeoForge 1.21.1 骨架（作者问"别的版本框架在哪"）——**第二个加载器的第一块地基**。
+//
+// 现阶段挂载范围刻意只有 Core：`common/`（零 MC 依赖，tools_common_gate 硬闸保证）在任何加载器、
+// 任何 MC 世代都能编——这正是三层架构最值钱的地方，本构建就是它的第一次跨加载器实证。
+// **xplat 业务层暂不挂**：它写的是 Yarn 映射名，而 NeoForge 用 Mojang 官方名，
+// 同一份源码两边编不过（详见 DEVLOG m408 的"映射分歧"一节，这是全局拍板项）。
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.91' // MDK archive/1.21-mdg 原文版本
+}
+
+// 版本号唯一数据源=根仓 gradle.properties 的 mod_version（m317 一笔一跳），
+// jar 尾缀带平台：sdzjz-0.1.NNN+1.21.1-neoforge.jar
+def rootProps = new Properties()
+file("../../../gradle.properties").withInputStream { rootProps.load(it) }
+version = rootProps.getProperty("mod_version") + "+1.21.1-neoforge"
+group = mod_group_id
+base { archivesName = mod_id }
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+    mods {
+        "${mod_id}" { sourceSet(sourceSets.main) }
+    }
+}
+
+sourceSets {
+    main {
+        java { srcDir '../../../common/src/main/java' } // Core 层：跨加载器共用同一份
+    }
+}
+
+// mods.toml 模板展开（MDK 原文工艺）
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : project.version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

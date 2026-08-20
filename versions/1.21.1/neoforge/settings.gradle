@@ -1,0 +1,11 @@
+// m408 NeoForge 1.21.1 骨架——独立 Gradle 构建，与根 Fabric 构建、26.2 子构建三者互不相干，
+// 各有各的 wrapper（照 m370 立的规矩）。结构照 neoforged/MDK 分支 archive/1.21-mdg 原文。
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+        maven { url = 'https://maven.neoforged.net/releases' }
+    }
+}
+
+rootProject.name = 'sdzjz-neoforge'
