@@ -1,174 +1,174 @@
-# Yarn → Mojmap 改名对照表（m410 自动生成，勿手改）
+# Yarn → Mojmap 改名对照表（m411 `gradlew mojmapTable` 生成，勿手改）
 
-> 第三列空=还没喂 Mojang proguard（`--mojmap client.txt`）。
-> 本表只是对照，**改名动作走 Loom migrateMappings 或脚本替换后过 CI**（m409 口径）。
+> MC 1.21.1；三段桥：Yarn↔intermediary（yarn 仓）· obf↔intermediary（intermediary 仓）· obf↔Mojmap（Mojang 官方 proguard）。
+> 本表只是对照，**改名动作走分批替换 + CI 五 job/GameTest 判官**（m409 口径）。
 
-| 用点 | Yarn | intermediary | Mojmap |
-|---:|---|---|---|
-| 88 | `net.minecraft.util.Identifier` | `net.minecraft.class_2960` | — |
-| 75 | `net.minecraft.text.Text` | `net.minecraft.class_2561` | — |
-| 73 | `net.minecraft.item.Items` | `net.minecraft.class_1802` | — |
-| 71 | `net.minecraft.item.ItemStack` | `net.minecraft.class_1799` | — |
-| 65 | `net.minecraft.util.math.BlockPos` | `net.minecraft.class_2338` | — |
-| 56 | `net.minecraft.item.Item` | `net.minecraft.class_1792` | — |
-| 49 | `net.minecraft.util.Formatting` | `net.minecraft.class_124` | — |
-| 42 | `net.minecraft.registry.Registries` | `net.minecraft.class_7923` | — |
-| 38 | `net.minecraft.server.network.ServerPlayerEntity` | `net.minecraft.class_3222` | — |
-| 36 | `net.minecraft.server.world.ServerWorld` | `net.minecraft.class_3218` | — |
-| 34 | `net.minecraft.nbt.NbtCompound` | `net.minecraft.class_2487` | — |
-| 31 | `net.minecraft.entity.player.PlayerEntity` | `net.minecraft.class_1657` | — |
-| 30 | `net.minecraft.component.DataComponentTypes` | `net.minecraft.class_9334` | — |
-| 27 | `net.minecraft.world.World` | `net.minecraft.class_1937` | — |
-| 27 | `net.minecraft.item.tooltip.TooltipType` | `net.minecraft.class_1836` | — |
-| 26 | `net.minecraft.network.RegistryByteBuf` | `net.minecraft.class_9129` | — |
-| 25 | `net.minecraft.client.gui.DrawContext` | `net.minecraft.class_332` | — |
-| 25 | `net.minecraft.network.codec.PacketCodec` | `net.minecraft.class_9139` | — |
-| 25 | `net.minecraft.network.packet.CustomPayload` | `net.minecraft.class_8710` | — |
-| 25 | `net.minecraft.block.BlockState` | `net.minecraft.class_2680` | — |
-| 23 | `net.minecraft.component.type.NbtComponent` | `net.minecraft.class_9279` | — |
-| 23 | `net.minecraft.network.codec.PacketCodecs` | `net.minecraft.class_9135` | — |
-| 23 | `net.minecraft.block.entity.BlockEntity` | `net.minecraft.class_2586` | — |
-| 19 | `net.minecraft.entity.player.PlayerInventory` | `net.minecraft.class_1661` | — |
-| 18 | `net.minecraft.util.math.ChunkPos` | `net.minecraft.class_1923` | — |
-| 17 | `net.minecraft.util.ActionResult` | `net.minecraft.class_1269` | — |
-| 15 | `net.minecraft.block.Block` | `net.minecraft.class_2248` | — |
-| 15 | `net.minecraft.util.Util` | `net.minecraft.class_156` | — |
-| 14 | `net.minecraft.util.Hand` | `net.minecraft.class_1268` | — |
-| 12 | `net.minecraft.screen.slot.Slot` | `net.minecraft.class_1735` | — |
-| 12 | `net.minecraft.nbt.NbtList` | `net.minecraft.class_2499` | — |
-| 12 | `net.minecraft.block.Blocks` | `net.minecraft.class_2246` | — |
-| 12 | `net.minecraft.inventory.SimpleInventory` | `net.minecraft.class_1277` | — |
-| 11 | `net.minecraft.screen.ScreenHandler` | `net.minecraft.class_1703` | — |
-| 11 | `net.minecraft.util.math.Direction` | `net.minecraft.class_2350` | — |
-| 11 | `net.minecraft.client.render.VertexConsumer` | `net.minecraft.class_4588` | — |
-| 11 | `net.minecraft.server.command.CommandManager` | `net.minecraft.class_2170` | — |
-| 10 | `net.minecraft.registry.RegistryWrapper` | `net.minecraft.class_7225` | — |
-| 10 | `net.minecraft.registry.RegistryKeys` | `net.minecraft.class_7924` | — |
-| 10 | `net.minecraft.client.MinecraftClient` | `net.minecraft.class_310` | — |
-| 9 | `net.minecraft.recipe.CraftingRecipe` | `net.minecraft.class_3955` | — |
-| 9 | `net.minecraft.item.ItemUsageContext` | `net.minecraft.class_1838` | — |
-| 8 | `net.minecraft.inventory.Inventory` | `net.minecraft.class_1263` | — |
-| 8 | `net.minecraft.recipe.RecipeEntry` | `net.minecraft.class_8786` | — |
-| 8 | `net.minecraft.client.render.RenderLayer` | `net.minecraft.class_1921` | — |
-| 8 | `net.minecraft.client.util.math.MatrixStack` | `net.minecraft.class_4587` | — |
-| 8 | `net.minecraft.world.GameMode` | `net.minecraft.class_1934` | — |
-| 7 | `net.minecraft.client.gui.screen.ingame.HandledScreen` | `net.minecraft.class_465` | — |
-| 7 | `net.minecraft.util.hit.BlockHitResult` | `net.minecraft.class_3965` | — |
-| 7 | `net.minecraft.client.render.VertexConsumerProvider` | `net.minecraft.class_4597` | — |
-| 7 | `net.minecraft.registry.RegistryKey` | `net.minecraft.class_5321` | — |
-| 7 | `net.minecraft.particle.ParticleTypes` | `net.minecraft.class_2398` | — |
-| 6 | `net.minecraft.recipe.input.CraftingRecipeInput` | `net.minecraft.class_9694` | — |
-| 6 | `net.minecraft.recipe.Ingredient` | `net.minecraft.class_1856` | — |
-| 6 | `net.minecraft.block.BlockRenderType` | `net.minecraft.class_2464` | — |
-| 6 | `net.minecraft.block.BlockWithEntity` | `net.minecraft.class_2237` | — |
-| 6 | `net.minecraft.block.entity.BlockEntityTicker` | `net.minecraft.class_5558` | — |
-| 6 | `net.minecraft.util.TypedActionResult` | `net.minecraft.class_1271` | — |
-| 6 | `net.minecraft.client.gui.widget.TextFieldWidget` | `net.minecraft.class_342` | — |
-| 5 | `net.minecraft.nbt.NbtElement` | `net.minecraft.class_2520` | — |
-| 5 | `net.minecraft.screen.PropertyDelegate` | `net.minecraft.class_3913` | — |
-| 5 | `net.minecraft.recipe.RecipeType` | `net.minecraft.class_3956` | — |
-| 5 | `net.minecraft.block.entity.BlockEntityType` | `net.minecraft.class_2591` | — |
-| 5 | `net.minecraft.entity.ItemEntity` | `net.minecraft.class_1542` | — |
-| 5 | `net.minecraft.util.ClickType` | `net.minecraft.class_5536` | — |
-| 5 | `net.minecraft.util.math.RotationAxis` | `net.minecraft.class_7833` | — |
-| 4 | `net.minecraft.server.MinecraftServer` | — | — |
-| 4 | `net.minecraft.block.BlockEntityProvider` | `net.minecraft.class_2343` | — |
-| 4 | `net.minecraft.entity.Entity` | `net.minecraft.class_1297` | — |
-| 4 | `net.minecraft.registry.entry.RegistryEntry` | `net.minecraft.class_6880` | — |
-| 4 | `net.minecraft.sound.SoundEvents` | `net.minecraft.class_3417` | — |
-| 4 | `net.minecraft.registry.Registry` | `net.minecraft.class_2378` | — |
-| 4 | `net.minecraft.client.render.block.entity.BlockEntityRenderer` | `net.minecraft.class_827` | — |
-| 4 | `net.minecraft.client.render.block.entity.BlockEntityRendererFactory` | `net.minecraft.class_5614` | — |
-| 4 | `net.minecraft.util.math.Vec3d` | `net.minecraft.class_243` | — |
-| 4 | `net.minecraft.enchantment.Enchantment` | `net.minecraft.class_1887` | — |
-| 3 | `net.minecraft.screen.ScreenHandlerType` | `net.minecraft.class_3917` | — |
-| 3 | `net.minecraft.world.PersistentState` | `net.minecraft.class_18` | — |
-| 3 | `net.minecraft.world.BlockView` | `net.minecraft.class_1922` | — |
-| 3 | `net.minecraft.screen.SimpleNamedScreenHandlerFactory` | `net.minecraft.class_747` | — |
-| 3 | `net.minecraft.entity.LivingEntity` | `net.minecraft.class_1309` | — |
-| 3 | `net.minecraft.util.math.Box` | `net.minecraft.class_238` | — |
-| 3 | `net.minecraft.sound.SoundCategory` | `net.minecraft.class_3419` | — |
-| 3 | `net.minecraft.client.gui.screen.recipebook.RecipeBookWidget` | `net.minecraft.class_507` | — |
-| 3 | `net.minecraft.text.OrderedText` | `net.minecraft.class_5481` | — |
-| 3 | `net.minecraft.network.packet.c2s.common.SyncedClientOptions` | `net.minecraft.class_8791` | — |
-| 3 | `net.minecraft.util.ItemScatterer` | `net.minecraft.class_1264` | — |
-| 3 | `net.minecraft.util.math.random.Random` | `net.minecraft.class_5819` | — |
-| 3 | `net.minecraft.nbt.NbtString` | `net.minecraft.class_2519` | — |
-| 2 | `net.minecraft.screen.PlayerScreenHandler` | `net.minecraft.class_1723` | — |
-| 2 | `net.minecraft.client.font.TextRenderer` | `net.minecraft.class_327` | — |
-| 2 | `net.minecraft.text.MutableText` | `net.minecraft.class_5250` | — |
-| 2 | `net.minecraft.screen.ArrayPropertyDelegate` | `net.minecraft.class_3919` | — |
-| 2 | `net.minecraft.util.collection.DefaultedList` | `net.minecraft.class_2371` | — |
-| 2 | `net.minecraft.recipe.RecipeMatcher` | `net.minecraft.class_1662` | — |
-| 2 | `net.minecraft.recipe.book.RecipeBookCategory` | `net.minecraft.class_5421` | — |
-| 2 | `net.minecraft.screen.ScreenHandlerContext` | `net.minecraft.class_3914` | — |
-| 2 | `net.minecraft.screen.slot.SlotActionType` | `net.minecraft.class_1713` | — |
-| 2 | `net.minecraft.util.shape.VoxelShape` | `net.minecraft.class_265` | — |
-| 2 | `net.minecraft.util.shape.VoxelShapes` | `net.minecraft.class_259` | — |
-| 2 | `net.minecraft.block.ShapeContext` | `net.minecraft.class_3726` | — |
-| 2 | `net.minecraft.inventory.StackReference` | `net.minecraft.class_5630` | — |
-| 2 | `net.minecraft.entity.effect.StatusEffect` | `net.minecraft.class_1291` | — |
-| 2 | `net.minecraft.item.BlockItem` | `net.minecraft.class_1747` | — |
-| 2 | `net.minecraft.client.gui.widget.ButtonWidget` | `net.minecraft.class_4185` | — |
-| 2 | `net.minecraft.client.texture.Sprite` | `net.minecraft.class_1058` | — |
-| 2 | `net.minecraft.client.texture.SpriteAtlasTexture` | `net.minecraft.class_1059` | — |
-| 2 | `net.minecraft.component.type.ItemEnchantmentsComponent` | `net.minecraft.class_9304` | — |
-| 2 | `net.minecraft.registry.tag.EnchantmentTags` | `net.minecraft.class_9636` | — |
-| 2 | `net.minecraft.client.option.KeyBinding` | `net.minecraft.class_304` | — |
-| 2 | `net.minecraft.client.render.model.BakedModel` | `net.minecraft.class_1087` | — |
-| 1 | `net.minecraft.util.dynamic.Codecs` | `net.minecraft.class_5699` | — |
-| 1 | `net.minecraft.client.gui.screen.ingame.InventoryScreen` | `net.minecraft.class_490` | — |
-| 1 | `net.minecraft.screen.AbstractRecipeScreenHandler` | `net.minecraft.class_1729` | — |
-| 1 | `net.minecraft.inventory.InventoryChangedListener` | `net.minecraft.class_1265` | — |
-| 1 | `net.minecraft.screen.slot.CraftingResultSlot` | `net.minecraft.class_1734` | — |
-| 1 | `net.minecraft.recipe.ShapedRecipe` | `net.minecraft.class_1869` | — |
-| 1 | `net.minecraft.network.packet.s2c.play.CraftFailedResponseS2CPacket` | `net.minecraft.class_2695` | — |
-| 1 | `net.minecraft.inventory.RecipeInputInventory` | `net.minecraft.class_8566` | — |
-| 1 | `net.minecraft.inventory.CraftingResultInventory` | `net.minecraft.class_1731` | — |
-| 1 | `net.minecraft.item.ItemPlacementContext` | `net.minecraft.class_1750` | — |
-| 1 | `net.minecraft.state.StateManager` | `net.minecraft.class_2689` | — |
-| 1 | `net.minecraft.state.property.EnumProperty` | `net.minecraft.class_2754` | — |
-| 1 | `net.minecraft.world.WorldAccess` | `net.minecraft.class_1936` | — |
-| 1 | `net.minecraft.server.world.ChunkTicketType` | `net.minecraft.class_3230` | — |
-| 1 | `net.minecraft.util.StringIdentifiable` | `net.minecraft.class_3542` | — |
-| 1 | `net.minecraft.entity.boss.dragon.EnderDragonEntity` | `net.minecraft.class_1510` | — |
-| 1 | `net.minecraft.component.type.FoodComponent` | `net.minecraft.class_4174` | — |
-| 1 | `net.minecraft.registry.tag.TagKey` | `net.minecraft.class_6862` | — |
-| 1 | `net.minecraft.block.AbstractBlock` | `net.minecraft.class_4970` | — |
-| 1 | `net.minecraft.client.gui.screen.Screen` | `net.minecraft.class_437` | — |
-| 1 | `net.minecraft.client.gui.screen.recipebook.RecipeBookProvider` | `net.minecraft.class_518` | — |
-| 1 | `net.minecraft.client.render.WorldRenderer` | `net.minecraft.class_761` | — |
-| 1 | `net.minecraft.world.chunk.ChunkManager` | `net.minecraft.class_2802` | — |
-| 1 | `net.minecraft.world.chunk.WorldChunk` | `net.minecraft.class_2818` | — |
-| 1 | `net.minecraft.client.sound.PositionedSoundInstance` | `net.minecraft.class_1109` | — |
-| 1 | `net.minecraft.nbt.NbtIo` | `net.minecraft.class_2507` | — |
-| 1 | `net.minecraft.component.type.PotionContentsComponent` | `net.minecraft.class_1844` | — |
-| 1 | `net.minecraft.potion.Potions` | `net.minecraft.class_1847` | — |
-| 1 | `net.minecraft.recipe.SmeltingRecipe` | `net.minecraft.class_3861` | — |
-| 1 | `net.minecraft.client.gui.screen.ingame.HandledScreens` | `net.minecraft.class_3929` | — |
-| 1 | `net.minecraft.test.GameTest` | `net.minecraft.class_6302` | — |
-| 1 | `net.minecraft.test.TestContext` | `net.minecraft.class_4516` | — |
-| 1 | `net.minecraft.registry.RegistryOps` | `net.minecraft.class_6903` | — |
-| 1 | `net.minecraft.nbt.NbtOps` | `net.minecraft.class_2509` | — |
-| 1 | `net.minecraft.server.command.ServerCommandSource` | `net.minecraft.class_2168` | — |
-| 1 | `net.minecraft.inventory.Inventories` | `net.minecraft.class_1262` | — |
-| 1 | `net.minecraft.nbt.NbtHelper` | `net.minecraft.class_2512` | — |
-| 1 | `net.minecraft.entity.effect.StatusEffectInstance` | `net.minecraft.class_1293` | — |
-| 1 | `net.minecraft.item.Instrument` | `net.minecraft.class_7444` | — |
-| 1 | `net.minecraft.registry.tag.InstrumentTags` | `net.minecraft.class_7441` | — |
-| 1 | `net.minecraft.particle.ParticleEffect` | `net.minecraft.class_2394` | — |
-| 1 | `net.minecraft.network.packet.Packet` | `net.minecraft.class_2596` | — |
-| 1 | `net.minecraft.network.listener.ClientPlayPacketListener` | `net.minecraft.class_2602` | — |
-| 1 | `net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket` | `net.minecraft.class_2622` | — |
-| 1 | `net.minecraft.item.ItemGroup` | `net.minecraft.class_1761` | — |
-| 1 | `net.minecraft.resource.featuretoggle.FeatureFlags` | `net.minecraft.class_7701` | — |
-| 1 | `net.minecraft.client.util.InputUtil` | `net.minecraft.class_3675` | — |
-| 1 | `net.minecraft.client.render.item.ItemRenderer` | `net.minecraft.class_918` | — |
-| 1 | `net.minecraft.client.render.model.json.ModelTransformationMode` | `net.minecraft.class_811` | — |
-| 1 | `net.minecraft.client.render.model.BakedQuad` | `net.minecraft.class_777` | — |
-| 1 | `net.minecraft.client.render.model.Baker` | `net.minecraft.class_7775` | — |
-| 1 | `net.minecraft.client.render.model.ModelBakeSettings` | `net.minecraft.class_3665` | — |
-| 1 | `net.minecraft.client.render.model.UnbakedModel` | `net.minecraft.class_1100` | — |
-| 1 | `net.minecraft.client.render.model.json.ModelOverrideList` | `net.minecraft.class_806` | — |
-| 1 | `net.minecraft.client.render.model.json.ModelTransformation` | `net.minecraft.class_809` | — |
-| 1 | `net.minecraft.client.util.SpriteIdentifier` | `net.minecraft.class_4730` | — |
+| 用点 | Yarn | Mojmap |
+|---:|---|---|
+| 88 | `net.minecraft.util.Identifier` | `net.minecraft.resources.ResourceLocation` |
+| 75 | `net.minecraft.text.Text` | `net.minecraft.network.chat.Component` |
+| 73 | `net.minecraft.item.Items` | `net.minecraft.world.item.Items` |
+| 71 | `net.minecraft.item.ItemStack` | `net.minecraft.world.item.ItemStack` |
+| 65 | `net.minecraft.util.math.BlockPos` | `net.minecraft.core.BlockPos` |
+| 56 | `net.minecraft.item.Item` | `net.minecraft.world.item.Item` |
+| 49 | `net.minecraft.util.Formatting` | `net.minecraft.ChatFormatting` |
+| 42 | `net.minecraft.registry.Registries` | `net.minecraft.core.registries.BuiltInRegistries` |
+| 38 | `net.minecraft.server.network.ServerPlayerEntity` | `net.minecraft.server.level.ServerPlayer` |
+| 36 | `net.minecraft.server.world.ServerWorld` | `net.minecraft.server.level.ServerLevel` |
+| 34 | `net.minecraft.nbt.NbtCompound` | `net.minecraft.nbt.CompoundTag` |
+| 31 | `net.minecraft.entity.player.PlayerEntity` | `net.minecraft.world.entity.player.Player` |
+| 30 | `net.minecraft.component.DataComponentTypes` | `net.minecraft.core.component.DataComponents` |
+| 27 | `net.minecraft.world.World` | `net.minecraft.world.level.Level` |
+| 27 | `net.minecraft.item.tooltip.TooltipType` | `net.minecraft.world.item.TooltipFlag` |
+| 26 | `net.minecraft.network.RegistryByteBuf` | `net.minecraft.network.RegistryFriendlyByteBuf` |
+| 25 | `net.minecraft.client.gui.DrawContext` | `net.minecraft.client.gui.GuiGraphics` |
+| 25 | `net.minecraft.network.codec.PacketCodec` | `net.minecraft.network.codec.StreamCodec` |
+| 25 | `net.minecraft.network.packet.CustomPayload` | `net.minecraft.network.protocol.common.custom.CustomPacketPayload` |
+| 25 | `net.minecraft.block.BlockState` | `net.minecraft.world.level.block.state.BlockState` |
+| 23 | `net.minecraft.component.type.NbtComponent` | `net.minecraft.world.item.component.CustomData` |
+| 23 | `net.minecraft.network.codec.PacketCodecs` | `net.minecraft.network.codec.ByteBufCodecs` |
+| 23 | `net.minecraft.block.entity.BlockEntity` | `net.minecraft.world.level.block.entity.BlockEntity` |
+| 19 | `net.minecraft.entity.player.PlayerInventory` | `net.minecraft.world.entity.player.Inventory` |
+| 18 | `net.minecraft.util.math.ChunkPos` | `net.minecraft.world.level.ChunkPos` |
+| 17 | `net.minecraft.util.ActionResult` | `net.minecraft.world.InteractionResult` |
+| 15 | `net.minecraft.block.Block` | `net.minecraft.world.level.block.Block` |
+| 15 | `net.minecraft.util.Util` | `net.minecraft.Util` |
+| 14 | `net.minecraft.util.Hand` | `net.minecraft.world.InteractionHand` |
+| 12 | `net.minecraft.screen.slot.Slot` | `net.minecraft.world.inventory.Slot` |
+| 12 | `net.minecraft.nbt.NbtList` | `net.minecraft.nbt.ListTag` |
+| 12 | `net.minecraft.block.Blocks` | `net.minecraft.world.level.block.Blocks` |
+| 12 | `net.minecraft.inventory.SimpleInventory` | `net.minecraft.world.SimpleContainer` |
+| 11 | `net.minecraft.screen.ScreenHandler` | `net.minecraft.world.inventory.AbstractContainerMenu` |
+| 11 | `net.minecraft.util.math.Direction` | `net.minecraft.core.Direction` |
+| 11 | `net.minecraft.client.render.VertexConsumer` | `com.mojang.blaze3d.vertex.VertexConsumer` |
+| 11 | `net.minecraft.server.command.CommandManager` | `net.minecraft.commands.Commands` |
+| 10 | `net.minecraft.registry.RegistryWrapper` | `net.minecraft.core.HolderLookup` |
+| 10 | `net.minecraft.registry.RegistryKeys` | `net.minecraft.core.registries.Registries` |
+| 10 | `net.minecraft.client.MinecraftClient` | `net.minecraft.client.Minecraft` |
+| 9 | `net.minecraft.recipe.CraftingRecipe` | `net.minecraft.world.item.crafting.CraftingRecipe` |
+| 9 | `net.minecraft.item.ItemUsageContext` | `net.minecraft.world.item.context.UseOnContext` |
+| 8 | `net.minecraft.inventory.Inventory` | `net.minecraft.world.Container` |
+| 8 | `net.minecraft.recipe.RecipeEntry` | `net.minecraft.world.item.crafting.RecipeHolder` |
+| 8 | `net.minecraft.client.render.RenderLayer` | `net.minecraft.client.renderer.RenderType` |
+| 8 | `net.minecraft.client.util.math.MatrixStack` | `com.mojang.blaze3d.vertex.PoseStack` |
+| 8 | `net.minecraft.world.GameMode` | `net.minecraft.world.level.GameType` |
+| 7 | `net.minecraft.client.gui.screen.ingame.HandledScreen` | `net.minecraft.client.gui.screens.inventory.AbstractContainerScreen` |
+| 7 | `net.minecraft.util.hit.BlockHitResult` | `net.minecraft.world.phys.BlockHitResult` |
+| 7 | `net.minecraft.client.render.VertexConsumerProvider` | `net.minecraft.client.renderer.MultiBufferSource` |
+| 7 | `net.minecraft.registry.RegistryKey` | `net.minecraft.resources.ResourceKey` |
+| 7 | `net.minecraft.particle.ParticleTypes` | `net.minecraft.core.particles.ParticleTypes` |
+| 6 | `net.minecraft.recipe.input.CraftingRecipeInput` | `net.minecraft.world.item.crafting.CraftingInput` |
+| 6 | `net.minecraft.recipe.Ingredient` | `net.minecraft.world.item.crafting.Ingredient` |
+| 6 | `net.minecraft.block.BlockRenderType` | `net.minecraft.world.level.block.RenderShape` |
+| 6 | `net.minecraft.block.BlockWithEntity` | `net.minecraft.world.level.block.BaseEntityBlock` |
+| 6 | `net.minecraft.block.entity.BlockEntityTicker` | `net.minecraft.world.level.block.entity.BlockEntityTicker` |
+| 6 | `net.minecraft.util.TypedActionResult` | `net.minecraft.world.InteractionResultHolder` |
+| 6 | `net.minecraft.client.gui.widget.TextFieldWidget` | `net.minecraft.client.gui.components.EditBox` |
+| 5 | `net.minecraft.nbt.NbtElement` | `net.minecraft.nbt.Tag` |
+| 5 | `net.minecraft.screen.PropertyDelegate` | `net.minecraft.world.inventory.ContainerData` |
+| 5 | `net.minecraft.recipe.RecipeType` | `net.minecraft.world.item.crafting.RecipeType` |
+| 5 | `net.minecraft.block.entity.BlockEntityType` | `net.minecraft.world.level.block.entity.BlockEntityType` |
+| 5 | `net.minecraft.entity.ItemEntity` | `net.minecraft.world.entity.item.ItemEntity` |
+| 5 | `net.minecraft.util.ClickType` | `net.minecraft.world.inventory.ClickAction` |
+| 5 | `net.minecraft.util.math.RotationAxis` | `com.mojang.math.Axis` |
+| 4 | `net.minecraft.server.MinecraftServer` | —（查不到，人工核） |
+| 4 | `net.minecraft.block.BlockEntityProvider` | `net.minecraft.world.level.block.EntityBlock` |
+| 4 | `net.minecraft.entity.Entity` | `net.minecraft.world.entity.Entity` |
+| 4 | `net.minecraft.registry.entry.RegistryEntry` | `net.minecraft.core.Holder` |
+| 4 | `net.minecraft.sound.SoundEvents` | `net.minecraft.sounds.SoundEvents` |
+| 4 | `net.minecraft.registry.Registry` | `net.minecraft.core.Registry` |
+| 4 | `net.minecraft.client.render.block.entity.BlockEntityRenderer` | `net.minecraft.client.renderer.blockentity.BlockEntityRenderer` |
+| 4 | `net.minecraft.client.render.block.entity.BlockEntityRendererFactory` | `net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider` |
+| 4 | `net.minecraft.util.math.Vec3d` | `net.minecraft.world.phys.Vec3` |
+| 4 | `net.minecraft.enchantment.Enchantment` | `net.minecraft.world.item.enchantment.Enchantment` |
+| 3 | `net.minecraft.screen.ScreenHandlerType` | `net.minecraft.world.inventory.MenuType` |
+| 3 | `net.minecraft.world.PersistentState` | `net.minecraft.world.level.saveddata.SavedData` |
+| 3 | `net.minecraft.world.BlockView` | `net.minecraft.world.level.BlockGetter` |
+| 3 | `net.minecraft.screen.SimpleNamedScreenHandlerFactory` | `net.minecraft.world.SimpleMenuProvider` |
+| 3 | `net.minecraft.entity.LivingEntity` | `net.minecraft.world.entity.LivingEntity` |
+| 3 | `net.minecraft.util.math.Box` | `net.minecraft.world.phys.AABB` |
+| 3 | `net.minecraft.sound.SoundCategory` | `net.minecraft.sounds.SoundSource` |
+| 3 | `net.minecraft.client.gui.screen.recipebook.RecipeBookWidget` | `net.minecraft.client.gui.screens.recipebook.RecipeBookComponent` |
+| 3 | `net.minecraft.text.OrderedText` | `net.minecraft.util.FormattedCharSequence` |
+| 3 | `net.minecraft.network.packet.c2s.common.SyncedClientOptions` | `net.minecraft.server.level.ClientInformation` |
+| 3 | `net.minecraft.util.ItemScatterer` | `net.minecraft.world.Containers` |
+| 3 | `net.minecraft.util.math.random.Random` | `net.minecraft.util.RandomSource` |
+| 3 | `net.minecraft.nbt.NbtString` | `net.minecraft.nbt.StringTag` |
+| 2 | `net.minecraft.screen.PlayerScreenHandler` | `net.minecraft.world.inventory.InventoryMenu` |
+| 2 | `net.minecraft.client.font.TextRenderer` | `net.minecraft.client.gui.Font` |
+| 2 | `net.minecraft.text.MutableText` | `net.minecraft.network.chat.MutableComponent` |
+| 2 | `net.minecraft.screen.ArrayPropertyDelegate` | `net.minecraft.world.inventory.SimpleContainerData` |
+| 2 | `net.minecraft.util.collection.DefaultedList` | `net.minecraft.core.NonNullList` |
+| 2 | `net.minecraft.recipe.RecipeMatcher` | `net.minecraft.world.entity.player.StackedContents` |
+| 2 | `net.minecraft.recipe.book.RecipeBookCategory` | `net.minecraft.world.inventory.RecipeBookType` |
+| 2 | `net.minecraft.screen.ScreenHandlerContext` | `net.minecraft.world.inventory.ContainerLevelAccess` |
+| 2 | `net.minecraft.screen.slot.SlotActionType` | `net.minecraft.world.inventory.ClickType` |
+| 2 | `net.minecraft.util.shape.VoxelShape` | `net.minecraft.world.phys.shapes.VoxelShape` |
+| 2 | `net.minecraft.util.shape.VoxelShapes` | `net.minecraft.world.phys.shapes.Shapes` |
+| 2 | `net.minecraft.block.ShapeContext` | `net.minecraft.world.phys.shapes.CollisionContext` |
+| 2 | `net.minecraft.inventory.StackReference` | `net.minecraft.world.entity.SlotAccess` |
+| 2 | `net.minecraft.entity.effect.StatusEffect` | `net.minecraft.world.effect.MobEffect` |
+| 2 | `net.minecraft.item.BlockItem` | `net.minecraft.world.item.BlockItem` |
+| 2 | `net.minecraft.client.gui.widget.ButtonWidget` | `net.minecraft.client.gui.components.Button` |
+| 2 | `net.minecraft.client.texture.Sprite` | `net.minecraft.client.renderer.texture.TextureAtlasSprite` |
+| 2 | `net.minecraft.client.texture.SpriteAtlasTexture` | `net.minecraft.client.renderer.texture.TextureAtlas` |
+| 2 | `net.minecraft.component.type.ItemEnchantmentsComponent` | `net.minecraft.world.item.enchantment.ItemEnchantments` |
+| 2 | `net.minecraft.registry.tag.EnchantmentTags` | `net.minecraft.tags.EnchantmentTags` |
+| 2 | `net.minecraft.client.option.KeyBinding` | `net.minecraft.client.KeyMapping` |
+| 2 | `net.minecraft.client.render.model.BakedModel` | `net.minecraft.client.resources.model.BakedModel` |
+| 1 | `net.minecraft.util.dynamic.Codecs` | `net.minecraft.util.ExtraCodecs` |
+| 1 | `net.minecraft.client.gui.screen.ingame.InventoryScreen` | `net.minecraft.client.gui.screens.inventory.InventoryScreen` |
+| 1 | `net.minecraft.screen.AbstractRecipeScreenHandler` | `net.minecraft.world.inventory.RecipeBookMenu` |
+| 1 | `net.minecraft.inventory.InventoryChangedListener` | `net.minecraft.world.ContainerListener` |
+| 1 | `net.minecraft.screen.slot.CraftingResultSlot` | `net.minecraft.world.inventory.ResultSlot` |
+| 1 | `net.minecraft.recipe.ShapedRecipe` | `net.minecraft.world.item.crafting.ShapedRecipe` |
+| 1 | `net.minecraft.network.packet.s2c.play.CraftFailedResponseS2CPacket` | `net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket` |
+| 1 | `net.minecraft.inventory.RecipeInputInventory` | `net.minecraft.world.inventory.CraftingContainer` |
+| 1 | `net.minecraft.inventory.CraftingResultInventory` | `net.minecraft.world.inventory.ResultContainer` |
+| 1 | `net.minecraft.item.ItemPlacementContext` | `net.minecraft.world.item.context.BlockPlaceContext` |
+| 1 | `net.minecraft.state.StateManager` | `net.minecraft.world.level.block.state.StateDefinition` |
+| 1 | `net.minecraft.state.property.EnumProperty` | `net.minecraft.world.level.block.state.properties.EnumProperty` |
+| 1 | `net.minecraft.world.WorldAccess` | `net.minecraft.world.level.LevelAccessor` |
+| 1 | `net.minecraft.server.world.ChunkTicketType` | `net.minecraft.server.level.TicketType` |
+| 1 | `net.minecraft.util.StringIdentifiable` | `net.minecraft.util.StringRepresentable` |
+| 1 | `net.minecraft.entity.boss.dragon.EnderDragonEntity` | `net.minecraft.world.entity.boss.enderdragon.EnderDragon` |
+| 1 | `net.minecraft.component.type.FoodComponent` | `net.minecraft.world.food.FoodProperties` |
+| 1 | `net.minecraft.registry.tag.TagKey` | `net.minecraft.tags.TagKey` |
+| 1 | `net.minecraft.block.AbstractBlock` | `net.minecraft.world.level.block.state.BlockBehaviour` |
+| 1 | `net.minecraft.client.gui.screen.Screen` | `net.minecraft.client.gui.screens.Screen` |
+| 1 | `net.minecraft.client.gui.screen.recipebook.RecipeBookProvider` | `net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener` |
+| 1 | `net.minecraft.client.render.WorldRenderer` | `net.minecraft.client.renderer.LevelRenderer` |
+| 1 | `net.minecraft.world.chunk.ChunkManager` | `net.minecraft.world.level.chunk.ChunkSource` |
+| 1 | `net.minecraft.world.chunk.WorldChunk` | `net.minecraft.world.level.chunk.LevelChunk` |
+| 1 | `net.minecraft.client.sound.PositionedSoundInstance` | `net.minecraft.client.resources.sounds.SimpleSoundInstance` |
+| 1 | `net.minecraft.nbt.NbtIo` | `net.minecraft.nbt.NbtIo` |
+| 1 | `net.minecraft.component.type.PotionContentsComponent` | `net.minecraft.world.item.alchemy.PotionContents` |
+| 1 | `net.minecraft.potion.Potions` | `net.minecraft.world.item.alchemy.Potions` |
+| 1 | `net.minecraft.recipe.SmeltingRecipe` | `net.minecraft.world.item.crafting.SmeltingRecipe` |
+| 1 | `net.minecraft.client.gui.screen.ingame.HandledScreens` | `net.minecraft.client.gui.screens.MenuScreens` |
+| 1 | `net.minecraft.test.GameTest` | `net.minecraft.gametest.framework.GameTest` |
+| 1 | `net.minecraft.test.TestContext` | `net.minecraft.gametest.framework.GameTestHelper` |
+| 1 | `net.minecraft.registry.RegistryOps` | `net.minecraft.resources.RegistryOps` |
+| 1 | `net.minecraft.nbt.NbtOps` | `net.minecraft.nbt.NbtOps` |
+| 1 | `net.minecraft.server.command.ServerCommandSource` | `net.minecraft.commands.CommandSourceStack` |
+| 1 | `net.minecraft.inventory.Inventories` | `net.minecraft.world.ContainerHelper` |
+| 1 | `net.minecraft.nbt.NbtHelper` | `net.minecraft.nbt.NbtUtils` |
+| 1 | `net.minecraft.entity.effect.StatusEffectInstance` | `net.minecraft.world.effect.MobEffectInstance` |
+| 1 | `net.minecraft.item.Instrument` | `net.minecraft.world.item.Instrument` |
+| 1 | `net.minecraft.registry.tag.InstrumentTags` | `net.minecraft.tags.InstrumentTags` |
+| 1 | `net.minecraft.particle.ParticleEffect` | `net.minecraft.core.particles.ParticleOptions` |
+| 1 | `net.minecraft.network.packet.Packet` | `net.minecraft.network.protocol.Packet` |
+| 1 | `net.minecraft.network.listener.ClientPlayPacketListener` | `net.minecraft.network.protocol.game.ClientGamePacketListener` |
+| 1 | `net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket` | `net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket` |
+| 1 | `net.minecraft.item.ItemGroup` | `net.minecraft.world.item.CreativeModeTab` |
+| 1 | `net.minecraft.resource.featuretoggle.FeatureFlags` | `net.minecraft.world.flag.FeatureFlags` |
+| 1 | `net.minecraft.client.util.InputUtil` | `com.mojang.blaze3d.platform.InputConstants` |
+| 1 | `net.minecraft.client.render.item.ItemRenderer` | `net.minecraft.client.renderer.entity.ItemRenderer` |
+| 1 | `net.minecraft.client.render.model.json.ModelTransformationMode` | `net.minecraft.world.item.ItemDisplayContext` |
+| 1 | `net.minecraft.client.render.model.BakedQuad` | `net.minecraft.client.renderer.block.model.BakedQuad` |
+| 1 | `net.minecraft.client.render.model.Baker` | `net.minecraft.client.resources.model.ModelBaker` |
+| 1 | `net.minecraft.client.render.model.ModelBakeSettings` | `net.minecraft.client.resources.model.ModelState` |
+| 1 | `net.minecraft.client.render.model.UnbakedModel` | `net.minecraft.client.resources.model.UnbakedModel` |
+| 1 | `net.minecraft.client.render.model.json.ModelOverrideList` | `net.minecraft.client.renderer.block.model.ItemOverrides` |
+| 1 | `net.minecraft.client.render.model.json.ModelTransformation` | `net.minecraft.client.renderer.block.model.ItemTransforms` |
+| 1 | `net.minecraft.client.util.SpriteIdentifier` | `net.minecraft.client.resources.model.Material` |
