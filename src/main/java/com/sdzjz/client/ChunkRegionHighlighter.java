@@ -2,8 +2,6 @@ package com.sdzjz.client;
 
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.node.NodeTags;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -56,22 +54,18 @@ public final class ChunkRegionHighlighter {
 
     public static void register() {
         // m393：AFTER_TRANSLUCENT → AFTER_ENTITIES（原阶段 consumers 恒 null=画了个寂寞，见类注释根因）
-        WorldRenderEvents.AFTER_ENTITIES.register(ChunkRegionHighlighter::render);
+        // m405：改经 ClientHooks 世界渲染口挂载（三样原版东西直接进参，阶段选择与判空留在口里）
+        ClientHooks.onWorldDrawAfterEntities(ChunkRegionHighlighter::render);
     }
 
-    private static void render(WorldRenderContext ctx) {
+    private static void render(MatrixStack ms, VertexConsumerProvider consumers, Vec3d cam) {
         SdzjzConfig cfg = SdzjzConfig.get();
         if (!cfg.chunkFxEnabled) { gateLog("chunkFxEnabled=false"); return; }
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.world == null) return;
-        VertexConsumerProvider consumers = ctx.consumers();
-        if (consumers == null) { gateLog("consumers=null（渲染事件无缓冲口——m393 前挂错阶段的老病）"); return; }
-        MatrixStack ms = ctx.matrixStack();
-        if (ms == null) { gateLog("matrixStack=null（阶段早于 AFTER_ENTITIES）"); return; }
 
         String dim = mc.world.getRegistryKey().getValue().toString();
         double y1 = mc.world.getBottomY(), y2 = mc.world.getTopY();
-        Vec3d cam = ctx.camera().getPos();
         ms.push();
         ms.translate(-cam.x, -cam.y, -cam.z); // 顶点必须相对相机（fabric 原文 IMPORTANT 条）
         float pulse = 0.55f + 0.35f * (float) Math.sin(Util.getMeasuringTimeMs() / 300.0);

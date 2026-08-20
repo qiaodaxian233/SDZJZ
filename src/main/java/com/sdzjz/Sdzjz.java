@@ -19,7 +19,6 @@ import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -31,14 +30,14 @@ public class Sdzjz implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        com.sdzjz.platform.Platform.initConfigDir(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()); // m365 必须第一行（早于任何 SdzjzConfig.get()）
+        com.sdzjz.platform.Platform.initConfigDir(com.sdzjz.loader.Env.configDir()); // m365 必须第一行（早于任何 SdzjzConfig.get()）；m405 走环境口
         com.sdzjz.platform.Platform.initRecipes(new com.sdzjz.legacy.LegacyRecipeAccess()); // m362 代际引导：Legacy 配方 SPI 最早注册（Common 侧 planner 依赖）
         com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph
         com.sdzjz.debug.BenchRunner.init(); // m306 一键压测（IDLE 时 tick 零开销）
 
         // m332 随身仓库专属仓位：仓位不在 PlayerInventory，原版 inventoryTick 轮不到——服务端 tick 钩
         // 与背包同拍（每 10t）代跑吸附；开关关或格空=每 0.5s 一次空遍历在线表，开销可忽略。
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+        com.sdzjz.loader.Hooks.onServerTickEnd(server -> { // m405 平台口
             for (net.minecraft.server.world.ServerWorld w : server.getWorlds())
                 com.sdzjz.block.CoreChunkLoading.reconcileTick(w); // m347 孤儿声明渐进核销（宽限/节拍/开关在里头把门）
             if (!SdzjzConfig.get().portableVaultSlot || server.getOverworld().getTime() % 10 != 0) return;
@@ -65,7 +64,7 @@ public class Sdzjz implements ModInitializer {
         // 否则村民（交易界面）/马（骑乘）/驯服猫狗（坐下）等自带右键交互的生物会把捕获整个截胡，
         // useOnEntity 永远轮不到执行（僵尸/骷髅这类无交互生物不受影响，两条路都通）。
         // 返回 SUCCESS 即取消原版后续处理（交易界面不弹）；PASS 时一切照旧。
-        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+        com.sdzjz.loader.Hooks.onUseEntity((player, hand, entity) -> { // m405 平台口
             if (!(entity instanceof net.minecraft.entity.LivingEntity living)) return net.minecraft.util.ActionResult.PASS;
             if (!(player.getStackInHand(hand).getItem() instanceof com.sdzjz.item.CaptureCageItem)) return net.minecraft.util.ActionResult.PASS;
             return com.sdzjz.item.CaptureCageItem.tryCapture(player, hand, living);
@@ -73,11 +72,9 @@ public class Sdzjz implements ModInitializer {
 
         // 服务器停止时清空存储核心登记表（防跨存档幽灵坐标）
         // m296 开服/维度载入重发核心无期票（声明表自举，复刻 ForcedChunkState；治"有期票不落盘=重启死锁"）
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.LOAD.register(
-                (server, world) -> com.sdzjz.block.CoreChunkLoading.restoreClaims(world));
-        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
-                (handler, server) -> WRITE_BUDGET.remove(handler.player.getUuid())); // m294 下线清预算条目（yarn 核过：field_14140 公开字段，无 getPlayer()）
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+        com.sdzjz.loader.Hooks.onWorldLoad((server, world) -> com.sdzjz.block.CoreChunkLoading.restoreClaims(world));
+        com.sdzjz.loader.Hooks.onPlayerDisconnect(sp -> WRITE_BUDGET.remove(sp.getUuid())); // m294 下线清预算条目
+        com.sdzjz.loader.Hooks.onServerStopped(server -> {
             WRITE_BUDGET.clear(); // m294 停服清空（单机反复进出存档不留残）
             StorageCoreBlockEntity.clearAll();
             com.sdzjz.block.CoreChunkLoading.clearAll(); // m133 强加载登记表（m296 起自恢复靠声明表 PersistentState+开服重发票）

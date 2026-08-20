@@ -34,7 +34,7 @@ public final class ProjectEFCompat {
     private static synchronized void bootstrap() {
         if (state != 0) return;
         try {
-            if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("projecte")) { state = -1; return; }
+            if (!com.sdzjz.loader.Env.isModLoaded("projecte")) { state = -1; return; } // m405 环境口
             Class<?> emcCls = Class.forName("moze_intel.projecte.api.proxy.IEMCProxy");
             Class<?> txCls  = Class.forName("moze_intel.projecte.api.proxy.ITransmutationProxy");
             Class<?> kpCls  = Class.forName("moze_intel.projecte.api.capabilities.IKnowledgeProvider");

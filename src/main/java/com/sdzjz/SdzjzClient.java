@@ -57,21 +57,19 @@ public class SdzjzClient implements ClientModInitializer {
                     }
                 });
         // m80：全模组物品 tooltip 水印
-        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
+        com.sdzjz.client.ClientHooks.onItemTooltip((stack, lines) -> { // m405 平台口
             if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))
                 lines.add(net.minecraft.text.Text.literal("DY：乔大仙").formatted(net.minecraft.util.Formatting.GOLD));
         });
         // m320：Sodium"仅动画可见纹理"优化会冻结纯 GUI 物品动画精灵（方块精灵靠世界渲染保活不受累）
         // ——每客户端 tick 给四件动画物品精灵标活跃；未装 Sodium 垫片自动熔断零开销。
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
-                .register(com.sdzjz.client.SodiumSpriteKicker::tick);
+        com.sdzjz.client.ClientHooks.onClientTickEnd(com.sdzjz.client.SodiumSpriteKicker::tick); // m405 平台口
         // m384 选区高亮：手持已绑定移除器=世界内紫色能量框罩住选区（"技能选中"圈）
         com.sdzjz.client.ChunkRegionHighlighter.register();
         // m386 手持设置面板快捷键（默认 R 可改键位）：手持移除器时开屏，否则无事
-        var chunkCfgKey = net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.registerKeyBinding(
-                new net.minecraft.client.option.KeyBinding("key.sdzjz.chunk_config",
-                        net.minecraft.client.util.InputUtil.Type.KEYSYM, org.lwjgl.glfw.GLFW.GLFW_KEY_R, "category.sdzjz"));
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+        var chunkCfgKey = com.sdzjz.client.ClientHooks.registerKey("key.sdzjz.chunk_config",
+                org.lwjgl.glfw.GLFW.GLFW_KEY_R, "category.sdzjz"); // m405 平台口
+        com.sdzjz.client.ClientHooks.onClientTickEnd(mc -> {
             while (chunkCfgKey.wasPressed()) {
                 if (mc.player == null || mc.currentScreen != null) continue;
                 int handK = mc.player.getMainHandStack().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 0

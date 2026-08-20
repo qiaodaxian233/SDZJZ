@@ -6,7 +6,6 @@ import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.machine.CoreScheduler;
 import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -86,7 +85,7 @@ public final class BenchRunner {
 
     /** Sdzjz 初始化时挂一次。 */
     public static void init() {
-        ServerTickEvents.END_SERVER_TICK.register(BenchRunner::tick);
+        com.sdzjz.loader.Hooks.onServerTickEnd(BenchRunner::tick); // m405 平台口
     }
 
     /** SERVER_STOPPED：复位状态机（配置只改内存不落盘，重启自动回读磁盘值）。 */

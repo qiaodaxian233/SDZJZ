@@ -7284,3 +7284,30 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   `rendering 12` → `screenhandler 11`。这四族抽完，`src/main` 里的加载器触点只剩几个漏斗类，
   那时 `xplat/` 拆分才是一次 `git mv` 的机械动作（m403 立的顺序铁律）。
 - 零行为变化、零新配置键；判官=CI 真编译 + GameTest 全套。
+
+## m405 多加载器 P1 第三刀：生命周期/环境/世界渲染三口收完 + 剩余耦合的性质判定
+
+- **交付三个漏斗**（与 m402 `Net`、m404 `Xfer` 同范式，业务侧只见原版类型）：
+  - `loader/Hooks.java`（服务端）：`onServerTickEnd` / `onWorldLoad` / `onPlayerDisconnect`（业务只要玩家，
+    不要网络处理器）/ `onServerStopped` / `onUseEntity`（m94 抓物笼靠它抢在 `entity.interact()` 之前）。
+  - `loader/Env.java`：`isModLoaded`（m229 ProjectE 软兼容的唯一出口）/ `configDir`（m365 第一行注册）。
+  - `client/ClientHooks.java`（客户端半边，刻意不塞进 Hooks——专用服务端不该为一次类加载解析
+    MinecraftClient，m402 同一条边界）：`onClientTickEnd` / `onItemTooltip` / `registerKey` /
+    **`onWorldDrawAfterEntities`**——把 m393 那条血泪（只有 AFTER_ENTITIES 阶段 matrixStack 与 consumers
+    双双非 null）连同判空一起封进口里，业务侧只拿到三样原版东西：矩阵栈、顶点缓冲口、相机位置。
+    `ChunkRegionHighlighter` 随之改吃这个口，自身 Fabric 引用清零。
+- **尺子进度**：events **12→7**、rendering **12→10**、全库 **127→120**；networking/transfer/events 三族的
+  **调用点已全部收口**，剩下的都在漏斗与入口类里。
+- **本刀最有价值的产出是一个判定**：剩余耦合分两类，**处理方式完全不同**——
+  1. **调用点**（我们去调加载器的 API）：`ServerPlayNetworking.send`、`ItemStorage.SIDED.find`、
+     `ServerTickEvents.register`……**漏斗收口即可**，不用动架构。到本刀为止**这一类基本清完**。
+  2. **结构性接口**（我们的类去 implement 加载器的接口）：`BE implements ExtendedScreenHandlerFactory`(5 处)、
+     `CompressedPackRenderer implements BuiltinItemRendererRegistry.DynamicItemRenderer`、
+     `FabricLedger implements Storage<ItemVariant>`、`Sdzjz implements ModInitializer`。
+     **这一类抽不动**——不是调用换个门牌的事，是"这个类到底实现谁的接口"，NeoForge 侧对应的是
+     `MenuProvider`+`IContainerFactory` / `IClientItemExtensions#getCustomRenderer` / 能力系统 / `@Mod`，
+     形状根本不同。**正确时机是源集拆分之后**：业务类实现我们自己的 xplat 接口，各加载器源集里放适配类。
+- **所以路线顺序在此处翻转**（写进 HANDOVER，防后人照旧表继续抽）：原计划"抽完全部族再拆源集"
+  改成 **调用点抽完 → 先拆源集骨架（P2）→ 再在源集里处理结构性接口**。继续按旧表硬抽 screenhandler/
+  rendering 只会得到一堆"为抽而抽"的包装类，换加载器时照样重写。
+- 零行为变化、零新配置键；判官=CI 真编译 + GameTest 全套。
