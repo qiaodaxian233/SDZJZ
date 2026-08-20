@@ -7175,3 +7175,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 作者供 1254² 立绘（俯瞰群岛+光柱+无限符号+钻石台信标），按 **m312 管线**换装：alpha 裁边 →
   4% 边距 → LANCZOS 降 128²，覆盖 m399 的程序占位图。尺寸/模型 json/lang/注册全部原位复用，
   **纯贴图替换零 Java**（m336/m383 同规）。绘图名单里的无限信标一项勾账。
+
+## m401 平台支持矩阵方案稿 + 加载器耦合面尺（作者点名：四锚点×三加载器 + JEI + 机械动力）
+
+- **立方案不动手的理由**（m274/m379 同规）：这单里含三件"不该由实现者单方面定"的事——要不要养 Forge、
+  1.20.1 那格值不值得、机械动力到底要联动什么。先出稿待拍板，落 `docs/平台支持矩阵_m401.md`。
+- **上游可行性当天实测**（查 GitHub 分支，不是凭记忆）：JEI 四格全有（1.20.1/1.21.1/26.1/26.2）；
+  NeoForge 四格全有；Forge 四格也都还在维护；**Create 只有 mc1.20.1/dev 与 mc1.21.1/dev（含 Fabric 移植组
+  同两代），26.x 上游根本没有**——故**机械动力联动只能覆盖 1.20.1 与 1.21.1**，另两格是"等上游"不是我们能做的。
+- **新尺 `docs/tools_loader_scan.py`（本笔交付的实物）**：与 m361 的 platform_scan 分工——那把量
+  "离 Minecraft 多远"，这把量**"离 Fabric 多远"**（换加载器时必须抽 SPI 或各写一份的点）。
+  实测 **254 用点 / 25 文件**：networking **124**（19 个 payload 全走 ServerPlayNetworking）、
+  transfer **69**（ItemVariant/StorageUtil，Neo 对应 Capability+IItemHandler）、loader 入口 15、
+  events/rendering 各 12、screenhandler 11、registry/keybinding/gametest 小头；文件排行
+  Sdzjz.java(60) > StructureCoreScreen(57) > DataCableBlockEntity(27)。**移植顺序直接读这张表**，
+  报告落 `docs/LOADER_MAP.md`（报告尺，非门控不挂 CI）。
+- **写进稿里的真拦路虎**：1.20.1 不是"换个加载器"，是**物品数据模型代际差**——1.20.5 才有
+  DataComponent，1.20.1 只有旧 `getNbt()`，而本仓全部节点状态都建在 `CUSTOM_DATA` 上。
+  好消息=读写只有 `NodeTags` 一个口（m180 铁律的红利），坏消息=那格要多一层 `ItemDataAccess`
+  双实现且"组件保真/不混堆不变裸"红线要在旧模型上重证一遍。**成本≈其余三格之和**。
+- **路线七步**：SPI 补齐（networking→transfer→其余，`tools_loader_scan` 数字掉多少就是进度条）→
+  三源集骨架 → NeoForge 1.21.1 首格 → 26.1/26.2 → Forge（若要）→ 1.20.1 回迁 → JEI/Create 联动。
+- **四条待拍板**（缺省=按推荐）：①Forge 三格要不要（推荐先只做 Fabric+Neo）②构建方案
+  MultiLoader-Template 手写 vs Architectury（**推荐手写**：common/+platform/ 已经是手写多源集的形状，
+  引 Architectury 等于推平地基重来）③1.20.1 做不做（推荐排最后）④机械动力具体联动什么
+  （推荐"物流对接"，JEI 分类共存白捡，接应力=改经济模型另行拍板）。
+- 零 Java 改动、零新配置键（纯文档+报告尺，m379 同规）。
