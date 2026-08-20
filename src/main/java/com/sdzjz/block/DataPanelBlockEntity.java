@@ -235,14 +235,13 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         java.util.List<DispEnt> all = new java.util.ArrayList<>();
         LinkedHashMap<String, Long> agg = aggregate();
         for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
-        // m130：精确条目跨核心按「物品+组件」合并（m267 ItemVariant 哈希键 O(n)，在树先例 DataCableBlockEntity）
-        java.util.LinkedHashMap<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant, DispEnt> exactMap =
-                new java.util.LinkedHashMap<>();
+        // m130：精确条目跨核心按「物品+组件」合并（m267 哈希键 O(n)；m404 换加载器中立的 StackKey）
+        java.util.LinkedHashMap<com.sdzjz.storage.StackKey, DispEnt> exactMap = new java.util.LinkedHashMap<>();
         for (StorageCoreBlockEntity core : cs) {
             java.util.List<ItemStack> tpls = core.exactTemplates();
             for (int k = 0; k < tpls.size(); k++) {
                 ItemStack t = tpls.get(k); long n = core.exactCount(k);
-                var key = net.fabricmc.fabric.api.transfer.v1.item.ItemVariant.of(t);
+                var key = com.sdzjz.storage.StackKey.of(t);
                 DispEnt d = exactMap.get(key);
                 if (d != null) d.n += n;
                 else exactMap.put(key, new DispEnt(Registries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));

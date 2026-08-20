@@ -56,6 +56,8 @@ public class Sdzjz implements ModInitializer {
         // m161c 跨模组直连：存储核心双账本挂上 Fabric Transfer API——Create/Modern Industrialization/
         // Tech Reborn/AE2 等一切走 fabric-transfer-api 的管道怼在存储核心任意面即可存取。
         // 注意原版漏斗不走此 API（漏斗只认 Inventory 接口），漏斗对接另开里程碑（见 DEVLOG m161）。
+        // m404 提供侧（我们把自家账本暴露给别的模组）：天生属加载器层，不抽口——
+        // 换 NeoForge 时这里换成能力注册，业务侧一行不动。
         net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.registerForBlockEntity(
                 (be, direction) -> be.fabricStorage(), ModBlockEntities.STORAGE_CORE_BE);
 

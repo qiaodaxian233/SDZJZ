@@ -147,7 +147,7 @@ public class DataCableBlock extends Block implements BlockEntityProvider {
         // 全吃）；只在服务端权威世界查（客户端注册表可能缺第三方登记，方块状态由服务端同步），
         // 世界生成期的 ChunkRegion 不是 World 直接跳过。
         if (world instanceof net.minecraft.world.World w && !w.isClient
-                && net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.find(w, pos, null) != null) return CableEnd.PLUG;
+                && com.sdzjz.storage.Xfer.find(w, pos, null) != null) return CableEnd.PLUG; // m404 平台口
         return CableEnd.NONE;
     }
 }

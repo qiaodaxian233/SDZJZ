@@ -2,10 +2,6 @@ package com.sdzjz.block;
 
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.registry.ModBlockEntities;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.ItemStack;
@@ -117,7 +113,7 @@ public class DataCableBlockEntity extends BlockEntity
      *  自家网络方块排除口径不变（存储核心=左手倒右手 m161c；结构核心 Inventory 会被 Fabric 兜底捞到）。
      *  blockCount=有可对接视图的邻块数（界面"旁接存储"口径）。 */
     public static Adjacency scanAdjacent(World world, BlockPos pos) {
-        List<Storage<ItemVariant>> targets = new ArrayList<>();
+        List<Object> targets = new ArrayList<>(); // m404 不透明句柄（Fabric=Storage<ItemVariant>，Neo=IItemHandler）
         int blocks = 0;
         boolean sellTable = false;
         if (world == null || world.isClient) return new Adjacency(targets, 0, false);
@@ -140,15 +136,15 @@ public class DataCableBlockEntity extends BlockEntity
         return new Adjacency(targets, blocks, sellTable);
     }
 
-    private static void collectView(List<Storage<ItemVariant>> out, World world, BlockPos np, Direction side) {
-        Storage<ItemVariant> st = ItemStorage.SIDED.find(world, np, side);
-        if (st == null || (!st.supportsInsertion() && !st.supportsExtraction())) return; // m231 双向收：送出用可插视图、回收用可取视图
-        for (Storage<ItemVariant> s : out) if (s == st) return; // 身份去重：全面同实例注册的只收一次
+    private static void collectView(List<Object> out, World world, BlockPos np, Direction side) {
+        Object st = com.sdzjz.storage.Xfer.find(world, np, side);
+        if (st == null || (!com.sdzjz.storage.Xfer.canInsert(st) && !com.sdzjz.storage.Xfer.canExtract(st))) return; // m231 双向收：送出用可插视图、回收用可取视图
+        for (Object s : out) if (s == st) return; // 身份去重：全面同实例注册的只收一次
         out.add(st);
     }
 
     /** 邻接扫描结果：插入视图序列 + 可对接邻块数 + 是否贴着 ProjectEF 转化桌（m229 EMC 出售通道）。 */
-    public record Adjacency(List<Storage<ItemVariant>> targets, int blockCount, boolean sellTable) {}
+    public record Adjacency(List<Object> targets, int blockCount, boolean sellTable) {}
 
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
     public static void tick(World world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
@@ -156,7 +152,7 @@ public class DataCableBlockEntity extends BlockEntity
         int period = be.effPeriod(); // m230 升级生效
         if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
         Adjacency adj = scanAdjacent(world, pos);
-        List<Storage<ItemVariant>> targets = adj.targets();
+        List<Object> targets = adj.targets();
         be.opSeller = null; // m229 本拍卖手：贴桌+已认领+所有者在线（离线提供者不可变，写=白写，不卖留货）
         if (!be.pullMode && adj.sellTable() && be.owner != null && world.getServer() != null)
             be.opSeller = world.getServer().getPlayerManager().getPlayer(be.owner);
@@ -194,18 +190,17 @@ public class DataCableBlockEntity extends BlockEntity
 
     /** 按单个模板抽取：无组件=普通账本按 id；带组件=精确账本按模板（附魔书/药水连组件搬，m130 口径）。
      *  塞不下的一律回账本绝不落地；返回实际搬动件数。 */
-    private long extractSpec(List<StorageCoreBlockEntity> cores, List<Storage<ItemVariant>> targets, ItemStack tpl, long max) {
+    private long extractSpec(List<StorageCoreBlockEntity> cores, List<Object> targets, ItemStack tpl, long max) {
         if (tpl.isEmpty() || max <= 0) return 0;
         boolean exact = !tpl.getComponentChanges().isEmpty();
         String id = exact ? null : Registries.ITEM.getId(tpl.getItem()).toString();
-        ItemVariant v = exact ? ItemVariant.of(tpl) : ItemVariant.of(tpl.getItem());
         long moved = 0;
         for (StorageCoreBlockEntity core : cores) {
             while (moved < max) {
                 int ask = (int) Math.min(max - moved, Integer.MAX_VALUE);
                 int take = exact ? core.withdrawExact(tpl, ask) : core.withdraw(id, ask);
                 if (take <= 0) break;
-                long ins = insertInto(targets, v, take);
+                long ins = insertInto(targets, tpl, exact, take);
                 if (ins < take) { // 目标满：余量回账本（绝不落地）；无卖手才置整拍收工标志——
                     // m229 有转化桌时"满"只是箱子满（EMC 无限），该物品无价卖不掉就跳去下一模板
                     if (opSeller == null) opTargetsFull = true;
@@ -222,7 +217,7 @@ public class DataCableBlockEntity extends BlockEntity
 
     /** 全部模式：普通账本 id 全表 + 精确账本模板全表拼成候选序列，游标轮转起步（跨拍公平）；
      *  一旦出现"取得出塞不进"即判目标满，整拍收工。 */
-    private void extractAll(List<StorageCoreBlockEntity> cores, List<Storage<ItemVariant>> targets, long budget) {
+    private void extractAll(List<StorageCoreBlockEntity> cores, List<Object> targets, long budget) {
         List<ItemStack> specs = new ArrayList<>();
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
         for (StorageCoreBlockEntity core : cores) {
@@ -249,25 +244,25 @@ public class DataCableBlockEntity extends BlockEntity
     /** m231 回收拍：从邻接机器的可取视图抽货进相连存储核心（FTA 出口 m161c 双账本，附魔书/药水
      *  连组件正确入精确账本）。StorageUtil.move 只搬"取得出且存得进"的量——仓容不足余量留在机器里
      *  绝不落地；过滤同 m225 语义（无组件模板=只收裸物品，带组件=连组件精确匹配，空=全收）。 */
-    private void doPull(List<StorageCoreBlockEntity> cores, List<Storage<ItemVariant>> sources, long budget) {
-        for (Storage<ItemVariant> src : sources) {
+    private void doPull(List<StorageCoreBlockEntity> cores, List<Object> sources, long budget) {
+        boolean anyFilter = false; // m404：空过滤=全收，给 null 省掉每候选一次 toStack（旧 pullWants 的惰性路径同义）
+        for (ItemStack tpl : filter) if (!tpl.isEmpty()) { anyFilter = true; break; }
+        java.util.function.Predicate<ItemStack> pred = anyFilter ? this::pullWants : null;
+        for (Object src : sources) {
             if (budget <= 0) break;
-            if (!src.supportsExtraction()) continue;
+            if (!com.sdzjz.storage.Xfer.canExtract(src)) continue;
             for (StorageCoreBlockEntity core : cores) {
                 if (budget <= 0) break;
-                budget -= net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil.move(
-                        src, core.fabricStorage(), this::pullWants, budget, null);
+                budget -= com.sdzjz.storage.Xfer.moveToCore(src, core, pred, budget);
             }
         }
     }
 
-    private boolean pullWants(ItemVariant v) {
+    private boolean pullWants(ItemStack vs) {
         boolean any = false;
-        ItemStack vs = null;
         for (ItemStack tpl : filter) {
             if (tpl.isEmpty()) continue;
             any = true;
-            if (vs == null) vs = v.toStack();
             if (tpl.getComponentChanges().isEmpty()) { // 无组件模板=只收该 id 的裸物品（m225 口径）
                 if (vs.isOf(tpl.getItem()) && vs.getComponentChanges().isEmpty()) return true;
             } else if (ItemStack.areItemsAndComponentsEqual(vs, tpl)) return true; // 精确模板连组件匹配
@@ -275,18 +270,15 @@ public class DataCableBlockEntity extends BlockEntity
         return !any; // 空过滤=全收
     }
 
-    private long insertInto(List<Storage<ItemVariant>> targets, ItemVariant v, long amount) {
+    private long insertInto(List<Object> targets, ItemStack tpl, boolean exact, long amount) {
         long done = 0;
-        for (Storage<ItemVariant> t : targets) {
+        for (Object t : targets) {
             if (done >= amount) break;
-            try (Transaction tx = Transaction.openOuter()) {
-                long ins = t.insert(v, amount - done, tx);
-                tx.commit();
-                done += ins;
-            }
+            done += com.sdzjz.storage.Xfer.insert(t, tpl, exact, amount - done);
         }
         if (done < amount && opSeller != null) { // m229 余量卖给转化桌：FTA 目标优先=箱子先装，溢出才卖
-            long unit = com.sdzjz.compat.ProjectEFCompat.unitValue(v.toStack());
+            long unit = com.sdzjz.compat.ProjectEFCompat.unitValue(
+                    exact ? tpl : new ItemStack(tpl.getItem()));
             if (unit > 0) {
                 long n = Math.min(amount - done, Long.MAX_VALUE / 2 / unit); // 天价物×大批量防溢出
                 if (n > 0 && com.sdzjz.compat.ProjectEFCompat.credit(opSeller, unit * n))

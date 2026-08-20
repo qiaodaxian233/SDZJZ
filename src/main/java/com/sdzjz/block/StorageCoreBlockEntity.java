@@ -137,31 +137,31 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     public int tier() { return tier; }
     public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
     // ===== m295 精确账本内存索引（外部审计 P2：账本自身仍是 List 线性找）=====
-    // 列表仍是唯一权威与落盘格式（undo 语义/存档零改动），旁挂 transient ItemVariant→下标索引：
-    // 查找 逐条组件深比 O(n) → 哈希 O(1)（ItemVariant equals=物品+组件，与 areItemsAndComponentsEqual
-    // 同口径，m267 展示聚合在树先例）；追加 O(1)；删除 O(n) 但只平移整数下标（无组件比较，常数便宜
+    // 列表仍是唯一权威与落盘格式（undo 语义/存档零改动），旁挂 transient 键→下标索引：
+    // 查找 逐条组件深比 O(n) → 哈希 O(1)（m404 起键=加载器中立的 StackKey，equals 直调
+    // areItemsAndComponentsEqual 与旧 ItemVariant 键同口径）；追加 O(1)；删除 O(n) 但只平移整数下标（无组件比较，常数便宜
     // 一两个量级）；**事务回滚重放/NBT 读回直接置脏懒重建**（abort/读档罕见，正确性优先）。
-    private transient java.util.HashMap<ItemVariant, Integer> exactIdx; // null=脏
+    private transient java.util.HashMap<com.sdzjz.storage.StackKey, Integer> exactIdx; // null=脏
 
     private int exactIndexOf(ItemStack probe) {
         var m = exactIdx;
         if (m == null) {
             m = new java.util.HashMap<>();
-            for (int i = 0; i < exactTpl.size(); i++) m.put(ItemVariant.of(exactTpl.get(i)), i);
+            for (int i = 0; i < exactTpl.size(); i++) m.put(com.sdzjz.storage.StackKey.of(exactTpl.get(i)), i);
             exactIdx = m;
         }
-        Integer i = m.get(ItemVariant.of(probe));
+        Integer i = m.get(com.sdzjz.storage.StackKey.of(probe));
         return i == null ? -1 : i;
     }
 
     private void exactIdxAppended() { // append 之后调（新条目下标=size-1）
-        if (exactIdx != null) exactIdx.put(ItemVariant.of(exactTpl.get(exactTpl.size() - 1)), exactTpl.size() - 1);
+        if (exactIdx != null) exactIdx.put(com.sdzjz.storage.StackKey.of(exactTpl.get(exactTpl.size() - 1)), exactTpl.size() - 1);
     }
 
     private void exactIdxRemoved(int i, ItemStack tpl) { // remove(i) 之后调：删键+平移
         var m = exactIdx;
         if (m == null) return;
-        m.remove(ItemVariant.of(tpl));
+        m.remove(com.sdzjz.storage.StackKey.of(tpl));
         for (var e : m.entrySet()) if (e.getValue() > i) e.setValue(e.getValue() - 1);
     }
 

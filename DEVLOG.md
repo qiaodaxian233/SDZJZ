@@ -7254,3 +7254,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   `src/main` 里的 Fabric 触点掉到几十行时，拆分才是一次 `git mv` 的机械动作；
   现在拆等于在 500 个耦合点上做手术。
 - 稿落 `docs/分层现状对表_m403.md`（含目标目录树与三层对应表）。零 Java 零新键。
+
+## m404 多加载器 P1 第二刀：物品传输口收进 Xfer + 精确条目键去 Fabric（作者授权"按你觉得最好的方式做"）
+
+- **按 m403 自己定的顺序执行**：不建 `xplat/` 目录（先抽口再搬），按耦合尺排名做第二族
+  **transfer（69 用点 / 6 文件，排行前两名 DataCableBE 27 与 StorageCoreBE 25 都是它）**。
+- **交付①`storage/Xfer.java`（传输平台口）**：`find`（邻面视图）/`canInsert`/`canExtract`/
+  `insert`（单笔事务提交，返回实际收下数）/`moveToCore`（原 `StorageUtil.move` 原样）。
+  **句柄一律不透明 `Object`**——Fabric 真身是 `Storage<ItemVariant>`，NeoForge 将是 `IItemHandler`，
+  两套语义差别大到不值得强行统一类型；这正是 m362 起 `RecipeAccess` 的 `World→Object` 范式，全仓一以贯之。
+  抽取口（DataCableBlockEntity）**从 27 用点降到 0**：`Adjacency` 记录、`extractSpec`/`extractAll`/
+  `doPull`/`insertInto` 五处签名全换 `List<Object>`，方法体逻辑一行没动。
+- **交付②`storage/StackKey.java`（加载器中立的"物品+组件"哈希键）**：替掉此前借 Fabric `ItemVariant`
+  当键的两处（m295 精确账本索引、m130/m267 面板跨核心合并）。**那两处用的根本不是传输能力，
+  只是要一个哈希键**——为纯数据结构的需求绑住加载器，换 Neo 时就得连业务逻辑一起改。
+  **等价性写进类注释当红线**：equals 直调 `ItemStack.areItemsAndComponentsEqual`（与 ItemVariant 相等
+  语义、与账本原逐条深比三者同源）；hashCode=物品身份+**组件增量**——同一物品下"完整组件表相等
+  ⟺ 组件增量相等"（完整表=默认值⊕增量，默认值由物品唯一决定），故 equals 相等必然 hashCode 相等，
+  哈希契约成立。判官=CI 的 GameTest job（精确账本/事务回滚/面板聚合三族用例都压这条路）。
+- **刻意不抽的两处（写清理由，防后人重做）**：①`StorageCoreBlockEntity.FabricLedger`=我们**提供**给
+  别的模组的那个视图（含 m278 增量事务日志 + `SnapshotParticipant`），**天生属加载器层**，
+  抽口没有意义——等目录分层时整体搬进 `versions/<loader>`，换 Neo 时对应能力注册；
+  ②GameTest 里的 FTA 调用是测试代码，同理归加载器侧。`Sdzjz.java` 的 `ItemStorage.SIDED` 注册同①，
+  已就地加注释标明"业务侧一行不动"。
+- **尺子进度**：transfer **69→53 用点 / 6→4 文件**，全库 **143→127**。剩下的 53 点分布=
+  Xfer 漏斗 21 + FabricLedger 20 + GameTest 13（都是"按设计留在那"的），**业务代码里已经零传输耦合**。
+  文件排行首位从 `DataCableBlockEntity`(27) 变成 `Xfer.java`(21)——漏斗成了榜首，正是想要的形状。
+- **下一刀顺位**：`loader 环境/入口 15`（`ModInitializer` 三入口 + `FabricLoader`）→ `events 12` →
+  `rendering 12` → `screenhandler 11`。这四族抽完，`src/main` 里的加载器触点只剩几个漏斗类，
+  那时 `xplat/` 拆分才是一次 `git mv` 的机械动作（m403 立的顺序铁律）。
+- 零行为变化、零新配置键；判官=CI 真编译 + GameTest 全套。
