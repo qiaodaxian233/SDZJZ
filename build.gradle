@@ -37,7 +37,7 @@ processResources {
     filesMatching("fabric.mod.json") { expand "version": project.version }
 }
 
-tasks.withType(JavaCompile).configureEach { it.options.release = 21 }
+tasks.withType(JavaCompile).configureEach { it.options.release = 21; it.options.encoding = 'UTF-8' } // m412 编码显式化（中文注释/字面量遍地，别指望平台默认）
 
 java {
     withSourcesJar()
