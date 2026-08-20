@@ -7137,3 +7137,35 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （`/sdzjz profile core` 对表）；④放两台各绑一半区域=两台各领时间片，总吞吐≈翻倍（池 20ms 够两台）；
   ⑤两个时间键填 0=行为回 m397（纯硬顶）；⑥`/sdzjz profile remover` 再截一份与 m391/m395 三方对表
   （MUTATE 均 ns 看 m395 的效果，总块数看本笔的效果）。
+
+## m399 新增机器：无限距离信标（作者点名·第 101 台）
+
+- **玩法**：原版信标的三条枷锁——**金字塔、天空可见、50 格距离**——一次拆干净。放上画布即工作：
+  每周期（80 拍=4 秒）从存储网络扣一份信标料，把选定效果**刷给全服在线玩家**（默认跨维度，
+  服主可收成"只管核心所在维度"）。效果六选一：急迫/速度/抗性提升/跳跃提升/力量/生命恢复，
+  等级 I/II 切换（II 级每周期料 ×4）。料表=原版信标收料表同款（铁锭/金锭/绿宝石/钻石/下界合金锭），
+  **从便宜到贵依次扣**；没料=红灯停发，不赊账。
+- **效果注册表用 id 串反查，不引用 `StatusEffects` 常量**：那些常量名在官方 yarn 映射里核不到
+  （与 ParticleTypes 同族现象），而 `minecraft:haste` 这类 id 是数据层稳定契约；
+  `Registries.STATUS_EFFECT.getEntry(Identifier)`（method_55841）→ `Optional<RegistryEntry.Reference>`
+  正好喂给 `StatusEffectInstance(RegistryEntry, 时长, 放大, ambient, 粒子, 图标)` 六参构造
+  （两处均官方映射核过）。查不到=红灯说人话，不静默不生效。
+- **施加参数**：`ambient=true`（屏幕边框淡化，全服常驻不刺眼）、`showParticles=false`（否则人人身上
+  常年冒泡）、`showIcon=true`（状态栏留图标，玩家知道自己吃着 buff）。
+- **注册六件套逐项计数断言全过**（m92b 铁律）：MachineDef 1 / ModItems 注册 1+创造栏 1 / 配方 1（Ⅲ档，
+  BOM=4 信标+2 下界之星+8 回声碎片+2 下界合金块+8 钻石块+8 绿宝石块+16 黑曜石+漏斗箱子，
+  58 布局位 ≤144）/ 中英 lang 各 1（过 json.load）/ 模型 json 1 / 贴图 png 1（128×128，与在树同规格）。
+  **接线五件**：tick 专属分支 ✔ / `accepts`=恒假（掉落表空+consumesInputs=false，accepts0 尾兜自然为假，
+  料从存储扣不吃路由）✔ / `setNodeTarget`=不适用（效果与等级走菜单两哨兵 `#bfx`/`#bfl`）✔ /
+  客户端徽章副行 ✔ / `chainWants`=显式零需求（不吃线上料自然不拉料，复制机同律）✔。
+  文档同步跑过：**机器数 100→101**（README + 机器清单.md 已重生成）。
+- **升级零收益也说出来（m99）**：效果是**刷新式**（每周期续时长，不叠加不延长），所以速度/数量/并发
+  升级对本机没有任何收益——tooltip 黄字明写"别白灌"。这是本轮 m398 刚吃过的教训的直接应用。
+- **服主政策**：五键 v61 纯加键——`infiniteBeaconEnabled`（总闸，关=该节点黄灯停发）/
+  `infiniteBeaconFuelPerCycle`(1) / `infiniteBeaconLevel2Cost`(4) / `infiniteBeaconEffectSeconds`(12) /
+  `infiniteBeaconCrossDimension`(true)。这机器给**全服**上 buff，天生是政策级功能，故总闸独立。
+- **实机脚本**：①合成后放画布、核心连一条存储线到有铁锭的仓=节点绿灯，人在任意位置（包括下界/末地）
+  都持续吃到"急迫 I"，状态栏有图标、身上不冒粒子；②菜单切效果=下一周期换成新效果（旧效果自然到期）；
+  ③切 II 级=每周期扣 4 份、效果变 II；④把仓里五种料取空=红灯"没料…不赊账"，buff 到期即断；
+  ⑤`infiniteBeaconCrossDimension` 关掉=去别的维度就吃不到了，回来即恢复；⑥总闸关=黄灯停发；
+  ⑦多人服上线第二个玩家=不做任何操作也吃到 buff（"无限距离"的验收点）。

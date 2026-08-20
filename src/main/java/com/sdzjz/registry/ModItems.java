@@ -56,6 +56,7 @@ public class ModItems {
     public static final Item VOID_PROCESSOR = reg("void_processor", new com.sdzjz.item.VoidProcessorItem(new Item.Settings(), Machines.VOID_PROCESSOR)); // m378 虚空处理器
     public static final Item CHUNK_SCANNER = reg("chunk_scanner", new com.sdzjz.item.ChunkScannerItem(new Item.Settings(), Machines.CHUNK_SCANNER)); // m380 区块扫描器
     public static final Item CHUNK_VAULT = reg("chunk_vault", new com.sdzjz.item.ChunkVaultItem(new Item.Settings(), Machines.CHUNK_VAULT)); // m381 区块储存器
+    public static final Item INFINITE_BEACON = reg("infinite_beacon", new com.sdzjz.item.InfiniteBeaconItem(new Item.Settings(), Machines.INFINITE_BEACON)); // m399 无限距离信标
     public static final Item CHUNK_DATA_CORE = reg("chunk_data_core", new com.sdzjz.item.ChunkDataCoreItem(new Item.Settings().maxCount(1))); // m381 区块数据核心（不可合成，储存器产）
     public static final Item GRINDSTONE_RECYCLER = reg("grindstone_recycler", new MachineItem(new Item.Settings(), Machines.GRINDSTONE_RECYCLER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Settings(), Machines.FILTER_NODE));
@@ -182,6 +183,7 @@ public class ModItems {
             entries.add(VOID_PROCESSOR); // m378
             entries.add(CHUNK_SCANNER); // m380
             entries.add(CHUNK_VAULT); // m381
+            entries.add(INFINITE_BEACON); // m399
             entries.add(CHUNK_DATA_CORE); // m381
             entries.add(GRINDSTONE_RECYCLER);
             entries.add(FILTER_NODE);

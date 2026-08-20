@@ -1221,6 +1221,8 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
                 if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : isDup ? "选复制" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
+        if (st.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem && !showWhy) // m399 无限距离信标：无选择器徽章，副行=效果/等级/料耗
+            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.InfiniteBeaconItem.canvasLine(st), NW - 50), x + 44, y + 38, ON, false);
         if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem && !showWhy) // m376 区块移除器：目标在世界内绑定无选择器徽章，副行=绑定指引/挖掘进度
             ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.ChunkRemoverItem.canvasLine(st), NW - 50),
                     x + 44, y + 38, com.sdzjz.node.NodeTags.chunkBound(st) ? ON : SUB, false);
@@ -2083,6 +2085,14 @@ public class StructureCoreScreen extends HandledScreen<StructureCoreScreenHandle
             addMenu("选择复制目标", mi(net.minecraft.item.Items.DIAMOND), 2, () -> openDupPicker(idx)); // m334
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem)
             addMenu("选择种植作物", mi(net.minecraft.item.Items.WHEAT), 2, () -> openCropPicker(idx));
+        if (st.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 无限距离信标：效果/等级两哨兵循环
+            addMenu("效果: " + com.sdzjz.item.InfiniteBeaconItem.effectName(com.sdzjz.item.InfiniteBeaconItem.effectIndex(st)) + " → 切换（六选一）",
+                    mi(net.minecraft.item.Items.BEACON), 2,
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#bfx")); });
+            addMenu("等级: " + (com.sdzjz.item.InfiniteBeaconItem.level(st) == 1 ? "II（料 ×" + Math.max(1, com.sdzjz.config.SdzjzConfig.get().infiniteBeaconLevel2Cost) + "）" : "I") + " → 切换",
+                    mi(net.minecraft.item.Items.NETHER_STAR),
+                    () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#bfl")); });
+        }
         if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调(#zrd 增量哨兵)+模式切换(#zm)；完整面板=手持按设置键
             addMenu("区域 " + com.sdzjz.item.ChunkRemoverItem.regionLabel(st) + " −（Shift×10，重扫）", mi(net.minecraft.item.Items.REDSTONE),
                     () -> { if (p != null) ClientPlayNetworking.send(new NodeFilterPayload(p, idx, "#zrd:" + (hasShiftDown() ? -10 : -1))); });

@@ -44,7 +44,7 @@ public final class SuperBenchRecipes {
         "sdzjz:mega_amethyst_farm", "sdzjz:mega_fishing_machine", "sdzjz:mega_trial_farm",
         "sdzjz:mega_super_smelter", "sdzjz:mega_crop_farm",
         "sdzjz:wither_rose_farm", "sdzjz:wither_killer", "sdzjz:dragon_cannon",
-        "sdzjz:duplicator", "sdzjz:chunk_remover", "sdzjz:chunk_vault"); // m168-m174：工程款与新线终局全入Ⅲ档；m334 复制机=终局中的终局；m376 区块移除器=区块机器线第一台
+        "sdzjz:duplicator", "sdzjz:chunk_remover", "sdzjz:chunk_vault", "sdzjz:infinite_beacon"); // m168-m174：工程款与新线终局全入Ⅲ档；m334 复制机=终局中的终局；m376 区块移除器=区块机器线第一台
     private static int tierOf(String result) {
         return TIER1.contains(result) ? 1 : TIER3.contains(result) ? 3 : 2;
     }
@@ -113,6 +113,10 @@ public final class SuperBenchRecipes {
                 "minecraft:nether_star", 2, "minecraft:heavy_core", 1, "minecraft:ender_chest", 8,
                 "minecraft:shulker_shell", 4, "minecraft:amethyst_block", 16, "minecraft:obsidian", 32,
                 "minecraft:diamond_block", 8, HOP, 8, CHE, 4); // 合计 83+核心模块4=87 布局位（≤144）
+        bom("sdzjz:infinite_beacon", "", // m399 无限距离信标=第101台（信标主题：四信标+双星+回声碎片"无视距离"意象）
+                "minecraft:beacon", 4, "minecraft:nether_star", 2, "minecraft:echo_shard", 8,
+                "minecraft:netherite_block", 2, "minecraft:diamond_block", 8, "minecraft:emerald_block", 8,
+                "minecraft:obsidian", 16, HOP, 4, CHE, 2); // 合计 54+核心模块4=58 布局位（≤144）
         bom("sdzjz:grindstone_recycler", "", "minecraft:grindstone", 2, "minecraft:book", 4,
                 "minecraft:stone", 8, "minecraft:iron_ingot", 8, HOP, 4, CHE, 2);
         bom("sdzjz:bamboo_farm", "", "minecraft:bamboo", 8, OSV, 8, PIS, 8, RSD, 8, SST, 24, HOP, 4, CHE, 2);

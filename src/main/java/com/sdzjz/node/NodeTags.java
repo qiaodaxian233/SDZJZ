@@ -182,6 +182,11 @@ public final class NodeTags {
      *  zw=1 语义不变；关掉写 2。刻意不换键：换键=老档丢设定，三态是零迁移的写法。 */
     public static boolean chunkSealOn(ItemStack s) { return viewOf(s).getInt("zw") != 2; }
 
+    /** m399 无限距离信标：效果序号（bfx，缺键=0=急迫）与等级（bfl，0=I 级 / 1=II 级）。 */
+    public static int beaconEffect(ItemStack s) { return viewOf(s).getInt("bfx"); }
+
+    public static int beaconLevel(ItemStack s) { return viewOf(s).getInt("bfl"); }
+
     /** m398 本拍撞到的上限（0=没撞 1=每拍方块硬顶 2=墙钟时间片）——副行说人话用，m99 反静默。 */
     public static int chunkLimited(ItemStack s) { return viewOf(s).getInt("zl"); }
 

@@ -42,6 +42,9 @@ public final class Machines {
     /** 区块储存器（m381，三件套第二刀·第 100 台）：只读扫描区块→模板入服务端库→产"区块数据核心"×1
      *  （引用式凭证，组件物品永走真栈通道）。 */
     public static final MachineDef CHUNK_VAULT = new MachineDef("chunk_vault", List.of(), 40, false, List.of());
+    /** 无限距离信标（m399，作者点名·第 101 台）：拆掉原版信标三条枷锁（金字塔/天空/距离），
+     *  每周期从存储扣一份信标料，把选定效果刷给全服玩家（默认跨维度）；效果刷新式不叠加。 */
+    public static final MachineDef INFINITE_BEACON = new MachineDef("infinite_beacon", List.of(), 80, false, List.of());
 
     // ===== m135 G组杂项（原版生存精准采集也拿不到的三件）→ m143 合并为一台（用户拍板：概念图一图=一机）=====
     /** G组杂项机器：蛛网+孢子花+紫水晶全套一台出（三仓一体，图标=概念图整图）。 */

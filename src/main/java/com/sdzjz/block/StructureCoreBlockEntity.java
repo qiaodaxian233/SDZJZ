@@ -1403,6 +1403,45 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.stat(i, doneZ ? 0 : 1); // 本拍全是空气/名单外段=游标在走照亮绿灯；真见底=待机
                 }
                 be.markDirty(); // 游标进度在节点 NBT 里，动了就存
+            } else if (st.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) {
+                // m399 无限距离信标（作者点名·第 101 台）：原版信标三条枷锁（金字塔/天空可见/50 格距离）
+                // 一次拆干净——每周期从存储扣一份信标料，把选定效果**刷给全服在线玩家**（默认跨维度，
+                // config 可收成"只管本核心所在维度"）。接线五件：tick=本分支 / accepts=恒假（掉落表空+
+                // consumesInputs=false，accepts0 尾兜自然为假，料从存储扣不吃路由）/ setNodeTarget=不适用
+                // （效果与等级走菜单两哨兵 #bfx #bfl）/ 徽章=副行 canvasLine / chainWants=显式零需求
+                // （不吃线上料自然不拉料，复制机同律）。效果刷新式=速度/数量升级对本机零收益，tooltip 已明写（m99）。
+                if (!cfg.infiniteBeaconEnabled) { be.statR(i, 2, "无限距离信标已在配置停用（infiniteBeaconEnabled）"); continue; }
+                if (!(world instanceof net.minecraft.server.world.ServerWorld swb)) continue;
+                int cyclesB = be.cyclesThisTick(i, 80, speedLv, cfg);
+                if (cyclesB <= 0) continue;
+                int fxB = com.sdzjz.item.InfiniteBeaconItem.effectIndex(st);
+                int lvB = com.sdzjz.item.InfiniteBeaconItem.level(st);
+                net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.effect.StatusEffect> fxEB =
+                        com.sdzjz.item.InfiniteBeaconItem.effectEntry(fxB);
+                if (fxEB == null) { be.statR(i, 3, "效果在本版本注册表里查不到（" + com.sdzjz.item.InfiniteBeaconItem.FX_ID[fxB] + "）：菜单换一个效果"); continue; }
+                com.sdzjz.machine.StorageAccess accB = be.supplyFor(world, i);
+                if (accB == null) {
+                    if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
+                    accB = src;
+                }
+                if (accB == null) { be.statR(i, 3, "未接存储网络（信标料从仓里扣）"); continue; }
+                int needB = Math.max(1, cfg.infiniteBeaconFuelPerCycle)
+                        * (lvB == 1 ? Math.max(1, cfg.infiniteBeaconLevel2Cost) : 1);
+                String paidB = null;
+                for (String fidB : com.sdzjz.item.InfiniteBeaconItem.FUELS) { // 从便宜到贵依次扣（原版收料表同款）
+                    if (accB.count(fidB) < needB) continue;
+                    if (accB.withdraw(fidB, needB) > 0) { paidB = fidB; break; }
+                }
+                if (paidB == null) { be.statR(i, 3, "没料：仓里要有 铁锭/金锭/绿宝石/钻石/下界合金锭 任一（本周期需 " + needB + " 个），不赊账"); continue; }
+                int durB = Math.max(1, cfg.infiniteBeaconEffectSeconds) * 20;
+                boolean crossB = cfg.infiniteBeaconCrossDimension;
+                for (net.minecraft.server.network.ServerPlayerEntity spB : swb.getServer().getPlayerManager().getPlayerList()) {
+                    if (!crossB && spB.getWorld() != world) continue; // 收成同维度时只管本核心这层
+                    if (spB.isSpectator()) continue;
+                    spB.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                            fxEB, durB, lvB, true, false, true)); // ambient=true 边框淡；粒子关（全服常驻不刷屏）；图标留
+                }
+                be.stat(i, 1);
             } else if (st.getItem() instanceof MachineItem vd && "villager_discount_machine".equals(vd.def().id())) {
                 // m145 村民打折机（用户拍板：独立画布机自动治愈）：吃网络金苹果给共网交易所里的合同
                 // 升折扣。1 苹果=1 级与交易所手动治愈同价（自动化不改经济账）；低折扣合同优先补短板；
@@ -2145,6 +2184,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 markDirty();
                 syncToClient();
             }
+            return;
+        }
+        if (("#bfx".equals(id) || "#bfl".equals(id)) && s.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 效果/等级循环
+            NbtCompound nbf = nbtOf(s);
+            if ("#bfx".equals(id)) nbf.putInt("bfx", com.sdzjz.item.InfiniteBeaconItem.nextEffect(nbf.getInt("bfx")));
+            else nbf.putInt("bfl", nbf.getInt("bfl") >= 1 ? 0 : 1);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbf));
+            markDirty();
+            syncToClient();
             return;
         }
         if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
