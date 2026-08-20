@@ -508,7 +508,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (left > 0) { // m157 搬仓：机器目标推不完的余量走定向存储出线（明确目的地，非默认路由）
                         com.sdzjz.machine.StorageAccess depX = be.depositFor(world, i);
                         if (depX != null) {
-                            be.depositOrBuffer(depX, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)),
+                            be.depositOrBuffer(depX, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)),
                                     (int) Math.min(left, Integer.MAX_VALUE)));
                             left = 0;
                         }
@@ -562,7 +562,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int running = runningCount(st, parallelLv, tier);   // m99 并发直接乘台数
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 提前解析：封顶只对"进内部缓存"生效
-                int maxStack = BuiltInRegistries.ITEM.get(ResourceLocation.of(target)).getMaxCount();
+                int maxStack = BuiltInRegistries.ITEM.get(ResourceLocation.parse(target)).getMaxCount();
                 CraftPlanner.Plan plan; // m234 都不齐回退首候选按原版材料报缺料（Exec.plan 同口径）
                 CraftPlanner.Exec ex;   // m349 一次成型执行计划：快照→选配方→次数→实扣→残留 单趟（存储每去重 id 只查一次，销"重复算三遍"）
                 final long baseCrafts = crafts;
@@ -598,13 +598,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 int total = (int) Math.min(Integer.MAX_VALUE, crafts * plan.resultCount());
                 be.prodTally(total); // m86 实测产量
                 if (hasOut[i]) be.distribute(world, i, outT[i], target, total);
-                else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(target)), total));
-                else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(target)), total));
+                else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(target)), total));
+                else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(target)), total));
                 for (var en : ex.remainders().entrySet()) { // 容器残留（桶等）返还——m343 按实际消耗物结算（值已是总量，m349 随 Exec 单趟出）
                     int rc = (int) Math.min(64L * OUTPUT_SLOTS, en.getValue());
                     if (hasOut[i]) be.distribute(world, i, outT[i], en.getKey(), rc);
-                    else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(en.getKey())), rc));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(en.getKey())), rc));
+                    else if (depositAc != null) be.depositOrBuffer(depositAc, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(en.getKey())), rc));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(en.getKey())), rc));
                 }
                 produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) {
@@ -735,8 +735,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (cappedCf) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
-                    else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) total));
+                    else if (depositCf != null) be.depositOrBuffer(depositCf, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) total));
                     produced = true;
                 }
             } else if (st.getItem() instanceof MachineItem miu && com.sdzjz.machine.Machines.smelterFamily(miu.def().id())) { // m173 熔炉族
@@ -762,8 +762,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         be.bufWithdrawFor(i, id, take);
                         long give = take * (int) out[1];
                         if (hasOut[i]) be.distribute(world, i, outT[i], (String) out[0], give);
-                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
-                        else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
+                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += take;
                         be.prodTally(give); // m124 补漏：入线喂料路径此前不计产量——用户熔炉狂产14.2M碎片而实测只显农场的1311/分
                     }
@@ -785,8 +785,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (got <= 0) continue;
                         long give = (long) got * (int) out[1];
                         if (hasOut[i]) be.distribute(world, i, outT[i], (String) out[0], give);
-                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
-                        else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
+                        else if (depositSm != null) be.depositOrBuffer(depositSm, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse((String) out[0])), (int) Math.min(give, Integer.MAX_VALUE)));
+                        else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse((String) out[0])), (int) Math.min(give, 64L * OUTPUT_SLOTS)));
                         done += got;
                         be.prodTally(give); // m86 实测产量
                     }
@@ -909,7 +909,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     var regT = world.getRegistryManager()
                             .getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                     var entryT = regT.getOrThrow(net.minecraft.resources.ResourceKey.of(
-                            net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.of(t.enchant())));
+                            net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
                     bookT.addEnchantment(entryT, t.enchantLv());
                     be.prodTally(attempts);
                     if (depositT != null) be.depositOrBuffer(depositT, bookT);
@@ -919,8 +919,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.prodTally(totalT);
                     if (hasOut[i]) be.distribute(world, i, outT[i], t.outItem(), totalT);
                     else if (depositT != null) be.depositOrBuffer(depositT, new ItemStack(
-                            BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())), (int) Math.min(totalT, Integer.MAX_VALUE)));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())), (int) totalT));
+                            BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())), (int) Math.min(totalT, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())), (int) totalT));
                 }
                 be.xpPool += 4.5 * attempts;
                 produced = true;
@@ -955,8 +955,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 be.prodTally(attempts);
                 if (hasOut[i]) be.distribute(world, i, outT[i], tgtD, attempts);
                 else if (depositD != null) be.depositOrBuffer(depositD, new ItemStack(
-                        BuiltInRegistries.ITEM.get(ResourceLocation.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
-                else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
+                        BuiltInRegistries.ITEM.get(ResourceLocation.parse(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
+                else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(tgtD)), (int) Math.min(attempts, Integer.MAX_VALUE)));
                 be.xpPool -= (double) xpEach * attempts;
                 produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) {
@@ -1513,8 +1513,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
                     be.prodTally(sum);
                     if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), sum);
-                    else if (depositSk != null) be.depositOrBuffer(depositSk, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) Math.min(sum, Integer.MAX_VALUE)));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) sum));
+                    else if (depositSk != null) be.depositOrBuffer(depositSk, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) Math.min(sum, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) sum));
                     produced = true;
                 }
             } else if (st.getItem() instanceof MachineItem mi) {
@@ -1572,8 +1572,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (cappedMi) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
-                    else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) total));
+                    else if (depositMi != null) be.depositOrBuffer(depositMi, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) total));
                     produced = true;
                 }
                 double mxp = MachineXp.of(def.id());
@@ -1596,8 +1596,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     if (cappedCg) total = Math.min(total, 64L * OUTPUT_SLOTS);
                     be.prodTally(total); // m86 实测产量
                     if (hasOut[i]) be.distribute(world, i, outT[i], d.item(), total);
-                    else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
-                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(d.item())), (int) total));
+                    else if (depositCg != null) be.depositOrBuffer(depositCg, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) Math.min(total, Integer.MAX_VALUE)));
+                    else be.addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(d.item())), (int) total));
                     produced = true;
                 }
                 double cxp = MachineXp.mob(mob);
@@ -1810,7 +1810,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (var e : net.minecraft.core.registries.BuiltInRegistries.INSTRUMENT.iterateEntries(
                 net.minecraft.tags.InstrumentTags.GOAT_HORNS)) vars.add(e);
         if (vars.isEmpty()) { // 数据包清空标签的兜底：裸角照常入库（普通条目），产量不蒸发
-            ItemStack bare = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of("minecraft:goat_horn")),
+            ItemStack bare = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse("minecraft:goat_horn")),
                     (int) Math.min(total, Integer.MAX_VALUE));
             if (deposit != null) depositOrBuffer(deposit, bare); else addOutput(bare);
             return;
@@ -1822,7 +1822,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (long r = 0; r < rem; r++) share[rand.nextInt(vars.size())]++;
         for (int k = 0; k < vars.size(); k++) {
             if (share[k] <= 0) continue;
-            ItemStack horn = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of("minecraft:goat_horn")),
+            ItemStack horn = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse("minecraft:goat_horn")),
                     (int) Math.min(share[k], Integer.MAX_VALUE));
             horn.set(DataComponents.INSTRUMENT, vars.get(k));
             if (deposit != null) depositOrBuffer(deposit, horn);
@@ -2324,7 +2324,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 画布读取阻塞原因（客户端）。 */
     public String nodeReason(int i) { return i >= 0 && i < nodeReason.size() ? nodeReason.get(i) : ""; }
     private static String itemName(String id) {
-        try { return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id))).getName().getString(); } catch (Exception e) { return id; }
+        try { return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id))).getName().getString(); } catch (Exception e) { return id; }
     }
     /** m343 候选组口径缺料报告：第一处"组内全部替代材料合计仍不够单次"的槽位（报首选名，量=候选合计）。 */
     private String whyMissingPlan(CraftPlanner.Plan p, java.util.function.ToLongFunction<String> stock, String scope) {
@@ -3097,7 +3097,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (world instanceof net.minecraft.server.level.ServerLevel sw) {
             ResourceKey<Level> key;
             try {
-                key = ResourceKey.of(Registries.WORLD, ResourceLocation.of(dim));
+                key = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(dim));
             } catch (Exception e) {
                 return null; // 畸形维度串：不炸 tick
             }
@@ -3218,7 +3218,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private Level resolveDimWorld(Level base, String dim) {
         if (dim == null || dim.isEmpty() || base.getRegistryKey().getValue().toString().equals(dim)) return base;
         if (base instanceof net.minecraft.server.level.ServerLevel sw)
-            return sw.getServer().getWorld(ResourceKey.of(Registries.WORLD, ResourceLocation.of(dim)));
+            return sw.getServer().getWorld(ResourceKey.of(Registries.WORLD, ResourceLocation.parse(dim)));
         return null;
     }
     public java.util.List<String> storageEndpointDimsView() { return storageEndpointDims; }
@@ -3304,7 +3304,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         if (amt <= 0) return;
         com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex);
-        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
+        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
         if (dep != null) depositOrBuffer(dep, rest);
         else addOutput(rest);
     }
@@ -3338,7 +3338,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         if (amt <= 0) return;
         com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex); // 剩余按定向存储→默认路由
-        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
+        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
         if (dep != null) depositOrBuffer(dep, rest);
         else addOutput(rest);
     }
@@ -3419,7 +3419,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (sum > BUF_CAP) {
             long spill = sum - BUF_CAP;
             internalBuffer.put(id, BUF_CAP);
-            addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)), (int) Math.min(spill, 64L * OUTPUT_SLOTS)));
+            addOutput(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)), (int) Math.min(spill, 64L * OUTPUT_SLOTS)));
         } else {
             internalBuffer.put(id, sum);
         }
@@ -3828,7 +3828,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 绑定目标可达则返回（同维度需无线/卫星/有线可达；跨维度需卫星）。优先级最高。 */
     private StorageCoreBlockEntity boundPanel(Level world, BlockPos corePos) {
         if (boundPanelPos == null || boundPanelDim == null) return null;
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.of(boundPanelDim));
+        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(boundPanelDim));
         boolean sameDim = world.getRegistryKey().equals(dimKey);
         if (sameDim) {
             long dx = boundPanelPos.getX() - corePos.getX(), dy = boundPanelPos.getY() - corePos.getY(), dz = boundPanelPos.getZ() - corePos.getZ();
@@ -3932,10 +3932,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     // ================= NBT =================
     @Override
-    protected void writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.writeNbt(nbt, lookup);
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.saveAdditional(nbt, lookup);
         // m275：以下为存档专属字段（画布客户端从不消费：items=画布handler无槽位、双缓存/绑定/运行池/强载/所有权纯服务端）
-        ContainerHelper.writeNbt(nbt, items, lookup);
+        ContainerHelper.saveAllItems(nbt, items, lookup);
         CompoundTag buf = new CompoundTag();
         for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
         nbt.put("internalBuffer", buf);
@@ -3971,7 +3971,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  存档 writeNbt 与 flushCanvasSnapshot 共用。 */
     private void writeRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
         ListTag mn = new ListTag();
-        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.encode(lookup));
+        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.save(lookup));
         nbt.put("machineNodes", mn);
         int[] flat = new int[connections.size() * 2];
         for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
@@ -4019,9 +4019,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     @Override
-    protected void readNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.readNbt(nbt, lookup);
-        ContainerHelper.readNbt(nbt, items, lookup);
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.loadAdditional(nbt, lookup);
+        ContainerHelper.loadAllItems(nbt, items, lookup);
         readRenderNbt(nbt, lookup); // m275：渲染子集先读——下方 nodeBufs 循环依赖 machineNodes.size()
         internalBuffer.clear();
         CompoundTag buf = nbt.getCompound("internalBuffer");
@@ -4074,7 +4074,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             CompoundTag mc = mn.getCompound(i);
             String mid = MERGED_IDS.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
             if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
-            ItemStack.fromNbt(lookup, mc).ifPresent(machineNodes::add);
+            ItemStack.parse(lookup, mc).ifPresent(machineNodes::add);
         }
         connections.clear();
         int[] flat = nbt.getIntArray("connections");

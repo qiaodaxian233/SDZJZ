@@ -91,7 +91,7 @@ public class PortableVaultItem extends Item {
         CompoundTag v = root.getCompound(K_VAULT);
         for (String id : new java.util.ArrayList<>(v.getKeys())) {
             long left = v.getLong(id);
-            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
+            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
             if (it == net.minecraft.world.item.Items.AIR) { v.remove(id); continue; } // 卸模组遗留死键：清账不造物
             while (left > 0) {
                 int chunk = (int) Math.min(1_000_000_000L, left);

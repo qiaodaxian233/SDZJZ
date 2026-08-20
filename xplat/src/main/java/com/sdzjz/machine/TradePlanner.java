@@ -67,10 +67,10 @@ public final class TradePlanner {
         VillagerTrades.Trade t = trade(target);
         if (t == null) return null;
         if (t.enchant() != null) return new ItemStack(Items.ENCHANTED_BOOK);
-        return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())));
+        return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())));
     }
 
     private static Component itemName(String id) {
-        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)).getTranslationKey());
+        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)).getTranslationKey());
     }
 }

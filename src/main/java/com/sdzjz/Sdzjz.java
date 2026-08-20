@@ -336,6 +336,6 @@ public class Sdzjz implements ModInitializer {
     }
 
     public static ResourceLocation id(String path) {
-        return ResourceLocation.of(MOD_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 }

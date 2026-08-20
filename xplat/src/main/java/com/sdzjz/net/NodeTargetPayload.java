@@ -11,17 +11,17 @@ import net.minecraft.core.BlockPos;
 public record NodeTargetPayload(BlockPos pos, int index, String target) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<NodeTargetPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_target"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "node_target"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, NodeTargetPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, NodeTargetPayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeTargetPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, NodeTargetPayload::pos,
             ByteBufCodecs.INTEGER, NodeTargetPayload::index,
             Bounded.string(256), NodeTargetPayload::target, // m291 目标串(附魔/药水/交易键)给宽些
             NodeTargetPayload::new
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

@@ -11,10 +11,10 @@ import net.minecraft.core.BlockPos;
 public record NodeMovePayload(BlockPos pos, int index, int nx, int ny) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<NodeMovePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_move"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "node_move"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, NodeMovePayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, NodeMovePayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeMovePayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, NodeMovePayload::pos,
             ByteBufCodecs.INTEGER, NodeMovePayload::index,
             ByteBufCodecs.INTEGER, NodeMovePayload::nx,
             ByteBufCodecs.INTEGER, NodeMovePayload::ny,
@@ -22,7 +22,7 @@ public record NodeMovePayload(BlockPos pos, int index, int nx, int ny) implement
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

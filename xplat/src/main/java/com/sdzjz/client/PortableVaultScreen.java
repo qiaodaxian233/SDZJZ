@@ -58,12 +58,12 @@ public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultSc
             boolean ini = PinyinInitials.applicable(q);
             ids.removeIf(id -> {
                 String name = nameLc.computeIfAbsent(id, k ->
-                        new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(k))).getName().getString()
+                        new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(k))).getName().getString()
                                 .toLowerCase(java.util.Locale.ROOT));
                 if (name.contains(q) || id.contains(q)) return false;
                 if (ini) {
                     String key = initKey.computeIfAbsent(id, k ->
-                            PinyinInitials.of(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(k))).getName().getString()));
+                            PinyinInitials.of(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(k))).getName().getString()));
                     if (!key.isEmpty() && key.contains(q)) return false;
                 }
                 return true;
@@ -109,7 +109,7 @@ public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultSc
                     && mouseY >= ry && mouseY < ry + PortableVaultScreenHandler.ROW_H - 2;
             if (hov) ctx.fill(x + LIST_X, ry, x + LIST_X + LIST_W, ry + PortableVaultScreenHandler.ROW_H - 2, SciSkin.HOVER);
             String id = ids.get(idx);
-            ItemStack icon = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)));
+            ItemStack icon = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)));
             ctx.drawItem(icon, x + LIST_X + 1, ry);
             ctx.drawText(this.textRenderer, icon.getName().getString(), x + LIST_X + 20, ry + 4,
                     hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);

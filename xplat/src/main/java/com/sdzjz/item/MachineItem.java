@@ -61,6 +61,6 @@ public class MachineItem extends Item {
     }
 
     private static String itemName(String id) {
-        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)).getTranslationKey()).getString();
+        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)).getTranslationKey()).getString();
     }
 }

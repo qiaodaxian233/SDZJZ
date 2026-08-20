@@ -21,10 +21,10 @@ public record StorageNodeHomePayload(BlockPos pos,
                                      List<Integer> ny) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<StorageNodeHomePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "storage_node_home"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "storage_node_home"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeHomePayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, StorageNodeHomePayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeHomePayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, StorageNodeHomePayload::pos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), StorageNodeHomePayload::endPos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::nx,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::ny,
@@ -32,7 +32,7 @@ public record StorageNodeHomePayload(BlockPos pos,
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

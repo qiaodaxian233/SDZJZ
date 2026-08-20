@@ -47,7 +47,7 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
         ItemStack frame = new ItemStack(frameItem);
         var frameModel = ir.getModel(frame, mc.world, null, 0);
         String id = CompressedPackItem.innerId(stack);
-        Item innerItem = id != null ? BuiltInRegistries.ITEM.get(ResourceLocation.of(id)) : Items.AIR;
+        Item innerItem = id != null ? BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)) : Items.AIR;
         boolean hasInner = innerItem != Items.AIR && !(innerItem instanceof CompressedPackItem);
         int spd = com.sdzjz.config.SdzjzConfig.get().compressedPackSpinDegPerSec;
 

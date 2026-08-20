@@ -21,7 +21,7 @@ import org.joml.Vector3f;
  */
 public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlockEntity> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/storage_core.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/block/storage_core.png");
 
     public StorageCoreRenderer(BlockEntityRendererProvider.Context ctx) {}
 

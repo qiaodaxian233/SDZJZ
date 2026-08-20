@@ -12,7 +12,7 @@ import net.minecraft.core.BlockPos;
  * 消耗类机器亦可无线取料。带渲染 BE 播放用户模型的信号波动画。
  */
 public class WirelessNodeBlock extends Block implements EntityBlock {
-    public WirelessNodeBlock(Settings settings) {
+    public WirelessNodeBlock(Properties settings) {
         super(settings);
     }
 

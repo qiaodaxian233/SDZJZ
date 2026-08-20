@@ -36,7 +36,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
     @Override
     public java.util.List<CraftPlanner.Plan> craftingPlans(Object level, String targetId) {
         Level world = (Level) level; // 代际句柄向下转型：Legacy 世界即原版 Level
-        Item target = BuiltInRegistries.ITEM.get(ResourceLocation.of(targetId));
+        Item target = BuiltInRegistries.ITEM.get(ResourceLocation.parse(targetId));
         if (target == Items.AIR) return java.util.List.of();
         java.util.List<Map.Entry<ResourceLocation, CraftPlanner.Plan>> found = new java.util.ArrayList<>();
         for (RecipeHolder<CraftingRecipe> entry : world.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
@@ -102,7 +102,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
 
     @Override
     public String craftRemainderOf(String itemId) {
-        Item rem = BuiltInRegistries.ITEM.get(ResourceLocation.of(itemId)).getRecipeRemainder();
+        Item rem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)).getRecipeRemainder();
         return rem != null ? BuiltInRegistries.ITEM.getId(rem).toString() : null;
     }
 

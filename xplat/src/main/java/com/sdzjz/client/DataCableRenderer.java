@@ -23,7 +23,7 @@ import org.joml.Vector3f;
  */
 public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEntity> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/data_cable.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/block/data_cable.png");
     /** 各方向：把"指北"的局部脉冲转到该方向的四元数（对照多部件 blockstate 旋转）。 */
     private static final Direction[] DIRS = Direction.values();
 

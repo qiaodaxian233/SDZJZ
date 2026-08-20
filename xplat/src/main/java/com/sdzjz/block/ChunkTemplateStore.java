@@ -40,7 +40,7 @@ public class ChunkTemplateStore extends SavedData {
     }
 
     @Override
-    public CompoundTag writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+    public CompoundTag save(CompoundTag nbt, HolderLookup.Provider lookup) {
         CompoundTag m = new CompoundTag();
         for (Map.Entry<UUID, CompoundTag> e : templates.entrySet()) m.put(e.getKey().toString(), e.getValue());
         nbt.put("tpls", m);

@@ -151,7 +151,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                 while (need > 0 && !s.isEmpty()) {
                     s.decrement(1);
                     if (pk.ratio > need) { // 防御性找零：多出来的拆成散件回网格
-                        ItemStack change = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(e.getKey())), 1);
+                        ItemStack change = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey())), 1);
                         int left = pk.ratio - need;
                         while (left > 0) {
                             int chunk = Math.min(left, change.getMaxCount());
@@ -238,7 +238,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         Map<String, Integer> pool = new HashMap<>();
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子单独处理
-            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.of(e.getKey()));
+            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey()));
             pool.put(e.getKey(), takeFromInv(player, item, e.getValue()));
         }
         // 按蓝图布局逐格摆放（1 格 1 件；缺料的格留空）
@@ -252,7 +252,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             }
             int have = pool.getOrDefault(want, 0);
             if (have > 0) {
-                input.setStack(i, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(want)), 1));
+                input.setStack(i, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(want)), 1));
                 pool.put(want, have - 1);
             }
         }
@@ -303,7 +303,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             int lack = e.getValue() - grid.getOrDefault(e.getKey(), 0);
             if (lack <= 0) continue;
             if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子按生物逐只报，见下
-            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.of(e.getKey()));
+            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey()));
             missing.add(it.getName().getString() + "×" + lack);
         }
         java.util.List<String> cageMiss = new java.util.ArrayList<>(); // 缺笼或装错生物的，报生物名
@@ -317,7 +317,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             if (!found) {
                 String mn;
                 try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
-                        .get(ResourceLocation.of(mob)).getName().getString(); }
+                        .get(ResourceLocation.parse(mob)).getName().getString(); }
                 catch (Exception ex) { mn = mob; }
                 cageMiss.add(mn);
             }
@@ -421,7 +421,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                     if (in == null) continue;
                     ItemStack proto = pass == 0
                             ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
-                            : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(in)), 1);
+                            : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(in)), 1);
                     int can = (int) Math.min(s.getCount(), capacityAll(player, proto) / 64); // 一包出64件
                     if (can <= 0) { spaceOut = true; continue; }
                     if (can < s.getCount()) spaceOut = true; // 本槽没拆完=空间见底（若腾出槽位下一轮还会进来）

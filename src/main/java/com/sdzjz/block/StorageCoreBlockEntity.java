@@ -397,7 +397,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         @Override public Iterator<StorageView<ItemVariant>> iterator() {
             List<StorageView<ItemVariant>> views = new ArrayList<>(store.size() + exactTpl.size());
             for (String id : store.keySet()) { // m350 撤键拷贝：views 表在此建完才外泄，外部 extract 只动 views 走 View 懒读，建表期 store 零突变（原"迭代中抽空"担忧指向返回后的消费期，与建表游标无关）
-                Item it = BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
+                Item it = BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
                 ItemVariant v = ItemVariant.of(it);
                 if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
                 views.add(new View(v, id));
@@ -455,8 +455,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     @Override
-    protected void writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.writeNbt(nbt, lookup);
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.saveAdditional(nbt, lookup);
         nbt.putInt("tier", tier);
         ListTag list = new ListTag();
         for (Map.Entry<String, Long> e : store.entrySet()) {
@@ -469,7 +469,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         ListTag ex = new ListTag(); // m130：精确账本持久化（模板 encode + long 计数）
         for (int i = 0; i < exactTpl.size(); i++) {
             CompoundTag c = new CompoundTag();
-            c.put("item", exactTpl.get(i).encode(lookup));
+            c.put("item", exactTpl.get(i).save(lookup));
             c.putLong("n", exactN.get(i));
             ex.add(c);
         }
@@ -478,8 +478,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     @Override
-    protected void readNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.readNbt(nbt, lookup);
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.loadAdditional(nbt, lookup);
         tier = Math.max(1, nbt.getInt("tier"));
         xpBank = Math.max(0, nbt.getLong("xpBank"));
         store.clear();
@@ -500,7 +500,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         ListTag ex = nbt.getList("exact", Tag.COMPOUND_TYPE);
         for (int i = 0; i < ex.size(); i++) {
             CompoundTag c = ex.getCompound(i);
-            ItemStack t = ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY);
+            ItemStack t = ItemStack.parse(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY);
             long n = c.getLong("n");
             if (!t.isEmpty() && n > 0) { exactTpl.add(t.copyWithCount(1)); exactN.add(n); }
         }

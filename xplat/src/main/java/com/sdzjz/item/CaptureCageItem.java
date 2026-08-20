@@ -88,7 +88,7 @@ public class CaptureCageItem extends Item {
         String id = cagedType(stack);
         if (id != null) {
             Component name;
-            try { name = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.of(id)).getName(); }
+            try { name = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).getName(); }
             catch (Exception ex) { name = Component.literal(id); }
             tooltip.add(Component.literal("已捕获: ").append(name).formatted(net.minecraft.ChatFormatting.GREEN));
             tooltip.add(Component.literal("可插画布刷掉落，或作刷怪机器的合成材料").formatted(net.minecraft.ChatFormatting.GRAY));

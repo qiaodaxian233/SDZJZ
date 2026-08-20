@@ -232,12 +232,12 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             var reg = this.world.getRegistryManager()
                     .getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
             var entry = reg.getOrThrow(net.minecraft.resources.ResourceKey.of(
-                    net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.of(t.enchant())));
+                    net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
             book.addEnchantment(entry, t.enchantLv());
             if (!player.getInventory().insertStack(book)) player.dropItem(book, false);
             player.sendMessage(Component.literal("附魔书已放入背包（带附魔物品不进仓储，防丢附魔）"), true);
         } else {
-            ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())), t.outCount());
+            ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())), t.outCount());
             if (!netDeposit(out)) {
                 // 存储满类型收不下：还给玩家，别凭空消失
                 if (!player.getInventory().insertStack(out)) player.dropItem(out, false);
@@ -272,17 +272,17 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     @Override
-    protected void writeNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
-        super.writeNbt(nbt, lookup);
+    protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
+        super.saveAdditional(nbt, lookup);
         ItemStack c = contractSlot.getStack(0);
-        if (!c.isEmpty()) nbt.put("contract", c.encode(lookup));
+        if (!c.isEmpty()) nbt.put("contract", c.save(lookup));
     }
 
     @Override
-    protected void readNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
-        super.readNbt(nbt, lookup);
+    protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
+        super.loadAdditional(nbt, lookup);
         contractSlot.setStack(0, nbt.contains("contract")
-                ? ItemStack.fromNbt(lookup, nbt.getCompound("contract")).orElse(ItemStack.EMPTY)
+                ? ItemStack.parse(lookup, nbt.getCompound("contract")).orElse(ItemStack.EMPTY)
                 : ItemStack.EMPTY);
     }
 

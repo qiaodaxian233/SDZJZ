@@ -33,9 +33,9 @@ import java.util.List;
  * 要原汁关键帧下一步解 outliner+animators。geo 读取失败=只渲静态兜底，不炸。
  */
 public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeBlockEntity> {
-    private static final ResourceLocation GEO_ID = ResourceLocation.of("sdzjz", "models/block/satellite_node_geo.json");
-    private static final ResourceLocation TEX_ATLAS = ResourceLocation.of("sdzjz", "textures/block/satellite_node_atlas.png");
-    private static final ResourceLocation TEX_JOINT = ResourceLocation.of("sdzjz", "textures/block/satellite_dish_joint.png");
+    private static final ResourceLocation GEO_ID = ResourceLocation.fromNamespaceAndPath("sdzjz", "models/block/satellite_node_geo.json");
+    private static final ResourceLocation TEX_ATLAS = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/block/satellite_node_atlas.png");
+    private static final ResourceLocation TEX_JOINT = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/block/satellite_dish_joint.png");
     private static final float SCAN_PERIOD_S = 3.0f, SIGNAL_PERIOD_S = 1.5f;
 
     /** [group][texture] → quad 列表；quad = float[3法线 + 4×(xyz uv)]，坐标已 /16。 */

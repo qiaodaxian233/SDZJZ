@@ -17,7 +17,7 @@ public class TradeCenterBlock extends BaseEntityBlock {
 
     public static final MapCodec<TradeCenterBlock> CODEC = createCodec(TradeCenterBlock::new);
 
-    public TradeCenterBlock(Settings settings) {
+    public TradeCenterBlock(Properties settings) {
         super(settings);
     }
 

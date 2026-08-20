@@ -160,9 +160,9 @@ public final class SciSkin {
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
     public static final net.minecraft.resources.ResourceLocation SLOT_TEX =
-            net.minecraft.resources.ResourceLocation.of("sdzjz", "textures/gui/slot.png");
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/slot.png");
     public static final net.minecraft.resources.ResourceLocation BUTTON_TEX =
-            net.minecraft.resources.ResourceLocation.of("sdzjz", "textures/gui/button.png");
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/button.png");
 
     /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
     public static void drawSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {

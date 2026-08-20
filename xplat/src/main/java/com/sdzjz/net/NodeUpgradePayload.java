@@ -12,10 +12,10 @@ import net.minecraft.core.BlockPos;
 public record NodeUpgradePayload(BlockPos pos, int index, int type, boolean add, int count) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<NodeUpgradePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_upgrade"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "node_upgrade"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, NodeUpgradePayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, NodeUpgradePayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeUpgradePayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, NodeUpgradePayload::pos,
             ByteBufCodecs.INTEGER, NodeUpgradePayload::index,
             ByteBufCodecs.INTEGER, NodeUpgradePayload::type,
             ByteBufCodecs.BOOL, NodeUpgradePayload::add,
@@ -24,7 +24,7 @@ public record NodeUpgradePayload(BlockPos pos, int index, int type, boolean add,
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

@@ -13,10 +13,10 @@ import net.minecraft.core.BlockPos;
 public record StorageNodeMovePayload(BlockPos pos, long storagePos, int nx, int ny, boolean dock) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<StorageNodeMovePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "storage_node_move"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "storage_node_move"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeMovePayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, StorageNodeMovePayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeMovePayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, StorageNodeMovePayload::pos,
             ByteBufCodecs.VAR_LONG, StorageNodeMovePayload::storagePos,
             ByteBufCodecs.INTEGER, StorageNodeMovePayload::nx,
             ByteBufCodecs.INTEGER, StorageNodeMovePayload::ny,
@@ -25,7 +25,7 @@ public record StorageNodeMovePayload(BlockPos pos, long storagePos, int nx, int 
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

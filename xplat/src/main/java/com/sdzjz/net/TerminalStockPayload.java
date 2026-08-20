@@ -19,9 +19,9 @@ import java.util.List;
 public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> counts, boolean truncated) implements CustomPacketPayload { // m298 truncated=摘要超额被截，客户端"缺席≠0"
 
     public static final CustomPacketPayload.Type<TerminalStockPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "terminal_stock"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "terminal_stock"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, TerminalStockPayload> CODEC = StreamCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, TerminalStockPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, TerminalStockPayload::syncId,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), TerminalStockPayload::ids,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_INT), TerminalStockPayload::counts,
@@ -30,7 +30,7 @@ public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> c
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

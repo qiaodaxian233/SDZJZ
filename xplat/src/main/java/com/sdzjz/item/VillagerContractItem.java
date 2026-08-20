@@ -27,7 +27,7 @@ public class VillagerContractItem extends Item {
         int disc = n.getInt("disc");
         if (!prof.isEmpty()) {
             tooltip.add(Component.literal("已就业：").formatted(ChatFormatting.GOLD)
-                    .append(Component.translatable("entity.minecraft.villager." + ResourceLocation.of(prof).getPath())
+                    .append(Component.translatable("entity.minecraft.villager." + ResourceLocation.parse(prof).getPath())
                             .formatted(ChatFormatting.YELLOW)));
             tooltip.add(Component.literal("折扣 " + disc + "/5（交易输入 -" + disc * 10 + "%）")
                     .formatted(disc >= 5 ? ChatFormatting.GREEN : ChatFormatting.DARK_GREEN));

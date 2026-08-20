@@ -24,10 +24,10 @@ public record CanvasEndsPayload(BlockPos pos,
                                 List<Long> busCounts) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<CanvasEndsPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "canvas_ends"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "canvas_ends"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, CanvasEndsPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, CanvasEndsPayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, CanvasEndsPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, CanvasEndsPayload::pos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), CanvasEndsPayload::endPos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), CanvasEndsPayload::endKind,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), CanvasEndsPayload::endDim,
@@ -37,7 +37,7 @@ public record CanvasEndsPayload(BlockPos pos,
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

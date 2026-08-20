@@ -21,7 +21,7 @@ public class SatelliteNodeBlock extends BaseEntityBlock {
     private static final VoxelShape SHAPE = Shapes.union(
             Block.createCuboidShape(-1.5, 0, 1, 17.5, 10, 15),   // 阶梯底座
             Block.createCuboidShape(4, 10, 5, 12, 16, 11));      // 塔体+桅杆段
-    public SatelliteNodeBlock(Settings settings) {
+    public SatelliteNodeBlock(Properties settings) {
         super(settings);
     }
     @Override

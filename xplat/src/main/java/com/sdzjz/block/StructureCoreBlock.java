@@ -34,7 +34,7 @@ public class StructureCoreBlock extends BaseEntityBlock {
                     Codec.INT.fieldOf("tier").forGetter(b -> b.tier)
             ).apply(instance, StructureCoreBlock::new));
 
-    public StructureCoreBlock(Settings settings, int tier) {
+    public StructureCoreBlock(Properties settings, int tier) {
         super(settings);
         this.tier = tier;
     }

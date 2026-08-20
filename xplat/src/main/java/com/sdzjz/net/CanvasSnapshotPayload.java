@@ -18,16 +18,16 @@ import net.minecraft.core.BlockPos;
 public record CanvasSnapshotPayload(BlockPos pos, CompoundTag nbt) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<CanvasSnapshotPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "canvas_snapshot"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "canvas_snapshot"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, CanvasSnapshotPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, CanvasSnapshotPayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, CanvasSnapshotPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, CanvasSnapshotPayload::pos,
             ByteBufCodecs.UNLIMITED_NBT_COMPOUND, CanvasSnapshotPayload::nbt,
             CanvasSnapshotPayload::new
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

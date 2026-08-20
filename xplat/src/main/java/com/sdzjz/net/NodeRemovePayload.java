@@ -11,16 +11,16 @@ import net.minecraft.core.BlockPos;
 public record NodeRemovePayload(BlockPos pos, int index) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<NodeRemovePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_remove"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "node_remove"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, NodeRemovePayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, NodeRemovePayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeRemovePayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, NodeRemovePayload::pos,
             ByteBufCodecs.INTEGER, NodeRemovePayload::index,
             NodeRemovePayload::new
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

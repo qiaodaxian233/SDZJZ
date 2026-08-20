@@ -269,8 +269,8 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     };
 
     @Override
-    protected void writeNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
-        super.writeNbt(nbt, lookup);
+    protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
+        super.saveAdditional(nbt, lookup);
         // m126a：合成网格持久化（稀疏槽位表，照 StorageCoreBlockEntity/TradeCenter 既有 NBT 写法）
         net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
         for (int i = 0; i < 9; i++) {
@@ -278,22 +278,22 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
             if (st.isEmpty()) continue;
             CompoundTag c = new CompoundTag();
             c.putInt("slot", i);
-            c.put("item", st.encode(lookup));
+            c.put("item", st.save(lookup));
             list.add(c);
         }
         nbt.put("craftGrid", list);
     }
 
     @Override
-    protected void readNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
-        super.readNbt(nbt, lookup);
+    protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
+        super.loadAdditional(nbt, lookup);
         for (int i = 0; i < 9; i++) craftGrid.setStack(i, ItemStack.EMPTY);
         net.minecraft.nbt.ListTag list = nbt.getList("craftGrid", net.minecraft.nbt.Tag.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {
             CompoundTag c = list.getCompound(i);
             int s = c.getInt("slot");
             if (s >= 0 && s < 9)
-                craftGrid.setStack(s, ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
+                craftGrid.setStack(s, ItemStack.parse(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
         }
     }
 

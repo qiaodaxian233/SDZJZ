@@ -168,7 +168,7 @@ jobs:
           git config user.name ci-bot
           git config user.email ci@local
           git checkout -B ci-mojmap-errors
-          grep -A2 -E "\.java:[0-9]+: (error|错误)" gradle-build.log > ci-javac-errors.log || tail -c 200000 gradle-build.log > ci-javac-errors.log
+          grep -A4 -E "\.java:[0-9]+: (error|错误)" gradle-build.log > ci-javac-errors.log || tail -c 200000 gradle-build.log > ci-javac-errors.log
           echo "错误条数: $(grep -cE '\.java:[0-9]+: (error|错误)' gradle-build.log || echo 0)" >> ci-javac-errors.log
           git add -f ci-javac-errors.log
           git commit -m "mojmap 编译错误清单 $GITHUB_SHA" || true

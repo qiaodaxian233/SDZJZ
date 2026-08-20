@@ -26,7 +26,7 @@ public class StorageCoreBlock extends BaseEntityBlock {
 
     public static final MapCodec<StorageCoreBlock> CODEC = createCodec(StorageCoreBlock::new);
 
-    public StorageCoreBlock(Settings settings) {
+    public StorageCoreBlock(Properties settings) {
         super(settings);
     }
 

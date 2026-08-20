@@ -75,7 +75,7 @@ public class TerminalItem extends Item {
         }
         CompoundTag nbt = c.copyNbt();
         BlockPos target = BlockPos.fromLong(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.of(nbt.getString(K_DIM)));
+        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(nbt.getString(K_DIM)));
 
         Level tw = world;
         if (!world.getRegistryKey().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw) {
@@ -132,7 +132,7 @@ public class TerminalItem extends Item {
             // 手里打空了 → 按上次手持记忆直接补一组到手（用户点名的行为）
             DataPanelBlockEntity panel = resolvePanel(world, nbt);
             if (panel == null) return;
-            net.minecraft.world.item.Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.of(last));
+            net.minecraft.world.item.Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(last));
             int got = panel.withdraw(last, Math.min(th, new ItemStack(it).getMaxCount()));
             if (got > 0) player.getInventory().setStack(player.getInventory().selectedSlot, new ItemStack(it, got));
         }
@@ -186,7 +186,7 @@ public class TerminalItem extends Item {
     /** 解析绑定的面板（可跨维度，区块须已加载）。 */
     static DataPanelBlockEntity resolvePanel(Level world, CompoundTag nbt) {
         BlockPos target = BlockPos.fromLong(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.of(nbt.getString(K_DIM)));
+        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(nbt.getString(K_DIM)));
         Level tw = world;
         if (!world.getRegistryKey().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw)
             tw = sw.getServer().getWorld(dimKey);
@@ -207,7 +207,7 @@ public class TerminalItem extends Item {
         if (tn.getBoolean(K_FEED)) {
             String fo = tn.getString(K_FFOOD);
             String fn2 = fo.isEmpty() ? "未选食物" : net.minecraft.core.registries.BuiltInRegistries.ITEM
-                    .get(ResourceLocation.of(fo)).getName().getString();
+                    .get(ResourceLocation.parse(fo)).getName().getString();
             tooltip.add(Component.literal("已镶嵌: 自动喂食器（" + fn2 + "）· 右键空手取出")
                     .formatted(net.minecraft.ChatFormatting.GREEN));
         } else {

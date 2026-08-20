@@ -72,7 +72,7 @@ public class AutoFeederItem extends Item {
         }
         String cur = nbt.getString(K_FOOD);
         msg(player, cur.isEmpty() ? "副手拿食物再右键=设定；潜行右键=清除"
-                : "当前食物: " + BuiltInRegistries.ITEM.get(ResourceLocation.of(cur)).getName().getString());
+                : "当前食物: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getName().getString());
         return InteractionResultHolder.success(stack);
     }
 
@@ -89,7 +89,7 @@ public class AutoFeederItem extends Item {
     /** 共享进食核心（m82）：喂食器独立使用或镶嵌进终端都走这里；bindNbt 提供面板绑定（sdzjz_pos/dim）。 */
     static void feedTick(Level world, net.minecraft.server.level.ServerPlayer player, String foodId, CompoundTag bindNbt) {
         if (foodId == null || foodId.isEmpty()) return;
-        Item food = BuiltInRegistries.ITEM.get(ResourceLocation.of(foodId));
+        Item food = BuiltInRegistries.ITEM.get(ResourceLocation.parse(foodId));
         FoodProperties fc = new ItemStack(food).get(DataComponents.FOOD);
         if (fc == null) return;
         int lvl = player.getHungerManager().getFoodLevel();
@@ -119,7 +119,7 @@ public class AutoFeederItem extends Item {
         if (cur.isEmpty()) {
             tooltip.add(Component.literal("副手拿食物+右键=选定要吃的").formatted(net.minecraft.ChatFormatting.GRAY));
         } else {
-            tooltip.add(Component.literal("自动吃: " + BuiltInRegistries.ITEM.get(ResourceLocation.of(cur)).getName().getString())
+            tooltip.add(Component.literal("自动吃: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getName().getString())
                     .formatted(net.minecraft.ChatFormatting.GREEN));
         }
         tooltip.add(Component.literal("饿了自动进食：背包优先，再从绑定面板取").formatted(net.minecraft.ChatFormatting.AQUA));

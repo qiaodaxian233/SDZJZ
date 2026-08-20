@@ -77,7 +77,7 @@ public final class CoreChunkLoading {
                 null);
 
         @Override
-        public CompoundTag writeNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
+        public CompoundTag save(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
             long[] arr = new long[chunks.size()];
             int i = 0;
             for (long l : chunks) arr[i++] = l;

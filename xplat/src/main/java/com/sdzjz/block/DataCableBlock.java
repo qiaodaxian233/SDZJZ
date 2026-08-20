@@ -60,7 +60,7 @@ public class DataCableBlock extends Block implements EntityBlock {
         ARMS.put(Direction.DOWN,  Block.createCuboidShape(6, 0, 6, 10, 6, 10));
     }
 
-    public DataCableBlock(Settings settings) {
+    public DataCableBlock(Properties settings) {
         super(settings);
         BlockState s = getStateManager().getDefaultState();
         for (EnumProperty<CableEnd> p : END_PROPS.values()) s = s.with(p, CableEnd.NONE);

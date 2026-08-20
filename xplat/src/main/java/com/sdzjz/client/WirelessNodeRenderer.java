@@ -18,7 +18,7 @@ import org.joml.Vector3f;
  */
 public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlockEntity> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/wireless_node_model.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/block/wireless_node_model.png");
     private static final float LENGTH_TICKS = 36.0f;
 
     private record Wave(float[][] quads, float[] times, float[] sx, float[] sy, float[] sz,

@@ -71,7 +71,7 @@ public class PortableVaultSlot extends Slot {
             for (String k : m.getKeys()) {
                 try {
                     UUID u = UUID.fromString(k);
-                    ItemStack.fromNbt(lookup, m.getCompound(k)).ifPresent(st -> s.byPlayer.put(u, st));
+                    ItemStack.parse(lookup, m.getCompound(k)).ifPresent(st -> s.byPlayer.put(u, st));
                 } catch (IllegalArgumentException ignored) { // 坏 UUID 键丢弃（m273 读入校验同律）
                 }
             }
@@ -79,10 +79,10 @@ public class PortableVaultSlot extends Slot {
         }
 
         @Override
-        public CompoundTag writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+        public CompoundTag save(CompoundTag nbt, HolderLookup.Provider lookup) {
             CompoundTag m = new CompoundTag();
             for (Map.Entry<UUID, ItemStack> e : byPlayer.entrySet())
-                if (!e.getValue().isEmpty()) m.put(e.getKey().toString(), e.getValue().encode(lookup));
+                if (!e.getValue().isEmpty()) m.put(e.getKey().toString(), e.getValue().save(lookup));
             nbt.put("slots", m);
             return nbt;
         }

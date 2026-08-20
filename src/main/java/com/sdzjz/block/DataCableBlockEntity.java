@@ -34,7 +34,7 @@ public class DataCableBlockEntity extends BlockEntity
     /** m230 升级槽（0=速度 1=数量 2=并发；级数=槽内件数，配置界面装取）。 */
     public final net.minecraft.world.SimpleContainer upgrades = new net.minecraft.world.SimpleContainer(3);
     private boolean pullMode = false; // m231 方向：false=送出(仓→机器/卖桌) true=回收(机器→仓)；单向无环
-    private int offFaces = 0;         // m233 按面断开位掩码（bit=Direction.getId()；链接器潜行右键手臂切）
+    private int offFaces = 0;         // m233 按面断开位掩码（bit=Direction.get3DDataValue()；链接器潜行右键手臂切）
     private net.minecraft.server.level.ServerPlayer opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
@@ -70,9 +70,9 @@ public class DataCableBlockEntity extends BlockEntity
     public void setPullMode(boolean pull) { pullMode = pull; markDirty(); } // m231
 
     // ===== m233 按面断开 =====
-    public boolean faceDisabled(Direction d) { return (offFaces & (1 << d.getId())) != 0; }
+    public boolean faceDisabled(Direction d) { return (offFaces & (1 << d.get3DDataValue())) != 0; }
     public void toggleFace(Direction d) {
-        offFaces ^= (1 << d.getId());
+        offFaces ^= (1 << d.get3DDataValue());
         coresScanTick = Long.MIN_VALUE; // 拓扑变了，相连核心缓存立即作废（40t 缓存别撑到下一窗）
         markDirty();
     }
@@ -226,7 +226,7 @@ public class DataCableBlockEntity extends BlockEntity
         }
         List<ItemStack> plain = new ArrayList<>(ids.size());
         for (String id : ids) {
-            net.minecraft.world.item.Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(id));
+            net.minecraft.world.item.Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
             ItemStack st = new ItemStack(it);
             if (!st.isEmpty()) plain.add(st);
         }
@@ -289,34 +289,34 @@ public class DataCableBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.writeNbt(nbt, lookup);
+    protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.saveAdditional(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
         if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
         nbt.putBoolean("pullMode", pullMode); // m231 方向
         if (offFaces != 0) nbt.putInt("offFaces", offFaces); // m233
         for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
-            if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).encode(lookup));
+            if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).save(lookup));
         ListTag fl = new ListTag(); // 过滤模板持久化（精确账本 m130 同款 encode）
-        for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.encode(lookup));
+        for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.save(lookup));
         nbt.put("filter", fl);
     }
 
     @Override
-    protected void readNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        super.readNbt(nbt, lookup);
+    protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
+        super.loadAdditional(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
         pullMode = nbt.getBoolean("pullMode"); // m231
         offFaces = nbt.getInt("offFaces"); // m233
         for (int i = 0; i < 3; i++) { // m230
             upgrades.setStack(i, nbt.contains("up" + i)
-                    ? ItemStack.fromNbt(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);
+                    ? ItemStack.parse(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);
         }
         filter.clear();
         ListTag fl = nbt.getList("filter", Tag.COMPOUND_TYPE);
         for (int i = 0; i < fl.size(); i++) {
-            ItemStack t = ItemStack.fromNbt(lookup, fl.getCompound(i)).orElse(ItemStack.EMPTY);
+            ItemStack t = ItemStack.parse(lookup, fl.getCompound(i)).orElse(ItemStack.EMPTY);
             if (!t.isEmpty()) filter.add(t.copyWithCount(1)); // 解析失败/物品已卸载静默跳过，不炸档
         }
     }

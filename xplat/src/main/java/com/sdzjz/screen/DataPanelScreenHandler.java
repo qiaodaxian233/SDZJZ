@@ -193,7 +193,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 }
                 if (got > 0) {
                     if (cur.isEmpty()) craft.setStack(i, new ItemStack(
-                            BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(idStr)), 1));
+                            BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(idStr)), 1));
                     else cur.increment(1);
                 }
             }
@@ -629,7 +629,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         // 只在客户端有数据（payload 灌入）；addInput(栈,上限)=method_20478，计数封顶随摘要 9999。
         if (stockIds != null && com.sdzjz.config.SdzjzConfig.get().terminalBookStock) {
             for (int i = 0; i < stockIds.size() && i < stockCounts.size(); i++) {
-                var it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(stockIds.get(i)));
+                var it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(stockIds.get(i)));
                 int c = stockCounts.get(i);
                 if (it != net.minecraft.world.item.Items.AIR && c > 0)
                     finder.addInput(new ItemStack(it, c), c);
@@ -699,7 +699,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             DataPanelBlockEntity.DispEnt d = filtered.get(idx);
             ItemStack st;
             if (d.tpl == null) {
-                var item = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(d.id));
+                var item = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(d.id));
                 int max = new ItemStack(item).getMaxCount();
                 st = new ItemStack(item, Math.max(1, (int) Math.min(d.n, (long) max)));
             } else {

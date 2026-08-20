@@ -34,7 +34,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
         return lv >= 0 && lv < r.length ? r[lv] : String.valueOf(lv);
     }
 
-    private static final ResourceLocation BG = ResourceLocation.of("sdzjz", "textures/gui/trade_center_gui.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/trade_center_gui.png");
 
     public TradeCenterScreen(TradeCenterScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
@@ -108,13 +108,13 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? SciSkin.HOVER : CELL);
                 ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
                 int need = VillagerTrades.discounted(t.inCount(), disc);
-                ItemStack in = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.inItem())));
-                ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())));
+                ItemStack in = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.inItem())));
+                ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())));
                 ctx.drawItem(in, rx + 4, ry + 3);
                 ctx.drawText(this.textRenderer, "×" + need, rx + 24, ry + 8, TXT, false);
                 if (t.in2Item() != null) { // m101 第二输入（附魔书要的那本书）
                     ctx.drawText(this.textRenderer, "+", rx + 52, ry + 8, SUB, false);
-                    ItemStack in2 = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.in2Item())));
+                    ItemStack in2 = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.in2Item())));
                     ctx.drawItem(in2, rx + 62, ry + 3);
                     ctx.drawText(this.textRenderer, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
                 }

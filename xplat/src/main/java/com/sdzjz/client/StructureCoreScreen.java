@@ -43,7 +43,7 @@ import java.util.List;
  */
 public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreScreenHandler> {
 
-    private static final ResourceLocation FRAME = ResourceLocation.of("sdzjz", "textures/gui/structure_core_canvas.png");
+    private static final ResourceLocation FRAME = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/structure_core_canvas.png");
     private static final int TXT      = SciSkin.TXT;
     private static final int SUB      = SciSkin.SUB;
     private static final int ON       = SciSkin.ON;
@@ -829,7 +829,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             java.util.List<String> bi = busIdsOf(be);
             java.util.List<Long> bc = busCountsOf(be);
             for (int k2 = 0; k2 < bi.size(); k2++) {
-                ItemStack ist = new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(bi.get(k2))));
+                ItemStack ist = new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(bi.get(k2))));
                 if (ist.isEmpty()) continue;
                 String cnt = fmtNum(bc.get(k2));
                 int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
@@ -1067,7 +1067,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.drawText(this.textRenderer, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
             String siX = StructureCoreBlockEntity.sensorItem(st);
             if (!siX.isEmpty()) { // m160 自动启停行：图标 <阈值 [−][+]
-                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(siX))), x + 4, y + 44); } catch (Exception ignored) {}
+                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(siX))), x + 4, y + 44); } catch (Exception ignored) {}
                 long thX = StructureCoreBlockEntity.sensorThreshold(st);
                 ctx.drawText(this.textRenderer, (StructureCoreBlockEntity.sensorLess(st) ? "<" : ">") + fmtNum(thX),
                         x + 22, y + 48, CYAN, false);
@@ -1152,7 +1152,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             } else {
                 int shown = Math.min(3, fl.size());
                 for (int k = 0; k < shown; k++) {
-                    try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
+                    try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
                 }
                 if (fl.size() > 3) ctx.drawText(this.textRenderer, "+" + (fl.size() - 3), x + 42 + 54, y + 38, SUB, false);
             }
@@ -1164,7 +1164,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 ctx.drawText(this.textRenderer, "直通(未配置)", x + 44, y + 26, SUB, false);
                 ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
             } else {
-                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(si))), x + 40, y + 20); } catch (Exception ignored) {}
+                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(si))), x + 40, y + 20); } catch (Exception ignored) {}
                 long th = StructureCoreBlockEntity.sensorThreshold(st);
                 boolean less = StructureCoreBlockEntity.sensorLess(st);
                 ctx.drawText(this.textRenderer, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
@@ -1191,18 +1191,18 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             java.util.List<String> cropsSel = isCrop ? StructureCoreBlockEntity.cropList(st) : java.util.List.of();
             String t = StructureCoreBlockEntity.craftTarget(st);
             if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
-                ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(cropsSel.get(0)))), bx + 2, by + 2);
+                ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(0)))), bx + 2, by + 2);
                 if (!showWhy) { // m178 阻塞时让位原因行
                     int nm = Math.min(3, cropsSel.size());
                     for (int k = 0; k < nm; k++)
-                        ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
+                        ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
                     ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
                 }
             } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = isBrew ? (ItemStack) com.sdzjz.machine.BrewPlanner.targetStack(t)
                         : isEnch ? (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(Minecraft.getInstance().world, t)
                         : isTrade ? com.sdzjz.machine.TradePlanner.iconStack(t)
-                        : new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(t)));
+                        : new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(t)));
                 if (ts == null) ts = new ItemStack(isEnch ? net.minecraft.world.item.Items.ENCHANTED_BOOK
                         : isTrade ? net.minecraft.world.item.Items.EMERALD
                         : net.minecraft.world.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载/数据包变更等）
@@ -1515,7 +1515,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     StringBuilder sb = new StringBuilder("产出: ");
                     for (int k2 = 0; k2 < def.outputs().size() && k2 < 3; k2++) {
                         if (k2 > 0) sb.append("、");
-                        sb.append(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(def.outputs().get(k2).item()))).getName().getString());
+                        sb.append(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(def.outputs().get(k2).item()))).getName().getString());
                     }
                     if (def.outputs().size() > 3) sb.append("…");
                     tip.add(Component.literal(sb.toString()));
@@ -1588,7 +1588,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private static ItemStack mi(net.minecraft.world.item.Item it) { return new ItemStack(it); }
 
     private static net.minecraft.resources.ResourceLocation mt(String name) { // m313 菜单贴图路径唯一口径
-        return net.minecraft.resources.ResourceLocation.of("sdzjz", "textures/gui/menu/" + name + ".png");
+        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/menu/" + name + ".png");
     }
 
     /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
@@ -2025,7 +2025,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (k++ == 2) { b.append("+…"); break; }
             if (b.length() > 0) b.append('+');
             b.append(en.getValue()).append('×')
-             .append(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(en.getKey()))).getName().getString());
+             .append(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(en.getKey()))).getName().getString());
         }
         return b.toString();
     }
@@ -2122,7 +2122,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 for (int k = 0; k < shownS; k++) {
                     var eS = topS.get(k);
                     net.minecraft.world.item.Item icS = eS.getKey().startsWith("#") ? net.minecraft.world.item.Items.BUNDLE
-                            : BuiltInRegistries.ITEM.get(ResourceLocation.of(eS.getKey()));
+                            : BuiltInRegistries.ITEM.get(ResourceLocation.parse(eS.getKey()));
                     boolean okIcS = icS != net.minecraft.world.item.Items.AIR;
                     String nmS = eS.getKey().startsWith("#") ? "其他" // 溢出桶
                             : okIcS ? new ItemStack(icS).getName().getString() // 本地化名（拼音搜索同款体验）
@@ -3095,7 +3095,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (!busM.isEmpty()) {
                 LinkedHashSet<Item> inStore = new LinkedHashSet<>();
                 for (String id : busM) {
-                    Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(id));
+                    Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
                     if (it != net.minecraft.world.item.Items.AIR && set.contains(it)) inStore.add(it);
                 }
                 set = inStore;
@@ -3105,7 +3105,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             }
         } else {
             for (var d : mif.def().outputs())
-                set.add(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(d.item())));
+                set.add(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(d.item())));
             pickerTitleOverride = "选择产物（空=全出·点选=加/移·Esc完成）";
         }
         src.addAll(set);
@@ -3132,7 +3132,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 && StructureCoreBlockEntity.isExtractor(beF.nodes().get(node))) {
             List<Item> src = new ArrayList<>();
             for (String id : busIdsOf(beF)) {
-                Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(id));
+                Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
                 if (it != net.minecraft.world.item.Items.AIR && !src.contains(it)) src.add(it);
             }
             if (!src.isEmpty()) {
@@ -3168,7 +3168,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (cropItems == null) {
             cropItems = new ArrayList<>();
             for (String id : com.sdzjz.machine.CropFarms.KEYS)
-                cropItems.add(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)));
+                cropItems.add(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)));
         }
         pickerField.setText("");
         refilterPicker();
@@ -3234,7 +3234,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         ? StructureCoreBlockEntity.filterList(beS.nodes().get(pickerNode))
                         : StructureCoreBlockEntity.cropList(beS.nodes().get(pickerNode));
                 for (String sid : sel) {
-                    Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(sid));
+                    Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(sid));
                     if (pickerHit(it, q)) { // m335 统一命中口
                         if (!pickerFiltered.contains(it)) pickerFiltered.add(it);
                     }

@@ -13,10 +13,10 @@ import java.util.List;
 public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow, List<String> matchedIds) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<DataPanelViewPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "panel_view"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "panel_view"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, DataPanelViewPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, DataPanelViewPayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, DataPanelViewPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, DataPanelViewPayload::pos,
             Bounded.string(128), DataPanelViewPayload::search, // m291 有界解码，上限对齐服务端 sanitize
             ByteBufCodecs.INTEGER, DataPanelViewPayload::scrollRow,
             Bounded.stringList(128, 256), DataPanelViewPayload::matchedIds, // m291 越界包解码期拒收
@@ -24,7 +24,7 @@ public record DataPanelViewPayload(BlockPos pos, String search, int scrollRow, L
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

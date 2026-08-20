@@ -60,7 +60,7 @@ public class CompressedPackItem extends Item {
 
     private Item inner(ItemStack stack) {
         String id = innerId(stack);
-        return id == null ? null : BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
+        return id == null ? null : BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
     }
 
     @Override

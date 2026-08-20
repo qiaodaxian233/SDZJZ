@@ -13,9 +13,9 @@ import net.minecraft.resources.ResourceLocation;
 public record ChunkRemoverConfigPayload(int hand, int radius, int mode, int seal) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ChunkRemoverConfigPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "chunk_remover_config"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "chunk_remover_config"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ChunkRemoverConfigPayload> CODEC = StreamCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, ChunkRemoverConfigPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::hand,
             ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::radius,
             ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::mode,
@@ -24,7 +24,7 @@ public record ChunkRemoverConfigPayload(int hand, int radius, int mode, int seal
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

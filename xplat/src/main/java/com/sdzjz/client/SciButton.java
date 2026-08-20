@@ -10,7 +10,7 @@ public class SciButton extends Button {
     private float hoverP = 0f; // m187 悬停缓动进度（与 m186 缩放同族指数趋近）
     private long hoverNs = 0;
 
-    public SciButton(int x, int y, int w, int h, Component t, PressAction a) {
+    public SciButton(int x, int y, int w, int h, Component t, OnPress a) {
         super(x, y, w, h, t, a, s -> s.get());
     }
 

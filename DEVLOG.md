@@ -7556,3 +7556,27 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   被顺序替换连锁吃成 BuiltInRegistries.WORLD（本树占位符两阶段正确产出 Registries.WORLD，
   m413 防的就是这个）④无错误回推通道/无 -Xmaxerrs/无成员表 job。教训=并行会话开工前先
   ls-remote 查同名分支，抢跑的那炮未必是打准的那炮。
+
+## m415 首轮红清单清零 + 受体锚定成员批（查表不猜的第一批 372 处）
+
+- **首轮 CI 战果复盘**：四绿两红全按剧本（离线闸/NeoForge/26.2/成员表代产绿；build 红=71 条清单，
+  比对方那轮 100 条封顶截断还少——内部类与 mixin 提前修掉一截）。两条回推通道全到货：
+  错误清单 71 条 + 成员对照表 **3772 行**已入库 docs/MAPPING_MEMBERS.tsv。
+- **71 条的性质**：全是**裸内部类/接口成员**形态——实现接口或继承后无限定名使用，m414 的
+  限定式词边界替换够不着的死角：24 个 payload 的 `Id<...> getId()`（查表→`Type<...> type()`）、
+  8 个 Block 构造器裸 `Settings`→`Properties`、SciButton/TermButton 的 `PressAction`→`OnPress`、
+  37 处 @GameTest 注解参数名（templateName→template/tickLimit→timeoutTicks/batchId→batch，TSV 三行实锤）。
+- **受体锚定批**（每对都过 TSV+接收者复核，拒绝盲改——教训：`putInt` 在 CompoundTag 上不变名、
+  在 BufferBuilder 上才变名，"TSV 里目标唯一"是假安全）：ResourceLocation.of 按**顶层逗号数分流**
+  （1参→parse 86 处 / 2参→fromNamespaceAndPath 114 处，括号感知扫描防嵌套误判）；
+  BlockPos.PACKET_CODEC→STREAM_CODEC 24 处 + ResourceLocation 同名 1 处；StreamCodec.tuple→composite 23 处；
+  Direction.getId→get3DDataValue 3 处；**writeNbt 三宿主三目标**（TSV 十六行同名异命实锤）：
+  BlockEntity 覆写→saveAdditional/loadAdditional 各 11 处、ContainerHelper 静态→saveAllItems/loadAllItems、
+  SavedData 子类→save 4 处；ItemStack.fromNbt→parse 7 处 + encode→save 7 处（diff 逐行复核接收者全为 ItemStack，
+  SdzjzConfig.save 自家同名零误伤）。
+- **CI 日志升级**：错误清单 grep -A2→**-A4**——javac 每条错误的第 4-5 行是 `symbol:`/`location:`，
+  location 给出接收者类名 → 下一轮"文件:行 + 接收者类 + 成员名"三元组直接查 TSV 机械化改，
+  受体歧义（getWorld/getStack 之流一名多主）从此有判据。
+- **验证**：javac 全库冒烟真语法错 0、自家类符号错 0；13 道离线闸全绿。
+- **预期**：本轮 build 红条数下降且错误形态转向纯方法/字段名（getWorld/getMaxCount 之流），
+  -A4 日志到手即 m416 按 location 批量查表修，循环到全绿。

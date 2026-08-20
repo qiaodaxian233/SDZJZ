@@ -11,10 +11,10 @@ import net.minecraft.core.BlockPos;
 public record StorageLinkPayload(BlockPos pos, int machineIndex, long storagePos, int dir, String dim) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<StorageLinkPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "storage_link"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "storage_link"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, StorageLinkPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, StorageLinkPayload::pos,
+    public static final StreamCodec<RegistryFriendlyByteBuf, StorageLinkPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, StorageLinkPayload::pos,
             ByteBufCodecs.INTEGER, StorageLinkPayload::machineIndex,
             ByteBufCodecs.VAR_LONG, StorageLinkPayload::storagePos,
             ByteBufCodecs.INTEGER, StorageLinkPayload::dir,
@@ -23,7 +23,7 @@ public record StorageLinkPayload(BlockPos pos, int machineIndex, long storagePos
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

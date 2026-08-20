@@ -10,16 +10,16 @@ import net.minecraft.resources.ResourceLocation;
 public record VaultTakePayload(String itemId, int mode) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<VaultTakePayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "vault_take"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "vault_take"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, VaultTakePayload> CODEC = StreamCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, VaultTakePayload> CODEC = StreamCodec.composite(
             Bounded.string(128), VaultTakePayload::itemId, // m291 解码期有界
             ByteBufCodecs.VAR_INT, VaultTakePayload::mode,
             VaultTakePayload::new
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

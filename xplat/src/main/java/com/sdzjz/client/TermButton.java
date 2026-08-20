@@ -10,9 +10,9 @@ public class TermButton extends SciButton {
     private float hoverP = 0f;
     private long hoverNs = 0;
 
-    public TermButton(int x, int y, int w, int h, Component t, PressAction a) { this(x, y, w, h, t, a, false); }
+    public TermButton(int x, int y, int w, int h, Component t, OnPress a) { this(x, y, w, h, t, a, false); }
 
-    public TermButton(int x, int y, int w, int h, Component t, PressAction a, boolean primary) {
+    public TermButton(int x, int y, int w, int h, Component t, OnPress a, boolean primary) {
         super(x, y, w, h, t, a);
         this.primary = primary;
     }

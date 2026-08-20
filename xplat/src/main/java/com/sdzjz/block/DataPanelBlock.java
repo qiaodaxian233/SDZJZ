@@ -22,7 +22,7 @@ public class DataPanelBlock extends BaseEntityBlock {
     public static final MapCodec<DataPanelBlock> CODEC =
             RecordCodecBuilder.mapCodec(i -> i.group(createSettingsCodec()).apply(i, DataPanelBlock::new));
 
-    public DataPanelBlock(Settings settings) {
+    public DataPanelBlock(Properties settings) {
         super(settings);
     }
 

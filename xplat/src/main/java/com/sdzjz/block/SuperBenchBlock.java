@@ -24,7 +24,7 @@ public class SuperBenchBlock extends BaseEntityBlock {
     private static final Component TITLE = Component.literal("超大工作台");
     public static final MapCodec<SuperBenchBlock> CODEC = createCodec(SuperBenchBlock::new); // yarn method_54094 已核
 
-    public SuperBenchBlock(Settings settings) {
+    public SuperBenchBlock(Properties settings) {
         super(settings);
     }
 

@@ -23,7 +23,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     private static final int TXT   = SciSkin.TXT;
     private static final int SUB   = SciSkin.SUB;
     private static final int SEL   = SciSkin.withAlpha8(SciSkin.ACCENT, 0x55); // m207 孤儿归队
-    private static final ResourceLocation BG = ResourceLocation.of("sdzjz", "textures/gui/super_bench_gui.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/super_bench_gui.png");
 
     // 浏览器布局（GUI 相对坐标）；m237 搜索框占一行：LIST_Y 30→34、行数 11→10（清单区反而更宽裕）
     private static final int PX = 270, PW = 192, LIST_Y = 34, ENTRY_H = 18, LIST_ROWS = 10;
@@ -191,7 +191,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 boolean allOk = true;
                 for (String mob : mobs) { // m166 多生物逐只显示 ✔/✘（如刷铁机=村民+僵尸）
                     String mn;
-                    try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.of(mob)).getName().getString(); }
+                    try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(mob)).getName().getString(); }
                     catch (Exception ex) { mn = mob; }
                     if (sb.length() > 0) sb.append(' ');
                     boolean caged = hasCagedMob(mob);
@@ -213,7 +213,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             java.util.Map<String, ItemStack> bs = new java.util.HashMap<>();
             java.util.Map<String, String> bl = new java.util.HashMap<>();
             for (Map.Entry<String, Integer> e : bom) {
-                ItemStack st = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(e.getKey())));
+                ItemStack st = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey())));
                 bs.put(e.getKey(), st);
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 bl.put(e.getKey(), got >= e.getValue() ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()));

@@ -41,12 +41,12 @@ import java.util.function.Function;
  * ④ [m151-3 已命中修正] OnLoad.Context 无 id()——1.21.1 拆为 resourceId()/topLevelId()，文件模型走前者。
  */
 public final class SatelliteNodeModel implements UnbakedModel {
-    private static final ResourceLocation MODEL_ID = ResourceLocation.of("sdzjz", "block/satellite_node");
-    private static final ResourceLocation GEO_ID = ResourceLocation.of("sdzjz", "models/block/satellite_node_geo.json");
+    private static final ResourceLocation MODEL_ID = ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_node");
+    private static final ResourceLocation GEO_ID = ResourceLocation.fromNamespaceAndPath("sdzjz", "models/block/satellite_node_geo.json");
     private static final Material ATLAS = new Material(
-            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.of("sdzjz", "block/satellite_node_atlas"));
+            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_node_atlas"));
     private static final Material JOINT = new Material(
-            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.of("sdzjz", "block/satellite_dish_joint"));
+            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_dish_joint"));
 
     /** m156：BER 接管渲染时静态模型烘空壳（只留粒子 sprite）——否则双重渲染。
      *  BER 若编译/运行出问题，把这里改 false 即回 m151 静态渲染兜底。 */

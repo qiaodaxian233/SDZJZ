@@ -12,17 +12,17 @@ import net.minecraft.core.BlockPos;
 public record JeiFillPayload(BlockPos pos, ResourceLocation recipeId, boolean max) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<JeiFillPayload> ID =
-            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "jei_fill"));
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "jei_fill"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, JeiFillPayload> CODEC = StreamCodec.tuple(
-            BlockPos.PACKET_CODEC, JeiFillPayload::pos,
-            ResourceLocation.PACKET_CODEC, JeiFillPayload::recipeId,
+    public static final StreamCodec<RegistryFriendlyByteBuf, JeiFillPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, JeiFillPayload::pos,
+            ResourceLocation.STREAM_CODEC, JeiFillPayload::recipeId,
             ByteBufCodecs.BOOL, JeiFillPayload::max,
             JeiFillPayload::new
     );
 
     @Override
-    public Id<? extends CustomPacketPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }
