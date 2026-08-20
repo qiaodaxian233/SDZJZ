@@ -3,20 +3,20 @@ package com.sdzjz.block;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.screen.DataPanelScreenHandler;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -37,7 +37,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         craftGrid.addListener(inv -> this.markDirty()); // 网格改动落盘（markDirty 自带 world==null 守卫）
     }
 
-    public static void tick(World world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
+    public static void tick(Level world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
         // m292：BE 级共享展示页退休（外部审计 P1：多人共用面板搜索/滚动互相覆盖）。
         // 视图状态与分页全部迁到各玩家自己的 DataPanelScreenHandler（sendContentUpdates 里
         // viewDirty 即时 + 10t 节拍兜机器侧变化），BE 只供 masterEntries() 快照。tick 无事可做。
@@ -244,7 +244,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
                 var key = com.sdzjz.storage.StackKey.of(t);
                 DispEnt d = exactMap.get(key);
                 if (d != null) d.n += n;
-                else exactMap.put(key, new DispEnt(Registries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
+                else exactMap.put(key, new DispEnt(BuiltInRegistries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
             }
         }
         all.addAll(exactMap.values());
@@ -269,14 +269,14 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     };
 
     @Override
-    protected void writeNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup lookup) {
+    protected void writeNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
         super.writeNbt(nbt, lookup);
         // m126a：合成网格持久化（稀疏槽位表，照 StorageCoreBlockEntity/TradeCenter 既有 NBT 写法）
-        net.minecraft.nbt.NbtList list = new net.minecraft.nbt.NbtList();
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
         for (int i = 0; i < 9; i++) {
             ItemStack st = craftGrid.getStack(i);
             if (st.isEmpty()) continue;
-            NbtCompound c = new NbtCompound();
+            CompoundTag c = new CompoundTag();
             c.putInt("slot", i);
             c.put("item", st.encode(lookup));
             list.add(c);
@@ -285,12 +285,12 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     @Override
-    protected void readNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup lookup) {
+    protected void readNbt(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
         super.readNbt(nbt, lookup);
         for (int i = 0; i < 9; i++) craftGrid.setStack(i, ItemStack.EMPTY);
-        net.minecraft.nbt.NbtList list = nbt.getList("craftGrid", net.minecraft.nbt.NbtElement.COMPOUND_TYPE);
+        net.minecraft.nbt.ListTag list = nbt.getList("craftGrid", net.minecraft.nbt.Tag.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {
-            NbtCompound c = list.getCompound(i);
+            CompoundTag c = list.getCompound(i);
             int s = c.getInt("slot");
             if (s >= 0 && s < 9)
                 craftGrid.setStack(s, ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
@@ -298,23 +298,23 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     /** m126a：拆方块散落合成网格内容（AE2 addAdditionalDrops 同义，绝不吞）。 */
-    public void dropCraftGrid(World world, BlockPos pos) {
-        net.minecraft.util.ItemScatterer.spawn(world, pos, craftGrid);
+    public void dropCraftGrid(Level world, BlockPos pos) {
+        net.minecraft.world.Containers.spawn(world, pos, craftGrid);
     }
 
     @Override
-    public Text getDisplayName() {
-        return Text.translatable("container.sdzjz.data_panel");
+    public Component getDisplayName() {
+        return Component.translatable("container.sdzjz.data_panel");
     }
 
     @Nullable
     @Override
-    public ScreenHandler createMenu(int syncId, PlayerInventory inv, PlayerEntity player) {
+    public AbstractContainerMenu createMenu(int syncId, Inventory inv, Player player) {
         return new DataPanelScreenHandler(syncId, inv, this);
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.network.ServerPlayerEntity player) {
+    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
         return this.pos;
     }
 }

@@ -125,7 +125,7 @@ public final class SciSkin {
     };
 
     /** m200 终端浅色卡片：软投影 + 1px 圆角外框(角内收) + 近白提亮面 + 顶部受光渐隐 + 底压边——设计稿"圆角细边+质感"。 */
-    public static void termPanel(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h) {
+    public static void termPanel(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h) {
         softShadow(ctx, x, y, w, h);
         int frm = termFrame(), face = mix(termBase(), termHi(), 0.42f);
         ctx.fill(x, y + 1, x + w, y + h - 1, frm);
@@ -137,7 +137,7 @@ public final class SciSkin {
     }
 
     /** m200 终端凹陷槽位（浅色系程序槽；x,y 传 16×16 物品区左上角，与 drawSlot 同占位）：深灰井面+内顶阴影+内底受光。 */
-    public static void termSlot(net.minecraft.client.gui.DrawContext ctx, int x, int y) {
+    public static void termSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {
         ctx.fill(x - 1, y - 1, x + 17, y + 17, termFrame());
         ctx.fill(x, y, x + 16, y + 16, termBaseDeep());
         ctx.fill(x, y, x + 16, y + 1, withAlpha(termInk(), 0.28f));
@@ -145,7 +145,7 @@ public final class SciSkin {
     }
 
     /** m200 终端按钮：primary=强调紫面/深紫边(设计稿"清空回仓")，否则=墨面/边框色边(设计稿"回仓"暗钮)；文字一律高亮色。 */
-    public static void termBtn(net.minecraft.client.gui.DrawContext ctx, net.minecraft.client.font.TextRenderer tr,
+    public static void termBtn(net.minecraft.client.gui.GuiGraphics ctx, net.minecraft.client.gui.Font tr,
                                int x, int y, int w, int h, String label, boolean hover, boolean primary) {
         int frm = primary ? termAccentDeep() : termFrame();
         int face = primary ? (hover ? mix(termAccent(), termHi(), 0.18f) : termAccent())
@@ -159,20 +159,20 @@ public final class SciSkin {
     public static final int GROUP_FILL = 0x142B2E56; // 画布分组框面（m192 立、m207 转靛）（极淡，透出网格不压内容）
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
-    public static final net.minecraft.util.Identifier SLOT_TEX =
-            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/slot.png");
-    public static final net.minecraft.util.Identifier BUTTON_TEX =
-            net.minecraft.util.Identifier.of("sdzjz", "textures/gui/button.png");
+    public static final net.minecraft.resources.ResourceLocation SLOT_TEX =
+            net.minecraft.resources.ResourceLocation.of("sdzjz", "textures/gui/slot.png");
+    public static final net.minecraft.resources.ResourceLocation BUTTON_TEX =
+            net.minecraft.resources.ResourceLocation.of("sdzjz", "textures/gui/button.png");
 
     /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
-    public static void drawSlot(net.minecraft.client.gui.DrawContext ctx, int x, int y) {
+    public static void drawSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {
         ctx.drawTexture(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
     }
 
     /** m120 画布卡片 · m187 质感升级：软投影(三层渐淡)+外分离暗环+平滑渐变面(顶点插值,
      *  旧三段带状假渐变退役,0xE0 网格微透保留)+顶部冷光泽+内顶受光棱线/内底压边+四角括号刻。
      *  签名不变全部调用点白捡。顶部有强调色条的卡片，上方两刻会被条覆盖——刻意如此，下沿两刻呼应即可。 */
-    public static void drawCard(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, int frame) {
+    public static void drawCard(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h, int frame) {
         softShadow(ctx, x, y, w, h);
         ctx.fill(x - 2, y - 2, x + w + 2, y + h + 2, EDGE_DARK);
         ctx.fill(x - 1, y - 1, x + w + 1, y + h + 1, frame);
@@ -224,10 +224,10 @@ public final class SciSkin {
     }
 
     /** m187 平滑纵向渐变矩形：顶点色插值零色带（照画布 wirePath/ribbon 在树先例走 GUI 顶点缓冲）。 */
-    public static void vGrad(net.minecraft.client.gui.DrawContext ctx,
+    public static void vGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int top, int bottom) {
-        net.minecraft.client.render.VertexConsumer vc =
-                ctx.getVertexConsumers().getBuffer(net.minecraft.client.render.RenderLayer.getGui());
+        com.mojang.blaze3d.vertex.VertexConsumer vc =
+                ctx.getVertexConsumers().getBuffer(net.minecraft.client.renderer.RenderType.getGui());
         org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
         vc.vertex(mat, x1, y1, 0).color(top);
         vc.vertex(mat, x1, y2, 0).color(bottom);
@@ -236,10 +236,10 @@ public final class SciSkin {
     }
 
     /** m187 平滑横向渐变矩形。 */
-    public static void hGrad(net.minecraft.client.gui.DrawContext ctx,
+    public static void hGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int left, int right) {
-        net.minecraft.client.render.VertexConsumer vc =
-                ctx.getVertexConsumers().getBuffer(net.minecraft.client.render.RenderLayer.getGui());
+        com.mojang.blaze3d.vertex.VertexConsumer vc =
+                ctx.getVertexConsumers().getBuffer(net.minecraft.client.renderer.RenderType.getGui());
         org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
         vc.vertex(mat, x1, y1, 0).color(left);
         vc.vertex(mat, x1, y2, 0).color(left);
@@ -248,31 +248,31 @@ public final class SciSkin {
     }
 
     /** m187 软投影：三层递缩递浓半透黑（中心叠深、边缘渐淡），替代旧单层硬边黑块。 */
-    public static void softShadow(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h) {
+    public static void softShadow(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h) {
         ctx.fill(x + 1, y + 2, x + w + 5, y + h + 6, 0x12000000);
         ctx.fill(x + 2, y + 3, x + w + 4, y + h + 5, 0x1C000000);
         ctx.fill(x + 3, y + 4, x + w + 3, y + h + 4, 0x26000000);
     }
 
     /** m187 霓虹横线：1px 亮核 + 上下 3px 渐隐光晕（顶/底栏与总线轨道线统一质感）。 */
-    public static void glowLineH(net.minecraft.client.gui.DrawContext ctx, int x1, int x2, int y, int color) {
+    public static void glowLineH(net.minecraft.client.gui.GuiGraphics ctx, int x1, int x2, int y, int color) {
         vGrad(ctx, x1, y - 3, x2, y, withAlpha(color, 0f), withAlpha(color, 0.36f));
         ctx.fill(x1, y, x2, y + 1, color);
         vGrad(ctx, x1, y + 1, x2, y + 4, withAlpha(color, 0.36f), withAlpha(color, 0f));
     }
 
     /** m187 顶/底横栏渐变底带：全局光照统一自上而下（亮上暗下），配 glowLineH 轨道线用。 */
-    public static void panelBand(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+    public static void panelBand(net.minecraft.client.gui.GuiGraphics ctx, int x1, int y1, int x2, int y2) {
         vGrad(ctx, x1, y1, x2, y2, BAND_TOP, BAND_BOT);
     }
 
     /** m203 终端主题浅色横幅带（画布顶条/标题条/总线带/底栏/状态区）：近白受光→主色沉底。 */
-    public static void termBand(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+    public static void termBand(net.minecraft.client.gui.GuiGraphics ctx, int x1, int y1, int x2, int y2) {
         vGrad(ctx, x1, y1, x2, y2, mix(termBase(), termHi(), 0.5f), termBase());
     }
 
     /** m203 浅色带的轨道线：1px 边框细线 + 强调色霓虹晕（浅底上晕更克制，0.55 衰减）。 */
-    public static void termBandLine(net.minecraft.client.gui.DrawContext ctx, int x1, int x2, int y) {
+    public static void termBandLine(net.minecraft.client.gui.GuiGraphics ctx, int x1, int x2, int y) {
         vGrad(ctx, x1, y - 3, x2, y, withAlpha(termAccent(), 0f), withAlpha(termAccent(), 0.20f));
         ctx.fill(x1, y, x2, y + 1, termFrame());
         vGrad(ctx, x1, y + 1, x2, y + 4, withAlpha(termAccent(), 0.20f), withAlpha(termAccent(), 0f));
@@ -305,7 +305,7 @@ public final class SciSkin {
 
     /** m187 画布暗角：四缘向中心渐隐压景深，角部自然叠深；带宽随区域自适应。
      *  m217 强度可调（0~2 倍率走 withAlpha8 精确置字节——withAlpha 钳 1.0 乘不上去）；0≈关直接省四次渐变。 */
-    public static void vignette(net.minecraft.client.gui.DrawContext ctx, int x1, int y1, int x2, int y2) {
+    public static void vignette(net.minecraft.client.gui.GuiGraphics ctx, int x1, int y1, int x2, int y2) {
         double s = Math.max(0.0, Math.min(2.0, com.sdzjz.config.SdzjzConfig.get().canvasVignetteStrength));
         if (s < 0.01) return;
         int v = withAlpha8(VIGNETTE, Math.min(255, (int) Math.round(((VIGNETTE >>> 24) & 0xFF) * s)));
@@ -317,7 +317,7 @@ public final class SciSkin {
     }
 
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */
-    public static void drawButton(net.minecraft.client.gui.DrawContext ctx, int x, int y, int w, int h, boolean hover) {
+    public static void drawButton(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h, boolean hover) {
         int v = hover ? 16 : 0, cap = 8;
         ctx.drawTexture(BUTTON_TEX, x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
         ctx.drawTexture(BUTTON_TEX, x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);

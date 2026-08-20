@@ -1,26 +1,26 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 /** 客户端→服务端：切换任意节点的 暂停/运行（m110b 单节点启停）。 */
-public record NodePausePayload(BlockPos pos, int index) implements CustomPayload {
+public record NodePausePayload(BlockPos pos, int index) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<NodePausePayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "node_pause"));
+    public static final CustomPacketPayload.Type<NodePausePayload> ID =
+            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_pause"));
 
-    public static final PacketCodec<RegistryByteBuf, NodePausePayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodePausePayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, NodePausePayload::pos,
-            PacketCodecs.INTEGER, NodePausePayload::index,
+            ByteBufCodecs.INTEGER, NodePausePayload::index,
             NodePausePayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

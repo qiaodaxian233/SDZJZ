@@ -1,22 +1,22 @@
 package com.sdzjz.item;
 
 import com.sdzjz.config.SdzjzConfig;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.TypedActionResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.world.World;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.Level;
 
 /**
  * m311 随身仓库（作者拍板：随身 long 账本 + 吸附模式，"小说系统"风提示音）。
@@ -43,20 +43,20 @@ public class PortableVaultItem extends Item {
 
     // ===== 账本纯函数（gametest 直测这四个口）=====
 
-    static NbtCompound rootOf(ItemStack s) {
-        NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
-        return c != null ? c.copyNbt() : new NbtCompound();
+    static CompoundTag rootOf(ItemStack s) {
+        CustomData c = s.get(DataComponents.CUSTOM_DATA);
+        return c != null ? c.copyNbt() : new CompoundTag();
     }
 
-    static void writeRoot(ItemStack s, NbtCompound root) {
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(root));
+    static void writeRoot(ItemStack s, CompoundTag root) {
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
     }
 
     /** 入账 n 个 id（饱和加法防翻负，m273 satAdd 同口径）。返回 false=类型已满拒收新类型。 */
     public static boolean vaultAdd(ItemStack vault, String id, long n) {
         if (n <= 0) return true;
-        NbtCompound root = rootOf(vault);
-        NbtCompound v = root.getCompound(K_VAULT);
+        CompoundTag root = rootOf(vault);
+        CompoundTag v = root.getCompound(K_VAULT);
         boolean known = v.contains(id);
         int cap = SdzjzConfig.get().portableVaultTypeCap;
         if (!known && cap > 0 && v.getKeys().size() >= cap) return false; // 只闸新类型，已有类型照常并账（m270 口径）
@@ -76,7 +76,7 @@ public class PortableVaultItem extends Item {
 
     /** 账本总件数（饱和）。 */
     public static long vaultTotal(ItemStack vault) {
-        NbtCompound v = rootOf(vault).getCompound(K_VAULT);
+        CompoundTag v = rootOf(vault).getCompound(K_VAULT);
         long sum = 0;
         for (String k : v.getKeys()) {
             long x = sum + v.getLong(k);
@@ -87,12 +87,12 @@ public class PortableVaultItem extends Item {
 
     /** 整包倾倒进核心账本：long 切 ≤10 亿/笔过 deposit(int 计数) 边界，倒空即清账。 */
     public static void vaultDumpInto(ItemStack vault, com.sdzjz.block.StorageCoreBlockEntity core) {
-        NbtCompound root = rootOf(vault);
-        NbtCompound v = root.getCompound(K_VAULT);
+        CompoundTag root = rootOf(vault);
+        CompoundTag v = root.getCompound(K_VAULT);
         for (String id : new java.util.ArrayList<>(v.getKeys())) {
             long left = v.getLong(id);
-            Item it = Registries.ITEM.get(Identifier.of(id));
-            if (it == net.minecraft.item.Items.AIR) { v.remove(id); continue; } // 卸模组遗留死键：清账不造物
+            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
+            if (it == net.minecraft.world.item.Items.AIR) { v.remove(id); continue; } // 卸模组遗留死键：清账不造物
             while (left > 0) {
                 int chunk = (int) Math.min(1_000_000_000L, left);
                 core.deposit(new ItemStack(it, chunk));
@@ -105,10 +105,10 @@ public class PortableVaultItem extends Item {
     }
 
     /** m312 账本读/写公开口（GUI handler 用；K_VAULT 键保持私有，判定唯一出口思路同 isBoundTo）。 */
-    public static NbtCompound ledger(ItemStack vault) { return rootOf(vault).getCompound(K_VAULT); }
+    public static CompoundTag ledger(ItemStack vault) { return rootOf(vault).getCompound(K_VAULT); }
 
-    public static void writeLedger(ItemStack vault, NbtCompound ledger) {
-        NbtCompound root = rootOf(vault);
+    public static void writeLedger(ItemStack vault, CompoundTag ledger) {
+        CompoundTag root = rootOf(vault);
         root.put(K_VAULT, ledger);
         writeRoot(vault, root);
     }
@@ -124,29 +124,29 @@ public class PortableVaultItem extends Item {
 
     /** 潜行右键=吸附开关；右键=报账。 */
     @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+    public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
         ItemStack stack = player.getStackInHand(hand);
-        if (world.isClient) return TypedActionResult.success(stack);
+        if (world.isClient) return InteractionResultHolder.success(stack);
         if (player.isSneaking()) {
-            NbtCompound root = rootOf(stack);
+            CompoundTag root = rootOf(stack);
             boolean on = !root.getBoolean(K_MAG);
             root.putBoolean(K_MAG, on);
             writeRoot(stack, root);
             bar(player, on ? "叮！吸附模式已开启——掉落物将直接收入仓库" : "吸附模式已关闭");
-            return TypedActionResult.success(stack);
+            return InteractionResultHolder.success(stack);
         }
         // m312：右键=开取物屏（聊天报账退役，明细进 GUI）
-        player.openHandledScreen(new net.minecraft.screen.SimpleNamedScreenHandlerFactory(
+        player.openHandledScreen(new net.minecraft.world.SimpleMenuProvider(
                 (syncId, inv, pl) -> new com.sdzjz.screen.PortableVaultScreenHandler(syncId, inv),
                 stack.getName()));
-        return TypedActionResult.success(stack);
+        return InteractionResultHolder.success(stack);
     }
 
     /** 右键存储核心/数据面板 = 整包倾倒入仓。 */
     @Override
-    public ActionResult useOnBlock(ItemUsageContext ctx) {
-        World world = ctx.getWorld();
-        if (world.isClient) return ActionResult.SUCCESS;
+    public InteractionResult useOnBlock(UseOnContext ctx) {
+        Level world = ctx.getWorld();
+        if (world.isClient) return InteractionResult.SUCCESS;
         ItemStack vault = ctx.getStack();
         long total = vaultTotal(vault);
         int types = vaultTypes(vault);
@@ -157,30 +157,30 @@ public class PortableVaultItem extends Item {
             var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(world, ctx.getBlockPos());
             if (!cores.isEmpty()) core = cores.iterator().next();
         }
-        if (core == null) return ActionResult.PASS;
-        if (total <= 0) { bar(ctx.getPlayer(), "仓库是空的，没什么可倾倒"); return ActionResult.SUCCESS; }
+        if (core == null) return InteractionResult.PASS;
+        if (total <= 0) { bar(ctx.getPlayer(), "仓库是空的，没什么可倾倒"); return InteractionResult.SUCCESS; }
         vaultDumpInto(vault, core);
         bar(ctx.getPlayer(), "叮！已入仓 " + types + " 类 · " + fmt(total) + " 件");
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     /** 背包里把物品右键点到仓库上=整叠收纳（m82 终端镶嵌同款交互）。 */
     @Override
-    public boolean onClicked(ItemStack stack, ItemStack otherStack, net.minecraft.screen.slot.Slot slot,
-                             net.minecraft.util.ClickType clickType, PlayerEntity player,
-                             net.minecraft.inventory.StackReference cursorStackReference) {
+    public boolean onClicked(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
+                             net.minecraft.world.inventory.ClickAction clickType, Player player,
+                             net.minecraft.world.entity.SlotAccess cursorStackReference) {
         if (otherStack.isEmpty()) {
             // m332 专属仓位里右键（空光标）=原地开仓——仓位在背包屏没有"手持右键"路径
-            if (clickType == net.minecraft.util.ClickType.RIGHT && slot instanceof PortableVaultSlot) {
-                if (!player.getWorld().isClient) player.openHandledScreen(new net.minecraft.screen.SimpleNamedScreenHandlerFactory(
+            if (clickType == net.minecraft.world.inventory.ClickAction.RIGHT && slot instanceof PortableVaultSlot) {
+                if (!player.getWorld().isClient) player.openHandledScreen(new net.minecraft.world.SimpleMenuProvider(
                         (syncId, inv, pl) -> new com.sdzjz.screen.PortableVaultScreenHandler(syncId, inv), stack.getName()));
                 return true; // 双端同判吃掉点击：客户端不预测取栈，等服务端开屏包（时序待实机验证）
             }
             return false;
         }
-        if (clickType != net.minecraft.util.ClickType.RIGHT) return false;
+        if (clickType != net.minecraft.world.inventory.ClickAction.RIGHT) return false;
         if (!absorbable(otherStack)) { bar(player, "带组件/不可堆叠物品不入仓（防抹组件）"); return true; }
-        String id = Registries.ITEM.getId(otherStack.getItem()).toString();
+        String id = BuiltInRegistries.ITEM.getId(otherStack.getItem()).toString();
         if (!vaultAdd(stack, id, otherStack.getCount())) { bar(player, "仓库类型已满（config portableVaultTypeCap）"); return true; }
         bar(player, "叮！已收纳 " + otherStack.getName().getString() + " ×" + fmt(otherStack.getCount()));
         otherStack.setCount(0);
@@ -189,27 +189,27 @@ public class PortableVaultItem extends Item {
 
     /** 吸附：每 10t 扫身边掉落物直接入账（尊重拾取延迟；一拍一次组件写=天然批量）。 */
     @Override
-    public void inventoryTick(ItemStack stack, World world, net.minecraft.entity.Entity entity, int slotIdx, boolean selected) {
+    public void inventoryTick(ItemStack stack, Level world, net.minecraft.world.entity.Entity entity, int slotIdx, boolean selected) {
         if (world.isClient || world.getTime() % 10 != 0) return;
-        if (!(entity instanceof net.minecraft.server.network.ServerPlayerEntity player)) return;
+        if (!(entity instanceof net.minecraft.server.level.ServerPlayer player)) return;
         magnetTick(stack, player);
     }
 
     /** m332 抽成静态：背包内走 inventoryTick、专属仓位走 Sdzjz 服务端 tick 钩
      *  （仓位不在 PlayerInventory，原版不给它 inventoryTick）。两路互斥零双跑。 */
-    public static void magnetTick(ItemStack stack, net.minecraft.server.network.ServerPlayerEntity player) {
+    public static void magnetTick(ItemStack stack, net.minecraft.server.level.ServerPlayer player) {
         if (!magnetOn(stack)) return;
-        World world = player.getWorld();
+        Level world = player.getWorld();
         int r = SdzjzConfig.get().portableVaultMagnetRadius;
         if (r <= 0) return;
-        NbtCompound root = rootOf(stack);
-        NbtCompound v = root.getCompound(K_VAULT);
+        CompoundTag root = rootOf(stack);
+        CompoundTag v = root.getCompound(K_VAULT);
         int cap = SdzjzConfig.get().portableVaultTypeCap;
         long got = 0; int kinds = 0;
         for (ItemEntity e : world.getEntitiesByClass(ItemEntity.class,
-                Box.of(player.getPos(), r * 2, r * 2, r * 2), en -> !en.cannotPickup() && absorbable(en.getStack()))) {
+                AABB.of(player.getPos(), r * 2, r * 2, r * 2), en -> !en.cannotPickup() && absorbable(en.getStack()))) {
             ItemStack s = e.getStack();
-            String id = Registries.ITEM.getId(s.getItem()).toString();
+            String id = BuiltInRegistries.ITEM.getId(s.getItem()).toString();
             boolean known = v.contains(id);
             if (!known && cap > 0 && v.getKeys().size() >= cap) continue; // 满型跳过新类型，已有类型照吸
             long cur = v.getLong(id);
@@ -227,18 +227,18 @@ public class PortableVaultItem extends Item {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Text> tooltip,
-                              net.minecraft.item.tooltip.TooltipType type) {
-        NbtCompound v = rootOf(stack).getCompound(K_VAULT);
-        tooltip.add(Text.literal(magnetOn(stack) ? "吸附: 开（潜行右键关闭）" : "吸附: 关（潜行右键开启）")
-                .formatted(net.minecraft.util.Formatting.AQUA));
-        tooltip.add(Text.literal("账本: " + v.getKeys().size() + " 类 · " + fmt(vaultTotal(stack)) + " 件")
-                .formatted(net.minecraft.util.Formatting.GRAY)); // m312：撤明细行（30 类会刷屏，用户点名）——明细进 GUI
-        tooltip.add(Text.literal("右键=打开仓库 · 右键核心/面板=整包入仓 · 背包屏副手上方有专属仓位").formatted(net.minecraft.util.Formatting.DARK_GRAY));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+                              net.minecraft.world.item.TooltipFlag type) {
+        CompoundTag v = rootOf(stack).getCompound(K_VAULT);
+        tooltip.add(Component.literal(magnetOn(stack) ? "吸附: 开（潜行右键关闭）" : "吸附: 关（潜行右键开启）")
+                .formatted(net.minecraft.ChatFormatting.AQUA));
+        tooltip.add(Component.literal("账本: " + v.getKeys().size() + " 类 · " + fmt(vaultTotal(stack)) + " 件")
+                .formatted(net.minecraft.ChatFormatting.GRAY)); // m312：撤明细行（30 类会刷屏，用户点名）——明细进 GUI
+        tooltip.add(Component.literal("右键=打开仓库 · 右键核心/面板=整包入仓 · 背包屏副手上方有专属仓位").formatted(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 
-    private static void bar(PlayerEntity p, String s) {
-        if (p != null) p.sendMessage(Text.literal(s), true);
+    private static void bar(Player p, String s) {
+        if (p != null) p.sendMessage(Component.literal(s), true);
     }
 
     private static String fmt(long n) { // m232 口径 K/M/B/T

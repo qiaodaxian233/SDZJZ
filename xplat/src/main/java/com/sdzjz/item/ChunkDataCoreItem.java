@@ -1,13 +1,13 @@
 package com.sdzjz.item;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -28,27 +28,27 @@ public class ChunkDataCoreItem extends Item {
     /** 储存器产出唯一建器。 */
     public static ItemStack make(Item self, String uuid, int ox, int oz, String dim, long total, int types) {
         ItemStack s = new ItemStack(self);
-        NbtCompound n = new NbtCompound();
+        CompoundTag n = new CompoundTag();
         n.putString("tid", uuid);
         n.putInt("ox", ox);
         n.putInt("oz", oz);
         n.putString("dim", dim);
         n.putLong("tt", total);
         n.putInt("ty", types);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         return s;
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        NbtCompound n = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         if (n.contains("tid")) {
-            tooltip.add(Text.literal("源区块 (" + n.getInt("ox") + ", " + n.getInt("oz") + ") · " + n.getString("dim")).formatted(Formatting.AQUA));
-            tooltip.add(Text.literal("可重建方块 " + n.getLong("tt") + " · 材料 " + n.getInt("ty") + " 种").formatted(Formatting.GRAY));
-            tooltip.add(Text.literal("模板 " + n.getString("tid").substring(0, 8) + "…（服务端模板库）").formatted(Formatting.DARK_GRAY));
+            tooltip.add(Component.literal("源区块 (" + n.getInt("ox") + ", " + n.getInt("oz") + ") · " + n.getString("dim")).formatted(ChatFormatting.AQUA));
+            tooltip.add(Component.literal("可重建方块 " + n.getLong("tt") + " · 材料 " + n.getInt("ty") + " 种").formatted(ChatFormatting.GRAY));
+            tooltip.add(Component.literal("模板 " + n.getString("tid").substring(0, 8) + "…（服务端模板库）").formatted(ChatFormatting.DARK_GRAY));
         } else {
-            tooltip.add(Text.literal("空核心（未关联模板——只能由区块储存器产出）").formatted(Formatting.RED));
+            tooltip.add(Component.literal("空核心（未关联模板——只能由区块储存器产出）").formatted(ChatFormatting.RED));
         }
-        tooltip.add(Text.literal("交给区块复制器即可异地重建（收料照模板 BOM）").formatted(Formatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("交给区块复制器即可异地重建（收料照模板 BOM）").formatted(ChatFormatting.LIGHT_PURPLE));
     }
 }

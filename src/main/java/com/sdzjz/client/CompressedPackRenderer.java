@@ -2,16 +2,16 @@ package com.sdzjz.client;
 
 import com.sdzjz.item.CompressedPackItem;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.item.ItemRenderer;
-import net.minecraft.client.render.model.json.ModelTransformationMode;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.world.item.ItemDisplayContext;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * 压缩包动态图标（m243，作者拍板"加框"）：不给每种内容物做图标——
@@ -37,9 +37,9 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
     }
 
     @Override
-    public void render(ItemStack stack, ModelTransformationMode mode, MatrixStack matrices,
-                       VertexConsumerProvider vcp, int light, int overlay) {
-        MinecraftClient mc = MinecraftClient.getInstance();
+    public void render(ItemStack stack, ItemDisplayContext mode, PoseStack matrices,
+                       MultiBufferSource vcp, int light, int overlay) {
+        Minecraft mc = Minecraft.getInstance();
         ItemRenderer ir = mc.getItemRenderer();
         matrices.push();
         matrices.translate(0.5F, 0.5F, 0.5F); // 外层已 -0.5，先回中心原点再嵌套（见类注坐标账）
@@ -47,11 +47,11 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
         ItemStack frame = new ItemStack(frameItem);
         var frameModel = ir.getModel(frame, mc.world, null, 0);
         String id = CompressedPackItem.innerId(stack);
-        Item innerItem = id != null ? Registries.ITEM.get(Identifier.of(id)) : Items.AIR;
+        Item innerItem = id != null ? BuiltInRegistries.ITEM.get(ResourceLocation.of(id)) : Items.AIR;
         boolean hasInner = innerItem != Items.AIR && !(innerItem instanceof CompressedPackItem);
         int spd = com.sdzjz.config.SdzjzConfig.get().compressedPackSpinDegPerSec;
 
-        if (mode == ModelTransformationMode.GUI) {
+        if (mode == ItemDisplayContext.GUI) {
             // GUI 老路（作者验过说好）：内容物/边框各走自己的 display 变换，边框前移 0.4。
             if (hasInner) {
                 ItemStack inner = new ItemStack(innerItem);
@@ -60,7 +60,7 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
                 matrices.push();
                 matrices.scale(0.8F, 0.8F, 0.8F);
                 if (spd > 0 && innerModel.hasDepth())
-                    matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
+                    matrices.multiply(com.mojang.math.Axis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
                 ir.renderItem(inner, mode, false, matrices, vcp, light, overlay, innerModel);
                 matrices.pop();
             }
@@ -75,8 +75,8 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             // 一次 apply），内外都以 NONE 嵌套渲染=同一锚点必然居中；内容物在框平面内绕 Y 自转。
             // 【几何账】边框贴图实测 2px border→内孔半宽 0.375；内容物缩 0.5(默认)水平旋转半径
             // 0.25×√2≈0.354<0.375=旋转全程不进边框环带；边框前移 0.05 防中孔处 z-fight，无穿插无视差。
-            boolean left = mode == ModelTransformationMode.FIRST_PERSON_LEFT_HAND
-                    || mode == ModelTransformationMode.THIRD_PERSON_LEFT_HAND;
+            boolean left = mode == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
+                    || mode == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
             matrices.push();
             frameModel.getTransformation().getTransformation(mode).apply(left, matrices);
             if (hasInner) {
@@ -86,13 +86,13 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
                 matrices.push();
                 matrices.scale(0.5F, 0.5F, 0.5F);
                 if (spd > 0 && innerModel.hasDepth())
-                    matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
-                ir.renderItem(inner, ModelTransformationMode.NONE, false, matrices, vcp, light, overlay, innerModel);
+                    matrices.multiply(com.mojang.math.Axis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
+                ir.renderItem(inner, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, innerModel);
                 matrices.pop();
             }
             matrices.push();
             matrices.translate(0.0F, 0.0F, 0.05F);
-            ir.renderItem(frame, ModelTransformationMode.NONE, false, matrices, vcp, light, overlay, frameModel);
+            ir.renderItem(frame, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, frameModel);
             matrices.pop();
             matrices.pop();
         }
@@ -106,14 +106,14 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
      *  =天然只扫在物品像素上不糊框，GUI/手持/掉落全模式同效零自定义几何。展示栈是本渲染器现造的
      *  临时栈，不碰真实物品组件。可能与真附魔物观感混淆——包内容物按构造只会是原版散件、tooltip
      *  写明内容物，可接受；不喜欢一键关配置。 */
-    private static void sheen(ItemStack inner, net.minecraft.client.render.model.BakedModel innerModel) {
+    private static void sheen(ItemStack inner, net.minecraft.client.resources.model.BakedModel innerModel) {
         if (!innerModel.hasDepth() && com.sdzjz.config.SdzjzConfig.get().compressedPackFlatSheen)
-            inner.set(net.minecraft.component.DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, Boolean.TRUE);
+            inner.set(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, Boolean.TRUE);
     }
 
     /** m280 自转角：时间源 Util.getMeasuringTimeMs()（m148 在树先例）与 tick 无关恒匀速，按整圈周期取模防浮点漂移。 */
     private static float spinDeg(int spd) {
         long periodMs = Math.max(1L, 360_000L / spd); // m290 夹紧：配置 spd>360000 时整除得 0，%0=ArithmeticException 崩渲染线程
-        return (net.minecraft.util.Util.getMeasuringTimeMs() % periodMs) * spd / 1000.0F;
+        return (net.minecraft.Util.getMeasuringTimeMs() % periodMs) * spd / 1000.0F;
     }
 }

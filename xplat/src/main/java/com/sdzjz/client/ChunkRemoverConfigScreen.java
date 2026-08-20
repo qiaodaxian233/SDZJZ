@@ -3,11 +3,11 @@ package com.sdzjz.client;
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.net.ChunkRemoverConfigPayload;
 import com.sdzjz.node.NodeTags;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 
 /**
  * m386 区块移除器手持设置面板（作者点名"进核心里调麻烦，主题类似存储终端"）——
@@ -23,13 +23,13 @@ public class ChunkRemoverConfigScreen extends Screen {
     private final int hand; // 0=主手 1=副手
 
     public ChunkRemoverConfigScreen(int hand) {
-        super(Text.literal("区块移除器设置"));
+        super(Component.literal("区块移除器设置"));
         this.hand = hand;
     }
 
     private ItemStack stack() {
         if (client == null || client.player == null) return ItemStack.EMPTY;
-        return client.player.getStackInHand(hand == 0 ? Hand.MAIN_HAND : Hand.OFF_HAND);
+        return client.player.getStackInHand(hand == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
 
     private int px() { return (width - W) / 2; }
@@ -43,12 +43,12 @@ public class ChunkRemoverConfigScreen extends Screen {
      *  模糊 shader 把整个世界糊掉，本屏是手持快捷面板要的是"看着世界调参数"，覆写成只画
      *  游戏内半透明暗化渐变（renderInGameBackground）。本屏只在世界内打开，无需全景图分支。 */
     @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         renderInGameBackground(ctx);
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         ItemStack s = stack();
         if (!(s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) { close(); return; }
         renderBackground(ctx, mouseX, mouseY, delta);
@@ -104,7 +104,7 @@ public class ChunkRemoverConfigScreen extends Screen {
         super.render(ctx, mouseX, mouseY, delta);
     }
 
-    private void drawBtn(DrawContext ctx, int bx, int by, int bw, String t, int mx, int my) {
+    private void drawBtn(GuiGraphics ctx, int bx, int by, int bw, String t, int mx, int my) {
         boolean hov = in(mx, my, bx, by, bw, 16);
         ctx.fill(bx, by, bx + bw, by + 16, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(bx + 1, by + 1, bx + bw - 1, by + 15, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);

@@ -1,9 +1,9 @@
 package com.sdzjz.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.Sprite;
-import net.minecraft.client.texture.SpriteAtlasTexture;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * m320 Sodium 图标动画保活（反射软兼容，m229 ProjectEFCompat 同刀法，零编译依赖）。
@@ -21,85 +21,85 @@ public final class SodiumSpriteKicker {
     private SodiumSpriteKicker() {}
 
     /** 需要保活的动画物品精灵（方块精灵由世界渲染天然保活，不必列；新增动画物品记得进表）。 */
-    private static final Identifier[] SPRITES = {
-            Identifier.of("sdzjz", "item/parallel_upgrade"),
-            Identifier.of("sdzjz", "item/count_upgrade"),
-            Identifier.of("sdzjz", "item/speed_upgrade"),
-            Identifier.of("sdzjz", "item/core_module"),
-            Identifier.of("sdzjz", "item/auto_crafter"),      // m330 五台规划器机器节点动画
-            Identifier.of("sdzjz", "item/crop_farm"),
-            Identifier.of("sdzjz", "item/brewing_tower"),
-            Identifier.of("sdzjz", "item/enchant_factory"),
-            Identifier.of("sdzjz", "item/villager_trader"),
-            Identifier.of("sdzjz", "item/duplicator"),      // m334 复制机脉冲动画
+    private static final ResourceLocation[] SPRITES = {
+            ResourceLocation.of("sdzjz", "item/parallel_upgrade"),
+            ResourceLocation.of("sdzjz", "item/count_upgrade"),
+            ResourceLocation.of("sdzjz", "item/speed_upgrade"),
+            ResourceLocation.of("sdzjz", "item/core_module"),
+            ResourceLocation.of("sdzjz", "item/auto_crafter"),      // m330 五台规划器机器节点动画
+            ResourceLocation.of("sdzjz", "item/crop_farm"),
+            ResourceLocation.of("sdzjz", "item/brewing_tower"),
+            ResourceLocation.of("sdzjz", "item/enchant_factory"),
+            ResourceLocation.of("sdzjz", "item/villager_trader"),
+            ResourceLocation.of("sdzjz", "item/duplicator"),      // m334 复制机脉冲动画
             // m337 批量动画化 63 张（辉光呼吸管线，漏登=装 Sodium 冻第 0 帧——m320 铁律）
-            Identifier.of("sdzjz", "item/amethyst_farm"),
-            Identifier.of("sdzjz", "item/animal_farm"),
-            Identifier.of("sdzjz", "item/auto_feeder"),
-            Identifier.of("sdzjz", "item/bamboo_farm"),
-            Identifier.of("sdzjz", "item/basalt_machine"),
-            Identifier.of("sdzjz", "item/blaze_farm"),
-            Identifier.of("sdzjz", "item/bone_farm"),
-            Identifier.of("sdzjz", "item/cactus_farm"),
-            Identifier.of("sdzjz", "item/carpet_machine"),
-            Identifier.of("sdzjz", "item/chicken_farm"),
-            Identifier.of("sdzjz", "item/clay_machine"),
-            Identifier.of("sdzjz", "item/cobble_maker"),
-            Identifier.of("sdzjz", "item/data_cable"),
-            Identifier.of("sdzjz", "item/deep_mining_platform"),
-            Identifier.of("sdzjz", "item/distributor_node"),
-            Identifier.of("sdzjz", "item/dragon_cannon"),
-            Identifier.of("sdzjz", "item/dripstone_farm"),
-            Identifier.of("sdzjz", "item/extractor_node"),
-            Identifier.of("sdzjz", "item/filter_node"),
-            Identifier.of("sdzjz", "item/flesh_farm"),
-            Identifier.of("sdzjz", "item/glass_kiln"),
-            Identifier.of("sdzjz", "item/gold_smelter"),
-            Identifier.of("sdzjz", "item/grindstone_recycler"),
-            Identifier.of("sdzjz", "item/gunpowder_farm"),
-            Identifier.of("sdzjz", "item/hoglin_farm"),
-            Identifier.of("sdzjz", "item/honey_farm"),
-            Identifier.of("sdzjz", "item/ice_maker"),
-            Identifier.of("sdzjz", "item/iron_smelter"),
-            Identifier.of("sdzjz", "item/linker"),
-            Identifier.of("sdzjz", "item/logo"),
-            Identifier.of("sdzjz", "item/magma_farm"),
-            Identifier.of("sdzjz", "item/mega_amethyst_farm"),
-            Identifier.of("sdzjz", "item/mega_cobble_maker"),
-            Identifier.of("sdzjz", "item/mega_crop_farm"),
-            Identifier.of("sdzjz", "item/mega_honey_farm"),
-            Identifier.of("sdzjz", "item/mega_piglin_barter"),
-            Identifier.of("sdzjz", "item/mega_pigman_tower"),
-            Identifier.of("sdzjz", "item/mega_slime_farm"),
-            Identifier.of("sdzjz", "item/mega_super_smelter"),
-            Identifier.of("sdzjz", "item/mega_wither_skeleton_farm"),
-            Identifier.of("sdzjz", "item/obsidian_maker"),
-            Identifier.of("sdzjz", "item/pig_farm"),
-            Identifier.of("sdzjz", "item/piglin_barter"),
-            Identifier.of("sdzjz", "item/pigman_tower"),
-            Identifier.of("sdzjz", "item/portable_vault"),
-            Identifier.of("sdzjz", "item/sand_maker"),
-            Identifier.of("sdzjz", "item/satellite_node"),
-            Identifier.of("sdzjz", "item/sculk_line"),
-            Identifier.of("sdzjz", "item/sensor_node"),
-            Identifier.of("sdzjz", "item/sheep_farm"),
-            Identifier.of("sdzjz", "item/slime_farm"),
-            Identifier.of("sdzjz", "item/snow_machine"),
-            Identifier.of("sdzjz", "item/storage_core"),
-            Identifier.of("sdzjz", "item/sugarcane_farm"),
-            Identifier.of("sdzjz", "item/super_smelter"),
-            Identifier.of("sdzjz", "item/switch_node"),
-            Identifier.of("sdzjz", "item/trash_node"),
-            Identifier.of("sdzjz", "item/tree_farm"),
-            Identifier.of("sdzjz", "item/villager_breeder"),
-            Identifier.of("sdzjz", "item/villager_discount_machine"),
-            Identifier.of("sdzjz", "item/wire_brusher"),
-            Identifier.of("sdzjz", "item/wireless_node"),
-            Identifier.of("sdzjz", "item/wither_skeleton_farm"),
+            ResourceLocation.of("sdzjz", "item/amethyst_farm"),
+            ResourceLocation.of("sdzjz", "item/animal_farm"),
+            ResourceLocation.of("sdzjz", "item/auto_feeder"),
+            ResourceLocation.of("sdzjz", "item/bamboo_farm"),
+            ResourceLocation.of("sdzjz", "item/basalt_machine"),
+            ResourceLocation.of("sdzjz", "item/blaze_farm"),
+            ResourceLocation.of("sdzjz", "item/bone_farm"),
+            ResourceLocation.of("sdzjz", "item/cactus_farm"),
+            ResourceLocation.of("sdzjz", "item/carpet_machine"),
+            ResourceLocation.of("sdzjz", "item/chicken_farm"),
+            ResourceLocation.of("sdzjz", "item/clay_machine"),
+            ResourceLocation.of("sdzjz", "item/cobble_maker"),
+            ResourceLocation.of("sdzjz", "item/data_cable"),
+            ResourceLocation.of("sdzjz", "item/deep_mining_platform"),
+            ResourceLocation.of("sdzjz", "item/distributor_node"),
+            ResourceLocation.of("sdzjz", "item/dragon_cannon"),
+            ResourceLocation.of("sdzjz", "item/dripstone_farm"),
+            ResourceLocation.of("sdzjz", "item/extractor_node"),
+            ResourceLocation.of("sdzjz", "item/filter_node"),
+            ResourceLocation.of("sdzjz", "item/flesh_farm"),
+            ResourceLocation.of("sdzjz", "item/glass_kiln"),
+            ResourceLocation.of("sdzjz", "item/gold_smelter"),
+            ResourceLocation.of("sdzjz", "item/grindstone_recycler"),
+            ResourceLocation.of("sdzjz", "item/gunpowder_farm"),
+            ResourceLocation.of("sdzjz", "item/hoglin_farm"),
+            ResourceLocation.of("sdzjz", "item/honey_farm"),
+            ResourceLocation.of("sdzjz", "item/ice_maker"),
+            ResourceLocation.of("sdzjz", "item/iron_smelter"),
+            ResourceLocation.of("sdzjz", "item/linker"),
+            ResourceLocation.of("sdzjz", "item/logo"),
+            ResourceLocation.of("sdzjz", "item/magma_farm"),
+            ResourceLocation.of("sdzjz", "item/mega_amethyst_farm"),
+            ResourceLocation.of("sdzjz", "item/mega_cobble_maker"),
+            ResourceLocation.of("sdzjz", "item/mega_crop_farm"),
+            ResourceLocation.of("sdzjz", "item/mega_honey_farm"),
+            ResourceLocation.of("sdzjz", "item/mega_piglin_barter"),
+            ResourceLocation.of("sdzjz", "item/mega_pigman_tower"),
+            ResourceLocation.of("sdzjz", "item/mega_slime_farm"),
+            ResourceLocation.of("sdzjz", "item/mega_super_smelter"),
+            ResourceLocation.of("sdzjz", "item/mega_wither_skeleton_farm"),
+            ResourceLocation.of("sdzjz", "item/obsidian_maker"),
+            ResourceLocation.of("sdzjz", "item/pig_farm"),
+            ResourceLocation.of("sdzjz", "item/piglin_barter"),
+            ResourceLocation.of("sdzjz", "item/pigman_tower"),
+            ResourceLocation.of("sdzjz", "item/portable_vault"),
+            ResourceLocation.of("sdzjz", "item/sand_maker"),
+            ResourceLocation.of("sdzjz", "item/satellite_node"),
+            ResourceLocation.of("sdzjz", "item/sculk_line"),
+            ResourceLocation.of("sdzjz", "item/sensor_node"),
+            ResourceLocation.of("sdzjz", "item/sheep_farm"),
+            ResourceLocation.of("sdzjz", "item/slime_farm"),
+            ResourceLocation.of("sdzjz", "item/snow_machine"),
+            ResourceLocation.of("sdzjz", "item/storage_core"),
+            ResourceLocation.of("sdzjz", "item/sugarcane_farm"),
+            ResourceLocation.of("sdzjz", "item/super_smelter"),
+            ResourceLocation.of("sdzjz", "item/switch_node"),
+            ResourceLocation.of("sdzjz", "item/trash_node"),
+            ResourceLocation.of("sdzjz", "item/tree_farm"),
+            ResourceLocation.of("sdzjz", "item/villager_breeder"),
+            ResourceLocation.of("sdzjz", "item/villager_discount_machine"),
+            ResourceLocation.of("sdzjz", "item/wire_brusher"),
+            ResourceLocation.of("sdzjz", "item/wireless_node"),
+            ResourceLocation.of("sdzjz", "item/wither_skeleton_farm"),
     };
 
     private static boolean resolved = false, disabled = false;
-    private static java.lang.reflect.Method mark;   // markSpriteActive(Sprite)
+    private static java.lang.reflect.Method mark;   // markSpriteActive(TextureAtlasSprite)
     private static Object markTarget;               // Sodium 0.6 的 INSTANCE；0.5 静态方法则为 null
 
     private static void resolve() {
@@ -127,15 +127,15 @@ public final class SodiumSpriteKicker {
     }
 
     /** SdzjzClient 注册进 END_CLIENT_TICK：4 次表查+反射调用/tick 纳秒级；任何异常一次熔断永不再试。 */
-    public static void tick(MinecraftClient client) {
+    public static void tick(Minecraft client) {
         if (disabled || client == null || !com.sdzjz.config.SdzjzConfig.get().sodiumIconAnimFix) return;
         if (!resolved) resolve();
         if (disabled) return;
         try {
-            SpriteAtlasTexture atlas = client.getBakedModelManager()
-                    .getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE); // 1.21 物品精灵同在方块图集
-            for (Identifier id : SPRITES) {
-                Sprite s = atlas.getSprite(id);
+            TextureAtlas atlas = client.getBakedModelManager()
+                    .getAtlas(TextureAtlas.BLOCK_ATLAS_TEXTURE); // 1.21 物品精灵同在方块图集
+            for (ResourceLocation id : SPRITES) {
+                TextureAtlasSprite s = atlas.getSprite(id);
                 if (s != null) mark.invoke(markTarget, s);
             }
         } catch (Throwable t) {

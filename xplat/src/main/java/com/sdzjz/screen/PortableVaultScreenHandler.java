@@ -2,22 +2,22 @@ package com.sdzjz.screen;
 
 import com.sdzjz.item.PortableVaultItem;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * m312 随身仓库取物屏。零 S2C 同步取巧：账本存手上包的 CUSTOM_DATA 组件，随背包槽位
  * 天然同步到客户端——屏端直接读客户端手上包画列表，服务端只收一个 VaultTakePayload。
  * 列表区无槽位（照交易所 m101 列表刀法）；下方背包槽 shift 点=整叠入账（离屏收纳同规矩）。
  */
-public class PortableVaultScreenHandler extends ScreenHandler {
+public class PortableVaultScreenHandler extends AbstractContainerMenu {
 
     /** 列表几何唯一口径（屏同用，m215 教训：渲染与点击同源常量）。
      *  m315：PINV_Y 138→150——旧值下两行提示同落 y+126 逐字重叠（列表底 126 与 PINV_Y-12 撞车），
@@ -25,14 +25,14 @@ public class PortableVaultScreenHandler extends ScreenHandler {
     public static final int LIST_Y = 32, ROW_H = 18, ROWS = 5;
     public static final int PINV_X = 20, PINV_Y = 150;
 
-    private final PlayerEntity player;
-    private final Hand hand; // 开屏时定格：主手优先
+    private final Player player;
+    private final InteractionHand hand; // 开屏时定格：主手优先
 
-    public PortableVaultScreenHandler(int syncId, PlayerInventory playerInv) {
+    public PortableVaultScreenHandler(int syncId, Inventory playerInv) {
         super(ModScreenHandlers.PORTABLE_VAULT, syncId);
         this.player = playerInv.player;
-        this.hand = playerInv.player.getStackInHand(Hand.MAIN_HAND).getItem() instanceof PortableVaultItem
-                ? Hand.MAIN_HAND : Hand.OFF_HAND;
+        this.hand = playerInv.player.getStackInHand(InteractionHand.MAIN_HAND).getItem() instanceof PortableVaultItem
+                ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++)
                 this.addSlot(new Slot(playerInv, c + r * 9 + 9, PINV_X + c * 18, PINV_Y + r * 18));
@@ -50,13 +50,13 @@ public class PortableVaultScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean canUse(PlayerEntity p) {
+    public boolean canUse(Player p) {
         return !vault().isEmpty(); // 包离手即关屏
     }
 
     /** 背包 shift 点=整叠入账（账本只在服务端动——m95 铁律；客户端只清格做预测，服务端同步兜正）。 */
     @Override
-    public ItemStack quickMove(PlayerEntity p, int index) {
+    public ItemStack quickMove(Player p, int index) {
         Slot slot = this.slots.get(index);
         if (slot == null || !slot.hasStack()) return ItemStack.EMPTY;
         ItemStack st = slot.getStack();
@@ -64,9 +64,9 @@ public class PortableVaultScreenHandler extends ScreenHandler {
         if (!p.getWorld().isClient) {
             ItemStack v = vault();
             if (v.isEmpty()) return ItemStack.EMPTY;
-            String id = Registries.ITEM.getId(st.getItem()).toString();
+            String id = BuiltInRegistries.ITEM.getId(st.getItem()).toString();
             if (!PortableVaultItem.vaultAdd(v, id, st.getCount())) {
-                p.sendMessage(Text.literal("仓库类型已满（config portableVaultTypeCap）"), true);
+                p.sendMessage(Component.literal("仓库类型已满（config portableVaultTypeCap）"), true);
                 return ItemStack.EMPTY;
             }
         }
@@ -75,13 +75,13 @@ public class PortableVaultScreenHandler extends ScreenHandler {
     }
 
     /** m312 服务端取物（接收器调）。mode 0=一组64 / 1=拿满一格 / 2=取尽填背包；余量永留账本绝不落地。 */
-    public void take(net.minecraft.server.network.ServerPlayerEntity p, String rawId, int mode) {
+    public void take(net.minecraft.server.level.ServerPlayer p, String rawId, int mode) {
         ItemStack v = vault();
         if (v.isEmpty()) return;
-        Identifier idf = Identifier.tryParse(rawId);
+        ResourceLocation idf = ResourceLocation.tryParse(rawId);
         if (idf == null) return;
-        net.minecraft.item.Item it = Registries.ITEM.get(idf);
-        if (it == net.minecraft.item.Items.AIR) return;
+        net.minecraft.world.item.Item it = BuiltInRegistries.ITEM.get(idf);
+        if (it == net.minecraft.world.item.Items.AIR) return;
         var acct = PortableVaultItem.ledger(v);
         long left = acct.getLong(rawId);
         if (left <= 0) return;
@@ -101,11 +101,11 @@ public class PortableVaultScreenHandler extends ScreenHandler {
             budget -= in;
             if (in < chunk) break; // 背包满：余量天然留账本（只扣实收）
         }
-        if (taken <= 0) { p.sendMessage(Text.literal("背包没有空位"), true); return; }
+        if (taken <= 0) { p.sendMessage(Component.literal("背包没有空位"), true); return; }
         long remain = left - taken;
         if (remain > 0) acct.putLong(rawId, remain); else acct.remove(rawId);
         PortableVaultItem.writeLedger(v, acct);
-        p.sendMessage(Text.literal("叮！取出 " + new ItemStack(it).getName().getString() + " ×" + taken
+        p.sendMessage(Component.literal("叮！取出 " + new ItemStack(it).getName().getString() + " ×" + taken
                 + (budget > 0 ? "（背包已满，余量在库）" : "")), true);
     }
 }

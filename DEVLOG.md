@@ -7516,3 +7516,36 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：工具的注释承诺≠工具的实现——m412 自证了四条安全绳却没自证"简名层存在"，
   自证清单要覆盖**每一条注释里写了的能力**，不只红线。
 - 零游戏代码、零新配置键。下一步 m414：开 `mojmap` 分支打第一炮。
+
+## m414 mojmap 分支第一炮：officialMojangMappings + 全库类名层换装（预期首轮 CI 红=编译器列清单）
+
+- **本笔在 `mojmap` 分支**（主分支照常可玩可出包，m409 定的节奏）。内容四块：
+- **① 构建开关**：根构建 `mappings` 由 Yarn 换 `loom.officialMojangMappings()`；依赖 jar
+  （fabric-api/JEI）发行态都是 intermediary，Loom 无条件远端映射到当前 named 层，两套映射通吃。
+  javac 补 `-Xmaxerrs 5000`——默认 100 条封顶会把错误清单截断（m257 假绿同族），
+  第一轮红就要拿到**全量**清单。
+- **② 全库类名层换装**：m413 升级版应用器 `--write` 落盘=132 文件 **3787 处**（FQN+import 引出的简名），
+  0 跳过 0 残留（`--assume-same MinecraftServer`）；内部类八对补刀 **219 处**（表只有顶层类）：
+  Item.Settings→Properties(125)/CustomPacketPayload.Id→Type(50)/HolderLookup.WrapperLookup→Provider(19)/
+  BlockBehaviour.Settings→Properties(8)/BlockPos.Mutable→MutableBlockPos(6)/SavedData.Type→Factory(6)/
+  PoseStack.Entry→Pose(4)/MultiBufferSource.Immediate→BufferSource(1)；
+  Item.TooltipContext/…Provider.Context/InputConstants.Type/StateDefinition.Builder 两边同名免改。
+- **③ 六枚 mixin 手核**（方法靶点字符串是编译器管不了的死角，mixin 应用失败=运行期炸，判官=GameTest job）：
+  Slot getMaxItemCount()I→getMaxStackSize()I / ItemStack getMaxCount→getMaxStackSize /
+  Codecs;rangedInt→ExtraCodecs;intRange（@At 槽串斜杠形应用器不碰+方法体同名连改）/
+  GuiGraphics drawItemInSlot→renderItemDecorations（描述符 Font/ItemStack 斜杠形同步换）/
+  InventoryScreen drawBackground→renderBg（顺手 this.x/y→leftPos/topPos，屏坐标字段编译器会点名索性当场修）/
+  InventoryMenu <init> 免改（构造靶按描述符匹配，形参类型已随类名层换装）。
+  全库残留斜杠形/字符串形 MC 类名 grep=0。
+- **④ CI 通道**：ci.yml 三处（只在本分支生效）——push 触发加 mojmap；build job 失败把 javac 错误
+  逐条+两行上下文回推 `ci-mojmap-errors` 分支（m310b 同款破 artifact blob 盲区）；新 job
+  mapping-members=跑批机可达 piston-meta，代跑 `gradlew mojmapTable mojmapMembers` 把成员对照表
+  回推 `ci-mojmap-members` 分支——沙箱从 raw 域取表，方法层的"修"从此也是"查"。
+  两条回推走**不同分支**防两 job force-push 互相覆盖。
+- **顺手**：bounded_codec 尺坏模式正则并列 Mojmap 同义名（m413 预扫点名的唯一失明尺，
+  迁移期两套名都认——m402 教训：尺子失明比报错危险）。
+- **验证**：全库 javac 冒烟 3522 条全为缺 MC 依赖噪音，真语法错 0、自家类符号错 0（m123/m180 盲区检）；
+  13 道离线闸本地全绿；YAML 过 safe_load。
+- **预期**：本轮 build/gametest 两 job **必然红**——方法/字段名还是 Yarn 的，那不是失败，
+  是编译器在列清单；neoforge/26.2/offline 三线应绿（不挂 xplat）。红清单+成员表到手即开 m415 按批修。
+- 零新配置键。行为层零改动主张待编译绿后由 GameTest 全量用例判定。

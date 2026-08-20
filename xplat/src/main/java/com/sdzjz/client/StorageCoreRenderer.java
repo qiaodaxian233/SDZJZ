@@ -1,14 +1,14 @@
 package com.sdzjz.client;
 
 import com.sdzjz.block.StorageCoreBlockEntity;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.client.renderer.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.resources.ResourceLocation;
+import com.mojang.math.Axis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -21,23 +21,23 @@ import org.joml.Vector3f;
  */
 public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlockEntity> {
 
-    private static final Identifier TEXTURE = Identifier.of("sdzjz", "textures/block/storage_core.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/storage_core.png");
 
-    public StorageCoreRenderer(BlockEntityRendererFactory.Context ctx) {}
+    public StorageCoreRenderer(BlockEntityRendererProvider.Context ctx) {}
 
     @Override
-    public void render(StorageCoreBlockEntity be, float tickDelta, MatrixStack matrices,
-                       VertexConsumerProvider vertexConsumers, int light, int overlay) {
+    public void render(StorageCoreBlockEntity be, float tickDelta, PoseStack matrices,
+                       MultiBufferSource vertexConsumers, int light, int overlay) {
         float time = (be.getWorld() != null ? be.getWorld().getTime() % 80L : 0L) + tickDelta; // 4s=80t 循环
         float phase = (time % 40f) / 40f;                          // 2s 三角波相位
         float tri = phase < 0.5f ? phase * 2f : 2f - phase * 2f;   // 0→1→0
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(TEXTURE));
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
 
         // core_energy：绕方块中心(0.5,*,0.5)旋转 + 呼吸
         float coreScale = 1f + 0.08f * tri;
         matrices.push();
         matrices.translate(0.5f, 0f, 0.5f);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-time * 4.5f)); // -90°/s
+        matrices.multiply(Axis.POSITIVE_Y.rotationDegrees(-time * 4.5f)); // -90°/s
         matrices.scale(coreScale, coreScale, coreScale);
         matrices.translate(-0.5f, 0f, -0.5f);
         emit(StorageCoreAnimGeo.CORE, matrices.peek(), vc, light, overlay);
@@ -53,7 +53,7 @@ public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlock
     }
 
     /** 逐四边形发顶点：行 = nx,ny,nz + 4×(x,y,z,u,v)。 */
-    private static void emit(float[][] quads, MatrixStack.Entry entry, VertexConsumer vc, int light, int overlay) {
+    private static void emit(float[][] quads, PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
         Matrix4f pm = entry.getPositionMatrix();
         Matrix3f nm = entry.getNormalMatrix();
         Vector3f p = new Vector3f(), n = new Vector3f();

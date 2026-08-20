@@ -9,18 +9,18 @@ import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModScreenHandlers;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
-import net.minecraft.client.gui.screen.ingame.HandledScreens;
+import net.minecraft.client.gui.screens.MenuScreens;
 
 public class SdzjzClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         com.sdzjz.client.SatelliteNodeModel.register(); // m151 卫星节点bbmodel自定义烘焙
-        HandledScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
-        HandledScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
-        HandledScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
-        HandledScreens.register(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
-        HandledScreens.register(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
-        HandledScreens.register(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
+        MenuScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
+        MenuScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
+        MenuScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
+        MenuScreens.register(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
+        MenuScreens.register(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
+        MenuScreens.register(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
         BlockEntityRendererRegistry.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
         BlockEntityRendererRegistry.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
         BlockEntityRendererRegistry.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
@@ -58,8 +58,8 @@ public class SdzjzClient implements ClientModInitializer {
                 });
         // m80：全模组物品 tooltip 水印
         com.sdzjz.client.ClientHooks.onItemTooltip((stack, lines) -> { // m405 平台口
-            if ("sdzjz".equals(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getNamespace()))
-                lines.add(net.minecraft.text.Text.literal("DY：乔大仙").formatted(net.minecraft.util.Formatting.GOLD));
+            if ("sdzjz".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(stack.getItem()).getNamespace()))
+                lines.add(net.minecraft.network.chat.Component.literal("DY：乔大仙").formatted(net.minecraft.ChatFormatting.GOLD));
         });
         // m320：Sodium"仅动画可见纹理"优化会冻结纯 GUI 物品动画精灵（方块精灵靠世界渲染保活不受累）
         // ——每客户端 tick 给四件动画物品精灵标活跃；未装 Sodium 垫片自动熔断零开销。

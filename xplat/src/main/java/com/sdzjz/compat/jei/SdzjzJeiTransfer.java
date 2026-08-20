@@ -10,10 +10,10 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.inventory.MenuType;
 
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ import java.util.Optional;
  * 专用服务器上本类不会被加载（与 entrypoint 惰性加载同理），不会炸服。
  */
 public final class SdzjzJeiTransfer
-        implements IRecipeTransferHandler<DataPanelScreenHandler, RecipeEntry<CraftingRecipe>> {
+        implements IRecipeTransferHandler<DataPanelScreenHandler, RecipeHolder<CraftingRecipe>> {
 
     @Override
     public Class<? extends DataPanelScreenHandler> getContainerClass() {
@@ -34,18 +34,18 @@ public final class SdzjzJeiTransfer
     }
 
     @Override
-    public Optional<ScreenHandlerType<DataPanelScreenHandler>> getMenuType() {
+    public Optional<MenuType<DataPanelScreenHandler>> getMenuType() {
         return Optional.of(ModScreenHandlers.DATA_PANEL);
     }
 
     @Override
-    public RecipeType<RecipeEntry<CraftingRecipe>> getRecipeType() {
+    public RecipeType<RecipeHolder<CraftingRecipe>> getRecipeType() {
         return RecipeTypes.CRAFTING;
     }
 
     @Override
-    public IRecipeTransferError transferRecipe(DataPanelScreenHandler handler, RecipeEntry<CraftingRecipe> recipe,
-                                               IRecipeSlotsView recipeSlots, PlayerEntity player,
+    public IRecipeTransferError transferRecipe(DataPanelScreenHandler handler, RecipeHolder<CraftingRecipe> recipe,
+                                               IRecipeSlotsView recipeSlots, Player player,
                                                boolean maxTransfer, boolean doTransfer) {
         if (doTransfer) {
             com.sdzjz.client.ClientNet.toServer(new JeiFillPayload(handler.blockPos(), recipe.id(), maxTransfer));

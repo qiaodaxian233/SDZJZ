@@ -2,17 +2,17 @@ package com.sdzjz.block;
 
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.registry.ModBlockEntities;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,10 +32,10 @@ public class DataCableBlockEntity extends BlockEntity
     private List<BlockPos> coresCache = List.of();
     private java.util.UUID owner = null;                       // m229 端口所有者（EMC 记谁账上；配置即认领）
     /** m230 升级槽（0=速度 1=数量 2=并发；级数=槽内件数，配置界面装取）。 */
-    public final net.minecraft.inventory.SimpleInventory upgrades = new net.minecraft.inventory.SimpleInventory(3);
+    public final net.minecraft.world.SimpleContainer upgrades = new net.minecraft.world.SimpleContainer(3);
     private boolean pullMode = false; // m231 方向：false=送出(仓→机器/卖桌) true=回收(机器→仓)；单向无环
     private int offFaces = 0;         // m233 按面断开位掩码（bit=Direction.getId()；链接器潜行右键手臂切）
-    private net.minecraft.server.network.ServerPlayerEntity opSeller = null; // 本拍在线卖手（瞬态不持久化）
+    private net.minecraft.server.level.ServerPlayer opSeller = null; // 本拍在线卖手（瞬态不持久化）
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_CABLE_BE, pos, state);
@@ -62,7 +62,7 @@ public class DataCableBlockEntity extends BlockEntity
     public boolean extractOn() { return extractOn; }
     public void setExtractOn(boolean on) { extractOn = on; markDirty(); }
     /** m229 认领所有者：谁配置这个口（开界面/潜行开关），转化桌出售的 EMC 就记谁账上。 */
-    public void claimOwner(net.minecraft.entity.player.PlayerEntity p) {
+    public void claimOwner(net.minecraft.world.entity.player.Player p) {
         if (p != null && !p.getUuid().equals(owner)) { owner = p.getUuid(); markDirty(); }
     }
     public java.util.UUID owner() { return owner; }
@@ -80,7 +80,7 @@ public class DataCableBlockEntity extends BlockEntity
     /** m233 网络通行判定：cur→np 这条边是否被数据线按面断开（任一端是数据线且该面被禁=不通）。
      *  全部走线（BFS/贴邻）统一插闸用；**必须在 seen 标记之前调用**——先标 seen 再判断会把
      *  经其他路径可达的节点一并堵死。 */
-    public static boolean linkBlocked(net.minecraft.world.BlockView world, BlockPos cur, Direction d, BlockPos np) {
+    public static boolean linkBlocked(net.minecraft.world.level.BlockGetter world, BlockPos cur, Direction d, BlockPos np) {
         if (world.getBlockEntity(cur) instanceof DataCableBlockEntity c && c.faceDisabled(d)) return true;
         if (world.getBlockEntity(np) instanceof DataCableBlockEntity c2 && c2.faceDisabled(d.getOpposite())) return true;
         return false;
@@ -90,18 +90,18 @@ public class DataCableBlockEntity extends BlockEntity
 
     // ===== m226 抽取口配置屏开屏工厂（数据面板同款三方法）=====
     @Override
-    public net.minecraft.text.Text getDisplayName() {
-        return net.minecraft.text.Text.translatable("sdzjz.extract_port.title");
+    public net.minecraft.network.chat.Component getDisplayName() {
+        return net.minecraft.network.chat.Component.translatable("sdzjz.extract_port.title");
     }
 
     @Override
-    public net.minecraft.screen.ScreenHandler createMenu(int syncId, net.minecraft.entity.player.PlayerInventory inv,
-                                                         net.minecraft.entity.player.PlayerEntity player) {
+    public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId, net.minecraft.world.entity.player.Inventory inv,
+                                                         net.minecraft.world.entity.player.Player player) {
         return new com.sdzjz.screen.ExtractPortScreenHandler(syncId, inv, this);
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.network.ServerPlayerEntity player) {
+    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
         return this.pos;
     }
 
@@ -112,7 +112,7 @@ public class DataCableBlockEntity extends BlockEntity
      *  各按其面规则放行/拒绝——语义=六面各贴一只漏斗，线插哪面都能喂到收料面。六面全无才试无侧注册。
      *  自家网络方块排除口径不变（存储核心=左手倒右手 m161c；结构核心 Inventory 会被 Fabric 兜底捞到）。
      *  blockCount=有可对接视图的邻块数（界面"旁接存储"口径）。 */
-    public static Adjacency scanAdjacent(World world, BlockPos pos) {
+    public static Adjacency scanAdjacent(Level world, BlockPos pos) {
         List<Object> targets = new ArrayList<>(); // m404 不透明句柄（Fabric=Storage<ItemVariant>，Neo=IItemHandler）
         int blocks = 0;
         boolean sellTable = false;
@@ -136,7 +136,7 @@ public class DataCableBlockEntity extends BlockEntity
         return new Adjacency(targets, blocks, sellTable);
     }
 
-    private static void collectView(List<Object> out, World world, BlockPos np, Direction side) {
+    private static void collectView(List<Object> out, Level world, BlockPos np, Direction side) {
         Object st = com.sdzjz.storage.Xfer.find(world, np, side);
         if (st == null || (!com.sdzjz.storage.Xfer.canInsert(st) && !com.sdzjz.storage.Xfer.canExtract(st))) return; // m231 双向收：送出用可插视图、回收用可取视图
         for (Object s : out) if (s == st) return; // 身份去重：全面同实例注册的只收一次
@@ -147,7 +147,7 @@ public class DataCableBlockEntity extends BlockEntity
     public record Adjacency(List<Object> targets, int blockCount, boolean sellTable) {}
 
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
-    public static void tick(World world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
+    public static void tick(Level world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
         if (world.isClient || !be.extractOn) return;
         int period = be.effPeriod(); // m230 升级生效
         if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
@@ -173,7 +173,7 @@ public class DataCableBlockEntity extends BlockEntity
 
     /** 相连存储核心（数据线 BFS，40t 缓存防每拍裸扫——m218b 精确支路同教训；存位置逐拍 loadedCoreAt
      *  解引用，绝不缓存 BE 引用跨卸载）。 */
-    private List<StorageCoreBlockEntity> cores(World world, BlockPos pos) {
+    private List<StorageCoreBlockEntity> cores(Level world, BlockPos pos) {
         if (coresScanTick == Long.MIN_VALUE || world.getTime() - coresScanTick >= 40) {
             coresScanTick = world.getTime();
             List<BlockPos> ps = new ArrayList<>();
@@ -193,7 +193,7 @@ public class DataCableBlockEntity extends BlockEntity
     private long extractSpec(List<StorageCoreBlockEntity> cores, List<Object> targets, ItemStack tpl, long max) {
         if (tpl.isEmpty() || max <= 0) return 0;
         boolean exact = !tpl.getComponentChanges().isEmpty();
-        String id = exact ? null : Registries.ITEM.getId(tpl.getItem()).toString();
+        String id = exact ? null : BuiltInRegistries.ITEM.getId(tpl.getItem()).toString();
         long moved = 0;
         for (StorageCoreBlockEntity core : cores) {
             while (moved < max) {
@@ -226,7 +226,7 @@ public class DataCableBlockEntity extends BlockEntity
         }
         List<ItemStack> plain = new ArrayList<>(ids.size());
         for (String id : ids) {
-            net.minecraft.item.Item it = Registries.ITEM.get(net.minecraft.util.Identifier.of(id));
+            net.minecraft.world.item.Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.of(id));
             ItemStack st = new ItemStack(it);
             if (!st.isEmpty()) plain.add(st);
         }
@@ -289,7 +289,7 @@ public class DataCableBlockEntity extends BlockEntity
     }
 
     @Override
-    protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+    protected void writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
         super.writeNbt(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
         if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
@@ -297,13 +297,13 @@ public class DataCableBlockEntity extends BlockEntity
         if (offFaces != 0) nbt.putInt("offFaces", offFaces); // m233
         for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
             if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).encode(lookup));
-        NbtList fl = new NbtList(); // 过滤模板持久化（精确账本 m130 同款 encode）
+        ListTag fl = new ListTag(); // 过滤模板持久化（精确账本 m130 同款 encode）
         for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.encode(lookup));
         nbt.put("filter", fl);
     }
 
     @Override
-    protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+    protected void readNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
         super.readNbt(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
@@ -314,7 +314,7 @@ public class DataCableBlockEntity extends BlockEntity
                     ? ItemStack.fromNbt(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);
         }
         filter.clear();
-        NbtList fl = nbt.getList("filter", NbtElement.COMPOUND_TYPE);
+        ListTag fl = nbt.getList("filter", Tag.COMPOUND_TYPE);
         for (int i = 0; i < fl.size(); i++) {
             ItemStack t = ItemStack.fromNbt(lookup, fl.getCompound(i)).orElse(ItemStack.EMPTY);
             if (!t.isEmpty()) filter.add(t.copyWithCount(1)); // 解析失败/物品已卸载静默跳过，不炸档

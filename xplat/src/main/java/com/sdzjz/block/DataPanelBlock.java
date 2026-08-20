@@ -3,21 +3,21 @@ package com.sdzjz.block;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.sdzjz.registry.ModBlockEntities;
-import net.minecraft.block.BlockRenderType;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.BlockWithEntity;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 /** 数据面板：数字化仓储终端。存物品为数据（近乎无限），可浏览/取出。 */
-public class DataPanelBlock extends BlockWithEntity {
+public class DataPanelBlock extends BaseEntityBlock {
 
     public static final MapCodec<DataPanelBlock> CODEC =
             RecordCodecBuilder.mapCodec(i -> i.group(createSettingsCodec()).apply(i, DataPanelBlock::new));
@@ -27,13 +27,13 @@ public class DataPanelBlock extends BlockWithEntity {
     }
 
     @Override
-    protected MapCodec<? extends BlockWithEntity> getCodec() {
+    protected MapCodec<? extends BaseEntityBlock> getCodec() {
         return CODEC;
     }
 
     @Override
-    protected BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
+    protected RenderShape getRenderType(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Nullable
@@ -43,11 +43,11 @@ public class DataPanelBlock extends BlockWithEntity {
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+    protected InteractionResult onUse(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         // 手持终端/链接器时放行，让物品的 useOnBlock 去绑定，而不是直接开界面
-        net.minecraft.item.Item held = player.getMainHandStack().getItem();
+        net.minecraft.world.item.Item held = player.getMainHandStack().getItem();
         if (held instanceof com.sdzjz.item.TerminalItem || held instanceof com.sdzjz.item.LinkerItem) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
         if (!world.isClient) {
             BlockEntity be = world.getBlockEntity(pos);
@@ -55,11 +55,11 @@ public class DataPanelBlock extends BlockWithEntity {
                 player.openHandledScreen(panel);
             }
         }
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     @Override
-    protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
+    protected void onStateReplaced(BlockState state, Level world, BlockPos pos, BlockState newState, boolean moved) {
         // m126a：网格常驻 BE 后拆方块必须散落内容物（照 TradeCenterBlock 同款样板，绝不吞）
         if (!state.isOf(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity panel) {
@@ -71,7 +71,7 @@ public class DataPanelBlock extends BlockWithEntity {
 
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level world, BlockState state, BlockEntityType<T> type) {
         if (world.isClient) return null;
         return validateTicker(type, ModBlockEntities.DATA_PANEL_BE, DataPanelBlockEntity::tick);
     }

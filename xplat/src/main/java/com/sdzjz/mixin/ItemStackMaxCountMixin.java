@@ -1,7 +1,7 @@
 package com.sdzjz.mixin;
 
 import com.sdzjz.config.SdzjzConfig;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ItemStack.class)
 public abstract class ItemStackMaxCountMixin {
 
-    @Inject(method = "getMaxCount", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getMaxStackSize", at = @At("RETURN"), cancellable = true)
     private void sdzjz$bigMaxCount(CallbackInfoReturnable<Integer> cir) {
         int vanilla = cir.getReturnValue();
         if (vanilla <= 1) return; // 不可堆叠物品永不抬

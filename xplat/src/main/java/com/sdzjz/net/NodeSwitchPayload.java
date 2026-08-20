@@ -1,26 +1,26 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 /** 客户端→服务端：切换开关节点的 开/关。 */
-public record NodeSwitchPayload(BlockPos pos, int index) implements CustomPayload {
+public record NodeSwitchPayload(BlockPos pos, int index) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<NodeSwitchPayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "node_switch"));
+    public static final CustomPacketPayload.Type<NodeSwitchPayload> ID =
+            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_switch"));
 
-    public static final PacketCodec<RegistryByteBuf, NodeSwitchPayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeSwitchPayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, NodeSwitchPayload::pos,
-            PacketCodecs.INTEGER, NodeSwitchPayload::index,
+            ByteBufCodecs.INTEGER, NodeSwitchPayload::index,
             NodeSwitchPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

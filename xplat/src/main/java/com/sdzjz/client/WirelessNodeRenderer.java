@@ -1,13 +1,13 @@
 package com.sdzjz.client;
 
 import com.sdzjz.block.WirelessNodeBlockEntity;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -18,7 +18,7 @@ import org.joml.Vector3f;
  */
 public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlockEntity> {
 
-    private static final Identifier TEXTURE = Identifier.of("sdzjz", "textures/block/wireless_node_model.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/wireless_node_model.png");
     private static final float LENGTH_TICKS = 36.0f;
 
     private record Wave(float[][] quads, float[] times, float[] sx, float[] sy, float[] sz,
@@ -178,13 +178,13 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
         0.5000f, 0.0000f, 0.5000f)
     };
 
-    public WirelessNodeRenderer(BlockEntityRendererFactory.Context ctx) {}
+    public WirelessNodeRenderer(BlockEntityRendererProvider.Context ctx) {}
 
     @Override
-    public void render(WirelessNodeBlockEntity be, float tickDelta, MatrixStack matrices,
-                       VertexConsumerProvider vertexConsumers, int light, int overlay) {
+    public void render(WirelessNodeBlockEntity be, float tickDelta, PoseStack matrices,
+                       MultiBufferSource vertexConsumers, int light, int overlay) {
         float t = ((be.getWorld() != null ? be.getWorld().getTime() % (long) LENGTH_TICKS : 0L) + tickDelta) / 20f;
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(TEXTURE));
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
         for (Wave w : WAVES) {
             float sx = interp(w.times, w.sx, t), sy = interp(w.times, w.sy, t), sz = interp(w.times, w.sz, t);
             if (sx <= 0.01f && sy <= 0.01f && sz <= 0.01f) continue;
@@ -209,7 +209,7 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
         return vals[vals.length - 1];
     }
 
-    private static void emit(float[][] quads, MatrixStack.Entry entry, VertexConsumer vc, int light, int overlay) {
+    private static void emit(float[][] quads, PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
         Matrix4f pm = entry.getPositionMatrix();
         Matrix3f nm = entry.getNormalMatrix();
         Vector3f p = new Vector3f(), n = new Vector3f();

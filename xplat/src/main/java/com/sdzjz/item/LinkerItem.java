@@ -2,18 +2,18 @@ package com.sdzjz.item;
 
 import com.sdzjz.block.StorageCoreBlockEntity;
 import com.sdzjz.block.StructureCoreBlockEntity;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 /**
  * 数据链接器：右键存储核心记录目标 → 右键结构核心把核心绑定到该目标（绑定优先于自动路由）。
@@ -30,11 +30,11 @@ public class LinkerItem extends Item {
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext ctx) {
-        World world = ctx.getWorld();
-        if (world.isClient) return ActionResult.SUCCESS;
+    public InteractionResult useOnBlock(UseOnContext ctx) {
+        Level world = ctx.getWorld();
+        if (world.isClient) return InteractionResult.SUCCESS;
         BlockPos pos = ctx.getBlockPos();
-        PlayerEntity player = ctx.getPlayer();
+        Player player = ctx.getPlayer();
         ItemStack stack = ctx.getStack();
         BlockEntity be = world.getBlockEntity(pos);
 
@@ -45,61 +45,61 @@ public class LinkerItem extends Item {
                     double lx = ctx.getHitPos().x - pos.getX() - 0.5,
                            ly = ctx.getHitPos().y - pos.getY() - 0.5,
                            lz = ctx.getHitPos().z - pos.getZ() - 0.5;
-                    net.minecraft.util.math.Direction hitDir = net.minecraft.util.math.Direction.getFacing(lx, ly, lz);
+                    net.minecraft.core.Direction hitDir = net.minecraft.core.Direction.getFacing(lx, ly, lz);
                     double mag = Math.abs(switch (hitDir.getAxis()) { case X -> lx; case Y -> ly; default -> lz; });
                     if (mag > 0.14) { // m233 缆芯半宽 2/16=0.125，超过即点在手臂/插头上：断开该面
                         cable.toggleFace(hitDir);
                         com.sdzjz.block.DataCableBlock.refreshEnd(world, pos, hitDir);
-                        player.sendMessage(Text.translatable(cable.faceDisabled(hitDir)
+                        player.sendMessage(Component.translatable(cable.faceDisabled(hitDir)
                                 ? "sdzjz.extract_port.face_off" : "sdzjz.extract_port.face_on", hitDir.getName()), true);
                     } else if (cable.faceDisabled(ctx.getSide())) { // m233 点缆芯的已断开侧=恢复该面
                         cable.toggleFace(ctx.getSide());
                         com.sdzjz.block.DataCableBlock.refreshEnd(world, pos, ctx.getSide());
-                        player.sendMessage(Text.translatable("sdzjz.extract_port.face_on", ctx.getSide().getName()), true);
+                        player.sendMessage(Component.translatable("sdzjz.extract_port.face_on", ctx.getSide().getName()), true);
                     } else { // 缆芯=快速开/关抽取口（m225 原样）
                         int n = com.sdzjz.block.DataCableBlockEntity.scanAdjacent(world, pos).blockCount(); // m228 计邻块数
                         cable.setExtractOn(!cable.extractOn());
                         player.sendMessage(cable.extractOn()
-                                ? Text.translatable("sdzjz.extract_port.on", n)
-                                : Text.translatable("sdzjz.extract_port.off"), true);
+                                ? Component.translatable("sdzjz.extract_port.on", n)
+                                : Component.translatable("sdzjz.extract_port.off"), true);
                     }
                 } else { // 右键=抽取口配置界面
                     player.openHandledScreen(cable);
                 }
             }
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         if (be instanceof StorageCoreBlockEntity) {
-            NbtCompound nbt = new NbtCompound();
+            CompoundTag nbt = new CompoundTag();
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.getRegistryKey().getValue().toString());
-            stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
             msg(player, "已记录数据面板 " + pos.toShortString());
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         if (be instanceof StructureCoreBlockEntity core) {
             if (player != null && player.isSneaking()) {
                 core.setBound(null, null);
                 msg(player, "核心已解绑");
-                return ActionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
-            NbtComponent c = stack.get(DataComponentTypes.CUSTOM_DATA);
+            CustomData c = stack.get(DataComponents.CUSTOM_DATA);
             if (c == null || !c.copyNbt().contains(K_POS)) {
                 msg(player, "先右键一个数据面板记录目标");
-                return ActionResult.FAIL;
+                return InteractionResult.FAIL;
             }
-            NbtCompound nbt = c.copyNbt();
+            CompoundTag nbt = c.copyNbt();
             BlockPos target = BlockPos.fromLong(nbt.getLong(K_POS));
             core.setBound(target, nbt.getString(K_DIM));
             msg(player, "核心已绑定到面板 " + target.toShortString());
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
-        return ActionResult.PASS;
+        return InteractionResult.PASS;
     }
 
-    private static void msg(PlayerEntity player, String s) {
-        if (player != null) player.sendMessage(Text.literal(s), true);
+    private static void msg(Player player, String s) {
+        if (player != null) player.sendMessage(Component.literal(s), true);
     }
 }

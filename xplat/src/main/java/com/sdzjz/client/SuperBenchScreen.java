@@ -2,19 +2,19 @@ package com.sdzjz.client;
 
 import com.sdzjz.machine.SuperBenchRecipes;
 import com.sdzjz.screen.SuperBenchScreenHandler;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 import java.util.Map;
 
 /** 超大工作台 12×12 合成界面 + 右侧配方浏览器（点机器=自动从背包填料）。 */
-public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
+public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHandler> {
 
     private static final int PANEL = SciSkin.withAlpha8(SciSkin.CELL, 0xF0); // m207 孤儿归队
     private static final int CELLF = SciSkin.FRAME;
@@ -23,7 +23,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     private static final int TXT   = SciSkin.TXT;
     private static final int SUB   = SciSkin.SUB;
     private static final int SEL   = SciSkin.withAlpha8(SciSkin.ACCENT, 0x55); // m207 孤儿归队
-    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/super_bench_gui.png");
+    private static final ResourceLocation BG = ResourceLocation.of("sdzjz", "textures/gui/super_bench_gui.png");
 
     // 浏览器布局（GUI 相对坐标）；m237 搜索框占一行：LIST_Y 30→34、行数 11→10（清单区反而更宽裕）
     private static final int PX = 270, PW = 192, LIST_Y = 34, ENTRY_H = 18, LIST_ROWS = 10;
@@ -42,10 +42,10 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
 
     private int scroll = 0;
     private int selected = -1;                 // 选中配方（ALL 下标——填料协议 clickButton(idx) 口径不变）
-    private net.minecraft.client.gui.widget.TextFieldWidget search; // m237 配方搜索（m216 数据面板同工艺）
+    private net.minecraft.client.gui.components.EditBox search; // m237 配方搜索（m216 数据面板同工艺）
     private final java.util.List<Integer> view = new java.util.ArrayList<>(); // 过滤视图：存 ALL 下标
 
-    public SuperBenchScreen(SuperBenchScreenHandler handler, PlayerInventory inv, Text title) {
+    public SuperBenchScreen(SuperBenchScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
         this.backgroundWidth = 470;
         this.backgroundHeight = BH; // m240 底部越界修复：316→332，热栏整体包进框内
@@ -55,8 +55,8 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     protected void init() {
         super.init();
         String keep = this.search != null ? this.search.getText() : ""; // resize 保留已输入（pickerField 惯例）
-        this.search = new net.minecraft.client.gui.widget.TextFieldWidget(
-                this.textRenderer, this.x + PX, this.y + SEARCH_Y + 1, PW - 6, 12, Text.literal("搜索"));
+        this.search = new net.minecraft.client.gui.components.EditBox(
+                this.textRenderer, this.x + PX, this.y + SEARCH_Y + 1, PW - 6, 12, Component.literal("搜索"));
         this.search.setDrawsBackground(false); // m161b 去黑壳，底格自绘
         this.search.setEditableColor(TXT);
         this.search.setChangedListener(t -> refilter());
@@ -91,7 +91,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     }
 
     @Override
-    protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         int x = this.x, y = this.y;
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP); // m117：与其余三屏统一的全屏底色（此前唯独本屏漏铺）
         ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
@@ -129,13 +129,13 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             cell(ctx, x + 8 + c * 18, py + 58);
     }
 
-    private void cell(DrawContext ctx, int x, int y) {
+    private void cell(GuiGraphics ctx, int x, int y) {
         ctx.fill(x - 1, y - 1, x + 17, y + 17, CELLF);
         ctx.fill(x, y, x + 16, y + 16, CELLB);
     }
 
     @Override
-    protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
         ctx.drawText(this.textRenderer, "超大工作台 · 12×12", 8, 4, TXT, false);
         ctx.drawText(this.textRenderer, "→", 232 - 14, 118 + 4, CYAN, false);
         ctx.drawText(this.textRenderer, "材料位置随意", 8, 18 + 12 * 18 + 2, SUB, false);
@@ -191,7 +191,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
                 boolean allOk = true;
                 for (String mob : mobs) { // m166 多生物逐只显示 ✔/✘（如刷铁机=村民+僵尸）
                     String mn;
-                    try { mn = net.minecraft.registry.Registries.ENTITY_TYPE.get(Identifier.of(mob)).getName().getString(); }
+                    try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.of(mob)).getName().getString(); }
                     catch (Exception ex) { mn = mob; }
                     if (sb.length() > 0) sb.append(' ');
                     boolean caged = hasCagedMob(mob);
@@ -213,7 +213,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             java.util.Map<String, ItemStack> bs = new java.util.HashMap<>();
             java.util.Map<String, String> bl = new java.util.HashMap<>();
             for (Map.Entry<String, Integer> e : bom) {
-                ItemStack st = new ItemStack(Registries.ITEM.get(Identifier.of(e.getKey())));
+                ItemStack st = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(e.getKey())));
                 bs.put(e.getKey(), st);
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 bl.put(e.getKey(), got >= e.getValue() ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()));
@@ -307,7 +307,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
             long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
             if (raw > 0) m.merge(com.sdzjz.item.CompressedPackItem.innerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
             else if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem))
-                m.merge(Registries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+                m.merge(BuiltInRegistries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         return m;
     }
@@ -385,7 +385,7 @@ public class SuperBenchScreen extends HandledScreen<SuperBenchScreenHandler> {
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
     }

@@ -1,16 +1,16 @@
 package com.sdzjz.client;
 
 import com.sdzjz.block.DataCableBlockEntity;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.renderer.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.Direction;
+import com.mojang.math.Axis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -23,19 +23,19 @@ import org.joml.Vector3f;
  */
 public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEntity> {
 
-    private static final Identifier TEXTURE = Identifier.of("sdzjz", "textures/block/data_cable.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.of("sdzjz", "textures/block/data_cable.png");
     /** 各方向：把"指北"的局部脉冲转到该方向的四元数（对照多部件 blockstate 旋转）。 */
     private static final Direction[] DIRS = Direction.values();
 
-    public DataCableRenderer(BlockEntityRendererFactory.Context ctx) {}
+    public DataCableRenderer(BlockEntityRendererProvider.Context ctx) {}
 
     @Override
-    public void render(DataCableBlockEntity be, float tickDelta, MatrixStack matrices,
-                       VertexConsumerProvider vertexConsumers, int light, int overlay) {
+    public void render(DataCableBlockEntity be, float tickDelta, PoseStack matrices,
+                       MultiBufferSource vertexConsumers, int light, int overlay) {
         BlockState state = be.getCachedState();
         if (!(state.getBlock() instanceof com.sdzjz.block.DataCableBlock)) return;
         float time = (be.getWorld() != null ? be.getWorld().getTime() % 30L : 0L) + tickDelta; // 1.5s=30t
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(TEXTURE));
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
 
         for (int i = 0; i < DIRS.length; i++) {
             Direction d = DIRS[i];
@@ -58,15 +58,15 @@ public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEnti
     private static Quaternionf rotationFor(Direction d) {
         return switch (d) {
             case NORTH -> new Quaternionf();
-            case SOUTH -> RotationAxis.POSITIVE_Y.rotationDegrees(180f);
-            case WEST  -> RotationAxis.POSITIVE_Y.rotationDegrees(90f);
-            case EAST  -> RotationAxis.POSITIVE_Y.rotationDegrees(-90f);
-            case UP    -> RotationAxis.POSITIVE_X.rotationDegrees(90f);
-            case DOWN  -> RotationAxis.POSITIVE_X.rotationDegrees(-90f);
+            case SOUTH -> Axis.POSITIVE_Y.rotationDegrees(180f);
+            case WEST  -> Axis.POSITIVE_Y.rotationDegrees(90f);
+            case EAST  -> Axis.POSITIVE_Y.rotationDegrees(-90f);
+            case UP    -> Axis.POSITIVE_X.rotationDegrees(90f);
+            case DOWN  -> Axis.POSITIVE_X.rotationDegrees(-90f);
         };
     }
 
-    private static void emit(MatrixStack.Entry entry, VertexConsumer vc, int light, int overlay) {
+    private static void emit(PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
         Matrix4f pm = entry.getPositionMatrix();
         Matrix3f nm = entry.getNormalMatrix();
         Vector3f p = new Vector3f(), n = new Vector3f();

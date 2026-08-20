@@ -3,21 +3,21 @@ package com.sdzjz.client;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.render.model.BakedQuad;
-import net.minecraft.client.render.model.Baker;
-import net.minecraft.client.render.model.ModelBakeSettings;
-import net.minecraft.client.render.model.UnbakedModel;
-import net.minecraft.client.render.model.json.ModelOverrideList;
-import net.minecraft.client.render.model.json.ModelTransformation;
-import net.minecraft.client.texture.Sprite;
-import net.minecraft.client.texture.SpriteAtlasTexture;
-import net.minecraft.client.util.SpriteIdentifier;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.resources.model.ModelBaker;
+import net.minecraft.client.resources.model.ModelState;
+import net.minecraft.client.resources.model.UnbakedModel;
+import net.minecraft.client.renderer.block.model.ItemOverrides;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.resources.model.Material;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -35,18 +35,18 @@ import java.util.function.Function;
  *
  * 【编译修正备忘（本沙箱无 MC 依赖盲写，若报错按此对表）】
  * ① BakedQuad 构造：1.21.1 Yarn 应为 (int[] vertexData, int tintIndex, Direction face,
- *    Sprite sprite, boolean shade)；若多要 lightEmission(int) 补 0。
- * ② Sprite#getFrameU/getFrameV：入参 0..1（u16/16f 已除好）；若签名是 0..16 制则去掉 /16f。
+ *    TextureAtlasSprite sprite, boolean shade)；若多要 lightEmission(int) 补 0。
+ * ② TextureAtlasSprite#getFrameU/getFrameV：入参 0..1（u16/16f 已除好）；若签名是 0..16 制则去掉 /16f。
  * ③ UnbakedModel 三方法名以 Yarn 1.21.1 为准：getModelDependencies/setParents/bake。
  * ④ [m151-3 已命中修正] OnLoad.Context 无 id()——1.21.1 拆为 resourceId()/topLevelId()，文件模型走前者。
  */
 public final class SatelliteNodeModel implements UnbakedModel {
-    private static final Identifier MODEL_ID = Identifier.of("sdzjz", "block/satellite_node");
-    private static final Identifier GEO_ID = Identifier.of("sdzjz", "models/block/satellite_node_geo.json");
-    private static final SpriteIdentifier ATLAS = new SpriteIdentifier(
-            SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, Identifier.of("sdzjz", "block/satellite_node_atlas"));
-    private static final SpriteIdentifier JOINT = new SpriteIdentifier(
-            SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, Identifier.of("sdzjz", "block/satellite_dish_joint"));
+    private static final ResourceLocation MODEL_ID = ResourceLocation.of("sdzjz", "block/satellite_node");
+    private static final ResourceLocation GEO_ID = ResourceLocation.of("sdzjz", "models/block/satellite_node_geo.json");
+    private static final Material ATLAS = new Material(
+            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.of("sdzjz", "block/satellite_node_atlas"));
+    private static final Material JOINT = new Material(
+            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.of("sdzjz", "block/satellite_dish_joint"));
 
     /** m156：BER 接管渲染时静态模型烘空壳（只留粒子 sprite）——否则双重渲染。
      *  BER 若编译/运行出问题，把这里改 false 即回 m151 静态渲染兜底。 */
@@ -62,7 +62,7 @@ public final class SatelliteNodeModel implements UnbakedModel {
             // m151-3 编译修正=类注释备忘④：1.21.1 Fabric 把 id 拆成 resourceId()（文件模型）/
             // topLevelId()（blockstate/物品顶层，ModelIdentifier），二者恰一非空。我们拦
             // blockstate 引用的文件模型 sdzjz:block/satellite_node → 走 resourceId()。
-            Identifier id = context.resourceId();
+            ResourceLocation id = context.resourceId();
             if (id != null && "sdzjz".equals(id.getNamespace()) && id.getPath().endsWith("block/satellite_node")) {
                 JsonArray geo = loadGeo();
                 if (geo != null) return new SatelliteNodeModel(BER_TAKEOVER ? new JsonArray() : geo);
@@ -72,7 +72,7 @@ public final class SatelliteNodeModel implements UnbakedModel {
     }
 
     private static JsonArray loadGeo() {
-        try (var in = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
+        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
             var root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             if (root.isJsonObject()) return root.getAsJsonObject().getAsJsonArray("quads"); // m156 v2 格式
             return root.getAsJsonArray();
@@ -82,17 +82,17 @@ public final class SatelliteNodeModel implements UnbakedModel {
         }
     }
 
-    @Override public Collection<Identifier> getModelDependencies() { return Collections.emptyList(); }
-    @Override public void setParents(Function<Identifier, UnbakedModel> modelLoader) {}
+    @Override public Collection<ResourceLocation> getModelDependencies() { return Collections.emptyList(); }
+    @Override public void setParents(Function<ResourceLocation, UnbakedModel> modelLoader) {}
 
     @Override
-    public BakedModel bake(Baker baker, Function<SpriteIdentifier, Sprite> textureGetter, ModelBakeSettings settings) {
-        Sprite atlas = textureGetter.apply(ATLAS);
-        Sprite joint = textureGetter.apply(JOINT);
+    public BakedModel bake(ModelBaker baker, Function<Material, TextureAtlasSprite> textureGetter, ModelState settings) {
+        TextureAtlasSprite atlas = textureGetter.apply(ATLAS);
+        TextureAtlasSprite joint = textureGetter.apply(JOINT);
         List<BakedQuad> out = new ArrayList<>(quads.size());
         for (var el : quads) {
             JsonArray q = el.getAsJsonArray();
-            Sprite spr = q.get(1).getAsString().endsWith("dish_joint") ? joint : atlas; // m156 v2: 0=分组 1=贴图
+            TextureAtlasSprite spr = q.get(1).getAsString().endsWith("dish_joint") ? joint : atlas; // m156 v2: 0=分组 1=贴图
             float nx = q.get(2).getAsFloat(), ny = q.get(3).getAsFloat(), nz = q.get(4).getAsFloat();
             int packedN = ((int) (nx * 127) & 0xFF) | (((int) (ny * 127) & 0xFF) << 8) | (((int) (nz * 127) & 0xFF) << 16);
             int[] data = new int[32];
@@ -119,16 +119,16 @@ public final class SatelliteNodeModel implements UnbakedModel {
         return Direction.getFacing(nx, ny, nz);
     }
 
-    private record Baked(List<BakedQuad> all, Sprite particle) implements BakedModel {
-        @Override public List<BakedQuad> getQuads(BlockState state, Direction face, Random random) {
+    private record Baked(List<BakedQuad> all, TextureAtlasSprite particle) implements BakedModel {
+        @Override public List<BakedQuad> getQuads(BlockState state, Direction face, RandomSource random) {
             return face == null ? all : Collections.emptyList(); // 不做邻面剔除：斜面几何塞方向桶会被邻方块错误剔掉
         }
         @Override public boolean useAmbientOcclusion() { return false; } // 薄件斜面吃 AO 会出黑斑
         @Override public boolean hasDepth() { return true; }
         @Override public boolean isSideLit() { return true; }
         @Override public boolean isBuiltin() { return false; }
-        @Override public Sprite getParticleSprite() { return particle; }
-        @Override public ModelTransformation getTransformation() { return ModelTransformation.NONE; }
-        @Override public ModelOverrideList getOverrides() { return ModelOverrideList.EMPTY; }
+        @Override public TextureAtlasSprite getParticleSprite() { return particle; }
+        @Override public ItemTransforms getTransformation() { return ItemTransforms.NONE; }
+        @Override public ItemOverrides getOverrides() { return ItemOverrides.EMPTY; }
     }
 }

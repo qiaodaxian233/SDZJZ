@@ -1,27 +1,27 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 /** 客户端→服务端：机器节点融合升阶/拆解降阶（m123：4台同阶→1台高阶，up=false 反向）。 */
-public record NodeFusePayload(BlockPos pos, int index, boolean up) implements CustomPayload {
+public record NodeFusePayload(BlockPos pos, int index, boolean up) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<NodeFusePayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "node_fuse"));
+    public static final CustomPacketPayload.Type<NodeFusePayload> ID =
+            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "node_fuse"));
 
-    public static final PacketCodec<RegistryByteBuf, NodeFusePayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeFusePayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, NodeFusePayload::pos,
-            PacketCodecs.INTEGER, NodeFusePayload::index,
-            PacketCodecs.BOOL, NodeFusePayload::up,
+            ByteBufCodecs.INTEGER, NodeFusePayload::index,
+            ByteBufCodecs.BOOL, NodeFusePayload::up,
             NodeFusePayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

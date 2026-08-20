@@ -2,12 +2,12 @@ package com.sdzjz.node;
 
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.registry.ModItems;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.ListTag;
 
 /**
  * m180 绞杀者拆分第一刀：节点 ItemStack 标签纯函数（自 StructureCoreBlockEntity 原样迁入，
@@ -19,10 +19,10 @@ public final class NodeTags {
     private NodeTags() {}
 
     public static java.util.List<String> cropList(ItemStack s) {
-        NbtCompound n = viewOf(s); // m353 只读免拷贝
+        CompoundTag n = viewOf(s); // m353 只读免拷贝
         java.util.List<String> out = new java.util.ArrayList<>();
         if (n.contains("crops")) {
-            net.minecraft.nbt.NbtList l = n.getList("crops", 8);
+            net.minecraft.nbt.ListTag l = n.getList("crops", 8);
             for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
         } else {
             String ct = n.getString("ct");
@@ -32,34 +32,34 @@ public final class NodeTags {
     }
 
     public static String craftTarget(ItemStack s) {
-        NbtCompound n = viewOf(s); // m353 只读免拷贝
+        CompoundTag n = viewOf(s); // m353 只读免拷贝
         return n.contains("ct") ? n.getString("ct") : "";
     }
 
     /** m235 合成机手选配方 id（空=自动按库存挑，m234）。 */
     public static String craftRecipe(ItemStack s) {
-        NbtCompound n = viewOf(s); // m353 只读免拷贝
+        CompoundTag n = viewOf(s); // m353 只读免拷贝
         return n.contains("cr") ? n.getString("cr") : "";
     }
 
-    /** 写路起手口：返回**拷贝**——改完必须 s.set(CUSTOM_DATA, NbtComponent.of(n)) 回写，否则丢写
+    /** 写路起手口：返回**拷贝**——改完必须 s.set(CUSTOM_DATA, CustomData.of(n)) 回写，否则丢写
      *  （m353 垃圾桶 tc 就栽在这：改了拷贝没回写，"已吞"自组件化起是死数）。只读请走 viewOf 零拷贝。 */
-    public static NbtCompound nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
-        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    public static CompoundTag nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
+        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
     }
 
     /** m353 免拷贝只读视图（yarn getNbt=组件内部实包，mojmap getUnsafe 同口，1.21.1 核名 method_57463）。
      *  铁律：**绝对只读**——改它=篡改组件内部状态，且 DEFAULT 空件全局共享一份，写它=全服中毒。
      *  要写走 nbtOf 拷贝→改→set 三段。读路全面换本口是压测 447MB/s 分配火源的主刀（m353）。 */
-    public static NbtCompound viewOf(ItemStack s) {
-        return s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).getNbt();
+    public static CompoundTag viewOf(ItemStack s) {
+        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).getNbt();
     }
 
     /** m353 垃圾桶已吞计数累加（修丢写 bug：拷贝→加→set 回三段全）。 */
     public static void addTrashCount(ItemStack s, long ate) {
-        NbtCompound n = nbtOf(s);
+        CompoundTag n = nbtOf(s);
         n.putLong("tc", n.getLong("tc") + ate);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
@@ -86,7 +86,7 @@ public final class NodeTags {
     public static boolean isDistributor(ItemStack s) { return s.isOf(ModItems.DISTRIBUTOR_NODE); }
 
     public static boolean switchOn(ItemStack s) {
-        NbtCompound n = viewOf(s);
+        CompoundTag n = viewOf(s);
         return !n.contains("so") || n.getBoolean("so");
     }
 
@@ -96,14 +96,14 @@ public final class NodeTags {
 
     /** m191 画布分组：节点所属组 id（存节点栈 NBT "gp"，随栈走天然免下标重映射；无组=-1）。 */
     public static int nodeGroup(ItemStack s) {
-        NbtCompound n = viewOf(s);
+        CompoundTag n = viewOf(s);
         return n.contains("gp") ? n.getInt("gp") : -1;
     }
 
     public static boolean filterBlacklist(ItemStack s) { return viewOf(s).getBoolean("fb"); }
 
     public static java.util.List<String> filterList(ItemStack s) {
-        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
         java.util.List<String> out = new java.util.ArrayList<>(l.size());
         for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
         return out;
@@ -111,7 +111,7 @@ public final class NodeTags {
 
     public static boolean filterPasses(ItemStack s, String id) {
         boolean in = false;
-        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) { in = true; break; }
         return filterBlacklist(s) ? !in : in;
     }
@@ -122,7 +122,7 @@ public final class NodeTags {
     }
 
     public static boolean machineFilterAllows(ItemStack s, String id) {
-        NbtList l = viewOf(s).getList("fl", NbtElement.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
         if (l.isEmpty()) return true;
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) return true;
         return false;
@@ -131,19 +131,19 @@ public final class NodeTags {
     public static String sensorItem(ItemStack s) { return viewOf(s).getString("si"); }
 
     public static long sensorThreshold(ItemStack s) {
-        NbtCompound n = viewOf(s);
+        CompoundTag n = viewOf(s);
         return n.contains("sv") ? Math.max(0, n.getLong("sv")) : 10000L;
     }
 
     public static boolean sensorLess(ItemStack s) {
-        NbtCompound n = viewOf(s);
+        CompoundTag n = viewOf(s);
         return !n.contains("sl") || n.getBoolean("sl");
     }
 
     // ===== m376 区块移除器（区块机器线第一台）：绑定与扫描游标全在节点 NBT，键 z 族 =====
     /** 已绑定目标区块（zx/zz 成对存在才算，绑定动作见 ChunkRemoverItem#useOnBlock）。 */
     public static boolean chunkBound(ItemStack s) {
-        NbtCompound n = viewOf(s);
+        CompoundTag n = viewOf(s);
         return n.contains("zx") && n.contains("zz");
     }
 
@@ -212,7 +212,7 @@ public final class NodeTags {
     public static boolean scanDone(ItemStack s) { return viewOf(s).getBoolean("sf"); }
 
     /** 类型榜只读视图（viewOf 铁律：绝对只读，消费端只许遍历取数）。 */
-    public static NbtCompound scanTypes(ItemStack s) { return viewOf(s).getCompound("sm"); }
+    public static CompoundTag scanTypes(ItemStack s) { return viewOf(s).getCompound("sm"); }
 
     // ===== m381 区块储存器三键（绑定/游标复用 z 族）：tf 就绪位 / tu 模板UUID / tt 可重建总数 =====
     public static boolean vaultDone(ItemStack s) { return viewOf(s).getBoolean("tf"); }

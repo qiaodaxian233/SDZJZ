@@ -2,19 +2,19 @@ package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
 import com.sdzjz.node.NodeTags;
-import net.minecraft.block.BlockState;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,48 +64,48 @@ public class ChunkVaultItem extends MachineItem {
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext ctx) {
-        World world = ctx.getWorld();
-        if (world.isClient) return ActionResult.SUCCESS;
+    public InteractionResult useOnBlock(UseOnContext ctx) {
+        Level world = ctx.getWorld();
+        if (world.isClient) return InteractionResult.SUCCESS;
         BlockPos pos = ctx.getBlockPos();
         ItemStack stack = ctx.getStack();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        NbtCompound n = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putInt("zx", cx);
         n.putInt("zz", cz);
         n.putString("zd", world.getRegistryKey().getValue().toString());
         n.putInt("zy", world.getTopY() - 1);
         n.putInt("zi", 0);
         n.remove("tf"); n.remove("tu"); n.remove("tt"); // 重绑=新扫新模板（旧模板留库不动）
-        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         if (ctx.getPlayer() != null)
-            ctx.getPlayer().sendMessage(Text.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开始存档"), true);
-        return ActionResult.SUCCESS;
+            ctx.getPlayer().sendMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开始存档"), true);
+        return InteractionResult.SUCCESS;
     }
 
     /** 扫描中游标落盘（zy/zi 复用移除器 z 族）。 */
     public static void cursor(ItemStack s, int y, int idx) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putInt("zy", y);
         n.putInt("zi", idx);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     /** 存档收官：就绪位+模板 UUID+可重建总数落节点（卡面读数）。 */
     public static void finish(ItemStack s, String uuid, long total) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putBoolean("tf", true);
         n.putString("tu", uuid);
         n.putLong("tt", total);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("区块存档：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("放入画布后只读扫描存成模板，产出\"区块数据核心\"×1").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("空气/基岩/箱子等方块实体/水岩浆火传送门 不入模板").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("模板存服务端库（config 封顶），核心只揣引用——丢核心≠丢模板").formatted(Formatting.DARK_GRAY));
-        tooltip.add(Text.literal("重绑=新扫新模板；配区块复制器重建（收料照模板 BOM）").formatted(Formatting.LIGHT_PURPLE));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("区块存档：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后只读扫描存成模板，产出\"区块数据核心\"×1").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("空气/基岩/箱子等方块实体/水岩浆火传送门 不入模板").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("模板存服务端库（config 封顶），核心只揣引用——丢核心≠丢模板").formatted(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("重绑=新扫新模板；配区块复制器重建（收料照模板 BOM）").formatted(ChatFormatting.LIGHT_PURPLE));
     }
 }

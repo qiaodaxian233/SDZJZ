@@ -3,13 +3,13 @@ package com.sdzjz.client;
 import com.sdzjz.block.TradeCenterBlockEntity;
 import com.sdzjz.machine.VillagerTrades;
 import com.sdzjz.screen.TradeCenterScreenHandler;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ import java.util.List;
  * 村民交易所界面（全屏科技风）。
  * 无职业合同：显示 7 个职业就业按钮；有职业：显示交易列表（点击执行）+ 治愈按钮。
  */
-public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
+public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreenHandler> {
 
     private static final int BACKDROP = SciSkin.BACKDROP;
     private static final int TXT      = SciSkin.TXT;
@@ -34,16 +34,16 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
         return lv >= 0 && lv < r.length ? r[lv] : String.valueOf(lv);
     }
 
-    private static final Identifier BG = Identifier.of("sdzjz", "textures/gui/trade_center_gui.png");
+    private static final ResourceLocation BG = ResourceLocation.of("sdzjz", "textures/gui/trade_center_gui.png");
 
-    public TradeCenterScreen(TradeCenterScreenHandler handler, PlayerInventory inv, Text title) {
+    public TradeCenterScreen(TradeCenterScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
         this.backgroundWidth = 360;
         this.backgroundHeight = 256;
     }
 
     @Override
-    protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
         int x = this.x, y = this.y;
         ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
@@ -108,20 +108,20 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
                 ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? SciSkin.HOVER : CELL);
                 ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
                 int need = VillagerTrades.discounted(t.inCount(), disc);
-                ItemStack in = new ItemStack(Registries.ITEM.get(Identifier.of(t.inItem())));
-                ItemStack out = new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())));
+                ItemStack in = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.inItem())));
+                ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())));
                 ctx.drawItem(in, rx + 4, ry + 3);
                 ctx.drawText(this.textRenderer, "×" + need, rx + 24, ry + 8, TXT, false);
                 if (t.in2Item() != null) { // m101 第二输入（附魔书要的那本书）
                     ctx.drawText(this.textRenderer, "+", rx + 52, ry + 8, SUB, false);
-                    ItemStack in2 = new ItemStack(Registries.ITEM.get(Identifier.of(t.in2Item())));
+                    ItemStack in2 = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.in2Item())));
                     ctx.drawItem(in2, rx + 62, ry + 3);
                     ctx.drawText(this.textRenderer, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
                 }
                 ctx.drawText(this.textRenderer, locked ? "×" : "→", rx + 130, ry + 8, locked ? SciSkin.RED : CYAN, false); // m335 学原版锁定叉
                 ctx.drawItem(out, rx + 150, ry + 3);
                 if (t.enchant() != null) { // m101 附魔书：显示附魔名+等级（走原版翻译键）
-                    String en = Text.translatable("enchantment." + t.enchant().replace(':', '.')).getString()
+                    String en = Component.translatable("enchantment." + t.enchant().replace(':', '.')).getString()
                             + (t.enchantLv() > 1 ? " " + roman(t.enchantLv()) : "");
                     ctx.drawText(this.textRenderer, en, rx + 170, ry + 8, SciSkin.TXT_HI, false);
                 } else {
@@ -148,7 +148,7 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
         for (int col = 0; col < 9; col++) cell(ctx, x + 99 + col * 18, y + 228);
     }
 
-    private void cell(DrawContext ctx, int cx, int cy) {
+    private void cell(GuiGraphics ctx, int cx, int cy) {
         ctx.fill(cx, cy, cx + 16, cy + 16, CELL);
         ctx.drawBorder(cx - 1, cy - 1, 18, 18, CELLFRM);
         ctx.fill(cx - 1, cy - 1, cx + 2, cy, CYAN);
@@ -224,13 +224,13 @@ public class TradeCenterScreen extends HandledScreen<TradeCenterScreenHandler> {
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
     }
 
     @Override
-    protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
         // 标题自绘，禁用默认标题
     }
 }

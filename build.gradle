@@ -19,7 +19,9 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    // m414：mojmap 分支核心开关——Yarn 换 Mojang 官方映射（m409 拍板路线）。
+    // 依赖 jar（fabric-api/JEI）发行态都是 intermediary，Loom 无条件远端映射到当前 named 层，两套映射通吃。
+    mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
@@ -37,7 +39,7 @@ processResources {
     filesMatching("fabric.mod.json") { expand "version": project.version }
 }
 
-tasks.withType(JavaCompile).configureEach { it.options.release = 21; it.options.encoding = 'UTF-8' } // m412 编码显式化（中文注释/字面量遍地，别指望平台默认）
+tasks.withType(JavaCompile).configureEach { it.options.release = 21; it.options.encoding = 'UTF-8'; it.options.compilerArgs += ['-Xmaxerrs', '5000'] } // m412 编码显式化；m414 放开报错上限（默认100条封顶=清单截断，m257 假绿同族）
 
 java {
     withSourcesJar()

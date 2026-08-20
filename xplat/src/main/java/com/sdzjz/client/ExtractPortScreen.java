@@ -1,17 +1,17 @@
 package com.sdzjz.client;
 
 import com.sdzjz.screen.ExtractPortScreenHandler;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.network.chat.Component;
 
 /**
  * m226 数据线抽取口配置界面（科技风自绘，零贴图）：
  * 标题 + 启停钮 + 邻接存储计数 + 9 幽灵过滤槽 + 背包。
  * 幽灵槽交互全在 Handler（服务端权威），本屏只画底格与状态。
  */
-public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
+public class ExtractPortScreen extends AbstractContainerScreen<ExtractPortScreenHandler> {
 
     private static final int TXT     = SciSkin.TXT;
     private static final int SUB     = SciSkin.SUB;
@@ -23,14 +23,14 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
     private static final int BTN_X = 8, BTN_Y = 20, BTN_W = 160, BTN_H = 18;
     private static final int MODE_Y = 42; // m231 方向钮行
 
-    public ExtractPortScreen(ExtractPortScreenHandler handler, PlayerInventory inv, Text title) {
+    public ExtractPortScreen(ExtractPortScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
         this.backgroundWidth = 176;
         this.backgroundHeight = 224; // m230 升级行 + m231 模式钮行加高
     }
 
     @Override
-    protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP);
         int x = this.x, y = this.y;
         ctx.drawBorder(x - 1, y - 1, backgroundWidth + 2, backgroundHeight + 2, SciSkin.FRAME);
@@ -44,7 +44,7 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         ctx.fill(bx, by, bx + BTN_W, by + BTN_H, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
         ctx.drawBorder(bx, by, BTN_W, BTN_H, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(bx + 5, by + 6, bx + 11, by + 12, on ? SciSkin.ON : SciSkin.OFF_GRAY); // 状态灯
-        String label = Text.translatable(on ? "sdzjz.extract_port.running" : "sdzjz.extract_port.stopped").getString();
+        String label = Component.translatable(on ? "sdzjz.extract_port.running" : "sdzjz.extract_port.stopped").getString();
         ctx.drawText(this.textRenderer, label, bx + 16, by + 5, on ? SciSkin.TXT_MAX : TXT, false);
 
         // m231 方向钮：送出(仓→机器/卖桌) / 回收(机器→仓)
@@ -54,31 +54,31 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         ctx.fill(mx2, my2, mx2 + BTN_W, my2 + BTN_H, hov2 ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
         ctx.drawBorder(mx2, my2, BTN_W, BTN_H, hov2 ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.drawText(this.textRenderer,
-                Text.translatable(pull ? "sdzjz.extract_port.mode_in" : "sdzjz.extract_port.mode_out").getString(),
+                Component.translatable(pull ? "sdzjz.extract_port.mode_in" : "sdzjz.extract_port.mode_out").getString(),
                 mx2 + 6, my2 + 5, pull ? SciSkin.TXT_HI : TXT, false);
 
         // 邻接存储计数（属性 [1] 同步；0 台=柔和红提醒）
         int n = this.handler.adjacentCount();
         String adj = n > 0
-                ? Text.translatable("sdzjz.extract_port.adjacent", n).getString()
-                : Text.translatable("sdzjz.extract_port.none").getString();
+                ? Component.translatable("sdzjz.extract_port.adjacent", n).getString()
+                : Component.translatable("sdzjz.extract_port.none").getString();
         int sell = this.handler.sellState(); // m229 转化桌出售状态后缀
-        if (sell == 1) adj += Text.translatable("sdzjz.extract_port.selling").getString();
-        else if (sell == 2) adj += Text.translatable("sdzjz.extract_port.sell_blocked").getString();
+        if (sell == 1) adj += Component.translatable("sdzjz.extract_port.selling").getString();
+        else if (sell == 2) adj += Component.translatable("sdzjz.extract_port.sell_blocked").getString();
         ctx.drawText(this.textRenderer, adj, x + 8, y + 66,
                 n > 0 ? (sell == 1 ? SciSkin.GOLD : SUB) : SciSkin.RED_SOFT, false); // m231 下移
 
         // 幽灵过滤槽底（槽坐标走 Handler 收口常量同源）
         for (int i = 0; i < ExtractPortScreenHandler.FILTER; i++)
             cell(ctx, x + 8 + i * 18, y + ExtractPortScreenHandler.FILTER_Y);
-        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.hint").getString(), x + 8, y + 102, SUB, false); // m231 下移
+        ctx.drawText(this.textRenderer, Component.translatable("sdzjz.extract_port.hint").getString(), x + 8, y + 102, SUB, false); // m231 下移
 
         // m230 升级行：标签 + 三槽（速度/数量/并发）+ 生效读数
-        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.upgrades").getString(),
+        ctx.drawText(this.textRenderer, Component.translatable("sdzjz.extract_port.upgrades").getString(),
                 x + 8, y + ExtractPortScreenHandler.UPG_Y + 4, SUB, false);
         for (int i = 0; i < ExtractPortScreenHandler.UPG; i++)
             cell(ctx, x + ExtractPortScreenHandler.UPG_X + i * 18, y + ExtractPortScreenHandler.UPG_Y);
-        ctx.drawText(this.textRenderer, Text.translatable("sdzjz.extract_port.stats",
+        ctx.drawText(this.textRenderer, Component.translatable("sdzjz.extract_port.stats",
                         this.handler.effPeriod(), fmt(this.handler.effBudget())).getString(),
                 x + ExtractPortScreenHandler.UPG_X + ExtractPortScreenHandler.UPG * 18 + 6,
                 y + ExtractPortScreenHandler.UPG_Y + 4, SciSkin.TXT_HI, false);
@@ -103,7 +103,7 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
         return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
     }
 
-    private void cell(DrawContext ctx, int cx, int cy) { // 四屏同款角标格（TradeCenter 工艺）
+    private void cell(GuiGraphics ctx, int cx, int cy) { // 四屏同款角标格（TradeCenter 工艺）
         ctx.fill(cx, cy, cx + 16, cy + 16, CELL);
         ctx.drawBorder(cx - 1, cy - 1, 18, 18, CELLFRM);
         ctx.fill(cx - 1, cy - 1, cx + 2, cy, ACCENT);
@@ -129,13 +129,13 @@ public class ExtractPortScreen extends HandledScreen<ExtractPortScreenHandler> {
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         this.drawMouseoverTooltip(ctx, mouseX, mouseY);
     }
 
     @Override
-    protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
         // 标题自绘，禁用默认标题（四屏同口径）
     }
 }

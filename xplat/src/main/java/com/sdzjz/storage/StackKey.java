@@ -1,6 +1,6 @@
 package com.sdzjz.storage;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * m404 精确条目哈希键（物品 + 组件）——加载器中立版，替掉此前借 Fabric 的 {@code ItemVariant} 当键的两处。

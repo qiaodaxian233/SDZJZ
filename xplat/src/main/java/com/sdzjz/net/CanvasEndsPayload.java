@@ -1,11 +1,11 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,23 +21,23 @@ public record CanvasEndsPayload(BlockPos pos,
                                 List<Integer> endKind,
                                 List<String> endDim,
                                 List<String> busIds,
-                                List<Long> busCounts) implements CustomPayload {
+                                List<Long> busCounts) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<CanvasEndsPayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "canvas_ends"));
+    public static final CustomPacketPayload.Type<CanvasEndsPayload> ID =
+            new CustomPacketPayload.Type<>(ResourceLocation.of("sdzjz", "canvas_ends"));
 
-    public static final PacketCodec<RegistryByteBuf, CanvasEndsPayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, CanvasEndsPayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, CanvasEndsPayload::pos,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.VAR_LONG), CanvasEndsPayload::endPos,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.INTEGER), CanvasEndsPayload::endKind,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.STRING), CanvasEndsPayload::endDim,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.STRING), CanvasEndsPayload::busIds,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.VAR_LONG), CanvasEndsPayload::busCounts,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), CanvasEndsPayload::endPos,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), CanvasEndsPayload::endKind,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), CanvasEndsPayload::endDim,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), CanvasEndsPayload::busIds,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), CanvasEndsPayload::busCounts,
             CanvasEndsPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

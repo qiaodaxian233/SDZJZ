@@ -1,11 +1,11 @@
 package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -17,10 +17,10 @@ public class CropFarmItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("周期 2 秒（吃加速/数量/并列升级）").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("免费产出（对齐原版农场）").formatted(Formatting.DARK_GREEN));
-        tooltip.add(Text.literal("可种: 小麦/胡萝卜/土豆/甜菜/西瓜/南瓜/甘蔗/蘑菇/可可果").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("放入画布后，点节点右上角徽章选择作物").formatted(Formatting.GRAY));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("周期 2 秒（吃加速/数量/并列升级）").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("免费产出（对齐原版农场）").formatted(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("可种: 小麦/胡萝卜/土豆/甜菜/西瓜/南瓜/甘蔗/蘑菇/可可果").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后，点节点右上角徽章选择作物").formatted(ChatFormatting.GRAY));
     }
 }

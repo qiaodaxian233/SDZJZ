@@ -1,8 +1,8 @@
 package com.sdzjz.loader;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 
 /**
  * m405 生命周期/事件平台口（服务端侧）——多加载器路线 P1 第三刀（耦合尺第三族 events 12 + loader 15）。
@@ -24,12 +24,12 @@ public final class Hooks {
     }
 
     /** 某个维度载入（开服/首次进入）。 */
-    public static void onWorldLoad(java.util.function.BiConsumer<MinecraftServer, ServerWorld> h) {
+    public static void onWorldLoad(java.util.function.BiConsumer<MinecraftServer, ServerLevel> h) {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents.LOAD.register(h::accept);
     }
 
     /** 玩家下线（业务侧只要玩家本身，不要网络处理器）。 */
-    public static void onPlayerDisconnect(java.util.function.Consumer<ServerPlayerEntity> h) {
+    public static void onPlayerDisconnect(java.util.function.Consumer<ServerPlayer> h) {
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
                 (handler, server) -> h.accept(handler.player)); // yarn 核过：player 是公开字段，无 getPlayer()
     }
@@ -43,9 +43,9 @@ public final class Hooks {
      *  返回 SUCCESS 即取消原版后续处理；PASS 一切照旧。 */
     @FunctionalInterface
     public interface UseEntity {
-        net.minecraft.util.ActionResult test(net.minecraft.entity.player.PlayerEntity player,
-                                             net.minecraft.util.Hand hand,
-                                             net.minecraft.entity.Entity entity);
+        net.minecraft.world.InteractionResult test(net.minecraft.world.entity.player.Player player,
+                                             net.minecraft.world.InteractionHand hand,
+                                             net.minecraft.world.entity.Entity entity);
     }
 
     public static void onUseEntity(UseEntity h) {

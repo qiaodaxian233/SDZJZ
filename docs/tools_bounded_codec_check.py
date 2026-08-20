@@ -16,7 +16,11 @@ for name in c2s:
     s = open(p, encoding='utf-8').read()
     s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)  # 剥块注释（含 javadoc）——注释提旧 API 不算罪
     s = re.sub(r'//[^\n]*', '', s)                 # 剥行注释
-    if re.search(r'PacketCodecs\.STRING|PacketCodecs\.collection|collect\(PacketCodecs\.toList', s):
+    # m414：Mojmap 同义名并列（PacketCodecs→ByteBufCodecs / STRING→STRING_UTF8 / toList→list），
+    # 迁移期两套名都认，防改名后尺子失明（m402 教训：尺子失明比报错危险）。
+    if re.search(r'PacketCodecs\.STRING|PacketCodecs\.collection|collect\(PacketCodecs\.toList'
+                 r'|ByteBufCodecs\.STRING(_UTF8)?|ByteBufCodecs\.collection'
+                 r'|collect\(ByteBufCodecs\.toList|apply\(ByteBufCodecs\.list', s):
         bad.append(name)
 if bad:
     print('有界Codec回归尺 ✗ C2S 包存在无界字符串/列表解码: %s' % bad)

@@ -4,59 +4,59 @@ import com.sdzjz.block.StructureCoreBlockEntity;
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ArrayPropertyDelegate;
-import net.minecraft.screen.PropertyDelegate;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.SimpleContainerData;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.core.BlockPos;
 
 /** 结构核心 GUI：8 机器槽(任意机器) + 3 升级槽 + 8 输出槽 + 玩家背包 + 状态同步。 */
-public class StructureCoreScreenHandler extends ScreenHandler {
+public class StructureCoreScreenHandler extends AbstractContainerMenu {
 
-    private final Inventory inv;
+    private final Container inv;
     private final StructureCoreBlockEntity core;
-    private final PropertyDelegate props;
+    private final ContainerData props;
     private final BlockPos blockPos;
 
     // 客户端
-    public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
-        this(syncId, playerInv, resolve(playerInv, pos), new ArrayPropertyDelegate(10));
+    public StructureCoreScreenHandler(int syncId, Inventory playerInv, BlockPos pos) {
+        this(syncId, playerInv, resolve(playerInv, pos), new SimpleContainerData(10));
     }
 
     // 服务端
-    public StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be) {
-        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new ArrayPropertyDelegate(10));
+    public StructureCoreScreenHandler(int syncId, Inventory playerInv, StructureCoreBlockEntity be) {
+        this(syncId, playerInv, be, be != null ? be.propertyDelegate : new SimpleContainerData(10));
     }
 
-    private StructureCoreScreenHandler(int syncId, PlayerInventory playerInv, StructureCoreBlockEntity be, PropertyDelegate props) {
+    private StructureCoreScreenHandler(int syncId, Inventory playerInv, StructureCoreBlockEntity be, ContainerData props) {
         super(ModScreenHandlers.STRUCTURE_CORE, syncId);
         this.core = be;
-        this.inv = (be != null) ? be : new SimpleInventory(StructureCoreBlockEntity.SIZE);
+        this.inv = (be != null) ? be : new SimpleContainer(StructureCoreBlockEntity.SIZE);
         this.props = props;
         this.blockPos = (be != null) ? be.getPos() : null;
         this.inv.onOpen(playerInv.player);
         addProperties(props);
         // 画布界面：无槽位（机器=节点；机器/升级经右键方块放入；产出自动推送到连接的存储）
-        if (be != null && playerInv.player instanceof net.minecraft.server.network.ServerPlayerEntity sp)
+        if (be != null && playerInv.player instanceof net.minecraft.server.level.ServerPlayer sp)
             be.addCanvasViewer(sp); // m344 开屏挂号（客户端构造 player 非 ServerPlayerEntity，天然不进）
     }
 
     @Override
-    public void onClosed(PlayerEntity player) { // m344 关屏销号（断线/换屏走原版关闭链同样到这）
+    public void onClosed(Player player) { // m344 关屏销号（断线/换屏走原版关闭链同样到这）
         super.onClosed(player);
-        if (core != null && player instanceof net.minecraft.server.network.ServerPlayerEntity sp)
+        if (core != null && player instanceof net.minecraft.server.level.ServerPlayer sp)
             core.removeCanvasViewer(sp);
     }
 
     public BlockPos blockPos() { return blockPos; }
 
-    private static StructureCoreBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
+    private static StructureCoreBlockEntity resolve(Inventory playerInv, BlockPos pos) {
         BlockEntity be = playerInv.player.getWorld().getBlockEntity(pos);
         return be instanceof StructureCoreBlockEntity s ? s : null;
     }
@@ -73,7 +73,7 @@ public class StructureCoreScreenHandler extends ScreenHandler {
     public long buffered()       { return ((long) props.get(9) << 15) | (props.get(8) & 0x7FFFL); }
 
     @Override
-    public boolean onButtonClick(PlayerEntity player, int id) {
+    public boolean onButtonClick(Player player, int id) {
         if (core == null) return false;
         if (id == 2) { core.collectXp(player); return true; }
         core.toggleRunning(id == 0);
@@ -81,12 +81,12 @@ public class StructureCoreScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
+    public boolean canUse(Player player) {
         return inv.canPlayerUse(player);
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int index) {
+    public ItemStack quickMove(Player player, int index) {
         return ItemStack.EMPTY; // 无玩家背包槽，禁用 shift 快速移动
     }
 }

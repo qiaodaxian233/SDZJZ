@@ -1,14 +1,14 @@
 package com.sdzjz.item;
 
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.world.PersistentState;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +19,7 @@ import java.util.UUID;
  *
  * 三件一档：
  *  - 本类 = 只收随身仓库的槽（格上限恒 1；m310 SlotMaxCountMixin 打在超类无参口，本覆写直返不经那条路）；
- *  - {@link State} = 服务端账面，PersistentState 按玩家 UUID 落盘（挂主世界一份）。账面**不进 PlayerInventory**：
+ *  - {@link State} = 服务端账面，SavedData 按玩家 UUID 落盘（挂主世界一份）。账面**不进 PlayerInventory**：
  *    死亡不掉（贴身口袋语义）、换维度/重进服跟人、keepInventory 无关——零 copyFrom/dropAll 边角；
  *  - {@link Inv} = 1 格视图。服务端逐访问懒解析到 State（PlayerScreenHandler 在玩家实体构造期就建，
  *    彼时 server 引用未必就绪，绝不在构造期碰盘）；客户端本地栈由原版槽位同步喂
@@ -35,7 +35,7 @@ public class PortableVaultSlot extends Slot {
     /** 屏内坐标：副手格 (77,62) 正上方一格（原版底图此处为素面）。 */
     public static final int SLOT_X = 77, SLOT_Y = 44;
 
-    public PortableVaultSlot(Inventory inv) {
+    public PortableVaultSlot(Container inv) {
         super(inv, 0, SLOT_X, SLOT_Y);
     }
 
@@ -51,23 +51,23 @@ public class PortableVaultSlot extends Slot {
     }
 
     /** 仓位栈统一读口（双端同源：都从 playerScreenHandler 追加格读；开关关/老版联机=空）。 */
-    public static ItemStack stackOf(PlayerEntity p) {
+    public static ItemStack stackOf(Player p) {
         var h = p.playerScreenHandler;
         if (h == null || h.slots.size() <= SLOT_INDEX) return ItemStack.EMPTY;
         ItemStack s = h.getSlot(SLOT_INDEX).getStack();
         return s.getItem() instanceof PortableVaultItem ? s : ItemStack.EMPTY;
     }
 
-    /** 服务端账面：UUID → 仓位栈，主世界一份 PersistentState（m296 声明表同刀法）。 */
-    public static final class State extends PersistentState {
+    /** 服务端账面：UUID → 仓位栈，主世界一份 SavedData（m296 声明表同刀法）。 */
+    public static final class State extends SavedData {
         private final Map<UUID, ItemStack> byPlayer = new HashMap<>();
 
-        public static final PersistentState.Type<State> TYPE = new PersistentState.Type<>(
+        public static final SavedData.Factory<State> TYPE = new SavedData.Factory<>(
                 State::new, State::read, null);
 
-        public static State read(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+        public static State read(CompoundTag nbt, HolderLookup.Provider lookup) {
             State s = new State();
-            NbtCompound m = nbt.getCompound("slots");
+            CompoundTag m = nbt.getCompound("slots");
             for (String k : m.getKeys()) {
                 try {
                     UUID u = UUID.fromString(k);
@@ -79,8 +79,8 @@ public class PortableVaultSlot extends Slot {
         }
 
         @Override
-        public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
-            NbtCompound m = new NbtCompound();
+        public CompoundTag writeNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+            CompoundTag m = new CompoundTag();
             for (Map.Entry<UUID, ItemStack> e : byPlayer.entrySet())
                 if (!e.getValue().isEmpty()) m.put(e.getKey().toString(), e.getValue().encode(lookup));
             nbt.put("slots", m);
@@ -102,11 +102,11 @@ public class PortableVaultSlot extends Slot {
     }
 
     /** 1 格账面视图（服务端懒解析、客户端本地栈吃原版同步）。 */
-    public static final class Inv implements Inventory {
-        private final PlayerEntity owner;
+    public static final class Inv implements Container {
+        private final Player owner;
         private ItemStack clientStack = ItemStack.EMPTY;
 
-        public Inv(PlayerEntity owner) {
+        public Inv(Player owner) {
             this.owner = owner;
         }
 
@@ -116,7 +116,7 @@ public class PortableVaultSlot extends Slot {
         }
 
         private boolean serverSide() {
-            return owner instanceof ServerPlayerEntity;
+            return owner instanceof ServerPlayer;
         }
 
         @Override public int size() { return 1; }
@@ -165,7 +165,7 @@ public class PortableVaultSlot extends Slot {
             }
         }
 
-        @Override public boolean canPlayerUse(PlayerEntity p) { return p == owner; }
+        @Override public boolean canPlayerUse(Player p) { return p == owner; }
 
         @Override public void clear() { setStack(0, ItemStack.EMPTY); }
     }

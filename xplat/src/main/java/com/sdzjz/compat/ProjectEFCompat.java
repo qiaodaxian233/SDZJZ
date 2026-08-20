@@ -1,9 +1,9 @@
 package com.sdzjz.compat;
 
-import net.minecraft.block.BlockState;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.lang.reflect.Method;
 import java.math.BigInteger;
@@ -44,14 +44,14 @@ public final class ProjectEFCompat {
             mKpFor    = txCls.getMethod("getKnowledgeProviderFor", java.util.UUID.class);
             mGetEmc   = kpCls.getMethod("getEmc");
             mSetEmc   = kpCls.getMethod("setEmc", BigInteger.class);
-            mSyncEmc  = kpCls.getMethod("syncEmc", ServerPlayerEntity.class);
+            mSyncEmc  = kpCls.getMethod("syncEmc", ServerPlayer.class);
             state = 1;
         } catch (Throwable t) { state = -1; } // 对方改版签名变了=整体降级，不抛不炸
     }
 
     /** 邻块是不是转化桌（按注册 id 判**无需反射**——未装 ProjectEF 时 id 不会命中；客户端也安全）。 */
     public static boolean isTransmutationTable(BlockState s) {
-        return "projecte:transmutation_table".equals(Registries.BLOCK.getId(s.getBlock()).toString());
+        return "projecte:transmutation_table".equals(BuiltInRegistries.BLOCK.getId(s.getBlock()).toString());
     }
 
     /** 单件 EMC 估值（0=无价不可卖）。 */
@@ -61,7 +61,7 @@ public final class ProjectEFCompat {
     }
 
     /** 给在线所有者记 emc 并即时同步客户端（转化桌界面开着能看见数字涨）。返回是否成功。 */
-    public static boolean credit(ServerPlayerEntity owner, long emc) {
+    public static boolean credit(ServerPlayer owner, long emc) {
         if (!available() || owner == null || emc <= 0) return false;
         try {
             Object kp = mKpFor.invoke(txProxy, owner.getUuid());

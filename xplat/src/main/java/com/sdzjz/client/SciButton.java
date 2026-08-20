@@ -1,21 +1,21 @@
 package com.sdzjz.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.network.chat.Component;
 
 /** m117 从 StructureCoreScreen 提为公共控件：全 MOD 按钮统一样式（配色见 SciSkin）。 */
-public class SciButton extends ButtonWidget {
+public class SciButton extends Button {
     private float hoverP = 0f; // m187 悬停缓动进度（与 m186 缩放同族指数趋近）
     private long hoverNs = 0;
 
-    public SciButton(int x, int y, int w, int h, Text t, PressAction a) {
+    public SciButton(int x, int y, int w, int h, Component t, PressAction a) {
         super(x, y, w, h, t, a, s -> s.get());
     }
 
     @Override
-    protected void renderWidget(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    protected void renderWidget(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         long now = System.nanoTime();
         float dt = hoverNs == 0 ? 0.016f : Math.min(0.1f, (now - hoverNs) / 1.0e9f);
         hoverNs = now;
@@ -26,7 +26,7 @@ public class SciButton extends ButtonWidget {
         if (hoverP > 0.02f) // m187 底沿强调线随悬停渐显（贴图之上、文字之下）
             ctx.fill(getX() + 2, getY() + height - 2, getX() + width - 2, getY() + height - 1,
                     SciSkin.withAlpha(SciSkin.ACCENT, 0.85f * hoverP));
-        ctx.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, getMessage(),
+        ctx.drawCenteredTextWithShadow(Minecraft.getInstance().textRenderer, getMessage(),
                 getX() + width / 2, getY() + (height - 8) / 2, tc);
     }
 }

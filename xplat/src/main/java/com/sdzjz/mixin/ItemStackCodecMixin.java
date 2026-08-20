@@ -1,6 +1,6 @@
 package com.sdzjz.mixin;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,9 +22,9 @@ public abstract class ItemStackCodecMixin {
 
     @Redirect(method = "*", require = 0,
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/util/dynamic/Codecs;rangedInt(II)Lcom/mojang/serialization/Codec;"))
+                    target = "Lnet/minecraft/util/ExtraCodecs;intRange(II)Lcom/mojang/serialization/Codec;"))
     private static com.mojang.serialization.Codec<Integer> sdzjz$widenCountRange(int min, int max) {
         if (min == 1 && max == 99) max = 1_073_741_823; // 只动计数钳位这一组
-        return net.minecraft.util.dynamic.Codecs.rangedInt(min, max);
+        return net.minecraft.util.ExtraCodecs.intRange(min, max);
     }
 }
