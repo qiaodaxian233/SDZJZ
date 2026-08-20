@@ -7441,3 +7441,18 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
      下 `client.txt`，然后 `python3 docs/tools_mapping_bridge.py --yarn <yarn仓> --inter <1.21.1.tiny> --mojmap client.txt`。
   两条路都产出同一件东西：**可核对的改名依据**。有了它，第一批（`net/` 24 个 payload）当天就能推。
 - 零 Java 改动、零新配置键（工装是 docs 侧报告尺，不挂 CI 闸）。
+
+## m411 一键出表任务 `gradlew mojmapTable`（作者选 A：在有网有工具链的机器上干）
+
+- **分工定死**：沙箱到不了 Mojang 域名，最后一段桥（obf↔Mojmap）只能在作者机器上搭；
+  与其让作者手动翻版本清单 JSON 找下载地址，不如**给他一条命令**。
+- **交付**：根构建新增 `mojmapTable` 任务（group=sdzjz），跑法就一句 **`gradlew mojmapTable`**。
+  它干三件事再拼表：①下 Mojang 官方 proguard（版本清单 → 1.21.1 的 json → `downloads.client_mappings.url`）；
+  ②下 `FabricMC/intermediary` 的 `1.21.1.tiny`；③下 `FabricMC/yarn@1.21.1` 全仓 tarball 并解包；
+  然后按 `docs/mapping_used.json`（本仓在用的 **167 个** Yarn 类型，m410 工装扫出来的）出
+  `docs/MAPPING_TODO.md`，末行打印"补齐多少行"。三份下载物落 `build/mojmap/` 带存在即跳过，重跑不重下。
+- **红线**：任务**只写文档、不碰一行源码**（与 m410 工装同律）。改名动作照 m409：`mojmap` 分支、
+  从薄到厚分批、每批 CI 五 job + GameTest 全绿才推。
+- **`--Mojmap 查不到`的行会明写"人工核"**，不静默留空——对照表要么给答案要么承认不知道（m99 精神的工具版）。
+- 顺带 m410 工装加 `--dump-used` 口，把在用清单落成 json 供 Gradle 侧离线读（Windows 上不必装 python）。
+- 零游戏代码改动、零新配置键；判官=CI 的 Gradle 编译 job（build.gradle 语法/DSL 一错即红）。

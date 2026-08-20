@@ -94,12 +94,16 @@ def main():
     ap.add_argument('--mojmap', help='Mojang 官方 proguard 映射（client.txt）')
     ap.add_argument('--md', default='docs/MAPPING_TODO.md')
     ap.add_argument('--scan', action='store_true', help='只扫用点不查表')
+    ap.add_argument('--dump-used', help='把"在用 Yarn 类型→用点数"落成 json（供 Gradle 任务离线读）')
     args = ap.parse_args()
 
     os.chdir(srcroots.repo_root())
     used = scan_used()
     rows = sorted(used.items(), key=lambda kv: -kv[1])
     print('在用 Yarn 类型 %d 个，用点合计 %d' % (len(rows), sum(used.values())))
+    if args.dump_used:
+        json.dump(dict(rows), open(args.dump_used, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+        print('在用清单已写 %s' % args.dump_used)
     if args.scan:
         for k, v in rows[:20]:
             print('    %-56s %d' % (k, v))

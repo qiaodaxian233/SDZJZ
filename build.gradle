@@ -82,3 +82,82 @@ tasks.register('purgeStaleJars', Delete) {
     }
 }
 build.finalizedBy 'purgeStaleJars'
+
+// ===== m411 一键出改名对照表（作者选了 A 路线：活在有网有工具链的机器上干）=====
+// 沙箱到不了 Mojang 域名，所以这最后一段桥只能在作者机器上搭。跑法：
+//     gradlew mojmapTable
+// 干三件事：①下 Mojang 官方 proguard（obf↔Mojmap）②下 FabricMC/intermediary 的 1.21.1.tiny
+// （obf↔intermediary）③下 FabricMC/yarn@1.21.1 全仓（intermediary↔Yarn），
+// 三段一拼，按 docs/mapping_used.json（本仓在用的 167 个 Yarn 类型）出 docs/MAPPING_TODO.md。
+// 只写文档，不碰一行源码——改名动作另走 m409 定的分批+CI 判官流程。
+tasks.register('mojmapTable') {
+    group = 'sdzjz'
+    description = '生成 Yarn→Mojmap 改名对照表（docs/MAPPING_TODO.md）'
+    doLast {
+        def mcVer = project.minecraft_version
+        def out = layout.buildDirectory.dir('mojmap').get().asFile
+        out.mkdirs()
+        def slurper = new groovy.json.JsonSlurper()
+
+        // ① Mojang 官方 proguard：版本清单 → 该版本 json → downloads.client_mappings.url
+        def manifest = slurper.parse(new URL('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'))
+        def entry = manifest.versions.find { it.id == mcVer }
+        if (entry == null) throw new GradleException("版本清单里没有 ${mcVer}")
+        def verJson = slurper.parse(new URL(entry.url))
+        def pgFile = new File(out, 'client.txt')
+        if (!pgFile.exists()) pgFile.withOutputStream { o -> new URL(verJson.downloads.client_mappings.url).withInputStream { i -> o << i } }
+
+        // ② intermediary（obf ↔ class_NNNN）
+        def interFile = new File(out, 'intermediary.tiny')
+        if (!interFile.exists()) interFile.withOutputStream { o ->
+            new URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${mcVer}.tiny").withInputStream { i -> o << i } }
+
+        // ③ yarn 全仓（class_NNNN ↔ Yarn 名）
+        def yarnTgz = new File(out, 'yarn.tgz')
+        if (!yarnTgz.exists()) yarnTgz.withOutputStream { o ->
+            new URL("https://codeload.github.com/FabricMC/yarn/tar.gz/refs/heads/${mcVer}").withInputStream { i -> o << i } }
+        def yarnDir = new File(out, 'yarn')
+        if (!yarnDir.exists()) copy { from tarTree(resources.gzip(yarnTgz)); into yarnDir }
+
+        // 拼表
+        def yarn2inter = [:]
+        yarnDir.eachFileRecurse { f ->
+            if (!f.name.endsWith('.mapping')) return
+            def first = f.withReader('UTF-8') { it.readLine() } ?: ''
+            if (!first.startsWith('CLASS ')) return
+            def bits = first.trim().split(/\s+/)
+            if (bits.length < 3) return
+            yarn2inter[bits[2].replace('/', '.')] = bits[1].replace('/', '.')
+        }
+        def inter2obf = [:]
+        interFile.eachLine('UTF-8') { line ->
+            if (!line.startsWith('CLASS\t')) return
+            def c = line.split('\t')
+            if (c.length >= 3) inter2obf[c[2].replace('/', '.')] = c[1].replace('/', '.')
+        }
+        def obf2moj = [:]
+        pgFile.eachLine('UTF-8') { line ->
+            if (line.startsWith(' ') || line.startsWith('\t') || !line.contains('->')) return
+            def parts = line.split('->')
+            obf2moj[parts[1].trim().replaceAll(':$', '')] = parts[0].trim()
+        }
+
+        def used = slurper.parse(new File(projectDir, 'docs/mapping_used.json'))
+        def rows = used.entrySet().sort { -it.value }
+        def sb = new StringBuilder()
+        sb << '# Yarn → Mojmap 改名对照表（m411 `gradlew mojmapTable` 生成，勿手改）\n\n'
+        sb << "> MC ${mcVer}；三段桥：Yarn↔intermediary（yarn 仓）· obf↔intermediary（intermediary 仓）· obf↔Mojmap（Mojang 官方 proguard）。\n"
+        sb << '> 本表只是对照，**改名动作走分批替换 + CI 五 job/GameTest 判官**（m409 口径）。\n\n'
+        sb << '| 用点 | Yarn | Mojmap |\n|---:|---|---|\n'
+        int done = 0
+        rows.each { e ->
+            def inter = yarn2inter[e.key]
+            def obf = inter ? inter2obf[inter] : null
+            def moj = obf ? obf2moj[obf] : null
+            if (moj) done++
+            sb << "| ${e.value} | `${e.key}` | ${moj ? '`' + moj + '`' : '—（查不到，人工核）'} |\n"
+        }
+        new File(projectDir, 'docs/MAPPING_TODO.md').setText(sb.toString(), 'UTF-8')
+        println "[sdzjz] 对照表已写 docs/MAPPING_TODO.md：${rows.size()} 行，Mojmap 列补齐 ${done} 行"
+    }
+}
