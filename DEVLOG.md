@@ -7482,3 +7482,37 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   也就是说这条**不需要改**，工具的"人工核"标记正确地把它拦下来了，没有乱猜——
   这正是第四条安全绳想要的行为。
 - 零游戏代码改动、零新配置键。
+
+## m413 迁移工装补强：简名层+成员级对照表（打第一炮前最后一块地基）
+
+- **现象**：接手核对 m412 的改名应用器，发现实现与注释承诺不符——注释写"只换类名（全限定名 +
+  import 引出的简名）"，但 `rewrite()` 里只有全限定名一层，简名一处都不会改。
+- **量化**：全库 dry-run 口径下 FQN 命中 1809 处，另有约 **2900 处正文简名**（`Identifier`/`Text` 等）
+  m412 版会原封不动留下——import 行换成了 Mojmap、正文还是 Yarn 简名，落盘即编译不过的哑炮。
+- **修法（简名层）**：
+  - 第二层替换=该文件**确实 `import`**（含 `import static`）了的 Yarn 类，其正文简名按词边界
+    `\b简名\b` 换成 Mojmap 简名；只内联 FQN、没 import 的文件**不动简名**（那些简名属于别人）。
+  - **占位符两阶段**：所有命中先换成 `\x01N\x02` 占位符、最后统一落地——防换名链互吃。
+    实锤三对：Yarn `RegistryKeys`→Moj `Registries` 而 Yarn `Registries`→`BuiltInRegistries`；
+    `PlayerInventory`→`Inventory` 而 Yarn `Inventory`→`Container`；`SlotActionType`→`ClickType`。
+    顺序替换必翻车（先换哪个都会被后一条再吃一口），占位符让顺序彻底无关。
+  - 新 `--assume-same <FQN>`：人工确认两边同名的缺表项按恒等映射放行（`MinecraftServer`，
+    m412 已查明 proguard 无其条目=名字没变）——否则含它的文件会被"缺表即跳过"整个拦下。
+  - 自测：合成文件包含三对换名链+无 import 的内联 FQN+字符串里的裸词，结果=链零互吃、
+    无 import 简名分毫未动、字符串裸词未动、占位符残留断言过；全库 dry-run=132 文件
+    3787 处改动、0 跳过、0 全限定名残留。
+- **成员级对照表 `gradlew mojmapMembers`**：m412 说"方法层没有可离线核对的表"——现在有了。
+  同一套三段桥下潜到 METHOD/FIELD 层：yarn `.mapping` 成员行（inter→yarn，intermediary 成员名
+  全局唯一故免描述符）↔ intermediary tiny 成员行（obf `owner|name|desc` 精确键→inter）↔
+  proguard 成员行（java 类型描述符经 moj→obf 类表换算成 JVM 描述符后精确对接，**不做同名模糊匹配**）。
+  按本仓源码实际出现的标识符过滤，只出 Yarn≠Mojmap 的行，产 `docs/MAPPING_MEMBERS.tsv`
+  （种类 M/F、Yarn 名、Mojmap 名、宿主类样本）。依旧**只写文档不碰源码**——改名之手是人+真编译器，
+  表只负责让"修"变成"查"。三份下载物与 mojmapTable 共用 build/mojmap 缓存；GitHub 跑批机可达
+  Mojang 域，故这个任务 CI 侧也能跑（沙箱自取表的通道就此打开）。
+- **验证**：build.gradle 语法冒烟=独立 groovy 解析、桩掉 GradleException（缺 Gradle classpath 的
+  正常噪音，m411 同款写法实机已验）后**零语法错误**；应用器全库 dry-run 数据如上。
+- **闸风险预扫**：13 道离线闸逐把 grep Yarn 简名依赖，只有 bounded_codec 尺一把认 `PacketCodecs.*`
+  （改名后会失明不会误红），m414 在分支上顺手补 Mojmap 同义正则；其余全干净。
+- **教训**：工具的注释承诺≠工具的实现——m412 自证了四条安全绳却没自证"简名层存在"，
+  自证清单要覆盖**每一条注释里写了的能力**，不只红线。
+- 零游戏代码、零新配置键。下一步 m414：开 `mojmap` 分支打第一炮。

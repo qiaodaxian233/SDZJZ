@@ -161,3 +161,117 @@ tasks.register('mojmapTable') {
         println "[sdzjz] 对照表已写 docs/MAPPING_TODO.md：${rows.size()} 行，Mojmap 列补齐 ${done} 行"
     }
 }
+
+// ===== m413 成员级对照表（方法/字段层）：gradlew mojmapMembers =====
+// m412 说"方法层没有可离线核对的表"——现在有了：同一套三段桥下潜到 METHOD/FIELD 层
+// （yarn .mapping 的成员行 ↔ intermediary tiny 的成员行 ↔ proguard 的成员行，按描述符精确对接，
+// 不做同名模糊匹配）。按本仓源码里实际出现的标识符过滤，只出 Yarn≠Mojmap 的行。
+// 依旧只写 docs/MAPPING_MEMBERS.tsv 不碰源码：改名之手是人+真编译器，表只负责让"修"变成"查"。
+tasks.register('mojmapMembers') {
+    group = 'sdzjz'
+    description = '生成 Yarn→Mojmap 成员（方法/字段）对照表（docs/MAPPING_MEMBERS.tsv）'
+    doLast {
+        def mcVer = project.minecraft_version
+        def out = layout.buildDirectory.dir('mojmap').get().asFile
+        out.mkdirs()
+        def slurper = new groovy.json.JsonSlurper()
+
+        // 三份下载物与 mojmapTable 共用缓存（存在就跳过）
+        def pgFile = new File(out, 'client.txt')
+        if (!pgFile.exists()) {
+            def manifest = slurper.parse(new URL('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'))
+            def entry = manifest.versions.find { it.id == mcVer }
+            if (entry == null) throw new GradleException("版本清单里没有 ${mcVer}")
+            def verJson = slurper.parse(new URL(entry.url))
+            pgFile.withOutputStream { o -> new URL(verJson.downloads.client_mappings.url).withInputStream { i -> o << i } }
+        }
+        def interFile = new File(out, 'intermediary.tiny')
+        if (!interFile.exists()) interFile.withOutputStream { o ->
+            new URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${mcVer}.tiny").withInputStream { i -> o << i } }
+        def yarnTgz = new File(out, 'yarn.tgz')
+        if (!yarnTgz.exists()) yarnTgz.withOutputStream { o ->
+            new URL("https://codeload.github.com/FabricMC/yarn/tar.gz/refs/heads/${mcVer}").withInputStream { i -> o << i } }
+        def yarnDir = new File(out, 'yarn')
+        if (!yarnDir.exists()) copy { from tarTree(resources.gzip(yarnTgz)); into yarnDir }
+
+        // ① 本仓源码标识符全集（过滤器：只出我们可能用到的名字）
+        def tokens = new HashSet<String>()
+        ['xplat/src/main/java', 'src/main/java'].each { root ->
+            def dir = new File(projectDir, root)
+            if (!dir.exists()) return
+            dir.eachFileRecurse { f ->
+                if (!f.name.endsWith('.java')) return
+                (f.getText('UTF-8') =~ /[A-Za-z_][A-Za-z0-9_]*/).each { t -> tokens << (t as String) }
+            }
+        }
+
+        // ② yarn：intermediary 成员名（全局唯一）→ Yarn 成员名
+        def inter2yarn = [:]
+        yarnDir.eachFileRecurse { f ->
+            if (!f.name.endsWith('.mapping')) return
+            f.eachLine('UTF-8') { line ->
+                def mm = (line =~ /^\t*(METHOD|FIELD)\s+((?:method|field)_\d+)\s+([A-Za-z_][A-Za-z0-9_]*)\s/)
+                if (mm.find()) inter2yarn[mm.group(2)] = mm.group(3)
+            }
+        }
+
+        // ③ tiny：obf 成员（owner|name|desc 精确键）→ intermediary 成员名
+        def tinyM = [:], tinyF = [:]
+        interFile.eachLine('UTF-8') { line ->
+            def c = line.split('\t')
+            if (c.length >= 5 && c[0] == 'METHOD') tinyM[c[1] + '|' + c[3] + '|' + c[2]] = c[4]
+            else if (c.length >= 5 && c[0] == 'FIELD') tinyF[c[1] + '|' + c[3] + '|' + c[2]] = c[4]
+        }
+
+        // ④ proguard 两遍：先攒 Mojmap 类→obf 类（供描述符换算），再走成员
+        def m2o = [:]
+        pgFile.eachLine('UTF-8') { line ->
+            if (!line.startsWith(' ') && !line.startsWith('\t') && line.contains('->')) {
+                def p = line.split('->'); m2o[p[0].trim()] = p[1].trim().replaceAll(':$', '')
+            }
+        }
+        def prim = ['void':'V','int':'I','boolean':'Z','byte':'B','char':'C','short':'S','long':'J','float':'F','double':'D']
+        def toDesc = { String t ->
+            int dims = 0; def b = t
+            while (b.endsWith('[]')) { dims++; b = b.substring(0, b.length() - 2) }
+            def base = prim.containsKey(b) ? prim[b] : 'L' + ((m2o[b] ?: b).replace('.', '/')) + ';'
+            ('[' * dims) + base
+        }
+        def rows = new TreeMap()   // yarnName -> (mojName -> owners)
+        String curMoj = null, curObf = null
+        int nM = 0, nF = 0
+        pgFile.eachLine('UTF-8') { line ->
+            if (!line.startsWith(' ') && !line.startsWith('\t')) {
+                if (line.contains('->')) { def p = line.split('->'); curMoj = p[0].trim(); curObf = p[1].trim().replaceAll(':$', '').replace('.', '/') }
+                return
+            }
+            if (curObf == null) return
+            def inter = null, mojName = null, kind = null
+            def mm = (line =~ /^\s+(?:\d+:\d+:)?(\S+)\s+([\w$]+)\((.*)\)\s+->\s+(\S+)\s*$/)
+            if (mm.matches()) {
+                mojName = mm.group(2)
+                def desc = '(' + (mm.group(3) ? mm.group(3).split(',').collect { toDesc(it.trim()) }.join('') : '') + ')' + toDesc(mm.group(1))
+                inter = tinyM[curObf + '|' + mm.group(4) + '|' + desc]; kind = 'M'
+            } else if (!line.contains('(')) {
+                def fm = (line =~ /^\s+(\S+)\s+([\w$]+)\s+->\s+(\S+)\s*$/)
+                if (fm.matches()) {
+                    mojName = fm.group(2)
+                    inter = tinyF[curObf + '|' + fm.group(3) + '|' + toDesc(fm.group(1))]; kind = 'F'
+                }
+            }
+            if (inter == null || mojName == null || mojName.contains('$')) return
+            def yarnN = (inter ==~ /(?:method|field)_\d+/) ? inter2yarn[inter] : inter
+            if (yarnN == null || yarnN == mojName || !tokens.contains(yarnN)) return
+            def owners = rows.computeIfAbsent(kind + '\t' + yarnN, { new TreeMap() }).computeIfAbsent(mojName, { new TreeSet() })
+            owners << curMoj.tokenize('.').last()
+            if (kind == 'M') nM++ else nF++
+        }
+        def sb = new StringBuilder()
+        sb << "# Yarn → Mojmap 成员对照表（m413 gradlew mojmapMembers 生成，勿手改）\n"
+        sb << "# 过滤：仅本仓源码出现过的标识符 × 名字确实变了的成员；列=种类(M/F)\tYarn名\tMojmap名\t宿主类(样本)\n"
+        rows.each { k, v -> v.each { mojN, owners ->
+            sb << k << '\t' << mojN << '\t' << owners.take(6).join(',') << '\n' } }
+        new File(projectDir, 'docs/MAPPING_MEMBERS.tsv').setText(sb.toString(), 'UTF-8')
+        println "[sdzjz] 成员对照表已写 docs/MAPPING_MEMBERS.tsv：${rows.size()} 个 Yarn 名（方法命中 ${nM} 处、字段 ${nF} 处声明）"
+    }
+}
