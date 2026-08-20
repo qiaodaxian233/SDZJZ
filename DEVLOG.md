@@ -7549,3 +7549,10 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **预期**：本轮 build/gametest 两 job **必然红**——方法/字段名还是 Yarn 的，那不是失败，
   是编译器在列清单；neoforge/26.2/offline 三线应绿（不挂 xplat）。红清单+成员表到手即开 m415 按批修。
 - 零新配置键。行为层零改动主张待编译绿后由 GameTest 全量用例判定。
+- **并轨留痕**：推送时发现远端 `mojmap` 已有另一会话的第一炮（b1553f1/c89bb8a，基于 m412、
+  撞用 m413 编号）。逐项对比后以本树为准 `-s ours` 合并（其提交留在历史）：对方也做了简名替换
+  但①内部类全没动（Item.Settings 等 219 处原样）②mixin 方法名靶点没动（其留言"方法名一律未动
+  留给编译器"——mixin 字符串靶点恰恰是编译器管不到的死角）③**踩了换名链互吃**：RegistryKeys.WORLD
+  被顺序替换连锁吃成 BuiltInRegistries.WORLD（本树占位符两阶段正确产出 Registries.WORLD，
+  m413 防的就是这个）④无错误回推通道/无 -Xmaxerrs/无成员表 job。教训=并行会话开工前先
+  ls-remote 查同名分支，抢跑的那炮未必是打准的那炮。
