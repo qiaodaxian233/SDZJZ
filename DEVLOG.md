@@ -7393,3 +7393,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   | 26.2 Fabric | 🟡 bootstrap：只编 Core + 装载 + GameTest |
   | **NeoForge 1.21.1** | 🟡 **本笔新建**：骨架编译出包，Core 可用，业务待映射拍板 |
   | 26.1 / 1.20.1 / 其余加载器 | ⬜ 未开工 |
+
+## m409 「单独建文件夹移植」的账算清楚 + Yarn→Mojmap 迁移方案稿（作者提问，纯文档）
+
+- **作者问**："这个能不能单独建文件夹 然后移植啊"。**答：能，但那是最贵的一条**，稿落
+  `docs/映射迁移方案_m409.md`。
+- **关键事实**：Yarn 与 Mojmap **不是两套 API，是同一份 Minecraft 的两套名字**。所以无论走哪条路，
+  **那 15 215 行业务代码的名字都得改一遍，工作量完全一样**；区别只在改完之后手里有**几份**代码——
+  单独建文件夹=永久两份（加一台机器写两遍、修一个 bug 修两遍、必然漂移），全仓转=一份。
+  单独建文件夹唯一的真优势是"现在能玩的那格零风险"，而这个优势可以用
+  **开分支+分批+每批 CI 全绿才推**买到，不必拿永久双维护去换。
+- **决定性的一条**：`versions/26.2/`（m370）**本来就在写 Mojang 名**——上游 Yarn 对新世代已停更。
+  于是不转的最终形态是**三份**业务代码（1.21.1-Yarn / NeoForge-Mojmap / 26.x-Mojmap 互不通用），
+  转了则**一份 xplat 供全矩阵共用**。转 Mojmap 不只是为 NeoForge，更是为作者点名要的 26.x。
+- **规模量化（自动统计非估）**：132 文件 / 23 626 行 / **271 个不同 MC 类型 / 2 390 处用点**，
+  集中度高——前 12 个类型占约三分之一（ItemStack 134、Identifier 121、BlockPos 113、Text 107…），
+  改名收益前几十个类型就吃掉大半，长尾靠编译器逐个报。
+- **工具链（不手改不猜）**：首选 Loom 自带 `migrateMappings`（作者机器 maven 可达，先拿一个小包试跑看质量）；
+  兜底自建对照表——两段桥沙箱**已实测可从 GitHub 下载**（`FabricMC/intermediary` 的 1.21.1.tiny=obf↔intermediary、
+  `FabricMC/yarn` 逐类 .mapping=intermediary↔yarn），缺的 obf↔Mojmap 那半段在 Mojang 官方 proguard
+  （沙箱域名不可达，作者本地/Loom 能取）；判官=CI 五 job + 十三道离线闸。
+- **节奏**：开 `mojmap` 分支（主分支照常可玩）→ 根构建换 `officialMojangMappings()` 且**六枚 mixin 靶点同步改**
+  → 从薄到厚分批（`net/` 24 个 payload → item/node → registry/screen → client → 压轴 SCBE 4186 行与
+  StructureCoreScreen 3074 行），每批全绿才推 → 合并后 NeoForge 那格挂上 xplat，**第二个加载器才算真活**。
+- **明确不做**：不建第二份业务副本、不靠第三方桥、迁移期不夹带新玩法（否则"改名炸了还是新功能炸了"分不清）。
+- 零 Java 改动、零新配置键；等作者一句"开工"或"先不动"。
