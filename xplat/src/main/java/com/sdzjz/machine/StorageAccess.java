@@ -1,6 +1,6 @@
 package com.sdzjz.machine;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * 存储访问抽象：机器↔存储 定向连线的目标契约。

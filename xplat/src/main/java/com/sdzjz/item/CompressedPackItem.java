@@ -1,13 +1,13 @@
 package com.sdzjz.item;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * 压缩材料包（m241 / 方案A，作者拍板）：两件通用物品承载"原版物品的数量压缩"——
@@ -36,18 +36,18 @@ public class CompressedPackItem extends Item {
     /** 造一个装着 innerId 的包（count 个）。 */
     public static ItemStack of(Item packItem, String innerId, int count) {
         ItemStack s = new ItemStack(packItem, count);
-        NbtCompound nbt = new NbtCompound();
+        CompoundTag nbt = new CompoundTag();
         nbt.putString(KEY, innerId);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
         return s;
     }
 
     /** 取包的内容物物品 id（没装东西的裸包返回 null——裸包不参与任何核算）。 */
     public static String innerId(ItemStack stack) {
         if (!(stack.getItem() instanceof CompressedPackItem)) return null;
-        NbtComponent c = stack.get(DataComponentTypes.CUSTOM_DATA);
+        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return null;
-        NbtCompound nbt = c.copyNbt();
+        CompoundTag nbt = c.copyNbt();
         return nbt.contains(KEY) ? nbt.getString(KEY) : null;
     }
 
@@ -60,30 +60,30 @@ public class CompressedPackItem extends Item {
 
     private Item inner(ItemStack stack) {
         String id = innerId(stack);
-        return id == null ? null : Registries.ITEM.get(Identifier.of(id));
+        return id == null ? null : BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
     }
 
     @Override
-    public Text getName(ItemStack stack) { // yarn method_7864 已核
+    public Component getName(ItemStack stack) { // yarn method_7864 已核
         Item in = inner(stack);
         if (in == null) return super.getName(stack);
-        return Text.translatable(this.getTranslationKey()).copy().append(" · ").append(in.getName());
+        return Component.translatable(this.getTranslationKey()).copy().append(" · ").append(in.getName());
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Text> tooltip,
-                              net.minecraft.item.tooltip.TooltipType type) {
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+                              net.minecraft.world.item.TooltipFlag type) {
         Item in = inner(stack);
         if (in != null) {
-            tooltip.add(Text.literal("= " + ratio + " × ").append(in.getName())
-                    .formatted(net.minecraft.util.Formatting.AQUA));
-            tooltip.add(Text.literal("配方核算按原版计数折算（本栈合计 "
-                    + fmt(rawCount(stack)) + " 件）").formatted(net.minecraft.util.Formatting.GRAY));
+            tooltip.add(Component.literal("= " + ratio + " × ").append(in.getName())
+                    .formatted(net.minecraft.ChatFormatting.AQUA));
+            tooltip.add(Component.literal("配方核算按原版计数折算（本栈合计 "
+                    + fmt(rawCount(stack)) + " 件）").formatted(net.minecraft.ChatFormatting.GRAY));
         } else {
-            tooltip.add(Text.literal("空包 · 在超大工作台压缩区把 " + ratio + " 件同种普通物品压成 1 包")
-                    .formatted(net.minecraft.util.Formatting.GRAY));
+            tooltip.add(Component.literal("空包 · 在超大工作台压缩区把 " + ratio + " 件同种普通物品压成 1 包")
+                    .formatted(net.minecraft.ChatFormatting.GRAY));
         }
-        tooltip.add(Text.literal("超大工作台右下压缩区可压缩/拆开").formatted(net.minecraft.util.Formatting.DARK_GRAY));
+        tooltip.add(Component.literal("超大工作台右下压缩区可压缩/拆开").formatted(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 
     /** 大数缩写（与数据面板口径一致的 K/M/B）。 */

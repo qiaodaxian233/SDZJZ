@@ -1,11 +1,11 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,21 +18,21 @@ import java.util.List;
 public record StorageNodeHomePayload(BlockPos pos,
                                      List<Long> endPos,
                                      List<Integer> nx,
-                                     List<Integer> ny) implements CustomPayload {
+                                     List<Integer> ny) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<StorageNodeHomePayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "storage_node_home"));
+    public static final CustomPacketPayload.Id<StorageNodeHomePayload> ID =
+            new CustomPacketPayload.Id<>(ResourceLocation.of("sdzjz", "storage_node_home"));
 
-    public static final PacketCodec<RegistryByteBuf, StorageNodeHomePayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeHomePayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, StorageNodeHomePayload::pos,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.VAR_LONG), StorageNodeHomePayload::endPos,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.INTEGER), StorageNodeHomePayload::nx,
-            PacketCodecs.collection(ArrayList::new, PacketCodecs.INTEGER), StorageNodeHomePayload::ny,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), StorageNodeHomePayload::endPos,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::nx,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::ny,
             StorageNodeHomePayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

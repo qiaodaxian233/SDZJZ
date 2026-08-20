@@ -1,31 +1,31 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 /** 客户端→服务端：拖动画布上的存储接口节点，保存位置。
  *  m265：dock=true 表示"收回总线"（清除画布落位回停靠栏），此时 nx/ny 忽略；
  *  dock=false 表示"放置/移动到画布"（服务端钳 ±1,000,000 后落 storageNodePos 并置放置标记）。 */
-public record StorageNodeMovePayload(BlockPos pos, long storagePos, int nx, int ny, boolean dock) implements CustomPayload {
+public record StorageNodeMovePayload(BlockPos pos, long storagePos, int nx, int ny, boolean dock) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<StorageNodeMovePayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "storage_node_move"));
+    public static final CustomPacketPayload.Id<StorageNodeMovePayload> ID =
+            new CustomPacketPayload.Id<>(ResourceLocation.of("sdzjz", "storage_node_move"));
 
-    public static final PacketCodec<RegistryByteBuf, StorageNodeMovePayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeMovePayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, StorageNodeMovePayload::pos,
-            PacketCodecs.VAR_LONG, StorageNodeMovePayload::storagePos,
-            PacketCodecs.INTEGER, StorageNodeMovePayload::nx,
-            PacketCodecs.INTEGER, StorageNodeMovePayload::ny,
-            PacketCodecs.BOOL, StorageNodeMovePayload::dock,
+            ByteBufCodecs.VAR_LONG, StorageNodeMovePayload::storagePos,
+            ByteBufCodecs.INTEGER, StorageNodeMovePayload::nx,
+            ByteBufCodecs.INTEGER, StorageNodeMovePayload::ny,
+            ByteBufCodecs.BOOL, StorageNodeMovePayload::dock,
             StorageNodeMovePayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

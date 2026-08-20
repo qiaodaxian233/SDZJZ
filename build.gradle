@@ -19,7 +19,9 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    // m413 映射迁移：Yarn → Mojang 官方映射。理由见 docs/映射迁移方案_m409.md——
+    // NeoForge 与 26.x 世代都只认 Mojmap，不转的最终形态是三份互不通用的业务代码。
+    mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 

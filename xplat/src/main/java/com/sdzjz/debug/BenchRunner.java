@@ -6,12 +6,12 @@ import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.machine.CoreScheduler;
 import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -56,7 +56,7 @@ public final class BenchRunner {
     private static int activeCrafters;      // m359 per-crafter 出账分母
 
     private static Phase phase = Phase.IDLE;
-    private static ServerWorld world;
+    private static ServerLevel world;
     private static BlockPos origin;
     private static int cores, nodesPer, seconds;
     private static long capParam, savedCap;
@@ -77,7 +77,7 @@ public final class BenchRunner {
     private static java.util.ArrayDeque<int[]> matrixQueue;
     private static java.util.List<String> matrixRows;
     private static int matrixCooldown;
-    private static ServerWorld matrixWorld; private static BlockPos matrixAt; private static UUID matrixBy;
+    private static ServerLevel matrixWorld; private static BlockPos matrixAt; private static UUID matrixBy;
     private static int matrixSecs; private static long matrixCap;
     private static Workload matrixWl = Workload.MIXED; // m360 矩阵默认混布（作者拍板 A：25%×4）
     // m308 黄灯占空比直测（m115 看门狗 45/40ms 滞回；占空比>0 时倍数判据=噪声）
@@ -96,12 +96,12 @@ public final class BenchRunner {
         workload = Workload.COBBLE; wireIdx = 0; wireDelay = 0; activeCrafters = 0; // m359
     }
 
-    public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap) {
+    public static String start(ServerLevel w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap) {
         return start(w, at, by, nCores, nNodes, secs, cap, Workload.COBBLE);
     }
 
     /** m359 工况版入口。 */
-    public static String start(ServerWorld w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap, Workload wl) {
+    public static String start(ServerLevel w, BlockPos at, UUID by, int nCores, int nNodes, int secs, long cap, Workload wl) {
         if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
         workload = wl;
         int nodeCap = SdzjzConfig.get().maxNodesPerCore;
@@ -139,12 +139,12 @@ public final class BenchRunner {
     }
 
     /** m355 三档矩阵：100/300/500 核 ×64 节点自动串跑，档间清场+冷却，收官落汇总对比文件。 */
-    public static String startMatrix(ServerWorld w, BlockPos at, UUID by, int secs, long cap) {
+    public static String startMatrix(ServerLevel w, BlockPos at, UUID by, int secs, long cap) {
         return startMatrix(w, at, by, secs, cap, Workload.MIXED);
     }
 
     /** m360 工况版矩阵。 */
-    public static String startMatrix(ServerWorld w, BlockPos at, UUID by, int secs, long cap, Workload wl) {
+    public static String startMatrix(ServerLevel w, BlockPos at, UUID by, int secs, long cap, Workload wl) {
         if (phase != Phase.IDLE) return "§c已有压测在跑（/sdzjz bench stop 可中止）";
         matrixWl = wl;
         matrixQueue = new java.util.ArrayDeque<>();
@@ -256,7 +256,7 @@ public final class BenchRunner {
                 case MIXED -> throw new IllegalStateException("siteWl 已定型不该出现 MIXED"); // 防呆
                 case CRAFT_CHAIN -> { // m360 深链：仓灌原木，三级配方靠节点边流转，末级回仓
                     if (world.getBlockEntity(p.east()) instanceof com.sdzjz.block.StorageCoreBlockEntity scC) {
-                        ItemStack logs = new ItemStack(net.minecraft.item.Items.SPRUCE_LOG);
+                        ItemStack logs = new ItemStack(net.minecraft.world.item.Items.SPRUCE_LOG);
                         logs.setCount(10_000_000);
                         scC.deposit(logs);
                     }
@@ -281,7 +281,7 @@ public final class BenchRunner {
                 }
                 case CRAFT_FED -> { // 仓→过滤→合成机→回仓：预灌 1000 万木板（cap500×300s 最坏偏斜也吃不穿，绝无假空转）
                     if (world.getBlockEntity(p.east()) instanceof com.sdzjz.block.StorageCoreBlockEntity scF) {
-                        ItemStack planks = new ItemStack(net.minecraft.item.Items.SPRUCE_PLANKS);
+                        ItemStack planks = new ItemStack(net.minecraft.world.item.Items.SPRUCE_PLANKS);
                         planks.setCount(10_000_000); // deposit=账本 merge 一笔入账，非逐栈
                         scF.deposit(planks);
                     }
@@ -338,8 +338,8 @@ public final class BenchRunner {
 
     private static void cleanSite(BlockPos p) {
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) core.benchClearNodes();
-        world.setBlockState(p, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);       // 节点已清空,dropAll 散落=零件
-        world.setBlockState(p.east(), net.minecraft.block.Blocks.AIR.getDefaultState(), 3); // 存储账本是虚拟账,拆块零散落
+        world.setBlockState(p, net.minecraft.world.level.block.Blocks.AIR.getDefaultState(), 3);       // 节点已清空,dropAll 散落=零件
+        world.setBlockState(p.east(), net.minecraft.world.level.block.Blocks.AIR.getDefaultState(), 3); // 存储账本是虚拟账,拆块零散落
         com.sdzjz.block.CoreChunkLoading.release(world, p, false); // m307 兜底：核心若始终没tick,
         // chunkForceActive=false 拆块走不到释放——补一发注销自举票（已释放时=孤儿声明清理,幂等无害）
     }
@@ -494,8 +494,8 @@ public final class BenchRunner {
 
     private static void msg(MinecraftServer server, String s) {
         if (starter != null) {
-            ServerPlayerEntity p = server.getPlayerManager().getPlayer(starter);
-            if (p != null) p.sendMessage(Text.literal(s), false);
+            ServerPlayer p = server.getPlayerManager().getPlayer(starter);
+            if (p != null) p.sendMessage(Component.literal(s), false);
         }
         Sdzjz_log(s.replaceAll("§.", ""));
     }

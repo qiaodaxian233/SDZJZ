@@ -1,11 +1,11 @@
 package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -54,10 +54,10 @@ public class InfiniteBeaconItem extends MachineItem {
     public static String effectName(int idx) { return FX_NAME[clampFx(idx)]; }
 
     /** 效果注册表项（id 串反查；查不到=null，tick 侧报红灯说人话，不静默不生效）。 */
-    public static net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.effect.StatusEffect> effectEntry(int idx) {
-        net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(FX_ID[clampFx(idx)]);
+    public static net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effectEntry(int idx) {
+        net.minecraft.resources.ResourceLocation ident = net.minecraft.resources.ResourceLocation.tryParse(FX_ID[clampFx(idx)]);
         if (ident == null) return null;
-        return net.minecraft.registry.Registries.STATUS_EFFECT.getEntry(ident).orElse(null);
+        return net.minecraft.core.registries.BuiltInRegistries.STATUS_EFFECT.getEntry(ident).orElse(null);
     }
 
     /** 画布节点副行文案（客户端徽章行唯一口径）。 */
@@ -71,11 +71,11 @@ public class InfiniteBeaconItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("不要金字塔、不要天空、不看距离：放上画布即给全服玩家上 buff").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("每周期从存储网络扣一份信标料（铁锭/金锭/绿宝石/钻石/下界合金锭，先扣便宜的）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("当前：" + canvasLine(stack) + "；效果/等级在画布节点菜单切换").formatted(Formatting.GREEN));
-        tooltip.add(Text.literal("效果是刷新式（每周期续时长，不叠加不延长）——所以速度/数量升级对本机没有收益，别白灌").formatted(Formatting.YELLOW));
-        tooltip.add(Text.literal("要接存储网络：料从仓里扣，没料=红灯停发（不赊账）").formatted(Formatting.RED));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("不要金字塔、不要天空、不看距离：放上画布即给全服玩家上 buff").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("每周期从存储网络扣一份信标料（铁锭/金锭/绿宝石/钻石/下界合金锭，先扣便宜的）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("当前：" + canvasLine(stack) + "；效果/等级在画布节点菜单切换").formatted(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("效果是刷新式（每周期续时长，不叠加不延长）——所以速度/数量升级对本机没有收益，别白灌").formatted(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("要接存储网络：料从仓里扣，没料=红灯停发（不赊账）").formatted(ChatFormatting.RED));
     }
 }

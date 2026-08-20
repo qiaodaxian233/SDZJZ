@@ -1,13 +1,13 @@
 package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -25,18 +25,18 @@ public class MachineItem extends Item {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
         super.appendTooltip(stack, context, tooltip, type);
         float sec = def.baseIntervalTicks() / 20f;
-        tooltip.add(Text.literal("周期 " + (sec == (int) sec ? String.valueOf((int) sec) : String.format("%.1f", sec)) + " 秒")
-                .formatted(Formatting.GRAY));
+        tooltip.add(Component.literal("周期 " + (sec == (int) sec ? String.valueOf((int) sec) : String.format("%.1f", sec)) + " 秒")
+                .formatted(ChatFormatting.GRAY));
         if (com.sdzjz.machine.Machines.smelterFamily(def.id())) { // m173 熔炉族共用提示
-            tooltip.add(Text.literal("万能熔炼：接什么烧什么（原版熔炼配方全支持）").formatted(Formatting.GOLD));
-            tooltip.add(Text.literal("须画布接线供料（机器入线/存储供料线），防误烧库存").formatted(Formatting.RED));
+            tooltip.add(Component.literal("万能熔炼：接什么烧什么（原版熔炼配方全支持）").formatted(ChatFormatting.GOLD));
+            tooltip.add(Component.literal("须画布接线供料（机器入线/存储供料线），防误烧库存").formatted(ChatFormatting.RED));
             if ("mega_super_smelter".equals(def.id()))
-                tooltip.add(Text.literal("1728熔炉阵：每周期108组×并行×(1+数量升级)").formatted(Formatting.AQUA));
+                tooltip.add(Component.literal("1728熔炉阵：每周期108组×并行×(1+数量升级)").formatted(ChatFormatting.AQUA));
             else
-                tooltip.add(Text.literal("每周期一组×并行×(1+数量升级)，产物入存储/连线").formatted(Formatting.AQUA));
+                tooltip.add(Component.literal("每周期一组×并行×(1+数量升级)，产物入存储/连线").formatted(ChatFormatting.AQUA));
             return;
         }
         if (def.consumesInputs()) {
@@ -47,20 +47,20 @@ public class MachineItem extends Item {
                 in.append(i.count()).append("× ").append(itemName(i.item()));
                 first = false;
             }
-            tooltip.add(Text.literal(in.toString()).formatted(Formatting.RED));
+            tooltip.add(Component.literal(in.toString()).formatted(ChatFormatting.RED));
         } else {
-            tooltip.add(Text.literal("免费产出（对齐原版，不吃料）").formatted(Formatting.DARK_GREEN));
+            tooltip.add(Component.literal("免费产出（对齐原版，不吃料）").formatted(ChatFormatting.DARK_GREEN));
         }
         for (MachineDef.Drop d : def.outputs()) {
             StringBuilder out = new StringBuilder("产出: ");
             out.append(d.min() == d.max() ? String.valueOf(d.min()) : d.min() + "-" + d.max());
             out.append("× ").append(itemName(d.item()));
             if (d.chance() < 1f) out.append("（").append((int) (d.chance() * 100)).append("%）");
-            tooltip.add(Text.literal(out.toString()).formatted(Formatting.AQUA));
+            tooltip.add(Component.literal(out.toString()).formatted(ChatFormatting.AQUA));
         }
     }
 
     private static String itemName(String id) {
-        return Text.translatable(Registries.ITEM.get(Identifier.of(id)).getTranslationKey()).getString();
+        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)).getTranslationKey()).getString();
     }
 }

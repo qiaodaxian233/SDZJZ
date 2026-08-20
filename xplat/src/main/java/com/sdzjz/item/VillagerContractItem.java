@@ -1,14 +1,14 @@
 package com.sdzjz.item;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -21,23 +21,23 @@ public class VillagerContractItem extends Item {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        NbtCompound n = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         String prof = n.getString("prof");
         int disc = n.getInt("disc");
         if (!prof.isEmpty()) {
-            tooltip.add(Text.literal("已就业：").formatted(Formatting.GOLD)
-                    .append(Text.translatable("entity.minecraft.villager." + Identifier.of(prof).getPath())
-                            .formatted(Formatting.YELLOW)));
-            tooltip.add(Text.literal("折扣 " + disc + "/5（交易输入 -" + disc * 10 + "%）")
-                    .formatted(disc >= 5 ? Formatting.GREEN : Formatting.DARK_GREEN));
+            tooltip.add(Component.literal("已就业：").formatted(ChatFormatting.GOLD)
+                    .append(Component.translatable("entity.minecraft.villager." + ResourceLocation.of(prof).getPath())
+                            .formatted(ChatFormatting.YELLOW)));
+            tooltip.add(Component.literal("折扣 " + disc + "/5（交易输入 -" + disc * 10 + "%）")
+                    .formatted(disc >= 5 ? ChatFormatting.GREEN : ChatFormatting.DARK_GREEN));
         } else {
-            tooltip.add(Text.literal("空白合同（未就业）").formatted(Formatting.GRAY));
+            tooltip.add(Component.literal("空白合同（未就业）").formatted(ChatFormatting.GRAY));
         }
-        tooltip.add(Text.literal("① 放入村民交易所的合同槽").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("② 就业：选职业，吃存储网络里 1 个对应工作方块").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("③ 交易：材料从网络自动扣，产出自动入库（附魔书直发背包）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("④ 治愈：每次吃 1 金苹果，折扣 +1 级（每级 -10%，满 5 级）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("来源：村民繁殖机（面包×3/张）或超大工作台合成").formatted(Formatting.DARK_GRAY));
+        tooltip.add(Component.literal("① 放入村民交易所的合同槽").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("② 就业：选职业，吃存储网络里 1 个对应工作方块").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("③ 交易：材料从网络自动扣，产出自动入库（附魔书直发背包）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("④ 治愈：每次吃 1 金苹果，折扣 +1 级（每级 -10%，满 5 级）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("来源：村民繁殖机（面包×3/张）或超大工作台合成").formatted(ChatFormatting.DARK_GRAY));
     }
 }

@@ -1,11 +1,11 @@
 package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -16,10 +16,10 @@ public class VillagerDiscountMachineItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("自动治愈：吃存储网络里的金苹果").formatted(Formatting.RED));
-        tooltip.add(Text.literal("给共网络交易所里的已就业合同升折扣（1 苹果 = 1 级，满 5 级）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("低折扣合同优先补短板；全部满级后待机").formatted(Formatting.DARK_GREEN));
-        tooltip.add(Text.literal("与交易所手动治愈同价——自动化不改经济账").formatted(Formatting.DARK_GRAY));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("自动治愈：吃存储网络里的金苹果").formatted(ChatFormatting.RED));
+        tooltip.add(Component.literal("给共网络交易所里的已就业合同升折扣（1 苹果 = 1 级，满 5 级）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("低折扣合同优先补短板；全部满级后待机").formatted(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("与交易所手动治愈同价——自动化不改经济账").formatted(ChatFormatting.DARK_GRAY));
     }
 }

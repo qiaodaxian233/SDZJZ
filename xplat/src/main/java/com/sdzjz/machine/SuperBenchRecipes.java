@@ -1,8 +1,8 @@
 package com.sdzjz.machine;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -1034,6 +1034,6 @@ public final class SuperBenchRecipes {
 
     public static ItemStack resultStack(Recipe r) {
         return r == null ? ItemStack.EMPTY
-                : new ItemStack(Registries.ITEM.get(Identifier.of(r.result)), Math.max(1, r.count()));
+                : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(r.result)), Math.max(1, r.count()));
     }
 }

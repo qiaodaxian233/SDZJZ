@@ -19,8 +19,8 @@ import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
 import net.fabricmc.api.ModInitializer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,11 +38,11 @@ public class Sdzjz implements ModInitializer {
         // m332 随身仓库专属仓位：仓位不在 PlayerInventory，原版 inventoryTick 轮不到——服务端 tick 钩
         // 与背包同拍（每 10t）代跑吸附；开关关或格空=每 0.5s 一次空遍历在线表，开销可忽略。
         com.sdzjz.loader.Hooks.onServerTickEnd(server -> { // m405 平台口
-            for (net.minecraft.server.world.ServerWorld w : server.getWorlds())
+            for (net.minecraft.server.level.ServerLevel w : server.getWorlds())
                 com.sdzjz.block.CoreChunkLoading.reconcileTick(w); // m347 孤儿声明渐进核销（宽限/节拍/开关在里头把门）
             if (!SdzjzConfig.get().portableVaultSlot || server.getOverworld().getTime() % 10 != 0) return;
-            for (net.minecraft.server.network.ServerPlayerEntity sp : server.getPlayerManager().getPlayerList()) {
-                net.minecraft.item.ItemStack v = com.sdzjz.item.PortableVaultSlot.stackOf(sp);
+            for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerManager().getPlayerList()) {
+                net.minecraft.world.item.ItemStack v = com.sdzjz.item.PortableVaultSlot.stackOf(sp);
                 if (!v.isEmpty()) com.sdzjz.item.PortableVaultItem.magnetTick(v, sp);
             }
         });
@@ -65,8 +65,8 @@ public class Sdzjz implements ModInitializer {
         // useOnEntity 永远轮不到执行（僵尸/骷髅这类无交互生物不受影响，两条路都通）。
         // 返回 SUCCESS 即取消原版后续处理（交易界面不弹）；PASS 时一切照旧。
         com.sdzjz.loader.Hooks.onUseEntity((player, hand, entity) -> { // m405 平台口
-            if (!(entity instanceof net.minecraft.entity.LivingEntity living)) return net.minecraft.util.ActionResult.PASS;
-            if (!(player.getStackInHand(hand).getItem() instanceof com.sdzjz.item.CaptureCageItem)) return net.minecraft.util.ActionResult.PASS;
+            if (!(entity instanceof net.minecraft.world.entity.LivingEntity living)) return net.minecraft.world.InteractionResult.PASS;
+            if (!(player.getStackInHand(hand).getItem() instanceof com.sdzjz.item.CaptureCageItem)) return net.minecraft.world.InteractionResult.PASS;
             return com.sdzjz.item.CaptureCageItem.tryCapture(player, hand, living);
         });
 
@@ -173,7 +173,7 @@ public class Sdzjz implements ModInitializer {
         });
         com.sdzjz.net.Net.onServer(com.sdzjz.net.ChunkRemoverConfigPayload.ID, (payload, p) -> { // m386 手持设置面板写包：先验手上确为移除器再落 NBT，半径变更=重扫（#zrd 同口径）
             p.getServer().execute(() -> {
-                var h = payload.hand() == 0 ? net.minecraft.util.Hand.MAIN_HAND : net.minecraft.util.Hand.OFF_HAND;
+                var h = payload.hand() == 0 ? net.minecraft.world.InteractionHand.MAIN_HAND : net.minecraft.world.InteractionHand.OFF_HAND;
                 var s2 = p.getStackInHand(h);
                 if (!(s2.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) return;
                 int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
@@ -181,8 +181,8 @@ public class Sdzjz implements ModInitializer {
                 int m2 = Math.max(0, Math.min(2, payload.mode())); // m397 三挡
                 if (m2 == 2 && !SdzjzConfig.get().chunkRemoverVoidMode) m2 = 1; // 服主关了空置域=按无掉落收，节点侧不留假挡
                 int w2 = payload.seal() == 1 ? 1 : 0; // m388 封边挡水
-                var n2 = s2.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
-                        net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
+                var n2 = s2.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                        net.minecraft.world.item.component.CustomData.DEFAULT).copyNbt();
                 boolean rCh = n2.getInt("zr") != r2;
                 boolean wOn = w2 == 1 && n2.getInt("zw") == 2; // m388 开堵水=重扫补封（已挖开的边界回补石墙、灌进来的水按普通块清掉；关堵水不动游标）。m394 三态：只有"原为显式关"才算开沿
                 n2.putInt("zr", r2);
@@ -195,8 +195,8 @@ public class Sdzjz implements ModInitializer {
                     n2.remove("zf");
                     n2.remove("zq"); // m390 湿账随新工程归零
                 }
-                s2.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA,
-                        net.minecraft.component.type.NbtComponent.of(n2));
+                s2.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                        net.minecraft.world.item.component.CustomData.of(n2));
             });
         });
         com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeSensorPayload.ID, (payload, p) -> {
@@ -276,9 +276,9 @@ public class Sdzjz implements ModInitializer {
                 if (!(p.getWorld().getBlockEntity(payload.pos()) instanceof StructureCoreBlockEntity core)) return;
                 var inv = p.getInventory();
                 for (int i = 0; i < inv.size(); i++) {
-                    net.minecraft.item.ItemStack st = inv.getStack(i);
+                    net.minecraft.world.item.ItemStack st = inv.getStack(i);
                     if (st.isEmpty()) continue;
-                    if (!net.minecraft.registry.Registries.ITEM.getId(st.getItem()).toString().equals(payload.itemId())) continue;
+                    if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(st.getItem()).toString().equals(payload.itemId())) continue;
                     boolean ok = st.getItem() instanceof com.sdzjz.item.MachineItem
                             || st.getItem() instanceof com.sdzjz.item.CropFarmItem
                             || (st.getItem() instanceof com.sdzjz.item.CaptureCageItem && com.sdzjz.item.CaptureCageItem.isCaged(st))
@@ -316,7 +316,7 @@ public class Sdzjz implements ModInitializer {
      *  至多几包，默认预算 40 绝不伤手感；超限静默丢弃（客户端下一次交互重发即生效）。
      *  服务端主线程内调用（各接收器 execute 里），无并发问题；m294 起下线即清、停服清空（此前"残留可忽略"的判断已过时）。 */
     private static final java.util.HashMap<java.util.UUID, long[]> WRITE_BUDGET = new java.util.HashMap<>();
-    private static boolean writeBudget(ServerPlayerEntity p) {
+    private static boolean writeBudget(ServerPlayer p) {
         int cap = SdzjzConfig.get().packetWriteBudgetPerTick;
         if (cap <= 0) return true; // 0=关闭护栏
         long tick = p.getWorld().getTime();
@@ -326,16 +326,16 @@ public class Sdzjz implements ModInitializer {
     }
 
     /** 统一入包闸（资格+预算）：玩家当前打开的是不是该坐标的结构核心画布。全部画布类 C2S 接收器走此口。 */
-    private static boolean viewingCore(ServerPlayerEntity p, net.minecraft.util.math.BlockPos pos) {
+    private static boolean viewingCore(ServerPlayer p, net.minecraft.core.BlockPos pos) {
         return writeBudget(p) && p.currentScreenHandler instanceof StructureCoreScreenHandler h && pos.equals(h.blockPos());
     }
 
     /** 统一入包闸（资格+预算）：玩家当前打开的是不是该坐标的数据面板（含手持终端远程打开）。 */
-    private static boolean viewingPanel(ServerPlayerEntity p, net.minecraft.util.math.BlockPos pos) {
+    private static boolean viewingPanel(ServerPlayer p, net.minecraft.core.BlockPos pos) {
         return writeBudget(p) && p.currentScreenHandler instanceof DataPanelScreenHandler h && pos.equals(h.blockPos());
     }
 
-    public static Identifier id(String path) {
-        return Identifier.of(MOD_ID, path);
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.of(MOD_ID, path);
     }
 }

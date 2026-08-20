@@ -2,12 +2,12 @@ package com.sdzjz.mixin.client;
 
 import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.item.PortableVaultSlot;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.screen.PlayerScreenHandler;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,14 +21,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 观感异常先关 portableVaultSlot 复核（边界立档见 DEVLOG m332）。
  */
 @Mixin(InventoryScreen.class)
-public abstract class InventoryScreenVaultSlotMixin extends HandledScreen<PlayerScreenHandler> {
+public abstract class InventoryScreenVaultSlotMixin extends AbstractContainerScreen<InventoryMenu> {
 
-    public InventoryScreenVaultSlotMixin(PlayerScreenHandler handler, PlayerInventory inventory, Text title) {
+    public InventoryScreenVaultSlotMixin(InventoryMenu handler, Inventory inventory, Component title) {
         super(handler, inventory, title);
     }
 
     @Inject(method = "drawBackground", at = @At("TAIL"))
-    private void sdzjz$drawVaultSlotFrame(DrawContext ctx, float delta, int mouseX, int mouseY, CallbackInfo ci) {
+    private void sdzjz$drawVaultSlotFrame(GuiGraphics ctx, float delta, int mouseX, int mouseY, CallbackInfo ci) {
         if (!SdzjzConfig.get().portableVaultSlot) return;
         int px = this.x + PortableVaultSlot.SLOT_X, py = this.y + PortableVaultSlot.SLOT_Y;
         ctx.fill(px - 1, py - 1, px + 17, py, 0xFF373737);       // 上暗

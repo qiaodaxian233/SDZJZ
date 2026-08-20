@@ -6,7 +6,7 @@ import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * JEI 兼容插件（m205，看板 #15）：让 JEI 配方界面的 "+" 按钮能把工作台配方
@@ -31,7 +31,7 @@ import net.minecraft.util.Identifier;
 public final class SdzjzJeiPlugin implements IModPlugin {
 
     @Override
-    public Identifier getPluginUid() {
+    public ResourceLocation getPluginUid() {
         return Sdzjz.id("jei_plugin");
     }
 

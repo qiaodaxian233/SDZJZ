@@ -25,6 +25,12 @@ import srcroots
 
 ROW = re.compile(r'^\|\s*\d+\s*\|\s*`([^`]+)`\s*\|\s*(?:`([^`]+)`)?')
 
+# 表里"查不到"的类型里，有一类是**两边同名**（Mojang proguard 里没有它的条目=根本没被混淆），
+# 不是缺表而是不需要改。逐个人工核过才准进这张白名单，进来即按恒等映射处理。
+SAME_NAME = {
+    'net.minecraft.server.MinecraftServer',  # m412 核：Mojmap 同名，proguard 无条目
+}
+
 
 def load_table(path):
     """读 m411 产出的对照表 → ({yarn FQN: mojmap FQN}, [缺失的 yarn FQN])。"""
@@ -36,25 +42,44 @@ def load_table(path):
         yarn, moj = m.group(1), m.group(2)
         if moj:
             table[yarn] = moj
+        elif yarn in SAME_NAME:
+            pass  # 两边同名=不需要改，也不算缺表
         else:
             missing.append(yarn)
     return table, missing
 
 
 def rewrite(body, table, missing):
-    """返回 (新文本, 改动数, 命中的缺表类型集合)。"""
+    """返回 (新文本, 改动数, 命中的缺表类型集合)。
+
+    两层都要换（缺一层必编译不过）：
+      ① **全限定名**：`import net.minecraft.text.Text;` / 内联 FQN；
+      ② **简名**：正文里的 `Text.literal(...)`——Yarn 与 Mojmap 简名常常不同
+         （Text→Component / Identifier→ResourceLocation / PlayerEntity→Player…），
+         只换 import 不换正文 = 换完就"找不到符号 Text"。
+    简名替换只在**本文件确实引用过该 Yarn 类**时才做（先 FQN 命中过），且带词边界，
+    绝不误伤同名的自家类。"""
     hits_missing = set()
     for y in missing:
         if y in body:
             hits_missing.add(y)
-    # 长名优先替换，防止 net.minecraft.item.Item 抢先吃掉 net.minecraft.item.ItemStack
     n = 0
+    simple_pairs = []
+    # 长名优先替换，防止 net.minecraft.item.Item 抢先吃掉 net.minecraft.item.ItemStack
     for y in sorted(table, key=len, reverse=True):
         if y not in body:
             continue
         cnt = body.count(y)
         body = body.replace(y, table[y])
         n += cnt
+        ys, ms = simple_name(y), simple_name(table[y])
+        if ys != ms:
+            simple_pairs.append((ys, ms))
+    # ② 简名：长名优先，词边界，且不动"已经是新名"的（新旧同名的对子上面已跳过）
+    for ys, ms in sorted(simple_pairs, key=lambda t: -len(t[0])):
+        pat = re.compile(r'(?<![\w.$])' + re.escape(ys) + r'(?![\w$])')
+        body, k = pat.subn(ms, body)
+        n += k
     return body, n, hits_missing
 
 

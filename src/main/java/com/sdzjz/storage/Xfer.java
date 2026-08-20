@@ -1,9 +1,9 @@
 package com.sdzjz.storage;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 
 /**
  * m404 物品传输平台口——多加载器路线 P1 第二刀（耦合尺排名第二：transfer 69 用点 / 6 文件）。
@@ -11,7 +11,7 @@ import net.minecraft.world.World;
  * <p><b>句柄一律不透明（{@code Object}）</b>：Fabric 侧真身是 {@code Storage<ItemVariant>}，
  * NeoForge 侧将是 {@code IItemHandler}（能力系统），语义差别大到不值得强行统一类型；
  * 业务侧（抽取口/数据面板/连线视觉）只当"邻面上有个能收能给的东西"用——这正是 m362 起
- * `RecipeAccess` 的 {@code World→Object} 不透明句柄范式，全仓一以贯之。
+ * `RecipeAccess` 的 {@code Level→Object} 不透明句柄范式，全仓一以贯之。
  *
  * <p><b>行为逐位一致</b>：本类只是把原来散在业务里的 Fabric 调用原样搬进来——
  * {@code ItemStorage.SIDED.find}、单笔 {@code Transaction.openOuter()+commit}、
@@ -27,7 +27,7 @@ public final class Xfer {
     private Xfer() { }
 
     /** 找邻面视图（side=从邻块的哪一面接入；null=不分面）。无视图返回 null。 */
-    public static Object find(World world, BlockPos np, Direction side) {
+    public static Object find(Level world, BlockPos np, Direction side) {
         return net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.find(world, np, side);
     }
 

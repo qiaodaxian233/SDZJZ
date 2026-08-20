@@ -1,11 +1,11 @@
 package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -20,9 +20,9 @@ public class SwitchNodeItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("画布逻辑节点：手动闸门，一键通断支线").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("开=直通 · 关=上游机器整台暂停（不白产）").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("放入画布后，点节点上的 开/关 按钮切换").formatted(Formatting.DARK_GREEN));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("画布逻辑节点：手动闸门，一键通断支线").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("开=直通 · 关=上游机器整台暂停（不白产）").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("放入画布后，点节点上的 开/关 按钮切换").formatted(ChatFormatting.DARK_GREEN));
     }
 }

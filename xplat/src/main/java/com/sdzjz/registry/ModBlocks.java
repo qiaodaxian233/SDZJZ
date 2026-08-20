@@ -9,43 +9,43 @@ import com.sdzjz.block.StructureCoreBlock;
 import com.sdzjz.block.StorageCoreBlock;
 import com.sdzjz.block.SuperBenchBlock;
 import com.sdzjz.block.TradeCenterBlock;
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 
 public class ModBlocks {
 
     public static final StructureCoreBlock STRUCTURE_CORE =
-            reg("structure_core", new StructureCoreBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque(), 1));
+            reg("structure_core", new StructureCoreBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque(), 1));
 
     public static final SuperBenchBlock SUPER_BENCH =
-            reg("super_bench", new SuperBenchBlock(AbstractBlock.Settings.copy(Blocks.CRAFTING_TABLE)));
+            reg("super_bench", new SuperBenchBlock(BlockBehaviour.Settings.copy(Blocks.CRAFTING_TABLE)));
 
     public static final DataPanelBlock DATA_PANEL =
-            reg("data_panel", new DataPanelBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("data_panel", new DataPanelBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final StorageCoreBlock STORAGE_CORE =
-            reg("storage_core", new StorageCoreBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("storage_core", new StorageCoreBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final DataCableBlock DATA_CABLE =
-            reg("data_cable", new DataCableBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("data_cable", new DataCableBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final WirelessNodeBlock WIRELESS_NODE =
-            reg("wireless_node", new WirelessNodeBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("wireless_node", new WirelessNodeBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final SatelliteNodeBlock SATELLITE_NODE =
-            reg("satellite_node", new SatelliteNodeBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("satellite_node", new SatelliteNodeBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final TradeCenterBlock TRADE_CENTER =
-            reg("trade_center", new TradeCenterBlock(AbstractBlock.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("trade_center", new TradeCenterBlock(BlockBehaviour.Settings.copy(Blocks.IRON_BLOCK).nonOpaque()));
 
     private static <T extends Block> T reg(String name, T block) {
-        T b = Registry.register(Registries.BLOCK, Sdzjz.id(name), block);
-        Registry.register(Registries.ITEM, Sdzjz.id(name), new BlockItem(b, new Item.Settings()));
+        T b = Registry.register(BuiltInRegistries.BLOCK, Sdzjz.id(name), block);
+        Registry.register(BuiltInRegistries.ITEM, Sdzjz.id(name), new BlockItem(b, new Item.Settings()));
         return b;
     }
 

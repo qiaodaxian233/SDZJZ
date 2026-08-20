@@ -2,11 +2,11 @@ package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
 import com.sdzjz.node.NodeTags;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -60,31 +60,31 @@ public class ChunkFilterItem extends MachineItem {
      *  asItem==AIR 的方块（水/火）；名单里手写 "minecraft:air" 的照收（原语义就能匹配水）。 */
     public static CompiledRule compile(ItemStack filterNode) {
         List<String> l = NodeTags.filterList(filterNode);
-        java.util.Set<net.minecraft.item.Item> set = new java.util.HashSet<>(Math.max(4, l.size() * 2));
+        java.util.Set<net.minecraft.world.item.Item> set = new java.util.HashSet<>(Math.max(4, l.size() * 2));
         for (String id : l) {
-            net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(id);
+            net.minecraft.resources.ResourceLocation ident = net.minecraft.resources.ResourceLocation.tryParse(id);
             if (ident == null) continue;
-            net.minecraft.item.Item it = net.minecraft.registry.Registries.ITEM.get(ident);
-            if (it == net.minecraft.item.Items.AIR && !"minecraft:air".equals(id)) continue;
+            net.minecraft.world.item.Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ident);
+            if (it == net.minecraft.world.item.Items.AIR && !"minecraft:air".equals(id)) continue;
             set.add(it);
         }
         return new CompiledRule(set, NodeTags.filterBlacklist(filterNode));
     }
 
     /** m392 编译产物：items 空=不限；否则 黑名单 XOR 命中。 */
-    public record CompiledRule(java.util.Set<net.minecraft.item.Item> items, boolean blacklist) {
-        public boolean allows(net.minecraft.item.Item it) {
+    public record CompiledRule(java.util.Set<net.minecraft.world.item.Item> items, boolean blacklist) {
+        public boolean allows(net.minecraft.world.item.Item it) {
             if (items.isEmpty()) return true; // 空名单=不限方块（m377 独立口径原样）
             return blacklist != items.contains(it);
         }
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("区块移除器的规则挂件：画布上与移除器连线即生效（方向随意）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("方块名单：白名单=只挖名单内 · 黑名单=名单内不挖 · 空=不限").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("Y 挡位五挡循环：全高度/地表下/深层/深板岩/地上——\"只挖矿不拆建筑\"就靠它").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("多台过滤器规则叠加(AND)；本体不收不转发物品").formatted(Formatting.DARK_GRAY));
-        tooltip.add(Text.literal("放入画布后右键节点配置").formatted(Formatting.GRAY));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("区块移除器的规则挂件：画布上与移除器连线即生效（方向随意）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("方块名单：白名单=只挖名单内 · 黑名单=名单内不挖 · 空=不限").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("Y 挡位五挡循环：全高度/地表下/深层/深板岩/地上——\"只挖矿不拆建筑\"就靠它").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("多台过滤器规则叠加(AND)；本体不收不转发物品").formatted(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("放入画布后右键节点配置").formatted(ChatFormatting.GRAY));
     }
 }

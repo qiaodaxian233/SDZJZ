@@ -10,15 +10,15 @@ import com.sdzjz.item.PortableVaultItem; // m311
 import com.sdzjz.machine.Machines;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 
 /** 物品注册 + 创造物品组。 */
 public class ModItems {
@@ -153,19 +153,19 @@ public class ModItems {
     public static final Item VILLAGER_CONTRACT = reg("villager_contract", new com.sdzjz.item.VillagerContractItem(new Item.Settings()));
     public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Settings(), Machines.VILLAGER_BREEDER));
 
-    public static final RegistryKey<ItemGroup> GROUP_KEY =
-            RegistryKey.of(RegistryKeys.ITEM_GROUP, Sdzjz.id("main"));
-    public static final ItemGroup GROUP = FabricItemGroup.builder()
+    public static final ResourceKey<CreativeModeTab> GROUP_KEY =
+            ResourceKey.of(BuiltInRegistries.ITEM_GROUP, Sdzjz.id("main"));
+    public static final CreativeModeTab GROUP = FabricItemGroup.builder()
             .icon(() -> new ItemStack(LOGO)) // m93 用户点名：标签图标换 MOD 红色核心
-            .displayName(Text.translatable("itemGroup.sdzjz.main"))
+            .displayName(Component.translatable("itemGroup.sdzjz.main"))
             .build();
 
     private static Item reg(String name, Item item) {
-        return Registry.register(Registries.ITEM, Sdzjz.id(name), item);
+        return Registry.register(BuiltInRegistries.ITEM, Sdzjz.id(name), item);
     }
 
     public static void init() {
-        Registry.register(Registries.ITEM_GROUP, GROUP_KEY, GROUP);
+        Registry.register(BuiltInRegistries.ITEM_GROUP, GROUP_KEY, GROUP);
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
             entries.add(CORE_MODULE);
             entries.add(AUTO_CRAFTER);

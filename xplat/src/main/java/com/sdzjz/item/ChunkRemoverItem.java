@@ -2,18 +2,18 @@ package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
 import com.sdzjz.node.NodeTags;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -33,13 +33,13 @@ public class ChunkRemoverItem extends MachineItem {
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext ctx) {
-        World world = ctx.getWorld();
-        if (world.isClient) return ActionResult.SUCCESS;
+    public InteractionResult useOnBlock(UseOnContext ctx) {
+        Level world = ctx.getWorld();
+        if (world.isClient) return InteractionResult.SUCCESS;
         BlockPos pos = ctx.getBlockPos();
         ItemStack stack = ctx.getStack();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        NbtCompound n = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putInt("zx", cx);
         n.putInt("zz", cz);
         n.putString("zd", world.getRegistryKey().getValue().toString());
@@ -49,27 +49,27 @@ public class ChunkRemoverItem extends MachineItem {
         n.remove("zf"); // 重绑=清完成位+清累计（重新开扫）
         n.remove("zn");
         n.remove("zq"); // m390 湿账随新工程归零
-        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         if (ctx.getPlayer() != null)
-            ctx.getPlayer().sendMessage(Text.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开挖"), true);
-        return ActionResult.SUCCESS;
+            ctx.getPlayer().sendMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开挖"), true);
+        return InteractionResult.SUCCESS;
     }
 
     /** m384 手上换挡：潜行右键【空处】循环区域挡（对方块潜行右键仍是绑定，useOnBlock 先响）——
      *  瑞剑体验闭环：手持预览框（m384 高亮器）随挡即时变大变小，先圈定再上画布。
      *  服务端权威（客户端只回 SUCCESS 摆手）；换挡=新工程同 #zr 口径（清游标回顶，zn 保留）。 */
     @Override
-    public net.minecraft.util.TypedActionResult<ItemStack> use(World world, net.minecraft.entity.player.PlayerEntity player, net.minecraft.util.Hand hand) {
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level world, net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
         ItemStack s = player.getStackInHand(hand);
-        if (!player.isSneaking()) return net.minecraft.util.TypedActionResult.pass(s);
+        if (!player.isSneaking()) return net.minecraft.world.InteractionResultHolder.pass(s);
         if (!world.isClient) { // m386 区域自由调后循环换挡退役（cap=64 时循环 65 挡=灾难 UX），潜行右键空处改=快切掉落模式（野外随手切"这块不要掉落快拆"）
-            NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+            CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
             int nm = nextMode(n.getInt("zm"), com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode); // m397 三挡循环
             n.putInt("zm", nm);
-            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
-            player.sendMessage(Text.literal("模式：" + modeLabel(nm) + (nm == 2 ? "（基岩也拆，坑底会通虚空）" : "")), true);
+            s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            player.sendMessage(Component.literal("模式：" + modeLabel(nm) + (nm == 2 ? "（基岩也拆，坑底会通虚空）" : "")), true);
         }
-        return net.minecraft.util.TypedActionResult.success(s, world.isClient);
+        return net.minecraft.world.InteractionResultHolder.success(s, world.isClient);
     }
 
     /** m382 区域挡名（1×1/3×3/…，菜单与副行同源）。 */
@@ -102,21 +102,21 @@ public class ChunkRemoverItem extends MachineItem {
     /** m396 封边材料解析（作者点名"默认铺可以改方块、可以自定义"）：空串/非法/无方块形态=null=按默认
      *  **免费石头**（m389 口径：置石不扣料，防顶层没圆石封不上=水照灌的哑死）。自定义料则**从存储扣**，
      *  扣不到=黄灯提醒并当拍回落免费石墙——绝不静默停封让水灌进来（m99 精神）。 */
-    public static net.minecraft.block.Block sealBlockOf(String id) {
+    public static net.minecraft.world.level.block.Block sealBlockOf(String id) {
         if (id == null || id.isEmpty()) return null;
-        net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(id);
+        net.minecraft.resources.ResourceLocation ident = net.minecraft.resources.ResourceLocation.tryParse(id);
         if (ident == null) return null;
-        net.minecraft.item.Item it = net.minecraft.registry.Registries.ITEM.get(ident);
-        if (!(it instanceof net.minecraft.item.BlockItem bi)) return null; // 没有方块形态的物品当不了墙
-        net.minecraft.block.Block b = bi.getBlock();
-        return b == net.minecraft.block.Blocks.AIR ? null : b;
+        net.minecraft.world.item.Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ident);
+        if (!(it instanceof net.minecraft.world.item.BlockItem bi)) return null; // 没有方块形态的物品当不了墙
+        net.minecraft.world.level.block.Block b = bi.getBlock();
+        return b == net.minecraft.world.level.block.Blocks.AIR ? null : b;
     }
 
     public static boolean validSealBlock(String id) { return sealBlockOf(id) != null; }
 
     /** 材料显示名（菜单/面板/副行唯一口径）。 */
     public static String sealLabel(ItemStack s) {
-        net.minecraft.block.Block b = sealBlockOf(NodeTags.chunkSealBlock(s));
+        net.minecraft.world.level.block.Block b = sealBlockOf(NodeTags.chunkSealBlock(s));
         return b == null ? "石头（免费）" : new ItemStack(b.asItem()).getName().getString();
     }
 
@@ -141,7 +141,7 @@ public class ChunkRemoverItem extends MachineItem {
      *  wetReset=真则清 zq（复检环开新一遍 / 真完成收尾），reset 优先于 delta（旧遍的账不带进新遍）。 */
     public static void advance(ItemStack s, int y, int ord, int idx, long removedDelta, boolean done,
                                long wetDelta, boolean wetReset, int limited) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putInt("zy", y);
         n.putInt("zc", ord); // m382 层主序分块序号
         n.putInt("zi", idx);
@@ -150,25 +150,25 @@ public class ChunkRemoverItem extends MachineItem {
         else if (wetDelta > 0) n.putLong("zq", n.getLong("zq") + wetDelta); // m390
         if (done) n.putBoolean("zf", true);
         if (limited > 0) n.putInt("zl", limited); else n.remove("zl"); // m398 上限位（0=不写键，老档缺键=没撞）
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("手持对目标区块内任意方块右键=绑定（箱子等可交互方块请潜行右键）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
-                + " 块（config 可调），速度/数量/并发升级照常放大").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal("到顶提醒：每拍最多 " + Math.max(256, com.sdzjz.config.SdzjzConfig.get().chunkRemoverMaxBlocksPerTick)
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("手持对目标区块内任意方块右键=绑定（箱子等可交互方块请潜行右键）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后自顶向下移除整个区块，掉落物进出线/存储网络").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("每周期基础 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().chunkRemoverBlocksPerCycle)
+                + " 块（config 可调），速度/数量/并发升级照常放大").formatted(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("到顶提醒：每拍最多 " + Math.max(256, com.sdzjz.config.SdzjzConfig.get().chunkRemoverMaxBlocksPerTick)
                 + " 块且每台每拍限 " + Math.max(0, com.sdzjz.config.SdzjzConfig.get().chunkRemoverTimeSliceMs)
-                + "ms——副行显示\"满载\"时再加升级没用，改 config 三键或多放几台各绑一片").formatted(Formatting.YELLOW));
-        tooltip.add(Text.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式 / 封边挡水").formatted(Formatting.LIGHT_PURPLE));
+                + "ms——副行显示\"满载\"时再加升级没用，改 config 三键或多放几台各绑一片").formatted(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("手持按设置键（默认 R）开面板：区域自由调 " + regionLabel(stack) + " / 掉落模式 / 封边挡水").formatted(ChatFormatting.LIGHT_PURPLE));
         int mT = NodeTags.chunkMode(stack);
-        tooltip.add(Text.literal("当前：" + modeLabel(mT) + (mT == 2 ? "（连基岩一起拆，坑底通虚空）" : mT == 1 ? "（不产任何物品）" : "（进出线/存储）") + "；潜行右键空处快切")
-                .formatted(mT == 2 ? Formatting.RED : mT == 1 ? Formatting.GOLD : Formatting.GREEN));
-        tooltip.add(Text.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(Formatting.RED));
+        tooltip.add(Component.literal("当前：" + modeLabel(mT) + (mT == 2 ? "（连基岩一起拆，坑底通虚空）" : mT == 1 ? "（不产任何物品）" : "（进出线/存储）") + "；潜行右键空处快切")
+                .formatted(mT == 2 ? ChatFormatting.RED : mT == 1 ? ChatFormatting.GOLD : ChatFormatting.GREEN));
+        tooltip.add(Component.literal("手持已绑定本机=世界内浮现紫色选区框（技能选中圈，chunkFxEnabled 可关）").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("基岩不动；箱子等带方块实体的默认跳过（config 可开）；仅同维度").formatted(ChatFormatting.RED));
         if (NodeTags.chunkBound(stack))
-            tooltip.add(Text.literal("当前绑定：" + canvasLine(stack) + "（重绑=重扫）").formatted(Formatting.GREEN));
+            tooltip.add(Component.literal("当前绑定：" + canvasLine(stack) + "（重绑=重扫）").formatted(ChatFormatting.GREEN));
     }
 }

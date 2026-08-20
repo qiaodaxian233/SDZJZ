@@ -3,15 +3,15 @@ package com.sdzjz.screen;
 import com.sdzjz.block.TradeCenterBlockEntity;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.core.BlockPos;
 
 /**
  * 村民交易所界面。按钮协议（onButtonClick id）：
@@ -19,7 +19,7 @@ import net.minecraft.util.math.BlockPos;
  *  10..N = 执行交易 #(id-10)
  *  40    = 治愈（折扣+1，消耗金苹果）
  */
-public class TradeCenterScreenHandler extends ScreenHandler {
+public class TradeCenterScreenHandler extends AbstractContainerMenu {
 
     public static final int BTN_TRADE_BASE = 10;
     public static final int BTN_HEAL = 40;
@@ -27,15 +27,15 @@ public class TradeCenterScreenHandler extends ScreenHandler {
     private final TradeCenterBlockEntity be;
     private final BlockPos blockPos;
 
-    public TradeCenterScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
+    public TradeCenterScreenHandler(int syncId, Container playerInv, BlockPos pos) {
         this(syncId, playerInv, resolve(playerInv, pos));
     }
 
-    public TradeCenterScreenHandler(int syncId, PlayerInventory playerInv, TradeCenterBlockEntity be) {
+    public TradeCenterScreenHandler(int syncId, Container playerInv, TradeCenterBlockEntity be) {
         super(ModScreenHandlers.TRADE_CENTER, syncId);
         this.be = be;
         this.blockPos = (be != null) ? be.getPos() : null;
-        Inventory contract = (be != null) ? be.contractSlot : new SimpleInventory(1);
+        Container contract = (be != null) ? be.contractSlot : new SimpleContainer(1);
 
         // 合同槽（只收村民合同）
         this.addSlot(new Slot(contract, 0, 30, 40) {
@@ -52,7 +52,7 @@ public class TradeCenterScreenHandler extends ScreenHandler {
             this.addSlot(new Slot(playerInv, c, px + c * 18, py + 58));
     }
 
-    private static TradeCenterBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
+    private static TradeCenterBlockEntity resolve(Container playerInv, BlockPos pos) {
         BlockEntity b = playerInv.player.getWorld().getBlockEntity(pos);
         return b instanceof TradeCenterBlockEntity t ? t : null;
     }
@@ -64,7 +64,7 @@ public class TradeCenterScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean onButtonClick(PlayerEntity player, int id) {
+    public boolean onButtonClick(Player player, int id) {
         if (be == null || player.getWorld().isClient) return false;
         if (id >= 0 && id <= 6) { be.employ(player, id); return true; }
         if (id >= BTN_TRADE_BASE && id < BTN_HEAL) { be.trade(player, id - BTN_TRADE_BASE); return true; }
@@ -73,12 +73,12 @@ public class TradeCenterScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
+    public boolean canUse(Player player) {
         return be != null;
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int index) {
+    public ItemStack quickMove(Player player, int index) {
         ItemStack ret = ItemStack.EMPTY;
         Slot slot = this.slots.get(index);
         if (slot != null && slot.hasStack()) {

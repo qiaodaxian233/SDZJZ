@@ -6,20 +6,20 @@ import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -46,10 +46,10 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     private final List<Long> exactN = new ArrayList<>();
     private int tier = 1;
 
-    private static final Map<RegistryKey<World>, Set<BlockPos>> CORES = new HashMap<>();
+    private static final Map<ResourceKey<Level>, Set<BlockPos>> CORES = new HashMap<>();
     // m279 空间索引：按 (x>>6, z>>6) 64 格桶分区（y 不分桶，核心分布以水平为主）。与 CORES 平面表
     // 双写同源（register/unregister/clearAll 单一漏斗），范围查询只访问 AABB 覆盖的桶。
-    private static final Map<RegistryKey<World>, Map<Long, Set<BlockPos>>> CORE_BUCKETS = new HashMap<>();
+    private static final Map<ResourceKey<Level>, Map<Long, Set<BlockPos>>> CORE_BUCKETS = new HashMap<>();
     private static final int BUCKET_SHIFT = 6; // 桶边长 64 格
 
     private static long bucketKey(int x, int z) { return packBuckets(x >> BUCKET_SHIFT, z >> BUCKET_SHIFT); }
@@ -61,14 +61,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         super(ModBlockEntities.STORAGE_CORE_BE, pos, state);
     }
 
-    public static void register(World world, BlockPos pos) {
+    public static void register(Level world, BlockPos pos) {
         if (world.isClient) return;
         BlockPos ip = pos.toImmutable();
         if (!CORES.computeIfAbsent(world.getRegistryKey(), k -> new HashSet<>()).add(ip)) return; // 已登记=桶里必已有
         CORE_BUCKETS.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>())
                 .computeIfAbsent(bucketKey(ip.getX(), ip.getZ()), k -> new HashSet<>()).add(ip);
     }
-    public static void unregister(World world, BlockPos pos) {
+    public static void unregister(Level world, BlockPos pos) {
         Set<BlockPos> s = CORES.get(world.getRegistryKey());
         if (s != null) s.remove(pos);
         Map<Long, Set<BlockPos>> bm = CORE_BUCKETS.get(world.getRegistryKey()); // m279 桶同步剔除
@@ -78,14 +78,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             if (b != null && b.remove(pos) && b.isEmpty()) bm.remove(k); // 空桶回收防泄漏
         }
     }
-    public static Set<BlockPos> coresIn(World world) {
+    public static Set<BlockPos> coresIn(Level world) {
         return CORES.getOrDefault(world.getRegistryKey(), Set.of());
     }
 
     /** m279 范围查询：只访问 AABB 覆盖的桶，返回快照列表（调用方 loadedCoreAt 触发 unregister
      *  也不炸游标）。候选按桶粒度粗筛，精确球面距离仍由调用方判（口径与旧全表扫一致）。
      *  桶格数超阈值（超大 range 配置）退回全表快照——桶遍历不许比旧路径还贵。 */
-    public static List<BlockPos> coresNear(World world, BlockPos center, long range) {
+    public static List<BlockPos> coresNear(Level world, BlockPos center, long range) {
         Map<Long, Set<BlockPos>> bm = CORE_BUCKETS.get(world.getRegistryKey());
         if (bm == null || bm.isEmpty()) return List.of();
         int r = (int) Math.min(range, 30_000_000L);
@@ -102,7 +102,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         return out;
     }
 
-    public static Set<RegistryKey<World>> dimensionsWithCores() {
+    public static Set<ResourceKey<Level>> dimensionsWithCores() {
         return CORES.keySet();
     }
 
@@ -116,14 +116,14 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
      * 安全查找：只查已加载区块（getBlockEntity 在服务端会强制加载区块，遍历登记表时绝不能用）。
      * 区块已加载但不存在存储核心 → 判定为幽灵坐标，顺手从登记表剔除。
      */
-    public static StorageCoreBlockEntity loadedCoreAt(World world, BlockPos p) {
+    public static StorageCoreBlockEntity loadedCoreAt(Level world, BlockPos p) {
         if (!world.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
         if (world.getBlockEntity(p) instanceof StorageCoreBlockEntity core) return core;
         unregister(world, p);
         return null;
     }
 
-    public static void tick(World world, BlockPos pos, BlockState state, StorageCoreBlockEntity be) {
+    public static void tick(Level world, BlockPos pos, BlockState state, StorageCoreBlockEntity be) {
         if (world.isClient) return;
         register(world, pos);
     }
@@ -206,7 +206,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     public void deposit(ItemStack stack) {
         if (stack.isEmpty()) return;
         if (!stack.getComponentChanges().isEmpty()) { depositExact(stack); return; }
-        String id = Registries.ITEM.getId(stack.getItem()).toString();
+        String id = BuiltInRegistries.ITEM.getId(stack.getItem()).toString();
         if (!store.containsKey(id) && usedTypes() >= typeGate()) return; // m293 安全硬顶同闸
         store.merge(id, (long) stack.getCount(), StorageCoreBlockEntity::satAdd); // m273 饱和加法
         storeRev++; // m218
@@ -323,7 +323,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             if (resource.isBlank() || maxAmount <= 0) return 0;
             ItemStack one = resource.toStack(1);
             if (one.getComponentChanges().isEmpty()) { // 与 deposit 同一分流：无组件走普通账本
-                String id = Registries.ITEM.getId(one.getItem()).toString();
+                String id = BuiltInRegistries.ITEM.getId(one.getItem()).toString();
                 if (!store.containsKey(id) && usedTypes() >= typeGate()) return 0; // m293
                 long cur = store.getOrDefault(id, 0L);
                 long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
@@ -362,7 +362,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             if (resource.isBlank() || maxAmount <= 0) return 0;
             ItemStack one = resource.toStack(1);
             if (one.getComponentChanges().isEmpty()) {
-                String id = Registries.ITEM.getId(one.getItem()).toString();
+                String id = BuiltInRegistries.ITEM.getId(one.getItem()).toString();
                 long have = store.getOrDefault(id, 0L);
                 long take = Math.min(have, maxAmount);
                 if (take <= 0) return 0;
@@ -397,7 +397,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         @Override public Iterator<StorageView<ItemVariant>> iterator() {
             List<StorageView<ItemVariant>> views = new ArrayList<>(store.size() + exactTpl.size());
             for (String id : store.keySet()) { // m350 撤键拷贝：views 表在此建完才外泄，外部 extract 只动 views 走 View 懒读，建表期 store 零突变（原"迭代中抽空"担忧指向返回后的消费期，与建表游标无关）
-                Item it = Registries.ITEM.get(Identifier.of(id));
+                Item it = BuiltInRegistries.ITEM.get(ResourceLocation.of(id));
                 ItemVariant v = ItemVariant.of(it);
                 if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
                 views.add(new View(v, id));
@@ -433,7 +433,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     /** BFS：从某位置经数据线/相邻找到所有存储核心。 */
-    public static List<StorageCoreBlockEntity> connectedCores(World world, BlockPos from) {
+    public static List<StorageCoreBlockEntity> connectedCores(Level world, BlockPos from) {
         List<StorageCoreBlockEntity> out = new ArrayList<>();
         if (world == null) return out;
         Set<BlockPos> seen = new HashSet<>();
@@ -455,20 +455,20 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     @Override
-    protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+    protected void writeNbt(CompoundTag nbt, HolderLookup.WrapperLookup lookup) {
         super.writeNbt(nbt, lookup);
         nbt.putInt("tier", tier);
-        NbtList list = new NbtList();
+        ListTag list = new ListTag();
         for (Map.Entry<String, Long> e : store.entrySet()) {
-            NbtCompound c = new NbtCompound();
+            CompoundTag c = new CompoundTag();
             c.putString("id", e.getKey());
             c.putLong("n", e.getValue());
             list.add(c);
         }
         nbt.put("store", list);
-        NbtList ex = new NbtList(); // m130：精确账本持久化（模板 encode + long 计数）
+        ListTag ex = new ListTag(); // m130：精确账本持久化（模板 encode + long 计数）
         for (int i = 0; i < exactTpl.size(); i++) {
-            NbtCompound c = new NbtCompound();
+            CompoundTag c = new CompoundTag();
             c.put("item", exactTpl.get(i).encode(lookup));
             c.putLong("n", exactN.get(i));
             ex.add(c);
@@ -478,15 +478,15 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     }
 
     @Override
-    protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+    protected void readNbt(CompoundTag nbt, HolderLookup.WrapperLookup lookup) {
         super.readNbt(nbt, lookup);
         tier = Math.max(1, nbt.getInt("tier"));
         xpBank = Math.max(0, nbt.getLong("xpBank"));
         store.clear();
-        NbtList list = nbt.getList("store", NbtElement.COMPOUND_TYPE);
+        ListTag list = nbt.getList("store", Tag.COMPOUND_TYPE);
         int dropped = 0; // m273：账本读入校验——空id/非正计数=非法条目（写路径 left<=0 即 remove，零值从不合法落盘；负数毒化全部计数算术）
         for (int i = 0; i < list.size(); i++) {
-            NbtCompound c = list.getCompound(i);
+            CompoundTag c = list.getCompound(i);
             String id = c.getString("id");
             long n = c.getLong("n");
             if (!id.isEmpty() && n > 0) store.put(id, n); else dropped++;
@@ -497,9 +497,9 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
         exactIdx = null; // m295 读档置脏（懒重建）
         exactTpl.clear(); // m130：读回精确账本（解析失败/物品已卸载的条目静默跳过，不炸档）
         exactN.clear();
-        NbtList ex = nbt.getList("exact", NbtElement.COMPOUND_TYPE);
+        ListTag ex = nbt.getList("exact", Tag.COMPOUND_TYPE);
         for (int i = 0; i < ex.size(); i++) {
-            NbtCompound c = ex.getCompound(i);
+            CompoundTag c = ex.getCompound(i);
             ItemStack t = ItemStack.fromNbt(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY);
             long n = c.getLong("n");
             if (!t.isEmpty() && n > 0) { exactTpl.add(t.copyWithCount(1)); exactN.add(n); }

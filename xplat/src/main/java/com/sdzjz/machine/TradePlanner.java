@@ -1,11 +1,11 @@
 package com.sdzjz.machine;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,20 +45,20 @@ public final class TradePlanner {
     }
 
     /** 行/徽章展示名：「职业：付出 → 获得」（翻译键拼接，客户端解析；附魔书带附魔名+等级）。 */
-    public static Text displayName(String target) {
+    public static Component displayName(String target) {
         VillagerTrades.Trade t = trade(target);
-        if (t == null) return Text.literal("?");
-        MutableText s = Text.translatable(VillagerTrades.ALL.get(prof(target)).nameKey()).copy()
-                .append(Text.literal("："))
-                .append(itemName(t.inItem())).append(Text.literal("×" + t.inCount()));
+        if (t == null) return Component.literal("?");
+        MutableComponent s = Component.translatable(VillagerTrades.ALL.get(prof(target)).nameKey()).copy()
+                .append(Component.literal("："))
+                .append(itemName(t.inItem())).append(Component.literal("×" + t.inCount()));
         if (t.in2Item() != null)
-            s.append(Text.literal("+")).append(itemName(t.in2Item())).append(Text.literal("×" + t.in2Count()));
-        s.append(Text.literal(" → "));
+            s.append(Component.literal("+")).append(itemName(t.in2Item())).append(Component.literal("×" + t.in2Count()));
+        s.append(Component.literal(" → "));
         if (t.enchant() != null)
-            s.append(Text.translatable("enchantment." + t.enchant().replace(':', '.')))
-                    .append(Text.literal(" ")).append(Text.translatable("enchantment.level." + t.enchantLv()))
-                    .append(Text.literal(" 书"));
-        else s.append(itemName(t.outItem())).append(Text.literal("×" + t.outCount()));
+            s.append(Component.translatable("enchantment." + t.enchant().replace(':', '.')))
+                    .append(Component.literal(" ")).append(Component.translatable("enchantment.level." + t.enchantLv()))
+                    .append(Component.literal(" 书"));
+        else s.append(itemName(t.outItem())).append(Component.literal("×" + t.outCount()));
         return s;
     }
 
@@ -67,10 +67,10 @@ public final class TradePlanner {
         VillagerTrades.Trade t = trade(target);
         if (t == null) return null;
         if (t.enchant() != null) return new ItemStack(Items.ENCHANTED_BOOK);
-        return new ItemStack(Registries.ITEM.get(Identifier.of(t.outItem())));
+        return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(t.outItem())));
     }
 
-    private static Text itemName(String id) {
-        return Text.translatable(Registries.ITEM.get(Identifier.of(id)).getTranslationKey());
+    private static Component itemName(String id) {
+        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)).getTranslationKey());
     }
 }

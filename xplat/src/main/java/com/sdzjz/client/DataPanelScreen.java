@@ -3,29 +3,29 @@ package com.sdzjz.client;
 import com.sdzjz.net.DataPanelViewPayload;
 import com.sdzjz.block.DataPanelBlockEntity;
 import com.sdzjz.screen.DataPanelScreenHandler;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
 
 /** 存储终端：搜索 + 滚动 + 大数量显示（仿 Tom's Simple Storage）。
  *  m200 照作者设计稿整体重铺：浅灰+紫主题（7 色全走 SciSkin.termXxx 配置出口）、分区卡片（标题栏/搜索/
  *  存储网格/背包/经验库/合成终端/回收）、圆角细边+受光渐变质感；标题栏"主题"钮开游戏内调色面板，
  *  打字实时换肤（m199 同款 live 写配置 + SciSkin 串比缓存）。全屏 BG 贴图退役，改程序化卡片。 */
-public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
-        implements net.minecraft.client.gui.screen.recipebook.RecipeBookProvider {
+public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHandler>
+        implements net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener {
 
-    private TextFieldWidget search;
+    private EditBox search;
     private int scroll = 0;
 
     // ===== m281 原版配方书（学 Tom's Simple Storage 的机制自写）：handler 侧 m201 已继承
-    // AbstractRecipeScreenHandler=协议地基早备好，本次补上屏端三件：RecipeBookWidget 实体、
-    // 绿书开关钮（原版 BUTTON_TEXTURES 同款贴图）、RecipeBookProvider 接口（ghost 回包找得到书）。
+    // AbstractRecipeScreenHandler=协议地基早备好，本次补上屏端三件：RecipeBookComponent 实体、
+    // 绿书开关钮（原版 BUTTON_TEXTURES 同款贴图）、RecipeUpdateListener 接口（ghost 回包找得到书）。
     // 点配方的服务端落点在 handler.fillInputSlots（已改仓储优先），客户端零新协议。
-    private final net.minecraft.client.gui.screen.recipebook.RecipeBookWidget recipeBook =
-            new net.minecraft.client.gui.screen.recipebook.RecipeBookWidget();
+    private final net.minecraft.client.gui.screens.recipebook.RecipeBookComponent recipeBook =
+            new net.minecraft.client.gui.screens.recipebook.RecipeBookComponent();
     private boolean narrow;
     private boolean bookOn; // 配置开关快照（init 时读一次，terminalRecipeBook=false 整套隐身）
     // m286 主题化书钮（作者：原版绿书贴图在卡上突兀+没对齐）：SciSkin.termBtn 同语言自绘"配方"钮，
@@ -34,7 +34,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
 
     // ===== m200 主题调色面板（modal，照 m199 画布设置面板刀法）=====
     private boolean themeOpen = false;
-    private TextFieldWidget[] themeF;
+    private EditBox[] themeF;
     private int thSel = 0;      // m202 当前所选色（滑块作用对象）
     private int thDragCh = -1;  // m202 拖拽中的滑块通道（0/1/2=R/G/B，-1=无）
     private static final String[] THEME_LABELS = {"主色", "主色深", "强调紫", "强调深", "墨色", "边框", "高亮"};
@@ -42,7 +42,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     private static final int TH_RX = 180;                 // 右列（滑块/预设/恢复默认）相对 x
     private static final int SL_X = 192, SL_W = 86;       // 滑块轨道相对 x / 宽
 
-    public DataPanelScreen(DataPanelScreenHandler handler, PlayerInventory inv, Text title) {
+    public DataPanelScreen(DataPanelScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
         this.backgroundWidth = 360;
         this.backgroundHeight = 256;
@@ -61,7 +61,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         }
         // m161b 搜索框去黑壳（setDrawsBackground(false)，卡片接管观感）；resize 保留已输入文字（pickerField 惯例）。
         String keep = this.search != null ? this.search.getText() : "";
-        this.search = new TextFieldWidget(this.textRenderer, this.x + 16, this.y + 30, 176, 12, Text.literal("搜索"));
+        this.search = new EditBox(this.textRenderer, this.x + 16, this.y + 30, 176, 12, Component.literal("搜索"));
         this.search.setDrawsBackground(false);
         this.search.setEditableColor(SciSkin.termInk()); // m200 浅面上写墨字
         // m216 撤原版 setPlaceholder：1.21.1 的 placeholder 聚焦即隐（作者实机截图=聚焦紫描边+空框无字），
@@ -69,14 +69,14 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         this.search.setChangedListener(s -> { scroll = 0; sendView(); });
         this.search.setText(keep);
         this.addDrawableChild(this.search);
-        // m200 主题面板 7 色输入框（占位 Text.empty 保 literal 棘轮；live 写配置=打字实时换肤，落盘在关窗）
+        // m200 主题面板 7 色输入框（占位 Component.empty 保 literal 棘轮；live 写配置=打字实时换肤，落盘在关窗）
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
-        TextFieldWidget[] old = themeF;
-        themeF = new TextFieldWidget[7];
+        EditBox[] old = themeF;
+        themeF = new EditBox[7];
         for (int i = 0; i < 7; i++) {
             final int fi = i;
             String kv = old != null && old[i] != null ? old[i].getText() : themeGet(c, i);
-            themeF[i] = new TextFieldWidget(this.textRenderer, 0, 0, 54, 12, Text.empty());
+            themeF[i] = new EditBox(this.textRenderer, 0, 0, 54, 12, Component.empty());
             themeF[i].setDrawsBackground(false);
             themeF[i].setMaxLength(7);
             themeF[i].setText(kv == null ? "" : kv);
@@ -139,13 +139,13 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
 
     private static java.util.List<String> matchByLocalName(String q) {
         if (q == null || q.isBlank()) return java.util.List.of();
-        String probe = new net.minecraft.item.ItemStack(net.minecraft.item.Items.STONE).getName().getString();
+        String probe = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE).getName().getString();
         if (nameIndex == null || !probe.equals(nameProbe)) {
             java.util.LinkedHashMap<String, String> idx = new java.util.LinkedHashMap<>();
             java.util.LinkedHashMap<String, String> ini = new java.util.LinkedHashMap<>();
-            for (net.minecraft.item.Item item : net.minecraft.registry.Registries.ITEM) {
-                String id = net.minecraft.registry.Registries.ITEM.getId(item).toString();
-                String nm = new net.minecraft.item.ItemStack(item).getName().getString();
+            for (net.minecraft.world.item.Item item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(item).toString();
+                String nm = new net.minecraft.world.item.ItemStack(item).getName().getString();
                 idx.put(id, nm.toLowerCase());
                 ini.put(id, PinyinInitials.of(nm)); // m282：一次同建，语言切换随探针同弃重建
             }
@@ -168,7 +168,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
-    protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         int x = this.x, y = this.y;
         ctx.fill(0, 0, this.width, this.height, SciSkin.termInk()); // 全屏暗底（设计稿背景色）
         SciSkin.termPanel(ctx, x + 4, y, 352, 256); // 窗体大卡
@@ -250,14 +250,14 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
-    protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
         // m200 全部文字随卡片画在 drawBackground（撤原版标题/物品栏默认字）；本覆盖保留为空即达意。
     }
 
     @Override
-    protected void drawSlot(DrawContext ctx, net.minecraft.screen.slot.Slot slot) {
-        if (!(slot.inventory instanceof PlayerInventory) && slot.hasStack()) {
-            net.minecraft.item.ItemStack st = slot.getStack();
+    protected void drawSlot(GuiGraphics ctx, net.minecraft.world.inventory.Slot slot) {
+        if (!(slot.inventory instanceof Inventory) && slot.hasStack()) {
+            net.minecraft.world.item.ItemStack st = slot.getStack();
             ctx.drawItem(st, slot.x, slot.y);
             String s = fmt(amtOf(st));
             ctx.getMatrices().push();
@@ -405,7 +405,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (themeOpen) { // m200 主题窗：Esc=关，其余喂 7 色框（未聚焦的自不吃）
             if (keyCode == 256) { closeTheme(); return true; }
-            for (TextFieldWidget f : themeF) f.keyPressed(keyCode, scanCode, modifiers);
+            for (EditBox f : themeF) f.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
         if (search != null && search.isFocused() && keyCode != 256) {
@@ -417,7 +417,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
-        if (themeOpen) { for (TextFieldWidget f : themeF) f.charTyped(chr, modifiers); return true; } // m200
+        if (themeOpen) { for (EditBox f : themeF) f.charTyped(chr, modifiers); return true; } // m200
         if (search != null && search.isFocused()) {
             return search.charTyped(chr, modifiers);
         }
@@ -438,8 +438,8 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
-    protected void onMouseClick(net.minecraft.screen.slot.Slot slot, int slotId, int button,
-                                net.minecraft.screen.slot.SlotActionType actionType) {
+    protected void onMouseClick(net.minecraft.world.inventory.Slot slot, int slotId, int button,
+                                net.minecraft.world.inventory.ClickType actionType) {
         super.onMouseClick(slot, slotId, button, actionType);
         if (bookOn) this.recipeBook.slotClicked(slot); // 手动动格=清 ghost（原版语义）
     }
@@ -470,7 +470,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
-    public net.minecraft.client.gui.screen.recipebook.RecipeBookWidget getRecipeBookWidget() {
+    public net.minecraft.client.gui.screens.recipebook.RecipeBookComponent getRecipeBookWidget() {
         return this.recipeBook; // CraftFailedResponse 回包经它把 ghost 配方摆进网格
     }
 
@@ -483,7 +483,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
 
     private void closeTheme() {
         themeOpen = false;
-        for (TextFieldWidget f : themeF) f.setFocused(false);
+        for (EditBox f : themeF) f.setFocused(false);
         com.sdzjz.config.SdzjzConfig.save();
     }
 
@@ -492,7 +492,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     /** 主题面板渲染：面板自身就用 termPanel/termBtn 画——调色时面板同步换肤，所见即所得。
      *  m202：整体抬 z=400（槽内物品/数量角标画在 z100~200 带深度测试，z0 后画的填充会被剔除=物品穿透，
      *  作者截图实锤）；布局改双列——左 7 色行（点行选中），右 所选色 RGB 滑块 + 预设 + 恢复默认。 */
-    private void renderTheme(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    private void renderTheme(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         int px = thPos()[0], py = thPos()[1];
         ctx.getMatrices().push();
         ctx.getMatrices().translate(0, 0, 400); // 与原版 tooltip 同层且后画=盖顶
@@ -579,7 +579,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     /** 主题面板点击派发（几何与 renderTheme 同一套）。恒返回 true=modal 吞穿透。
-     *  m202 聚焦修复：非 children 的 TextFieldWidget 点击不会自聚焦（原版聚焦由 ParentElement 派发，
+     *  m202 聚焦修复：非 children 的 EditBox 点击不会自聚焦（原版聚焦由 ParentElement 派发，
      *  手搓 modal 没这条链）——命中后必须显式 setFocused(true)，"颜色改不了"根因即此。 */
     private boolean themeClick(double mx, double my, int button) {
         int px = thPos()[0], py = thPos()[1];
@@ -591,7 +591,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
                 return true;
             }
         }
-        for (TextFieldWidget f : themeF) f.setFocused(false);
+        for (EditBox f : themeF) f.setFocused(false);
         if (button != 0) return true;
         for (int i = 0; i < 7; i++) { // 点行（标签/样片区）=选中该色
             int ry = py + 22 + i * TH_ROW;
@@ -620,8 +620,8 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
         return true;
     }
 
-    private static long amtOf(net.minecraft.item.ItemStack st) {
-        var c = st.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+    private static long amtOf(net.minecraft.world.item.ItemStack st) {
+        var c = st.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (c != null) {
             var t = c.copyNbt();
             if (t.contains("amt")) return t.getLong("amt");
@@ -643,7 +643,7 @@ public class DataPanelScreen extends HandledScreen<DataPanelScreenHandler>
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         // m281 渲染次序照原版 CraftingScreen：窄屏开书=书盖窗只画底；常规=窗→书→网格 ghost；tooltip 殿后
         if (bookOn && this.recipeBook.isOpen() && this.narrow) {
             this.renderBackground(ctx, mouseX, mouseY, delta);

@@ -1,27 +1,27 @@
 package com.sdzjz.net;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
 
 /** 客户端→服务端：连/断一条画布连线 from→to（已存在则断开）。 */
-public record NodeLinkPayload(BlockPos pos, int from, int to) implements CustomPayload {
+public record NodeLinkPayload(BlockPos pos, int from, int to) implements CustomPacketPayload {
 
-    public static final CustomPayload.Id<NodeLinkPayload> ID =
-            new CustomPayload.Id<>(Identifier.of("sdzjz", "node_link"));
+    public static final CustomPacketPayload.Id<NodeLinkPayload> ID =
+            new CustomPacketPayload.Id<>(ResourceLocation.of("sdzjz", "node_link"));
 
-    public static final PacketCodec<RegistryByteBuf, NodeLinkPayload> CODEC = PacketCodec.tuple(
+    public static final StreamCodec<RegistryFriendlyByteBuf, NodeLinkPayload> CODEC = StreamCodec.tuple(
             BlockPos.PACKET_CODEC, NodeLinkPayload::pos,
-            PacketCodecs.INTEGER, NodeLinkPayload::from,
-            PacketCodecs.INTEGER, NodeLinkPayload::to,
+            ByteBufCodecs.INTEGER, NodeLinkPayload::from,
+            ByteBufCodecs.INTEGER, NodeLinkPayload::to,
             NodeLinkPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Id<? extends CustomPacketPayload> getId() {
         return ID;
     }
 }

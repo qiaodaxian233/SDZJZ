@@ -3,14 +3,14 @@ package com.sdzjz.client;
 import com.sdzjz.item.PortableVaultItem;
 import com.sdzjz.net.VaultTakePayload;
 import com.sdzjz.screen.PortableVaultScreenHandler;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * m312 随身仓库取物屏（科技风自绘零贴图，照抽取口/交易所刀法）。
@@ -18,18 +18,18 @@ import net.minecraft.util.Identifier;
  * 行交互：左键=取一组64 · 右键=拿满一格 · Shift+左键=取尽装满背包；滚轮翻列表。
  * 背包槽 shift 点物品=整叠入账（handler.quickMove）。
  */
-public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandler> {
+public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultScreenHandler> {
 
     private static final int LIST_X = 8, LIST_W = 184;
     /** m315 搜索框几何（自绘底格与控件同源）。 */
     private static final int SRCH_Y = 18, SRCH_W = 122, SRCH_H = 14;
     private int scroll = 0;
-    private net.minecraft.client.gui.widget.TextFieldWidget search; // m315：m216 去黑壳刀法
+    private net.minecraft.client.gui.components.EditBox search; // m315：m216 去黑壳刀法
     /** 名称/首字母检索键缓存（客户端只增不清，物品名不会变；≤类型上限 256 条）。 */
     private final java.util.HashMap<String, String> nameLc = new java.util.HashMap<>();
     private final java.util.HashMap<String, String> initKey = new java.util.HashMap<>();
 
-    public PortableVaultScreen(PortableVaultScreenHandler handler, PlayerInventory inv, Text title) {
+    public PortableVaultScreen(PortableVaultScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
         this.backgroundWidth = 200;
         this.backgroundHeight = 236; // m315：随 PINV_Y 138→150 同步 224→236（底边留 10px，m240 教训）
@@ -40,8 +40,8 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
         super.init();
         // m161b 去黑壳（setDrawsBackground(false)，自绘底格接管观感）；resize 保留已输入文字（pickerField 惯例）。
         String keep = this.search != null ? this.search.getText() : "";
-        this.search = new net.minecraft.client.gui.widget.TextFieldWidget(
-                this.textRenderer, this.x + LIST_X + 4, this.y + SRCH_Y + 3, SRCH_W - 8, 10, Text.literal("搜索"));
+        this.search = new net.minecraft.client.gui.components.EditBox(
+                this.textRenderer, this.x + LIST_X + 4, this.y + SRCH_Y + 3, SRCH_W - 8, 10, Component.literal("搜索"));
         this.search.setDrawsBackground(false);
         this.search.setEditableColor(SciSkin.TXT_MAX);
         this.search.setChangedListener(s -> scroll = 0); // 改词回顶，纯客户端过滤零新协议
@@ -51,19 +51,19 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
 
     /** 账本行快照（每帧重建，≤256 类开销可忽略；计数降序稳定）。
      *  m315：叠搜索过滤——名称子串 / id 子串 / 拼音首字母（m282 PinyinInitials，纯字母查询才开通道）。 */
-    private java.util.List<String> rows(NbtCompound v) {
+    private java.util.List<String> rows(CompoundTag v) {
         java.util.List<String> ids = new java.util.ArrayList<>(v.getKeys());
         String q = search == null ? "" : search.getText().trim().toLowerCase(java.util.Locale.ROOT);
         if (!q.isEmpty()) {
             boolean ini = PinyinInitials.applicable(q);
             ids.removeIf(id -> {
                 String name = nameLc.computeIfAbsent(id, k ->
-                        new ItemStack(Registries.ITEM.get(Identifier.of(k))).getName().getString()
+                        new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(k))).getName().getString()
                                 .toLowerCase(java.util.Locale.ROOT));
                 if (name.contains(q) || id.contains(q)) return false;
                 if (ini) {
                     String key = initKey.computeIfAbsent(id, k ->
-                            PinyinInitials.of(new ItemStack(Registries.ITEM.get(Identifier.of(k))).getName().getString()));
+                            PinyinInitials.of(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(k))).getName().getString()));
                     if (!key.isEmpty() && key.contains(q)) return false;
                 }
                 return true;
@@ -77,12 +77,12 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
     }
 
     @Override
-    protected void drawBackground(DrawContext ctx, float delta, int mouseX, int mouseY) {
+    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP);
         int x = this.x, y = this.y;
         ctx.drawBorder(x - 1, y - 1, backgroundWidth + 2, backgroundHeight + 2, SciSkin.FRAME);
         ItemStack vault = this.handler.vault();
-        NbtCompound v = PortableVaultItem.ledger(vault);
+        CompoundTag v = PortableVaultItem.ledger(vault);
 
         ctx.drawText(this.textRenderer, this.title, x + LIST_X, y + 8, SciSkin.ACCENT, false);
         long total = PortableVaultItem.vaultTotal(vault);
@@ -109,7 +109,7 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
                     && mouseY >= ry && mouseY < ry + PortableVaultScreenHandler.ROW_H - 2;
             if (hov) ctx.fill(x + LIST_X, ry, x + LIST_X + LIST_W, ry + PortableVaultScreenHandler.ROW_H - 2, SciSkin.HOVER);
             String id = ids.get(idx);
-            ItemStack icon = new ItemStack(Registries.ITEM.get(Identifier.of(id)));
+            ItemStack icon = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.of(id)));
             ctx.drawItem(icon, x + LIST_X + 1, ry);
             ctx.drawText(this.textRenderer, icon.getName().getString(), x + LIST_X + 20, ry + 4,
                     hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
@@ -141,7 +141,7 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
             cell(ctx, x + PortableVaultScreenHandler.PINV_X + c * 18 - 1, y + PortableVaultScreenHandler.PINV_Y + 58 - 1);
     }
 
-    private static void cell(DrawContext ctx, int x, int y) {
+    private static void cell(GuiGraphics ctx, int x, int y) {
         ctx.fill(x, y, x + 18, y + 18, SciSkin.CELL);
         ctx.drawBorder(x, y, 18, 18, SciSkin.CELL_FRM);
     }
@@ -153,7 +153,7 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
                 && mouseY >= y + PortableVaultScreenHandler.LIST_Y
                 && mouseY < y + PortableVaultScreenHandler.LIST_Y + PortableVaultScreenHandler.ROWS * PortableVaultScreenHandler.ROW_H) {
             int row = (int) ((mouseY - y - PortableVaultScreenHandler.LIST_Y) / PortableVaultScreenHandler.ROW_H);
-            NbtCompound v = PortableVaultItem.ledger(this.handler.vault());
+            CompoundTag v = PortableVaultItem.ledger(this.handler.vault());
             java.util.List<String> ids = rows(v);
             int idx = scroll + row;
             if (idx >= 0 && idx < ids.size()) {
@@ -179,7 +179,7 @@ public class PortableVaultScreen extends HandledScreen<PortableVaultScreenHandle
     }
 
     @Override
-    protected void drawForeground(DrawContext ctx, int mouseX, int mouseY) {
+    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
         // 标题自绘于 drawBackground，撤默认双份标题
     }
 

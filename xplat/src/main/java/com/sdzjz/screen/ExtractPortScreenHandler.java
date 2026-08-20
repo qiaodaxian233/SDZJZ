@@ -2,17 +2,17 @@ package com.sdzjz.screen;
 
 import com.sdzjz.block.DataCableBlockEntity;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ArrayPropertyDelegate;
-import net.minecraft.screen.PropertyDelegate;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.SimpleContainerData;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.core.BlockPos;
 
 import java.util.List;
 
@@ -22,7 +22,7 @@ import java.util.List;
  * 背包物品 shift 点=登记进第一个空槽（物品原地不动，AE2 同款手感），过滤槽 shift/Q=清除。
  * 属性同步：[0]=抽取开关 [1]=邻接可对接存储数。按钮协议 id 0=启停切换。
  */
-public class ExtractPortScreenHandler extends ScreenHandler {
+public class ExtractPortScreenHandler extends AbstractContainerMenu {
 
     public static final int FILTER = 9; // 过滤槽数 = DataCableBlockEntity 过滤模板上限（m225 ≤9 条口径）
     public static final int UPG = 3;    // m230 升级槽数（速度/数量/并发）
@@ -30,16 +30,16 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     public static final int FILTER_Y = 80, UPG_X = 44, UPG_Y = 118, PINV_Y = 142; // m231 模式钮行整体下移 22
 
     private final DataCableBlockEntity be;
-    private final SimpleInventory ghost = new SimpleInventory(FILTER); // 幽灵模板显示层（真数据在 BE.filter）
-    private final PropertyDelegate props;
+    private final SimpleContainer ghost = new SimpleContainer(FILTER); // 幽灵模板显示层（真数据在 BE.filter）
+    private final ContainerData props;
 
     // 客户端
-    public ExtractPortScreenHandler(int syncId, PlayerInventory playerInv, BlockPos pos) {
+    public ExtractPortScreenHandler(int syncId, Inventory playerInv, BlockPos pos) {
         this(syncId, playerInv, resolve(playerInv, pos));
     }
 
     // 服务端
-    public ExtractPortScreenHandler(int syncId, PlayerInventory playerInv, DataCableBlockEntity be) {
+    public ExtractPortScreenHandler(int syncId, Inventory playerInv, DataCableBlockEntity be) {
         super(ModScreenHandlers.EXTRACT_PORT, syncId);
         this.be = be;
         boolean server = !playerInv.player.getWorld().isClient;
@@ -47,7 +47,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
             List<ItemStack> f = be.filterView();
             for (int i = 0; i < FILTER && i < f.size(); i++) ghost.setStack(i, f.get(i).copyWithCount(1));
         }
-        this.props = (be != null && server) ? new PropertyDelegate() { // 服务端实读 BE；邻接探测仅在开屏期间（m107a 面板同量级）
+        this.props = (be != null && server) ? new ContainerData() { // 服务端实读 BE；邻接探测仅在开屏期间（m107a 面板同量级）
             @Override public int get(int index) {
                 if (index == 0) return be.extractOn() ? 1 : 0;
                 DataCableBlockEntity.Adjacency adj = DataCableBlockEntity.scanAdjacent(be.getWorld(), be.getPos());
@@ -69,21 +69,21 @@ public class ExtractPortScreenHandler extends ScreenHandler {
             }
             @Override public void set(int index, int value) {}
             @Override public int size() { return 7; }
-        } : new ArrayPropertyDelegate(7);
+        } : new SimpleContainerData(7);
         addProperties(props);
 
         // 幽灵过滤槽（0..8）：真栈进不来也拿不走——原版 SWAP/QUICK_CRAFT/PICKUP_ALL 路径全被这两钩子挡死
         for (int i = 0; i < FILTER; i++) {
             this.addSlot(new Slot(ghost, i, 8 + i * 18, FILTER_Y) {
                 @Override public boolean canInsert(ItemStack s) { return false; }
-                @Override public boolean canTakeItems(PlayerEntity p) { return false; }
+                @Override public boolean canTakeItems(Player p) { return false; }
             });
         }
         // m230 升级槽（9..11，真槽）：0=速度 1=数量 2=并发，各只收对应升级件；级数=件数
-        net.minecraft.inventory.SimpleInventory upgInv =
-                (be != null) ? be.upgrades : new SimpleInventory(UPG); // 客户端 BE 自带同尺寸库存，槽同步灌显示
+        net.minecraft.world.SimpleContainer upgInv =
+                (be != null) ? be.upgrades : new SimpleContainer(UPG); // 客户端 BE 自带同尺寸库存，槽同步灌显示
         for (int i = 0; i < UPG; i++) {
-            final net.minecraft.item.Item want = i == 0 ? com.sdzjz.registry.ModItems.SPEED_UPGRADE
+            final net.minecraft.world.item.Item want = i == 0 ? com.sdzjz.registry.ModItems.SPEED_UPGRADE
                     : i == 1 ? com.sdzjz.registry.ModItems.COUNT_UPGRADE : com.sdzjz.registry.ModItems.PARALLEL_UPGRADE;
             this.addSlot(new Slot(upgInv, i, UPG_X + i * 18, UPG_Y) {
                 @Override public boolean canInsert(ItemStack s) { return s.isOf(want); }
@@ -98,7 +98,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
             this.addSlot(new Slot(playerInv, c, px + c * 18, py + 58));
     }
 
-    private static DataCableBlockEntity resolve(PlayerInventory playerInv, BlockPos pos) {
+    private static DataCableBlockEntity resolve(Inventory playerInv, BlockPos pos) {
         BlockEntity b = playerInv.player.getWorld().getBlockEntity(pos);
         return b instanceof DataCableBlockEntity c ? c : null;
     }
@@ -114,12 +114,12 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     public boolean pullMode()    { return props.get(6) != 0; } // m231
 
     @Override
-    public void onSlotClick(int slotIndex, int button, SlotActionType type, PlayerEntity player) {
+    public void onSlotClick(int slotIndex, int button, ClickType type, Player player) {
         if (slotIndex >= 0 && slotIndex < FILTER) { // 幽灵槽：只登记模板，真物品一件不进不出
-            if (type == SlotActionType.PICKUP) {
+            if (type == ClickType.PICKUP) {
                 ItemStack cursor = getCursorStack(); // 有货=登记（不消耗光标），空=清除
                 setFilter(slotIndex, cursor.isEmpty() ? ItemStack.EMPTY : cursor.copyWithCount(1), player);
-            } else if (type == SlotActionType.QUICK_MOVE || type == SlotActionType.THROW) {
+            } else if (type == ClickType.QUICK_MOVE || type == ClickType.THROW) {
                 setFilter(slotIndex, ItemStack.EMPTY, player); // shift 点/Q 键 = 清除模板
             } // CLONE/SWAP/QUICK_CRAFT/PICKUP_ALL：幽灵槽一律无操作（防创造中键把模板凭空复制成真栈）
             return;
@@ -128,7 +128,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int index) {
+    public ItemStack quickMove(Player player, int index) {
         // 升级槽（真槽）走真实移动；背包物品：升级件优先装升级槽，其余=登记过滤模板（原地不动不重复）
         if (index >= FILTER && index < FILTER + UPG) { // m230 升级槽 shift → 背包
             Slot slot = this.slots.get(index);
@@ -164,7 +164,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
 
     /** 幽灵层写入 + 服务端权威落盘（onSlotClick 双端执行——m106/守则口径：客户端只改本地显示，
      *  BE 过滤与 markDirty 只在服务端做；落盘时压缩掉空位，重开界面模板左对齐属预期）。 */
-    private void setFilter(int i, ItemStack tpl, PlayerEntity player) {
+    private void setFilter(int i, ItemStack tpl, Player player) {
         ghost.setStack(i, tpl);
         if (be != null && !player.getWorld().isClient) {
             List<ItemStack> f = be.filterView();
@@ -178,7 +178,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean onButtonClick(PlayerEntity player, int id) {
+    public boolean onButtonClick(Player player, int id) {
         if (be == null || player.getWorld().isClient) return false;
         if (id == 0) { be.setExtractOn(!be.extractOn()); return true; } // 启停切换（m225 潜行右键同一开关）
         if (id == 1) { be.setPullMode(!be.pullMode()); return true; }   // m231 方向切换
@@ -186,7 +186,7 @@ public class ExtractPortScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
+    public boolean canUse(Player player) {
         return be != null;
     }
 }

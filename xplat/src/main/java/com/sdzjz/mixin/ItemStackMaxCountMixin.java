@@ -1,7 +1,7 @@
 package com.sdzjz.mixin;
 
 import com.sdzjz.config.SdzjzConfig;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

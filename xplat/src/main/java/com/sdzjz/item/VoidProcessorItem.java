@@ -2,14 +2,14 @@ package com.sdzjz.item;
 
 import com.sdzjz.machine.MachineDef;
 import com.sdzjz.node.NodeTags;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 
@@ -30,11 +30,11 @@ public class VoidProcessorItem extends MachineItem {
 
     /** tick 侧结算写器（三键一笔：va 累计吞 / vc 汇率余数 / vn 累计炼得经验）。 */
     public static void settle(ItemStack s, long eatenDelta, long carryLeft, long xpDelta) {
-        NbtCompound n = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
         n.putLong("va", n.getLong("va") + eatenDelta);
         n.putLong("vc", carryLeft);
         if (xpDelta > 0) n.putLong("vn", n.getLong("vn") + xpDelta);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(n));
+        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     /** 画布卡面第二行唯一口径。 */
@@ -45,12 +45,12 @@ public class VoidProcessorItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
-        tooltip.add(Text.literal("垃圾炼经验：吞掉连线送来的物品，炼成经验进本核心经验池").formatted(Formatting.AQUA));
-        tooltip.add(Text.literal("汇率 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().voidXpPerItemsEaten)
-                + " 件=1 经验（config 可调），余数记账进位不丢").formatted(Formatting.LIGHT_PURPLE));
-        tooltip.add(Text.literal("白名单空=连啥炼啥 · 非空=只收名单内（名单外回仓）").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("只吞推送来的，直连仓不抽；经过滤器转接=授权照拉").formatted(Formatting.DARK_GRAY));
-        tooltip.add(Text.literal("吃下的东西没了换不回，白名单请慎配").formatted(Formatting.RED));
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("垃圾炼经验：吞掉连线送来的物品，炼成经验进本核心经验池").formatted(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("汇率 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().voidXpPerItemsEaten)
+                + " 件=1 经验（config 可调），余数记账进位不丢").formatted(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("白名单空=连啥炼啥 · 非空=只收名单内（名单外回仓）").formatted(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("只吞推送来的，直连仓不抽；经过滤器转接=授权照拉").formatted(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("吃下的东西没了换不回，白名单请慎配").formatted(ChatFormatting.RED));
     }
 }

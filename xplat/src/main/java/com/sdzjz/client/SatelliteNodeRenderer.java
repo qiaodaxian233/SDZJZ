@@ -4,15 +4,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sdzjz.block.SatelliteNodeBlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.resources.ResourceLocation;
+import com.mojang.math.Axis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -28,14 +28,14 @@ import java.util.List;
  *   scan（锅+馈源+俯仰轴，626 quad）绕桅杆轴(0.5,0.5) ±35° 正弦往复扫描，周期 3s；
  *   signal（信号波 72 quad）跟随扫描旋转 + 自身枢轴缩放脉冲（0.72↔1.12，1.5s）；
  *   static（底座+塔身）不动。
- * 顶点链/独立贴图直连 RenderLayer 照 WirelessNodeRenderer 同款（本仓编译验证过的 API）；
+ * 顶点链/独立贴图直连 RenderType 照 WirelessNodeRenderer 同款（本仓编译验证过的 API）；
  * 未逐帧还原 bbmodel 关键帧（6 动画器组树解析成本高）——做的是程序化等效扫描，
  * 要原汁关键帧下一步解 outliner+animators。geo 读取失败=只渲静态兜底，不炸。
  */
 public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeBlockEntity> {
-    private static final Identifier GEO_ID = Identifier.of("sdzjz", "models/block/satellite_node_geo.json");
-    private static final Identifier TEX_ATLAS = Identifier.of("sdzjz", "textures/block/satellite_node_atlas.png");
-    private static final Identifier TEX_JOINT = Identifier.of("sdzjz", "textures/block/satellite_dish_joint.png");
+    private static final ResourceLocation GEO_ID = ResourceLocation.of("sdzjz", "models/block/satellite_node_geo.json");
+    private static final ResourceLocation TEX_ATLAS = ResourceLocation.of("sdzjz", "textures/block/satellite_node_atlas.png");
+    private static final ResourceLocation TEX_JOINT = ResourceLocation.of("sdzjz", "textures/block/satellite_dish_joint.png");
     private static final float SCAN_PERIOD_S = 3.0f, SIGNAL_PERIOD_S = 1.5f;
 
     /** [group][texture] → quad 列表；quad = float[3法线 + 4×(xyz uv)]，坐标已 /16。 */
@@ -43,12 +43,12 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
     private static float[] SCAN_PIVOT = {0.5f, 1f, 0.5f}, SIGNAL_PIVOT = {1.1f, 1.8f, 0.5f};
     private static boolean geoTried = false;
 
-    public SatelliteNodeRenderer(BlockEntityRendererFactory.Context ctx) {}
+    public SatelliteNodeRenderer(BlockEntityRendererProvider.Context ctx) {}
 
     @SuppressWarnings("unchecked")
     private static void loadGeo() {
         geoTried = true;
-        try (var in = MinecraftClient.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
+        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
             JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             JsonObject piv = root.getAsJsonObject("pivots");
             if (piv.has("scan")) SCAN_PIVOT = vec(piv.getAsJsonArray("scan"));
@@ -82,8 +82,8 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
     }
 
     @Override
-    public void render(SatelliteNodeBlockEntity be, float tickDelta, MatrixStack matrices,
-                       VertexConsumerProvider vcp, int light, int overlay) {
+    public void render(SatelliteNodeBlockEntity be, float tickDelta, PoseStack matrices,
+                       MultiBufferSource vcp, int light, int overlay) {
         if (GEO == null) {
             if (geoTried) return;
             loadGeo();
@@ -92,15 +92,15 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
         float t = ((be.getWorld() != null ? be.getWorld().getTime() % 1200L : 0L) + tickDelta) / 20f;
         float scanDeg = 35f * (float) Math.sin(2 * Math.PI * t / SCAN_PERIOD_S);
         float pulse = 0.92f + 0.20f * (float) Math.sin(2 * Math.PI * t / SIGNAL_PERIOD_S);
-        VertexConsumer vcA = vcp.getBuffer(RenderLayer.getEntityCutoutNoCull(TEX_ATLAS));
-        VertexConsumer vcJ = vcp.getBuffer(RenderLayer.getEntityCutoutNoCull(TEX_JOINT));
+        VertexConsumer vcA = vcp.getBuffer(RenderType.getEntityCutoutNoCull(TEX_ATLAS));
+        VertexConsumer vcJ = vcp.getBuffer(RenderType.getEntityCutoutNoCull(TEX_JOINT));
         // 静组
         emit(GEO[0][0], matrices.peek(), vcA, light, overlay);
         emit(GEO[0][1], matrices.peek(), vcJ, light, overlay);
         // 扫描组：绕桅杆轴 Y 往复
         matrices.push();
         matrices.translate(SCAN_PIVOT[0], 0, SCAN_PIVOT[2]);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(scanDeg));
+        matrices.multiply(Axis.POSITIVE_Y.rotationDegrees(scanDeg));
         matrices.translate(-SCAN_PIVOT[0], 0, -SCAN_PIVOT[2]);
         emit(GEO[1][0], matrices.peek(), vcA, light, overlay);
         emit(GEO[1][1], matrices.peek(), vcJ, light, overlay);
@@ -115,7 +115,7 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
         matrices.pop();
     }
 
-    private static void emit(List<float[]> quads, MatrixStack.Entry entry, VertexConsumer vc, int light, int overlay) {
+    private static void emit(List<float[]> quads, PoseStack.Entry entry, VertexConsumer vc, int light, int overlay) {
         Matrix4f pm = entry.getPositionMatrix();
         Matrix3f nm = entry.getNormalMatrix();
         Vector3f p = new Vector3f(), n = new Vector3f();

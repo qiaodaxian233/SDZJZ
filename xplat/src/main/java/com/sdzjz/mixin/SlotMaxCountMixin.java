@@ -1,7 +1,7 @@
 package com.sdzjz.mixin;
 
 import com.sdzjz.config.SdzjzConfig;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

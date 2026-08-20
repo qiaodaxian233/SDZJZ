@@ -1,6 +1,6 @@
 package com.sdzjz.legacy;
 
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 
 import java.io.DataOutputStream;
@@ -10,7 +10,7 @@ import java.io.OutputStream;
 public final class LegacyDebugUtil {
     private LegacyDebugUtil() { }
 
-    public static long nbtSize(NbtCompound nbt) {
+    public static long nbtSize(CompoundTag nbt) {
         final long[] n = {0};
         try (DataOutputStream d = new DataOutputStream(new OutputStream() {
             @Override public void write(int b) { n[0]++; }
