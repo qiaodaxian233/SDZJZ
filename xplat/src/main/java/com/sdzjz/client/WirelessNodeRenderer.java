@@ -183,7 +183,7 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
     @Override
     public void render(WirelessNodeBlockEntity be, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay) {
-        float t = ((be.getLevel() != null ? be.getLevel().getTime() % (long) LENGTH_TICKS : 0L) + tickDelta) / 20f;
+        float t = ((be.getLevel() != null ? be.getLevel().getGameTime() % (long) LENGTH_TICKS : 0L) + tickDelta) / 20f;
         VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         for (Wave w : WAVES) {
             float sx = interp(w.times, w.sx, t), sy = interp(w.times, w.sy, t), sz = interp(w.times, w.sz, t);

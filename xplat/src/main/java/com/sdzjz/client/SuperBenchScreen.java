@@ -165,14 +165,14 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 ctx.drawString(this.font, chip, PX + PW - 12, ey + 4, cc, false);
                 nameW = PW - 36;
             }
-            String nm = this.font.trimToWidth(res.getHoverName().getString(), nameW);
+            String nm = this.font.plainSubstrByWidth(res.getHoverName().getString(), nameW);
             ctx.drawString(this.font, nm, PX + 20, ey + 4, TXT, false);
         }
         // m241 压缩区两钮文字（居中；底格在 drawBackground）
         String[] btnLabels = {"材料→压缩包", "拆开材料包"};
         for (int b = 0; b < 2; b++) {
             int bx = PX + b * (BTN_W + BTN_GAP);
-            int tw = this.font.getWidth(btnLabels[b]);
+            int tw = this.font.width(btnLabels[b]);
             ctx.drawString(this.font, btnLabels[b], bx + (BTN_W - tw) / 2, BTN_Y + 4, TXT, false);
         }
 
@@ -199,7 +199,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                     sb.append(mn).append(caged ? "✔" : "✘");
                 }
                 String line = (allOk ? "已捕获: " : "需捕获(笼子装它): ") + sb;
-                ctx.drawString(this.font, this.font.trimToWidth(line, PW - 58),
+                ctx.drawString(this.font, this.font.plainSubstrByWidth(line, PW - 58),
                         PX + 58, dy, allOk ? 0xFF50E850 : SciSkin.RED, false);
             }
             Map<String, Integer> have = countAvailable();
@@ -221,14 +221,14 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             bom.sort(java.util.Comparator.comparing(e -> sortKey(bs.get(e.getKey()).getHoverName().getString())));
             final float S = 0.62F;
             int labelW = 12;
-            for (String l : bl.values()) labelW = Math.max(labelW, this.font.getWidth(l));
+            for (String l : bl.values()) labelW = Math.max(labelW, this.font.width(l));
             int colW = 16 + labelW + 4, rowH = 18; // 行高 18：0.62 缩放下 (298-240)/0.62/18=5 行×6 列=30 格，守卫者农场级 BOM 全显
             int cols = Math.max(1, (int) (PW / S) / colW);
             int rows = Math.max(1, (int) ((BTN_Y - 4 - (dy + 12)) / S) / rowH); // 上界=两钮顶再让 4px
             int cap = cols * rows;
             boolean over = bom.size() > cap;
             int show = over ? cap - 1 : bom.size();
-            ctx.pose().push();
+            ctx.pose().pushPose();
             ctx.pose().translate(PX, dy + 12, 0);
             ctx.pose().scale(S, S, 1.0F);
             for (int k = 0; k < show; k++) {
@@ -250,11 +250,11 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 ctx.drawString(this.font, "+" + (bom.size() - show) + "▼",
                         (show % cols) * colW, (show / cols) * rowH + 5, hovMore ? SciSkin.ACCENT : SUB, false);
             }
-            ctx.pose().pop();
+            ctx.pose().popPose();
 
             if (bomExpanded) { // m338 材料总览卡：盖右栏（不压任何槽位，槽提示零穿透），原尺寸网格+滚轮翻行
                 int ox = PX - 4, oy = 20, ow = PW + 8, oh = BTN_Y + BTN_H - oy + 2;
-                ctx.pose().push();
+                ctx.pose().pushPose();
                 ctx.pose().translate(0, 0, 400); // m283 置顶刀
                 ctx.fill(ox - 1, oy - 1, ox + ow + 1, oy + oh + 1, SciSkin.FRAME);
                 ctx.fill(ox, oy, ox + ow, oy + oh, SciSkin.CELL);
@@ -285,9 +285,9 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                     ctx.fill(ox + ow - 5, thumbY, ox + ow - 3, thumbY + thumbH, SciSkin.ACCENT);
                 }
                 ctx.drawString(this.font,
-                        foot != null ? this.font.trimToWidth(foot, ow - 12) : "滚轮翻行 · 再点/Esc 收起",
+                        foot != null ? this.font.plainSubstrByWidth(foot, ow - 12) : "滚轮翻行 · 再点/Esc 收起",
                         ox + 6, oy + oh - 11, foot != null ? TXT : SUB, false);
-                ctx.pose().pop();
+                ctx.pose().popPose();
             }
         }
     }
@@ -301,7 +301,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     private Map<String, Integer> countAvailable() {
         Map<String, Integer> m = new java.util.HashMap<>();
         for (int i = 0; i < this.menu.slots.size(); i++) {
-            ItemStack s = this.menu.slots.get(i).getStack();
+            ItemStack s = this.menu.slots.get(i).getItem();
             if (s.isEmpty()) continue;
             // m242 认包：绿/红对照与服务端 gridMultiset 同口径——包按 内容物×倍率 计原版件数
             long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
@@ -315,7 +315,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     /** 网格或背包里是否有「装着指定生物」的抓物笼子。 */
     private boolean hasCagedMob(String mob) {
         for (int i = 0; i < this.menu.slots.size(); i++) {
-            ItemStack s = this.menu.slots.get(i).getStack();
+            ItemStack s = this.menu.slots.get(i).getItem();
             if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
                     && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) return true;
         }
@@ -347,7 +347,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
         if (button == 0 && ry >= BTN_Y && ry < BTN_Y + BTN_H && rx >= PX && rx < PX + PW) { // m241 压缩区两钮
             int b = rx < PX + BTN_W ? 0 : (rx >= PX + BTN_W + BTN_GAP ? 1 : -1);
             if (b >= 0 && this.minecraft != null && this.minecraft.gameMode != null) {
-                this.minecraft.gameMode.clickButton(this.menu.containerId,
+                this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId,
                         b == 0 ? SuperBenchScreenHandler.BTN_COMPRESS : SuperBenchScreenHandler.BTN_UNPACK);
                 return true;
             }
@@ -360,7 +360,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 selected = idx;
                 bomExpanded = false; bomScroll = 0; // m338 换台收卡清滚
                 if (this.minecraft != null && this.minecraft.gameMode != null) {
-                    this.minecraft.gameMode.clickButton(this.menu.containerId, idx); // 填料
+                    this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, idx); // 填料
                 }
                 return true;
             }

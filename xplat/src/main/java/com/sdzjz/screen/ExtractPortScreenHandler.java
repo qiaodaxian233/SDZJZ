@@ -56,7 +56,7 @@ public class ExtractPortScreenHandler extends AbstractContainerMenu {
                     if (be.pullMode() || !adj.sellTable()) return 0; // m229 出售状态：0=无桌（m231 回收模式桌不参与）
                     boolean ready = com.sdzjz.compat.ProjectEFCompat.available() && be.owner() != null
                             && be.getLevel().getServer() != null
-                            && be.getLevel().getServer().getPlayerManager().getPlayer(be.owner()) != null;
+                            && be.getLevel().getServer().getPlayerList().getPlayer(be.owner()) != null;
                     return ready ? 1 : 2;   // 1=出售中 2=桌在但未就绪（未认领/所有者离线/API 不可用）
                 }
                 if (index == 3) return Math.min(0x7FFF, be.effPeriod()); // m230 生效周期（钳 15 位护通道）
@@ -155,7 +155,7 @@ public class ExtractPortScreenHandler extends AbstractContainerMenu {
                 return ret;
             }
             for (int i = 0; i < FILTER; i++)
-                if (ItemStack.areItemsAndComponentsEqual(ghost.getItem(i), st)) return ItemStack.EMPTY;
+                if (ItemStack.isSameItemSameComponents(ghost.getItem(i), st)) return ItemStack.EMPTY;
             for (int i = 0; i < FILTER; i++)
                 if (ghost.getItem(i).isEmpty()) { setFilter(i, st.copyWithCount(1), player); break; }
         }

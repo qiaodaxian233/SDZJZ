@@ -57,7 +57,7 @@ public class InfiniteBeaconItem extends MachineItem {
     public static net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effectEntry(int idx) {
         net.minecraft.resources.ResourceLocation ident = net.minecraft.resources.ResourceLocation.tryParse(FX_ID[clampFx(idx)]);
         if (ident == null) return null;
-        return net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getEntry(ident).orElse(null);
+        return net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getHolder(ident).orElse(null);
     }
 
     /** 画布节点副行文案（客户端徽章行唯一口径）。 */

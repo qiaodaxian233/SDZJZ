@@ -34,7 +34,7 @@ import java.util.Map;
 public class ChunkScannerItem extends MachineItem {
 
     /** 矿物判定标签（fabric 惯例标签，模组矿自动入榜；vanilla 兜底走 _ore 后缀）。 */
-    public static final TagKey<Block> C_ORES = TagKey.of(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+    public static final TagKey<Block> C_ORES = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
 
     /** 类型榜封顶（防节点 NBT/同步包膨胀，m291 有界精神）。 */
     public static final int TYPE_CAP = 64;

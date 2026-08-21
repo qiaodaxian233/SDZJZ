@@ -28,7 +28,7 @@ public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlock
     @Override
     public void render(StorageCoreBlockEntity be, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay) {
-        float time = (be.getLevel() != null ? be.getLevel().getTime() % 80L : 0L) + tickDelta; // 4s=80t 循环
+        float time = (be.getLevel() != null ? be.getLevel().getGameTime() % 80L : 0L) + tickDelta; // 4s=80t 循环
         float phase = (time % 40f) / 40f;                          // 2s 三角波相位
         float tri = phase < 0.5f ? phase * 2f : 2f - phase * 2f;   // 0→1→0
         VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));

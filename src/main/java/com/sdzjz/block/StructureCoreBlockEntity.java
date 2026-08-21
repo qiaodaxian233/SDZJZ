@@ -907,7 +907,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     ItemStack bookT = new ItemStack(net.minecraft.world.item.Items.ENCHANTED_BOOK,
                             (int) Math.min(attempts, Integer.MAX_VALUE));
                     var regT = world.registryAccess()
-                            .getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                            .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                     var entryT = regT.getOrThrow(net.minecraft.resources.ResourceKey.create(
                             net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
                     bookT.addEnchantment(entryT, t.enchantLv());
@@ -1233,7 +1233,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // getWorldChunk 在 isChunkLoaded 已拦路后调用=绝不触发同步加载（m142 同系警惕）。
                     if (idxZ == 0 && emptyGuardZ-- > 0) {
                         mpZ.set(curCxZ << 4, yZ, curCzZ << 4);
-                        if (world.getChunkAt(mpZ).getSectionArray()[world.getSectionIndex(yZ)].isEmpty()) {
+                        if (world.getChunkAt(mpZ).getSections()[world.getSectionIndex(yZ)].isEmpty()) {
                             if (++ordZ >= chunksZ) { ordZ = 0; yZ--; be.statusDirty = true; }
                             if (yZ >= fBotZ) {
                                 curCxZ = cxZ + (ordZ % wZ) - rZ;
@@ -1264,7 +1264,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (fSealZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=本拍起回落免费石墙+末尾提醒
                                 sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                             }
-                            world.setBlockState(mpZ, (fSealZ ? sealCurZ
+                            world.setBlockAndUpdate(mpZ, (fSealZ ? sealCurZ
                                     : net.minecraft.world.level.block.Blocks.AIR).defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
                             if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                             fluidZ++;
@@ -1311,7 +1311,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (sealHereZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
                             sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                         }
-                        world.setBlockState(mpZ, (sealHereZ ? sealCurZ
+                        world.setBlockAndUpdate(mpZ, (sealHereZ ? sealCurZ
                                 : net.minecraft.world.level.block.Blocks.AIR).defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料；m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
@@ -1330,7 +1330,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
                             sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                         }
-                        world.setBlockState(mpZ, sealCurZ.defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
+                        world.setBlockAndUpdate(mpZ, sealCurZ.defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         sealFillZ++;
                     }
@@ -1435,7 +1435,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (paidB == null) { be.statR(i, 3, "没料：仓里要有 铁锭/金锭/绿宝石/钻石/下界合金锭 任一（本周期需 " + needB + " 个），不赊账"); continue; }
                 int durB = Math.max(1, cfg.infiniteBeaconEffectSeconds) * 20;
                 boolean crossB = cfg.infiniteBeaconCrossDimension;
-                for (net.minecraft.server.level.ServerPlayer spB : swb.getServer().getPlayerList().getPlayerList()) {
+                for (net.minecraft.server.level.ServerPlayer spB : swb.getServer().getPlayerList().getPlayers()) {
                     if (!crossB && spB.level() != world) continue; // 收成同维度时只管本核心这层
                     if (spB.isSpectator()) continue;
                     spB.addEffect(new net.minecraft.world.effect.MobEffectInstance(
@@ -1841,7 +1841,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (var en : comp.entrySet()) {
             var entry = en.getKey();
             int lvl = en.getIntValue();
-            if (entry.isIn(net.minecraft.tags.EnchantmentTags.CURSE)) continue;
+            if (entry.is(net.minecraft.tags.EnchantmentTags.CURSE)) continue;
             net.minecraft.world.item.enchantment.Enchantment e = entry.value();
             double cap = 0.8 * Math.max(1, e.getAnvilCost() / 2) * lvl * 25;
             v += Math.min(e.getMinCost(lvl), cap);
@@ -1857,7 +1857,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (comp == null || comp.isEmpty()) return 0;
         int lv = 0;
         for (var en : comp.entrySet()) {
-            if (en.getKey().isIn(net.minecraft.tags.EnchantmentTags.CURSE)) continue;
+            if (en.getKey().is(net.minecraft.tags.EnchantmentTags.CURSE)) continue;
             lv += en.getIntValue();
         }
         return lv;
@@ -2031,7 +2031,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  另自设 192 格门槛省包。m384 的锁定爆发环同病同治。 */
     private static void fxAt(net.minecraft.server.level.ServerLevel sw, net.minecraft.core.particles.ParticleOptions pe,
                              double x, double y, double z, int count, double dx, double dy, double dz, double speed) {
-        for (net.minecraft.server.level.ServerPlayer sp : sw.getServer().getPlayerList().getPlayerList()) {
+        for (net.minecraft.server.level.ServerPlayer sp : sw.getServer().getPlayerList().getPlayers()) {
             if (sp.level() != sw) continue;
             if (sp.distanceToSqr(x, y, z) > 192.0 * 192.0) continue;
             sw.sendParticles(sp, pe, true, x, y, z, count, dx, dy, dz, speed);
@@ -3097,7 +3097,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (world instanceof net.minecraft.server.level.ServerLevel sw) {
             ResourceKey<Level> key;
             try {
-                key = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(dim));
+                key = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dim));
             } catch (Exception e) {
                 return null; // 畸形维度串：不炸 tick
             }
@@ -3218,7 +3218,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private Level resolveDimWorld(Level base, String dim) {
         if (dim == null || dim.isEmpty() || base.dimension().location().toString().equals(dim)) return base;
         if (base instanceof net.minecraft.server.level.ServerLevel sw)
-            return sw.getServer().getLevel(ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(dim)));
+            return sw.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dim)));
         return null;
     }
     public java.util.List<String> storageEndpointDimsView() { return storageEndpointDims; }
@@ -3725,13 +3725,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m115：给核心 24 格内的玩家发一条聊天提示。 */
     private void warnNearby(Level world, String text) {
         for (net.minecraft.world.entity.player.Player pl : world.players())
-            if (pl.squaredDistanceTo(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) < 24 * 24)
+            if (pl.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) < 24 * 24)
                 pl.displayClientMessage(net.minecraft.network.chat.Component.literal(text), false);
     }
 
     /** m115 极端卡顿(>60ms/tick)：清理本核心周边 64 格内带 sdzjz_ejected 标签的掉落物。 */
     private void cleanupEjected(net.minecraft.server.level.ServerLevel sw) {
-        var box = net.minecraft.world.phys.AABB.of(worldPosition.toCenterPos(), 64, 32, 64);
+        var box = net.minecraft.world.phys.AABB.of(worldPosition.getCenter(), 64, 32, 64);
         for (net.minecraft.world.entity.item.ItemEntity e : sw.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box,
                 en -> en.getCommandTags().contains("sdzjz_ejected"))) e.discard();
     }
@@ -3828,7 +3828,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 绑定目标可达则返回（同维度需无线/卫星/有线可达；跨维度需卫星）。优先级最高。 */
     private StorageCoreBlockEntity boundPanel(Level world, BlockPos corePos) {
         if (boundPanelPos == null || boundPanelDim == null) return null;
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(boundPanelDim));
+        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(boundPanelDim));
         boolean sameDim = world.dimension().equals(dimKey);
         if (sameDim) {
             long dx = boundPanelPos.getX() - corePos.getX(), dy = boundPanelPos.getY() - corePos.getY(), dz = boundPanelPos.getZ() - corePos.getZ();
@@ -4169,7 +4169,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (!r.isEmpty()) setChanged();
         return r;
     }
-    @Override public ItemStack removeItem(int slot) { return ContainerHelper.takeItem(items, slot); }
+    @Override public ItemStack removeItemNoUpdate(int slot) { return ContainerHelper.takeItem(items, slot); }
     @Override public void setItem(int slot, ItemStack stack) {
         items.set(slot, stack);
         if (stack.getCount() > stack.getMaxStackSize()) stack.setCount(stack.getMaxStackSize());
@@ -4177,7 +4177,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
     @Override public boolean stillValid(Player player) {
         return level != null && level.getBlockEntity(worldPosition) == this
-                && player.squaredDistanceTo(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
+                && player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
     }
     @Override public void clearContent() { items.clear(); }
 

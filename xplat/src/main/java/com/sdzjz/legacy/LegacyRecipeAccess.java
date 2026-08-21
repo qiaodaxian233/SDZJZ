@@ -43,7 +43,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
             CraftingRecipe r = entry.value();
             ItemStack out;
             try {
-                out = r.getResult(world.registryAccess());
+                out = r.getResultItem(world.registryAccess());
             } catch (Exception ex) {
                 continue; // 特殊配方（烟花/染色等）取结果可能异常，跳过
             }
@@ -84,7 +84,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         for (RecipeHolder<net.minecraft.world.item.crafting.SmeltingRecipe> e
                 : world.getRecipeManager().getAllRecipesFor(RecipeType.SMELTING)) {
             try {
-                ItemStack out = e.value().getResult(world.registryAccess());
+                ItemStack out = e.value().getResultItem(world.registryAccess());
                 if (out == null || out.isEmpty()) continue;
                 ResourceLocation rid = e.id();
                 String outId = BuiltInRegistries.ITEM.getKey(out.getItem()).toString();
@@ -141,7 +141,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         if (pid == null) return null;
         var entry = BuiltInRegistries.POTION.getHolder(pid);
         if (entry.isEmpty()) return null;
-        return PotionContents.createStack(container, entry.get());
+        return PotionContents.createItemStack(container, entry.get());
     }
 
     private static String key(ItemStack s) {
@@ -157,7 +157,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         list = new ArrayList<>();
         for (Item it : BuiltInRegistries.ITEM) {
             ItemStack s = new ItemStack(it);
-            if (reg.isValidIngredient(s)) list.add(s);
+            if (reg.isIngredient(s)) list.add(s);
         }
         INGREDIENTS = list;
         return list;
@@ -182,7 +182,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
             String curKey = queue.poll();
             ItemStack cur = stacks.get(curKey);
             for (ItemStack ing : ings) {
-                ItemStack out = reg.craft(ing, cur.copy());
+                ItemStack out = reg.mix(ing, cur.copy());
                 if (out.isEmpty() || ItemStack.isSameItemSameComponents(out, cur)) continue; // 无此配方
                 String ok = key(out);
                 if (prev.containsKey(ok)) continue; // BFS 首达即最短链
@@ -223,7 +223,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         }
         ResourceLocation id = ResourceLocation.tryParse(target.substring(0, cut));
         if (id == null) return null;
-        var reg = world.registryAccess().getWrapperOrThrow(Registries.ENCHANTMENT);
+        var reg = world.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         var entry = reg.getOptional(ResourceKey.create(Registries.ENCHANTMENT, id));
         if (entry.isEmpty()) return null;
         Enchantment ench = entry.get().value();

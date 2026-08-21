@@ -55,7 +55,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private long coresCacheTime = -1000;
 
     private List<StorageCoreBlockEntity> cores() {
-        long now = (this.level != null) ? this.level.getTime() : 0;
+        long now = (this.level != null) ? this.level.getGameTime() : 0;
         if (coresCache != null && now - coresCacheTime < 40) {
             boolean ok = true;
             for (StorageCoreBlockEntity c : coresCache) if (c.isRemoved()) { ok = false; break; }
@@ -159,7 +159,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
                     merged.merge(e.getKey(), e.getValue(), Long::sum);
             return merged;
         }
-        long now = (this.level != null) ? this.level.getTime() : 0;
+        long now = (this.level != null) ? this.level.getGameTime() : 0;
         long rs = 0;
         for (StorageCoreBlockEntity core : cs) rs += core.storeRev();
         if (viewCache != null && (now == viewCacheTime || (rs == viewCacheRevSum && cs.size() == viewCacheCoreN)))

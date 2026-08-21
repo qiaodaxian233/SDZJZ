@@ -40,8 +40,8 @@ public class Sdzjz implements ModInitializer {
         com.sdzjz.loader.Hooks.onServerTickEnd(server -> { // m405 平台口
             for (net.minecraft.server.level.ServerLevel w : server.getAllLevels())
                 com.sdzjz.block.CoreChunkLoading.reconcileTick(w); // m347 孤儿声明渐进核销（宽限/节拍/开关在里头把门）
-            if (!SdzjzConfig.get().portableVaultSlot || server.overworld().getTime() % 10 != 0) return;
-            for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayerList()) {
+            if (!SdzjzConfig.get().portableVaultSlot || server.overworld().getGameTime() % 10 != 0) return;
+            for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 net.minecraft.world.item.ItemStack v = com.sdzjz.item.PortableVaultSlot.stackOf(sp);
                 if (!v.isEmpty()) com.sdzjz.item.PortableVaultItem.magnetTick(v, sp);
             }
@@ -319,7 +319,7 @@ public class Sdzjz implements ModInitializer {
     private static boolean writeBudget(ServerPlayer p) {
         int cap = SdzjzConfig.get().packetWriteBudgetPerTick;
         if (cap <= 0) return true; // 0=关闭护栏
-        long tick = p.level().getTime();
+        long tick = p.level().getGameTime();
         long[] e = WRITE_BUDGET.computeIfAbsent(p.getUUID(), k -> new long[]{Long.MIN_VALUE, 0});
         if (e[0] != tick) { e[0] = tick; e[1] = 0; }
         return ++e[1] <= cap;

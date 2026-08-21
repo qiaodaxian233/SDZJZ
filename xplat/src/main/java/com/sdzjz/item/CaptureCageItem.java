@@ -75,7 +75,7 @@ public class CaptureCageItem extends Item {
             if (!user.getInventory().add(caged)) user.drop(caged, false);
         }
 
-        user.sendMessage(Component.literal("已捕获: ").append(entity.getType().getDescription())
+        user.displayClientMessage(Component.literal("已捕获: ").append(entity.getType().getDescription())
                 .withStyle(net.minecraft.ChatFormatting.GREEN), true); // actionbar 即时反馈
 
         entity.discard();

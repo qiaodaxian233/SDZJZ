@@ -55,8 +55,8 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
         this.bookOn = com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook;
         if (bookOn) {
             this.narrow = this.width < 563; // 原版 379=176窗+203书区，同比例换算 360+203
-            this.recipeBook.initialize(this.width, this.height, this.minecraft, this.narrow, this.menu);
-            this.leftPos = this.recipeBook.findLeftEdge(this.width, this.imageWidth);
+            this.recipeBook.init(this.width, this.height, this.minecraft, this.narrow, this.menu);
+            this.leftPos = this.recipeBook.updateScreenPosition(this.width, this.imageWidth);
             this.addWidget(this.recipeBook); // 书的搜索框走原版焦点派发链吃键盘（m286 书钮改自绘见 render/mouseClicked）
         }
         // m161b 搜索框去黑壳（setDrawsBackground(false)，卡片接管观感）；resize 保留已输入文字（pickerField 惯例）。
@@ -184,7 +184,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
         if (tc <= 0)           { usage = "无存储核心"; ucol = SciSkin.RED; }
         else if (tc == 0xFFFF) { usage = "类型 " + tu; ucol = SciSkin.termSub(); }
         else                   { usage = "类型 " + tu + "/" + tc + (tu >= tc ? " 满" : ""); ucol = tu >= tc ? SciSkin.RED : SciSkin.termSub(); }
-        ctx.drawString(this.font, usage, x + 294 - this.font.getWidth(usage), y + 7, ucol, false);
+        ctx.drawString(this.font, usage, x + 294 - this.font.width(usage), y + 7, ucol, false);
         SciSkin.termBtn(ctx, this.font, x + 298, y + 4, 34, 16, "主题",
                 mouseX >= x + 298 && mouseX <= x + 332 && mouseY >= y + 4 && mouseY <= y + 20, false);
         SciSkin.termBtn(ctx, this.font, x + 336, y + 4, 16, 16, "×",
@@ -246,7 +246,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
         ctx.fill(x + 266, y + 199, x + 288, y + 221, SciSkin.RED); // 危险红外环
         SciSkin.termSlot(ctx, x + 269, y + 202);
         String rc = "放入即销毁";
-        ctx.drawString(this.font, rc, x + 278 - this.font.getWidth(rc) / 2, y + 228, SciSkin.termSub(), false);
+        ctx.drawString(this.font, rc, x + 278 - this.font.width(rc) / 2, y + 228, SciSkin.termSub(), false);
     }
 
     @Override
@@ -260,11 +260,11 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
             net.minecraft.world.item.ItemStack st = slot.getItem();
             ctx.renderItem(st, slot.x, slot.y);
             String s = fmt(amtOf(st));
-            ctx.pose().push();
+            ctx.pose().pushPose();
             ctx.pose().translate(slot.x + 17, slot.y + 12.5f, 200); // 右下角锚定
             ctx.pose().scale(0.5f, 0.5f, 1f);                       // 半尺寸：最长 "606.4K" 也压不出格
-            ctx.drawString(this.font, s, -this.font.getWidth(s), 0, SciSkin.termHi(), true);
-            ctx.pose().pop();
+            ctx.drawString(this.font, s, -this.font.width(s), 0, SciSkin.termHi(), true);
+            ctx.pose().popPose();
         } else {
             super.renderSlot(ctx, slot);
         }
@@ -325,14 +325,14 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
             var resSlot = this.menu.slots.get(DataPanelScreenHandler.RESULT); // m201 槽序重排：结果=9
             int rsx = this.leftPos + resSlot.x, rsy = this.topPos + resSlot.y;
             if (mx >= rsx && mx < rsx + 16 && my >= rsy && my < rsy + 16) {
-                if (resSlot.hasStack()) clickXp(6);
+                if (resSlot.hasItem()) clickXp(6);
                 return true;
             }
         }
         if (button == 1) { // m113 空手右键存储格=数量浮层（定量/拿满是百万量级下的主力，肌肉记忆优先）
             for (int i = DataPanelScreenHandler.DISP0; i < DataPanelScreenHandler.INV0 && i < this.menu.slots.size(); i++) { // m201 展示区=10..63
                 var sl = this.menu.slots.get(i);
-                if (!sl.hasStack()) continue;
+                if (!sl.hasItem()) continue;
                 int sx = this.leftPos + sl.x, sy = this.topPos + sl.y;
                 if (mx >= sx && mx < sx + 16 && my >= sy && my < sy + 16) {
                     qtySlot = i;
@@ -355,7 +355,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
 
     private void clickXp(int id) {
         if (this.minecraft != null && this.minecraft.gameMode != null)
-            this.minecraft.gameMode.clickButton(this.menu.containerId, id);
+            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, id);
     }
 
     @Override
@@ -456,7 +456,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
     /** m286 书开合（原版 CraftingScreen 同款挪窗）：翻书→重算左缘→自家绝对坐标控件跟着窗体走。 */
     private void toggleBook() {
         recipeBook.toggleVisibility();
-        this.leftPos = recipeBook.findLeftEdge(this.width, this.imageWidth);
+        this.leftPos = recipeBook.updateScreenPosition(this.width, this.imageWidth);
         if (search != null) search.setX(this.leftPos + 16);
     }
 
@@ -494,7 +494,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
      *  作者截图实锤）；布局改双列——左 7 色行（点行选中），右 所选色 RGB 滑块 + 预设 + 恢复默认。 */
     private void renderTheme(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         int px = thPos()[0], py = thPos()[1];
-        ctx.pose().push();
+        ctx.pose().pushPose();
         ctx.pose().translate(0, 0, 400); // 与原版 tooltip 同层且后画=盖顶
         SciSkin.termPanel(ctx, px, py, TH_W, TH_H);
         ctx.drawString(this.font, "终端主题（RRGGBB）", px + 8, py + 7, SciSkin.termInk(), false);
@@ -543,7 +543,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
         SciSkin.termBtn(ctx, this.font, px + TH_RX, py + 130, 120, 16, "恢复默认",
                 mouseX >= px + TH_RX && mouseX <= px + TH_RX + 120 && mouseY >= py + 130 && mouseY <= py + 146, true);
         ctx.drawString(this.font, "打字/拖滑块实时换肤 · Esc/点窗外=关", px + 8, py + TH_H - 13, SciSkin.termSub(), false);
-        ctx.pose().pop();
+        ctx.pose().popPose();
     }
 
     /** m202 预设片悬停命中（渲染/点击同一套几何）。 */
@@ -652,7 +652,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
             super.render(ctx, mouseX, mouseY, delta);
             if (bookOn) {
                 this.recipeBook.render(ctx, mouseX, mouseY, delta);
-                this.recipeBook.drawGhostSlots(ctx, this.leftPos, this.topPos, true, delta); // 缺料半透明配方影
+                this.recipeBook.renderGhostRecipe(ctx, this.leftPos, this.topPos, true, delta); // 缺料半透明配方影
             }
         }
         if (bookOn) { // m286 主题书钮（书之后画=窄屏开书浮在书上可关；开=主紫态）
@@ -663,18 +663,18 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
             // m298 摘要截断的诚实提示（审计"缺席≠0"）：仓储原料种数超摘要额度时，可合成灰名单只是参考——
             // 点红配方照样发服务端填料，真缺不缺以实际填料为准。0.62 缩放小字贴书钮下沿，不碰点击区。
             if (this.recipeBook.isVisible() && this.menu.stockTruncated()) {
-                ctx.pose().push();
+                ctx.pose().pushPose();
                 ctx.pose().translate(bbx + BOOK_BTN_W, bby + BOOK_BTN_H + 2, 0);
                 ctx.pose().scale(0.62F, 0.62F, 1F);
                 String warn = "库存摘要超额，灰名单仅供参考";
-                ctx.drawString(this.font, warn, -this.font.getWidth(warn), 0, SciSkin.termAccentDeep(), false);
-                ctx.pose().pop();
+                ctx.drawString(this.font, warn, -this.font.width(warn), 0, SciSkin.termAccentDeep(), false);
+                ctx.pose().popPose();
             }
         }
         this.renderTooltip(ctx, mouseX, mouseY);
-        if (bookOn) this.recipeBook.drawTooltip(ctx, this.leftPos, this.topPos, mouseX, mouseY);
+        if (bookOn) this.recipeBook.renderTooltip(ctx, this.leftPos, this.topPos, mouseX, mouseY);
         if (qtySlot >= 0) { // m82 数量选择浮层 + m100 批量行（m200 换终端主题皮；m202 抬 z=400 防槽物品穿透）
-            ctx.pose().push();
+            ctx.pose().pushPose();
             ctx.pose().translate(0, 0, 400);
             int w = QTY.length * 26 + 6;
             ctx.fill(qtyX - 5, qtyY - 17, qtyX + w + 1, qtyY + 41, SciSkin.termFrame());
@@ -690,7 +690,7 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
                 boolean hov = mouseX >= bx && mouseX <= bx + 30 && mouseY >= by && mouseY <= by + 16;
                 SciSkin.termBtn(ctx, this.font, bx, by, 30, 16, QTY2[j], hov, hov);
             }
-            ctx.pose().pop();
+            ctx.pose().popPose();
         }
         if (themeOpen) renderTheme(ctx, mouseX, mouseY, delta); // m200 主题面板压最上层（tooltip 之后）
     }

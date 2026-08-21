@@ -181,7 +181,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     // m127b：双击收集(PICKUP_ALL)对结果格绝缘——该路径 takeStack 直取可部分吸走结果，
     // 每吸一口都扣整份 144 格配方料（原版 CraftingScreenHandler 排除 result 的同款语义）。
     @Override
-    public boolean canPlaceItem(ItemStack stack, Slot slot) {
+    public boolean canTakeItemForPickAll(ItemStack stack, Slot slot) {
         return slot.container != result;
     }
 

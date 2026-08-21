@@ -87,7 +87,7 @@ public final class CoreChunkLoading {
     }
 
     private static Claims claims(ServerLevel w) {
-        return w.getDataStorage().getOrCreate(Claims.TYPE, "sdzjz_chunk_claims");
+        return w.getDataStorage().computeIfAbsent(Claims.TYPE, "sdzjz_chunk_claims");
     }
 
     /** m296 开服/维度载入：逐声明重发无期票（ForcedChunkState 同款自举）。世界边界外坏声明拒发并剔除。 */
@@ -97,7 +97,7 @@ public final class CoreChunkLoading {
         while (it.hasNext()) {
             ChunkPos cp = new ChunkPos(it.next());
             if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) { it.remove(); c.setDirty(); continue; }
-            w.getChunkSource().addTicket(CORE, cp, 2, cp);
+            w.getChunkSource().addRegionTicket(CORE, cp, 2, cp);
         }
     }
 
@@ -112,7 +112,7 @@ public final class CoreChunkLoading {
         boolean first = owners.isEmpty();
         owners.add(core.asLong());
         if (first) {
-            w.getChunkSource().addTicket(CORE, cp, 2, cp); // 重复 addTicket 幂等，first 只为少打点
+            w.getChunkSource().addRegionTicket(CORE, cp, 2, cp); // 重复 addTicket 幂等，first 只为少打点
             Claims c = claims(w);
             if (c.chunks.add(cp.toLong())) c.setDirty();
             if (priorOwned && w.getForcedChunks().contains(cp.toLong())) {
@@ -136,7 +136,7 @@ public final class CoreChunkLoading {
             if (!owners.isEmpty()) return; // 同区块还有别的运行核心，保持钉住
             dimMap.remove(cp.toLong());
         }
-        w.getChunkSource().removeTicket(CORE, cp, 2, cp); // 无票时 remove 无害
+        w.getChunkSource().removeRegionTicket(CORE, cp, 2, cp); // 无票时 remove 无害
         Claims c = claims(w);
         if (c.chunks.remove(cp.toLong())) c.setDirty();
     }
@@ -181,7 +181,7 @@ public final class CoreChunkLoading {
             int n = strikes.merge(cl, 1, Integer::sum);
             if (n < STRIKE_OUT) continue;
             ChunkPos cp = new ChunkPos(cl);
-            w.getChunkSource().removeTicket(CORE, cp, 2, cp);
+            w.getChunkSource().removeRegionTicket(CORE, cp, 2, cp);
             it.remove();
             c.setDirty();
             strikes.remove(cl);
@@ -218,6 +218,6 @@ public final class CoreChunkLoading {
     public static void ticket(ServerLevel w, long chunkLong) {
         ChunkPos cp = new ChunkPos(chunkLong);
         if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) return;
-        w.getChunkSource().addTicket(ENDPOINT, cp, 1, cp);
+        w.getChunkSource().addRegionTicket(ENDPOINT, cp, 1, cp);
     }
 }

@@ -88,7 +88,7 @@ public class PortableVaultSlot extends Slot {
         }
 
         public static State of(MinecraftServer server) {
-            return server.overworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_vault_slot");
+            return server.overworld().getDataStorage().getOrCreate(TYPE, "sdzjz_vault_slot");
         }
 
         public ItemStack get(UUID u) {
@@ -144,7 +144,7 @@ public class PortableVaultSlot extends Slot {
         }
 
         @Override
-        public ItemStack removeItem(int slot) {
+        public ItemStack removeItemNoUpdate(int slot) {
             ItemStack cur = getItem(0);
             setItem(0, ItemStack.EMPTY);
             return cur;

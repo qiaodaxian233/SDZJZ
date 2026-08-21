@@ -89,7 +89,7 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
             loadGeo();
             if (GEO == null) return;
         }
-        float t = ((be.getLevel() != null ? be.getLevel().getTime() % 1200L : 0L) + tickDelta) / 20f;
+        float t = ((be.getLevel() != null ? be.getLevel().getGameTime() % 1200L : 0L) + tickDelta) / 20f;
         float scanDeg = 35f * (float) Math.sin(2 * Math.PI * t / SCAN_PERIOD_S);
         float pulse = 0.92f + 0.20f * (float) Math.sin(2 * Math.PI * t / SIGNAL_PERIOD_S);
         VertexConsumer vcA = vcp.getBuffer(RenderType.entityCutoutNoCull(TEX_ATLAS));

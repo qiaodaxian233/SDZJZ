@@ -61,12 +61,12 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
                 matrices.scale(0.8F, 0.8F, 0.8F);
                 if (spd > 0 && innerModel.isGui3d())
                     matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(spinDeg(spd)));
-                ir.renderItem(inner, mode, false, matrices, vcp, light, overlay, innerModel);
+                ir.render(inner, mode, false, matrices, vcp, light, overlay, innerModel);
                 matrices.popPose();
             }
             matrices.pushPose();
             matrices.translate(0.0F, 0.0F, 0.4F);
-            ir.renderItem(frame, mode, false, matrices, vcp, light, overlay, frameModel);
+            ir.render(frame, mode, false, matrices, vcp, light, overlay, frameModel);
             matrices.popPose();
         } else {
             // m284 手持/掉落/展示框：此前内容物走方块 display（三人称 t=(0,2.5/16,0)·s0.375）而边框走
@@ -87,12 +87,12 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
                 matrices.scale(0.5F, 0.5F, 0.5F);
                 if (spd > 0 && innerModel.isGui3d())
                     matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(spinDeg(spd)));
-                ir.renderItem(inner, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, innerModel);
+                ir.render(inner, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, innerModel);
                 matrices.popPose();
             }
             matrices.pushPose();
             matrices.translate(0.0F, 0.0F, 0.05F);
-            ir.renderItem(frame, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, frameModel);
+            ir.render(frame, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, frameModel);
             matrices.popPose();
             matrices.popPose();
         }

@@ -67,7 +67,7 @@ public class CompressedPackItem extends Item {
     public Component getName(ItemStack stack) { // yarn method_7864 已核
         Item in = inner(stack);
         if (in == null) return super.getName(stack);
-        return Component.translatable(this.getDescriptionId()).copy().append(" · ").append(in.getName());
+        return Component.translatable(this.getDescriptionId()).copy().append(" · ").append(in.getDescription());
     }
 
     @Override
@@ -75,7 +75,7 @@ public class CompressedPackItem extends Item {
                               net.minecraft.world.item.TooltipFlag type) {
         Item in = inner(stack);
         if (in != null) {
-            tooltip.add(Component.literal("= " + ratio + " × ").append(in.getName())
+            tooltip.add(Component.literal("= " + ratio + " × ").append(in.getDescription())
                     .withStyle(net.minecraft.ChatFormatting.AQUA));
             tooltip.add(Component.literal("配方核算按原版计数折算（本栈合计 "
                     + fmt(rawCount(stack)) + " 件）").withStyle(net.minecraft.ChatFormatting.GRAY));

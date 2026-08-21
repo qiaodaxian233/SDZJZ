@@ -138,7 +138,7 @@ public final class ChunkRegionHighlighter {
                              float cr, float cg, float cb) {
         RenderType layer = RenderType.debugLineStrip(2.0);
         VertexConsumer vc = consumers.getBuffer(layer);
-        org.joml.Matrix4f m = ms.last().getPositionMatrix();
+        org.joml.Matrix4f m = ms.last().pose();
         float r = cr * 0.75f, g = cg * 0.75f, b = cb * 0.75f, a = 0.60f;
         float ax = (float) x1, bx = (float) x2, az = (float) z1, bz = (float) z2, ay = (float) y1, by = (float) y2;
         // 单笔路径：底框四棱 → 立柱与顶框交替（每根立柱上去、走一条顶棱、原路回描下来）
@@ -156,7 +156,7 @@ public final class ChunkRegionHighlighter {
 
     private static void pt(VertexConsumer vc, org.joml.Matrix4f m, float x, float y, float z,
                            float r, float g, float b, float a) {
-        vc.addVertex(m, x, y, z).color(r, g, b, a);
+        vc.addVertex(m, x, y, z).setColor(r, g, b, a);
     }
 
     /** m393 工作态重扫：遍历玩家周边已加载分块的方块实体表，收核心画布里的移除器节点选区。
@@ -166,7 +166,7 @@ public final class ChunkRegionHighlighter {
         WORKING.clear();
         int rad = Math.max(1, Math.min(16, cfg.chunkHighlightScanChunks));
         int pcx = mc.player.blockPosition().getX() >> 4, pcz = mc.player.blockPosition().getZ() >> 4;
-        net.minecraft.world.level.chunk.ChunkSource cm = mc.level.getChunkManager();
+        net.minecraft.world.level.chunk.ChunkSource cm = mc.level.getChunkSource();
         for (int dx = -rad; dx <= rad; dx++) {
             for (int dz = -rad; dz <= rad; dz++) {
                 int cx = pcx + dx, cz = pcz + dz;

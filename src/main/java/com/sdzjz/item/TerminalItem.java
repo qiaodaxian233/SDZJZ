@@ -75,7 +75,7 @@ public class TerminalItem extends Item {
         }
         CompoundTag nbt = c.copyTag();
         BlockPos target = BlockPos.of(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
+        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
 
         Level tw = world;
         if (!world.dimension().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw) {
@@ -140,7 +140,7 @@ public class TerminalItem extends Item {
 
     /** m82：喂食器像镶嵌一样装进终端——背包里把喂食器「右键点到」终端上=安装；右键空手点终端=取出。 */
     @Override
-    public boolean onPress(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
+    public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
                              net.minecraft.world.inventory.ClickAction clickType, Player player,
                              net.minecraft.world.entity.SlotAccess cursorStackReference) {
         if (clickType != net.minecraft.world.inventory.ClickAction.SECONDARY) return false;
@@ -186,7 +186,7 @@ public class TerminalItem extends Item {
     /** 解析绑定的面板（可跨维度，区块须已加载）。 */
     static DataPanelBlockEntity resolvePanel(Level world, CompoundTag nbt) {
         BlockPos target = BlockPos.of(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
+        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
         Level tw = world;
         if (!world.dimension().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw)
             tw = sw.getServer().getLevel(dimKey);

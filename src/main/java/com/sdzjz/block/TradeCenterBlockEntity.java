@@ -230,7 +230,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             //  手动交易保留直发背包=既有体验，是否与自动侧统一改走精确账本待作者拍板，行为本笔不动。）
             ItemStack book = new ItemStack(net.minecraft.world.item.Items.ENCHANTED_BOOK);
             var reg = this.level.registryAccess()
-                    .getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                    .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
             var entry = reg.getOrThrow(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
             book.addEnchantment(entry, t.enchantLv());

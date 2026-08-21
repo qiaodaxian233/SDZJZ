@@ -166,7 +166,7 @@ public class PortableVaultItem extends Item {
 
     /** 背包里把物品右键点到仓库上=整叠收纳（m82 终端镶嵌同款交互）。 */
     @Override
-    public boolean onPress(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
+    public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
                              net.minecraft.world.inventory.ClickAction clickType, Player player,
                              net.minecraft.world.entity.SlotAccess cursorStackReference) {
         if (otherStack.isEmpty()) {
@@ -207,7 +207,7 @@ public class PortableVaultItem extends Item {
         int cap = SdzjzConfig.get().portableVaultTypeCap;
         long got = 0; int kinds = 0;
         for (ItemEntity e : world.getEntitiesOfClass(ItemEntity.class,
-                AABB.of(player.position(), r * 2, r * 2, r * 2), en -> !en.cannotPickup() && absorbable(en.getStack()))) {
+                AABB.ofSize(player.position(), r * 2, r * 2, r * 2), en -> !en.cannotPickup() && absorbable(en.getStack()))) {
             ItemStack s = e.getItem();
             String id = BuiltInRegistries.ITEM.getKey(s.getItem()).toString();
             boolean known = v.contains(id);

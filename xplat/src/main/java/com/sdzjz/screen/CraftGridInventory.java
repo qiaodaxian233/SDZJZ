@@ -21,6 +21,6 @@ public class CraftGridInventory extends net.minecraft.world.SimpleContainer
 
     /** 接口很可能已有同签名 default（1.21 便捷法），显式覆写两头保险；getHeldStacks 由 SimpleInventory 协变满足。 */
     @Override public net.minecraft.world.item.crafting.CraftingInput asCraftInput() {
-        return net.minecraft.world.item.crafting.CraftingInput.create(3, 3, this.getItems());
+        return net.minecraft.world.item.crafting.CraftingInput.of(3, 3, this.getItems());
     }
 }

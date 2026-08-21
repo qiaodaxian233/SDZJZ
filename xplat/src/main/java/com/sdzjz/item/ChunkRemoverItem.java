@@ -69,7 +69,7 @@ public class ChunkRemoverItem extends MachineItem {
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
             player.displayClientMessage(Component.literal("模式：" + modeLabel(nm) + (nm == 2 ? "（基岩也拆，坑底会通虚空）" : "")), true);
         }
-        return net.minecraft.world.InteractionResultHolder.success(s, world.isClientSide);
+        return net.minecraft.world.InteractionResultHolder.sidedSuccess(s, world.isClientSide);
     }
 
     /** m382 区域挡名（1×1/3×3/…，菜单与副行同源）。 */

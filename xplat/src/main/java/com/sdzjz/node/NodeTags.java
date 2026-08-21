@@ -52,7 +52,7 @@ public final class NodeTags {
      *  铁律：**绝对只读**——改它=篡改组件内部状态，且 DEFAULT 空件全局共享一份，写它=全服中毒。
      *  要写走 nbtOf 拷贝→改→set 三段。读路全面换本口是压测 447MB/s 分配火源的主刀（m353）。 */
     public static CompoundTag viewOf(ItemStack s) {
-        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getNbt();
+        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getUnsafe();
     }
 
     /** m353 垃圾桶已吞计数累加（修丢写 bug：拷贝→加→set 回三段全）。 */

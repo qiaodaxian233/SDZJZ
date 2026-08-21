@@ -87,7 +87,7 @@ public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultSc
         ctx.drawString(this.font, this.title, x + LIST_X, y + 8, SciSkin.ACCENT, false);
         long total = PortableVaultItem.vaultTotal(vault);
         String head = "类型 " + v.getAllKeys().size() + " · 总件 " + fmt(total);
-        ctx.drawString(this.font, head, x + imageWidth - LIST_X - this.font.getWidth(head), y + 8, SciSkin.SUB, false);
+        ctx.drawString(this.font, head, x + imageWidth - LIST_X - this.font.width(head), y + 8, SciSkin.SUB, false);
 
         // m315 搜索底格（m216 自绘刀法：CELL 底+细边，聚焦换 ACCENT 描边；占位提示两态都可见）
         ctx.fill(x + LIST_X, y + SRCH_Y, x + LIST_X + SRCH_W, y + SRCH_Y + SRCH_H, SciSkin.CELL);
@@ -115,7 +115,7 @@ public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultSc
                     hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
             String cnt = "×" + fmt(v.getLong(id));
             ctx.drawString(this.font, cnt,
-                    x + LIST_X + LIST_W - 4 - this.font.getWidth(cnt), ry + 4, SciSkin.TXT_HI, false);
+                    x + LIST_X + LIST_W - 4 - this.font.width(cnt), ry + 4, SciSkin.TXT_HI, false);
         }
         if (ids.isEmpty())
             ctx.drawString(this.font,
@@ -124,7 +124,7 @@ public class PortableVaultScreen extends AbstractContainerScreen<PortableVaultSc
                     x + LIST_X + 4, y + PortableVaultScreenHandler.LIST_Y + 4, SciSkin.SUB, false);
         if (maxScroll > 0) {
             String pg = (scroll + 1) + ".." + Math.min(scroll + PortableVaultScreenHandler.ROWS, ids.size()) + "/" + ids.size();
-            ctx.drawString(this.font, pg, x + imageWidth - LIST_X - this.font.getWidth(pg), y + 20, SciSkin.SUB, false);
+            ctx.drawString(this.font, pg, x + imageWidth - LIST_X - this.font.width(pg), y + 20, SciSkin.SUB, false);
         }
         // m315：旧版两行同落 y+126 逐字重叠（列表底+4 与 PINV_Y-12 撞车）；PINV_Y 下移后 126/138 各占一行
         ctx.drawString(this.font, "左键=取一组 · 右键=拿满一格 · Shift+左=取尽",

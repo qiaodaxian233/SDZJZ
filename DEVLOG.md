@@ -7644,3 +7644,44 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   加/取升级各一次（验 NodeUpgradePayload kind 改名后加速/数量/并列三类升级仍各就各位）→
   开数据面板搜索框输入超长串（验 Bounded 换序后编解码仍有界）→ 交易所买一笔（验菜单族改名）。
 - 零新配置键；行为层零改动主张，待 build 绿后由 GameTest 全量用例判定。
+
+## m417 第三轮红清单 238 条清零：受体判据补进 arity，三处自纠误映射
+
+- **上轮战果对表**：m416 推送后第三轮 CI（run 32484903950）四绿两红——成员表代产/NeoForge/26.2/
+  资源审计四线绿；build+gametest 红 **238 条**（上轮 2765，降幅 91.4%），错误形态已从"成片同族"
+  转为"零散点位"，说明字典化+反扫的主干打法收敛正确。
+- **字典化落刀 221 处**：同一套「受体祖先链定裁 + javac 脱字符列号锚点」直接复用，
+  三重校验**又是 0 拦截**（连续两轮锚点无一失准，这套锚点法可以定为迁移期标准工装）。
+  本轮 69 对符号×受体里 46 对自动定裁，23 对逐条看现场人工裁：
+  `Font.getWidth→width` 32、`PoseStack.push/pop→pushPose/popPose` 32、`VertexConsumer.color→setColor` 13、
+  `setBlockState→setBlock`（GameTestHelper/ServerLevel/Level 三宿主同目标）21、
+  `MultiPlayerGameMode.clickButton→handleInventoryButtonClick` 9、`Properties.nonOpaque→noOcclusion` 7、
+  `RegistryAccess.getWrapperOrThrow→lookupOrThrow` 4、`Inventory.count→countItem` 4、
+  `ServerChunkCache.addTicket/removeTicket→addRegionTicket/removeRegionTicket` 5、
+  `ServerLevel.getPersistentStateManager→getDataStorage` 2、`Holder.isIn→is` 2、
+  `Player.squaredDistanceTo→distanceToSqr` 2、`RecipeManager.listAllOfType→getAllRecipesFor` 2 等。
+- **重载分流批**（同名多目标，靠现场 arity/参数类型裁）：
+  `ItemRenderer.renderItem`(8 参)→**render**、`Font.trimToWidth(String,int)`→**plainSubstrByWidth**（纯文本重载，
+  非 substrByWidth 的 FormattedText 路）、`Vec3.ofCenter`→**atCenterOf**、`RecipeManager.get`→**byKey**、
+  `GuiGraphics.drawTooltip(Font,List,x,y)`→**renderTooltip**、`Registry.getEntry`→**getHolder**、
+  `CraftingRecipe.getResult/craft/getRemainder`→**getResultItem/assemble/getRemainingItems**。
+- **三处自纠我自己上轮的误映射**（都是"目标名看着像"而非查表来的，教训=人工表也要过 TSV 宿主）：
+  ① `Container.removeStack` **按 arity 分流**——1 参是 **removeItemNoUpdate**、2 参才是 removeItem；
+  我上轮一律映成 removeItem，被"Inv/SCBE is not abstract, 缺 removeItemNoUpdate(int)"当场点名（2 处）。
+  ② `canInsertIntoSlot` 在 AbstractContainerMenu 上是 **canTakeItemForPickAll**(ItemStack,Slot)、
+  在 RecipeBookMenu 上是 **shouldMoveToInventory**(int)，我错映成了 canPlaceItem（3 处）。
+  ③ `Item.onClicked` 是 **overrideOtherStackedOnMe**，我错映成 onPress（那是 Button 的）（2 处）。
+- **静态工厂假朋友第二批**：`Box.of(Vec3d,double,double,double)`→**AABB.ofSize**（mojmap 的 AABB.of 是
+  另一签名故报"cannot be applied"）；`TypedActionResult.success(T,boolean)`→**InteractionResultHolder.sidedSuccess**；
+  `RegistryOps.of`→create、`TagKey.of`→create、`ResourceKey.of`→create；
+  `Item.getName()` 无参→getDescription() 补扫（m416 只扫了 `.getName().getString()` 形态，
+  `in.getName()` 直接进 append 的那两处漏网）。
+- **未单独动手的 3 条**：`Object cannot be converted to ItemStack/NonNullList/Holder<Enchantment>`——
+  判为 `RecipeHolder`/`Registry` 泛型未解析的**级联**，主体编译通了自然消；若第四轮仍在再单点。
+- **验证**：全库 javac 冒烟（src+xplat+common 155 文件）错误 3522 条全为缺 MC 依赖噪音，
+  真语法错 **0**、自家类符号错 **0**（定向检 Machines/Sdzjz/SciSkin/ModItems/NodeTags/Xfer/Bounded/
+  NodeUpgradePayload 各 0）；13 道离线闸全绿。
+- **实机验证脚本**：沿用 m416 那套（core profile → 画布加/取升级 → 数据面板超长搜索串 → 交易所买一笔），
+  本轮新增两点：随身仓库右键塞物（验 overrideOtherStackedOnMe 改名后"物品叠到仓库上"仍生效）、
+  区块移除器右键开屏（验 sidedSuccess 换名后主副手返回值仍正确）。
+- 零新配置键；行为层零改动主张，待 build 绿后由 GameTest 全量用例判定。

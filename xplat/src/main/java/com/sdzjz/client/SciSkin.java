@@ -228,11 +228,11 @@ public final class SciSkin {
                              float x1, float y1, float x2, float y2, int top, int bottom) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
                 ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().peek().getPositionMatrix();
-        vc.addVertex(mat, x1, y1, 0).color(top);
-        vc.addVertex(mat, x1, y2, 0).color(bottom);
-        vc.addVertex(mat, x2, y2, 0).color(bottom);
-        vc.addVertex(mat, x2, y1, 0).color(top);
+        org.joml.Matrix4f mat = ctx.pose().last().getPositionMatrix();
+        vc.addVertex(mat, x1, y1, 0).setColor(top);
+        vc.addVertex(mat, x1, y2, 0).setColor(bottom);
+        vc.addVertex(mat, x2, y2, 0).setColor(bottom);
+        vc.addVertex(mat, x2, y1, 0).setColor(top);
     }
 
     /** m187 平滑横向渐变矩形。 */
@@ -240,11 +240,11 @@ public final class SciSkin {
                              float x1, float y1, float x2, float y2, int left, int right) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
                 ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().peek().getPositionMatrix();
-        vc.addVertex(mat, x1, y1, 0).color(left);
-        vc.addVertex(mat, x1, y2, 0).color(left);
-        vc.addVertex(mat, x2, y2, 0).color(right);
-        vc.addVertex(mat, x2, y1, 0).color(right);
+        org.joml.Matrix4f mat = ctx.pose().last().getPositionMatrix();
+        vc.addVertex(mat, x1, y1, 0).setColor(left);
+        vc.addVertex(mat, x1, y2, 0).setColor(left);
+        vc.addVertex(mat, x2, y2, 0).setColor(right);
+        vc.addVertex(mat, x2, y1, 0).setColor(right);
     }
 
     /** m187 软投影：三层递缩递浓半透黑（中心叠深、边缘渐淡），替代旧单层硬边黑块。 */

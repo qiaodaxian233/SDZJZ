@@ -82,7 +82,7 @@ public class DataCableBlock extends Block implements EntityBlock {
         BlockState s = defaultBlockState();
         for (Direction d : Direction.values()) {
             BlockPos np = ctx.getClickedPos().relative(d);
-            s = s.with(END_PROPS.get(d), endFor(ctx.getLevel(), ctx.getClickedPos(), d, np, ctx.getLevel().getBlockState(np)));
+            s = s.setValue(END_PROPS.get(d), endFor(ctx.getLevel(), ctx.getClickedPos(), d, np, ctx.getLevel().getBlockState(np)));
         }
         return s;
     }
@@ -101,7 +101,7 @@ public class DataCableBlock extends Block implements EntityBlock {
         BlockState st = world.getBlockState(pos);
         if (!(st.getBlock() instanceof DataCableBlock)) return;
         BlockPos np = pos.relative(d);
-        world.setBlockState(pos, st.setValue(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
+        world.setBlockAndUpdate(pos, st.setValue(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
     }
 
     @Override

@@ -117,11 +117,11 @@ public class ExtractPortScreen extends AbstractContainerScreen<ExtractPortScreen
         int bx = this.leftPos + BTN_X;
         if (mx >= bx && mx < bx + BTN_W) {
             if (my >= this.topPos + BTN_Y && my < this.topPos + BTN_Y + BTN_H) {
-                this.minecraft.gameMode.clickButton(this.menu.containerId, 0);
+                this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, 0);
                 return true;
             }
             if (my >= this.topPos + MODE_Y && my < this.topPos + MODE_Y + BTN_H) { // m231 方向钮
-                this.minecraft.gameMode.clickButton(this.menu.containerId, 1);
+                this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, 1);
                 return true;
             }
         }

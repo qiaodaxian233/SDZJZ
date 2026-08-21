@@ -107,7 +107,7 @@ public class AutoFeederItem extends Item {
         }
         if (!got) return;
         player.getFoodData().eat(fc); // 原版进食的饥饿+饱和路径（不含使用型效果）
-        world.playSound(null, player.getBlockPos(), net.minecraft.sounds.SoundEvents.ENTITY_PLAYER_BURP,
+        world.playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.PLAYER_BURP,
                 net.minecraft.sounds.SoundSource.PLAYERS, 0.5f, 1.0f);
     }
 

@@ -71,7 +71,7 @@ public class ChunkRemoverConfigScreen extends Screen {
         drawBtn(ctx, x + 68, y + 44, 26, "-10", mouseX, mouseY);
         drawBtn(ctx, x + 97, y + 44, 20, "-1", mouseX, mouseY);
         String lab = w2 + "×" + w2;
-        ctx.drawString(font, lab, x + 132 - font.getWidth(lab) / 2 + 14, y + 48, SciSkin.TXT_HI, false);
+        ctx.drawString(font, lab, x + 132 - font.width(lab) / 2 + 14, y + 48, SciSkin.TXT_HI, false);
         drawBtn(ctx, x + 172, y + 44, 20, "+1", mouseX, mouseY);
         drawBtn(ctx, x + 195, y + 44, 26, "+10", mouseX, mouseY);
         ctx.drawString(font, "上限 " + (2 * Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius) + 1)
@@ -108,7 +108,7 @@ public class ChunkRemoverConfigScreen extends Screen {
         boolean hov = in(mx, my, bx, by, bw, 16);
         ctx.fill(bx, by, bx + bw, by + 16, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(bx + 1, by + 1, bx + bw - 1, by + 15, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
-        ctx.drawString(font, t, bx + (bw - font.getWidth(t)) / 2, by + 4,
+        ctx.drawString(font, t, bx + (bw - font.width(t)) / 2, by + 4,
                 hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
     }
 

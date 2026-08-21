@@ -69,7 +69,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 ctx.fill(bx, by, bx + 64, by + 20, hov ? SciSkin.HOVER : CELL);
                 ctx.renderOutline(bx, by, 64, 20, hov ? CYAN : CELLFRM);
                 String name = profName(ids.get(i));
-                ctx.drawString(this.font, name, bx + (64 - this.font.getWidth(name)) / 2, by + 6, TXT, false);
+                ctx.drawString(this.font, name, bx + (64 - this.font.width(name)) / 2, by + 6, TXT, false);
             }
         } else {
             int disc = TradeCenterBlockEntity.contractDiscount(c);
@@ -181,14 +181,14 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
             for (int i = 0; i < ids.size(); i++) {
                 int bx = x + 80 + (i % 4) * 68, by = y + 44 + (i / 4) * 24;
                 if (mx >= bx && mx < bx + 64 && my >= by && my < by + 20) {
-                    this.minecraft.gameMode.clickButton(this.menu.containerId, i);
+                    this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, i);
                     return true;
                 }
             }
         } else if (prof != null) {
             int hx = x + 288, hy = y + 26;
             if (mx >= hx && mx < hx + 62 && my >= hy && my < hy + 18) {
-                this.minecraft.gameMode.clickButton(this.menu.containerId, TradeCenterScreenHandler.BTN_HEAL);
+                this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, TradeCenterScreenHandler.BTN_HEAL);
                 return true;
             }
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
@@ -198,7 +198,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 if (mx >= rx && mx < rx + 270 && my >= ry && my < ry + ROW_H) {
                     if (lvOn && lvl < trades.get(tradeScroll + v).minLevel()) return true; // m333 锁定行吃点击
-                    this.minecraft.gameMode.clickButton(this.menu.containerId,
+                    this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId,
                             TradeCenterScreenHandler.BTN_TRADE_BASE + tradeScroll + v);
                     return true;
                 }

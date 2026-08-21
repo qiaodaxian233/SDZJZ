@@ -160,7 +160,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         var w = panel.getLevel();
         var input = craftInput();
         craftResult.setItem(0, findRecipe(input, w)
-                .map(e -> e.value().craft(input, w.registryAccess())).orElse(ItemStack.EMPTY));
+                .map(e -> e.value().assemble(input, w.registryAccess())).orElse(ItemStack.EMPTY));
     }
 
     /** 取走结果：每格扣 1，容器残留(桶等)留在原格或还给玩家，然后 AE 式从网络补料并重算结果。 */
@@ -170,7 +170,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         var input = craftInput();
         var match = findRecipe(input, w); // m126b：走缓存，shift/整组连打不再逐轮全表扫
         net.minecraft.core.NonNullList<ItemStack> rem =
-                match.map(e -> e.value().getRemainder(input)).orElse(null);
+                match.map(e -> e.value().getRemainingItems(input)).orElse(null);
         // m106b AE 式补料：cores 快照一次，9 格共用（不逐格 BFS）
         var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(w, blockPos);
         for (int i = 0; i < 9; i++) {
@@ -210,7 +210,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     public int jeiFill(net.minecraft.server.level.ServerPlayer player, net.minecraft.resources.ResourceLocation rid, boolean max) {
         if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return 0; // 服务端权威（m95 口径）
         var w = panel.getLevel();
-        var entry = w.getRecipeManager().get(rid).orElse(null);
+        var entry = w.getRecipeManager().byKey(rid).orElse(null);
         if (entry == null || !(entry.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe cr)) return 0;
         var ings = cr.getIngredients();
         net.minecraft.world.item.crafting.Ingredient[] want = new net.minecraft.world.item.crafting.Ingredient[9]; // 展平 3×3：有形按宽高左上对齐，无形顺排
@@ -531,7 +531,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     // ②展示格：常规光标因 amt 组件不相等吸不走，但创造中键 CLONE 出的光标带同款组件可绕开
     // onTakeItem 正门外的账本钳数。本方法另参与拖拽落格判定，两类格 canInsert 本就 false，零行为变化。
     @Override
-    public boolean canPlaceItem(ItemStack stack, Slot slot) {
+    public boolean canTakeItemForPickAll(ItemStack stack, Slot slot) {
         return slot.container != craftResult && slot.container != display; // m201 撤下标依赖，按库存身份判
     }
 
@@ -659,7 +659,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         this.searchFilter = sf;
         this.scrollRow = sr;
         this.matchedIds = ms;
-        long now = (panel != null && panel.getLevel() != null) ? panel.getLevel().getTime() : 0L;
+        long now = (panel != null && panel.getLevel() != null) ? panel.getLevel().getGameTime() : 0L;
         if (now - lastRepageTick < 2L) { viewDirty = true; return; }
         repage();
     }
@@ -681,7 +681,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     private void repage() {
         if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return;
         viewDirty = false;
-        lastRepageTick = panel.getLevel().getTime();
+        lastRepageTick = panel.getLevel().getGameTime();
         java.util.List<DataPanelBlockEntity.DispEnt> all = panel.masterEntries();
         java.util.List<DataPanelBlockEntity.DispEnt> filtered = new java.util.ArrayList<>();
         String q = searchFilter.toLowerCase();
@@ -726,7 +726,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 || panel.getLevel() == null || panel.getLevel().isClientSide) return;
         // m292 分页节拍（原 BE tick 10t 节律迁入，每玩家独立）：脏视图 ≥2t 即刷；10t 无条件刷兜机器侧进出料
         repageTick++;
-        if (viewDirty && panel.getLevel().getTime() - lastRepageTick >= 2L) repage();
+        if (viewDirty && panel.getLevel().getGameTime() - lastRepageTick >= 2L) repage();
         else if (repageTick % 10 == 0) repage();
         if (!com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook
                 || !com.sdzjz.config.SdzjzConfig.get().terminalBookStock) return;
@@ -770,7 +770,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         java.util.HashSet<String> out = new java.util.HashSet<>();
         for (var e : rm.getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING))
             for (var ig : e.value().getIngredients())
-                for (var st : ig.getMatchingStacks())
+                for (var st : ig.getItems())
                     if (!st.isEmpty()) out.add(BuiltInRegistries.ITEM.getKey(st.getItem()).toString());
         craftIngredientCache = out;
         craftIngredientCacheKey = rm;
@@ -806,7 +806,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     }
 
     @Override
-    public boolean canPlaceItem(int index) { // 原版语义：清格时哪些前排格该移回背包
+    public boolean shouldMoveToInventory(int index) { // 原版语义：清格时哪些前排格该移回背包
         return index != RESULT;
     }
 
@@ -821,7 +821,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     public void handlePlacement(boolean craftAll, net.minecraft.world.item.crafting.RecipeHolder<?> recipe,
                                net.minecraft.server.level.ServerPlayer player) {
         int missing = jeiFill(player, recipe.id(), craftAll);
-        if (missing > 0) player.connection.sendPacket(
+        if (missing > 0) player.connection.send(
                 new net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket(this.containerId, recipe));
     }
 

@@ -48,7 +48,7 @@ public class ChunkTemplateStore extends SavedData {
     }
 
     public static ChunkTemplateStore of(MinecraftServer server) {
-        return server.overworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_chunk_templates");
+        return server.overworld().getDataStorage().getOrCreate(TYPE, "sdzjz_chunk_templates");
     }
 
     /** 入库：封顶即拒（返 null，调用方红灯出声）；成功返新 UUID 并落盘置脏。 */

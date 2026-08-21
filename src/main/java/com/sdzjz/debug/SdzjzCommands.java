@@ -224,7 +224,7 @@ public final class SdzjzCommands {
         String dim = src.getLevel().dimension().location().toString();
         CoreProfiler.Stats best = null; double bd = 64 * 64;
         for (CoreProfiler.Stats s : CoreProfiler.active(dim)) {
-            double d = BlockPos.of(s.pos).getSquaredDistance(me);
+            double d = BlockPos.of(s.pos).distSqr(me);
             if (d < bd) { bd = d; best = s; }
         }
         if (best == null) {

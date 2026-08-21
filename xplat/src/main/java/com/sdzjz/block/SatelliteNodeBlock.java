@@ -18,7 +18,7 @@ import net.minecraft.world.level.BlockGetter;
  * 探出方块框，默认整格 outline 会让"框不套模型"——观感即用户 m152 反馈的"位置不对"）。
  */
 public class SatelliteNodeBlock extends BaseEntityBlock {
-    private static final VoxelShape SHAPE = Shapes.union(
+    private static final VoxelShape SHAPE = Shapes.or(
             Block.box(-1.5, 0, 1, 17.5, 10, 15),   // 阶梯底座
             Block.box(4, 10, 5, 12, 16, 11));      // 塔体+桅杆段
     public SatelliteNodeBlock(Properties settings) {

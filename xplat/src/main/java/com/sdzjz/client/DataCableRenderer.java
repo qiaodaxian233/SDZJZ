@@ -34,7 +34,7 @@ public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEnti
                        MultiBufferSource vertexConsumers, int light, int overlay) {
         BlockState state = be.getBlockState();
         if (!(state.getBlock() instanceof com.sdzjz.block.DataCableBlock)) return;
-        float time = (be.getLevel() != null ? be.getLevel().getTime() % 30L : 0L) + tickDelta; // 1.5s=30t
+        float time = (be.getLevel() != null ? be.getLevel().getGameTime() % 30L : 0L) + tickDelta; // 1.5s=30t
         VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
 
         for (int i = 0; i < DIRS.length; i++) {

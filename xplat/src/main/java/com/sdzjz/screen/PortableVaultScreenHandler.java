@@ -105,7 +105,7 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
         long remain = left - taken;
         if (remain > 0) acct.putLong(rawId, remain); else acct.remove(rawId);
         PortableVaultItem.writeLedger(v, acct);
-        p.sendMessage(Component.literal("叮！取出 " + new ItemStack(it).getHoverName().getString() + " ×" + taken
+        p.displayClientMessage(Component.literal("叮！取出 " + new ItemStack(it).getHoverName().getString() + " ×" + taken
                 + (budget > 0 ? "（背包已满，余量在库）" : "")), true);
     }
 }

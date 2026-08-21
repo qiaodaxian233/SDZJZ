@@ -154,7 +154,7 @@ public class ModItems {
     public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Properties(), Machines.VILLAGER_BREEDER));
 
     public static final ResourceKey<CreativeModeTab> GROUP_KEY =
-            ResourceKey.of(Registries.CREATIVE_MODE_TAB, Sdzjz.id("main"));
+            ResourceKey.create(Registries.CREATIVE_MODE_TAB, Sdzjz.id("main"));
     public static final CreativeModeTab GROUP = FabricItemGroup.builder()
             .icon(() -> new ItemStack(LOGO)) // m93 用户点名：标签图标换 MOD 红色核心
             .title(Component.translatable("itemGroup.sdzjz.main"))

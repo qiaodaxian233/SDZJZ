@@ -244,8 +244,8 @@ public final class BenchRunner {
 
     private static void spawnSite(int idx) {
         BlockPos p = SITES.get(idx);
-        world.setBlockState(p, ModBlocks.STRUCTURE_CORE.defaultBlockState(), 3);
-        world.setBlockState(p.east(), ModBlocks.STORAGE_CORE.defaultBlockState(), 3);
+        world.setBlockAndUpdate(p, ModBlocks.STRUCTURE_CORE.defaultBlockState(), 3);
+        world.setBlockAndUpdate(p.east(), ModBlocks.STORAGE_CORE.defaultBlockState(), 3);
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) {
             switch (siteWl[idx]) { // m359/m360 逐站工况铺场
                 case IDLE -> { /* 零节点：纯核心框架开销基线 */ }
@@ -338,8 +338,8 @@ public final class BenchRunner {
 
     private static void cleanSite(BlockPos p) {
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) core.benchClearNodes();
-        world.setBlockState(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);       // 节点已清空,dropAll 散落=零件
-        world.setBlockState(p.east(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3); // 存储账本是虚拟账,拆块零散落
+        world.setBlockAndUpdate(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);       // 节点已清空,dropAll 散落=零件
+        world.setBlockAndUpdate(p.east(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3); // 存储账本是虚拟账,拆块零散落
         com.sdzjz.block.CoreChunkLoading.release(world, p, false); // m307 兜底：核心若始终没tick,
         // chunkForceActive=false 拆块走不到释放——补一发注销自举票（已释放时=孤儿声明清理,幂等无害）
     }

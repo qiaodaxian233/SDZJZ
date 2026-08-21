@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m416[mojmap分支]：2765 条工单机械化清零——字典化修复器按「受体祖先链定裁 + javac 脱字符**列号**落刀」打 2466 处(三重校验拦下 0)，@Override 声明改名 158 处未决 0，假朋友批(Registry.getId→getKey 48/ChunkPos.toLong→asLong 14/BlockPos.offset(Direction)→relative 10)，StreamCodec.of 缓冲区先行换序，NodeUpgradePayload 组件 type→kind 解撞名，裸 Settings→Properties 28，残留 Yarn 名反扫补 372 处(错误清单本身不全=javac 没走到的类不报)；自纠三处误改(hasDepth→isGui3d、匿名 ContainerData.size→getCount×3)；冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.416；下一步=推送后轮询第三轮 CI，预期残余转向反扫没覆盖到的零星点位）
+## 当前状态（m417[mojmap分支]：第三轮红 238 条清零——字典化落刀 221 处(受体祖先链+脱字符列号锚点，三重校验连续两轮 0 拦截)+人工补刀 11 处；重载分流批(ItemRenderer.renderItem 8参→render、Font.trimToWidth(String,int)→plainSubstrByWidth、Vec3.ofCenter→atCenterOf、RecipeManager.get→byKey)；自纠三处上轮误映射(removeStack 1参→removeItemNoUpdate 而非 removeItem、canInsertIntoSlot 菜单上是canTakeItemForPickAll/配方书菜单上是 shouldMoveToInventory、Item.onClicked→overrideOtherStackedOnMe)；静态工厂假朋友第二批(Box.of→AABB.ofSize、success(T,boolean)→sidedSuccess)；冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.417；下一步=推送后轮询第四轮 CI，红条数轨迹 2765→238→?）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
