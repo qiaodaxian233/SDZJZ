@@ -7745,3 +7745,31 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   画布加/取升级三类各一次 → 数据面板搜索+合成一轮 → 超级工作台 12×12 出货 → 交易所买附魔书
   （盯"不混堆不变裸"）→ 随身仓库右键塞物 → 区块移除器开屏改参 → 结构核心封边跑一轮。
 - 零新配置键；行为层零改动主张，交由 GameTest 全量用例判定。
+
+## m420 第六轮最后 1 条清零：编译器清单见底（2765→238→24→3→1→0）
+
+- **上轮战果**：m419 推送后第六轮 CI（run 32488394303）四绿两红，build 红 **1 条**——
+  `ResourceKey.getValue()`（`e.key().getValue()`）→ **location()**。
+  这是 m419 那条级联的最后一环：`streamEntries→listElements` 让元素类型落实成 `Holder.Reference`，
+  `registryKey→key` 让它吐出 `ResourceKey`，**这一轮才轮到 ResourceKey 自己的成员名报错**——
+  一条链上的三个受体，编译器一次只肯露一个。级联链要一轮一环地走完，不能指望一次点全。
+- **为什么 m416 的批量扫没盖住它**：当时的正则写的是 `dimension().getValue()`（受体锚定到 Level.dimension），
+  而这里的受体是 `Holder.Reference.key()` 吐出的 ResourceKey。**受体锚定的代价就是锚点之外必然漏网**——
+  这不是缺陷，是它比无脑全局替换安全的原因；漏网由下一轮 CI 兜底，全程零误伤。
+- **全库 `.getValue()` 点检**：剩余 ~100 处全部是 `Map.Entry.getValue()` 与 `EditBox.getValue()`
+  （后者本就是 mojmap 名，m416 由 `getText→getValue` 改来），无一处 ResourceKey 残留。
+- **迁移收敛全曲线（存档）**：m414 首轮 **71**（类名层做完后的内部类死角）→ m415 轮 **2765**
+  （成员级方法名总爆发）→ m416 轮 **238** → m417 轮 **24** → m418 轮 **3** → m419 轮 **1** → 本轮预期 **0**。
+  六轮累计落刀约 **3400 处**，三重列号校验累计 **0 次误落刀**，
+  自纠误映射 **8 处**（全部由下一轮 CI 当场点名，无一逃到运行期）。
+- **验证**：全库 javac 冒烟（155 文件）错误 3522 全为缺 MC 依赖噪音，真语法错 **0**、自家类符号错 **0**；
+  13 道离线闸全绿。
+- **下一阶段（重要，交接必读）**：build 若本轮转绿，**判官正式从编译器交棒 GameTest**。
+  编译器管不到、只会在运行期炸的三类死角，届时才会现形：
+  ① **mixin 方法靶点字符串**（m414 已手核六枚：Slot#getMaxItemCount→getMaxStackSize、
+  ItemStack#getMaxCount→getMaxStackSize、Codecs#rangedInt→ExtraCodecs#intRange、
+  GuiGraphics#drawItemInSlot→renderItemDecorations、InventoryScreen#drawBackground→renderBg、
+  InventoryMenu 构造靶免改）——mixin 应用失败=游戏内静默失效，GameTest 是唯一判官；
+  ② **两边都能编译但语义有别的选名**：`Slot.setStack→setByPlayer`（mojmap 侧 `set()` 同样可编译）；
+  ③ **反射/字符串形 id**。GameTest 红了要按**用例名**逐条回读现场，别再当成"又一轮改名"机械查表。
+- 零新配置键；行为层零改动主张，交由 GameTest 全量用例判定。

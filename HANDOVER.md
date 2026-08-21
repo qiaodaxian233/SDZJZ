@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m419[mojmap分支]：第五轮红 3 条清零，轨迹 2765→238→24→3 三轮各降一个数量级——Entity.getCommandTags→getTags、Holder.Reference.registryKey→key（上游 streamEntries→listElements 改对后新受体浮出才现形，级联正样本）、Enchantment.getName(Holder,int)→getFullname（与 Item.getName() 无参→getDescription 同名不同宿主各归各表）；m417 记的 3 条 Object 转型错全程未硬改、随上游修完自愈，『泛型转型错不单修』口径入档；冒烟真语法错 0 自家符号错 0，13 闸全绿，三点残余 grep=0，版本 0.1.419；下一步=推送后轮询第六轮，build 若转绿则判官交棒 GameTest，届时现形的是编译器管不到的三类死角（mixin 方法靶点字符串/两边都能编译但语义有别的选名如 Slot.setStack→setByPlayer/反射字符串 id））
+## 当前状态（m420[mojmap分支]：第六轮最后 1 条清零，编译器清单见底——收敛全曲线 m414:71→m415:2765→m416:238→m417:24→m418:3→m419:1→本轮预期 0，六轮累计落刀约 3400 处、列号三重校验 0 次误落刀、自纠误映射 8 处全部由下一轮 CI 当场点名无一逃到运行期；本条 ResourceKey.getValue→location 是 streamEntries→listElements→registryKey→key 那条级联的最后一环，一条链上三个受体编译器一次只肯露一个；受体锚定的代价就是锚点外必然漏网，由下一轮 CI 兜底换全程零误伤。冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.420。**下一阶段**：build 转绿后判官从编译器交棒 GameTest，现形的将是 mixin 方法靶点字符串（m414 手核六枚）、两边可编译但语义有别的选名（Slot.setStack→setByPlayer）、反射字符串 id 三类死角——GameTest 红了按用例名逐条回读现场，别当成又一轮机械查表）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
