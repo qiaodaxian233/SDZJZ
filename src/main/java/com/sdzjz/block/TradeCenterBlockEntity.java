@@ -233,7 +233,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
                     .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
             var entry = reg.getOrThrow(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
-            book.addEnchantment(entry, t.enchantLv());
+            book.enchant(entry, t.enchantLv());
             if (!player.getInventory().add(book)) player.drop(book, false);
             player.displayClientMessage(Component.literal("附魔书已放入背包（带附魔物品不进仓储，防丢附魔）"), true);
         } else {

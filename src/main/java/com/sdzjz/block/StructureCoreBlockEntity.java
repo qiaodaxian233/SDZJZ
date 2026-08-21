@@ -910,7 +910,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                     var entryT = regT.getOrThrow(net.minecraft.resources.ResourceKey.create(
                             net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
-                    bookT.addEnchantment(entryT, t.enchantLv());
+                    bookT.enchant(entryT, t.enchantLv());
                     be.prodTally(attempts);
                     if (depositT != null) be.depositOrBuffer(depositT, bookT);
                     else be.addOutput(bookT); // maxCount=1 自动一格一本（山羊角同规）
@@ -1233,7 +1233,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     // getWorldChunk 在 isChunkLoaded 已拦路后调用=绝不触发同步加载（m142 同系警惕）。
                     if (idxZ == 0 && emptyGuardZ-- > 0) {
                         mpZ.set(curCxZ << 4, yZ, curCzZ << 4);
-                        if (world.getChunkAt(mpZ).getSections()[world.getSectionIndex(yZ)].isEmpty()) {
+                        if (world.getChunkAt(mpZ).getSections()[world.getSectionIndex(yZ)].hasOnlyAir()) {
                             if (++ordZ >= chunksZ) { ordZ = 0; yZ--; be.statusDirty = true; }
                             if (yZ >= fBotZ) {
                                 curCxZ = cxZ + (ordZ % wZ) - rZ;
@@ -1264,7 +1264,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             if (fSealZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=本拍起回落免费石墙+末尾提醒
                                 sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                             }
-                            world.setBlockAndUpdate(mpZ, (fSealZ ? sealCurZ
+                            world.setBlock(mpZ, (fSealZ ? sealCurZ
                                     : net.minecraft.world.level.block.Blocks.AIR).defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
                             if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                             fluidZ++;
@@ -1311,7 +1311,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (sealHereZ && sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
                             sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                         }
-                        world.setBlockAndUpdate(mpZ, (sealHereZ ? sealCurZ
+                        world.setBlock(mpZ, (sealHereZ ? sealCurZ
                                 : net.minecraft.world.level.block.Blocks.AIR).defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料；m389 贴水边界位=石墙代替空气（作者拍板：本来就挖石头；置石免费不从产出扣料——顶层常无圆石，扣料封不上=水照灌）
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         if (cfg.chunkFxEnabled) { // m384 施法特效（服务端粒子，周围玩家都看得见零协议）
@@ -1330,7 +1330,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (sealPayZ && sealAccZ.withdraw(sealIdZ, 1) < 1) { // m396 料不够=回落免费石墙+提醒
                             sealPayZ = false; sealShortZ = true; sealCurZ = net.minecraft.world.level.block.Blocks.STONE;
                         }
-                        world.setBlockAndUpdate(mpZ, sealCurZ.defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
+                        world.setBlock(mpZ, sealCurZ.defaultBlockState(), wflagZ); // m395 快写标志位；m396 封边材料
                         if (profZ) { pfMutZ += System.nanoTime() - pM0Z; pcMutZ++; }
                         sealFillZ++;
                     }
@@ -3731,7 +3731,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m115 极端卡顿(>60ms/tick)：清理本核心周边 64 格内带 sdzjz_ejected 标签的掉落物。 */
     private void cleanupEjected(net.minecraft.server.level.ServerLevel sw) {
-        var box = net.minecraft.world.phys.AABB.of(worldPosition.getCenter(), 64, 32, 64);
+        var box = net.minecraft.world.phys.AABB.ofSize(worldPosition.getCenter(), 64, 32, 64);
         for (net.minecraft.world.entity.item.ItemEntity e : sw.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box,
                 en -> en.getCommandTags().contains("sdzjz_ejected"))) e.discard();
     }

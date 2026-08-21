@@ -224,7 +224,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         ResourceLocation id = ResourceLocation.tryParse(target.substring(0, cut));
         if (id == null) return null;
         var reg = world.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-        var entry = reg.getOptional(ResourceKey.create(Registries.ENCHANTMENT, id));
+        var entry = reg.get(ResourceKey.create(Registries.ENCHANTMENT, id));
         if (entry.isEmpty()) return null;
         Enchantment ench = entry.get().value();
         if (lv < 1 || lv > ench.getMaxLevel()) return null;

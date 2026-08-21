@@ -101,7 +101,7 @@ public class DataCableBlock extends Block implements EntityBlock {
         BlockState st = world.getBlockState(pos);
         if (!(st.getBlock() instanceof DataCableBlock)) return;
         BlockPos np = pos.relative(d);
-        world.setBlockAndUpdate(pos, st.setValue(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
+        world.setBlock(pos, st.setValue(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
     }
 
     @Override

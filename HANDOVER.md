@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m417[mojmap分支]：第三轮红 238 条清零——字典化落刀 221 处(受体祖先链+脱字符列号锚点，三重校验连续两轮 0 拦截)+人工补刀 11 处；重载分流批(ItemRenderer.renderItem 8参→render、Font.trimToWidth(String,int)→plainSubstrByWidth、Vec3.ofCenter→atCenterOf、RecipeManager.get→byKey)；自纠三处上轮误映射(removeStack 1参→removeItemNoUpdate 而非 removeItem、canInsertIntoSlot 菜单上是canTakeItemForPickAll/配方书菜单上是 shouldMoveToInventory、Item.onClicked→overrideOtherStackedOnMe)；静态工厂假朋友第二批(Box.of→AABB.ofSize、success(T,boolean)→sidedSuccess)；冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.417；下一步=推送后轮询第四轮 CI，红条数轨迹 2765→238→?）
+## 当前状态（m418[mojmap分支]：第四轮红 24 条清零，轨迹 2765→238→24 两轮各降一个数量级——arity 第三次立功：World.setBlockState 2参→setBlockAndUpdate、**3参带flags→setBlock**（8处），确认『受体+签名』才唯一而非『受体定了就唯一』；重载纠正 drawTooltip(Font,List,x,y)→renderComponentTooltip；按表直改批(addEnchantment→enchant、LevelChunkSection.isEmpty→hasOnlyAir、Pose.getPositionMatrix→pose×3、streamEntries→listElements、getOptional→get、getMatchingStacks→getItems、getOrCreate→computeIfAbsent、cannotPickup→hasPickUpDelay、Box.of→AABB.ofSize)；正则因嵌套三层括号漏网 1 处靠残余 grep 终检抓出；冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.418；下一步=推送后轮询第五轮，预期 build 首次转绿或仅剩个位数）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

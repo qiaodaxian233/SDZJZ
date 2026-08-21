@@ -207,7 +207,7 @@ public class PortableVaultItem extends Item {
         int cap = SdzjzConfig.get().portableVaultTypeCap;
         long got = 0; int kinds = 0;
         for (ItemEntity e : world.getEntitiesOfClass(ItemEntity.class,
-                AABB.ofSize(player.position(), r * 2, r * 2, r * 2), en -> !en.cannotPickup() && absorbable(en.getStack()))) {
+                AABB.ofSize(player.position(), r * 2, r * 2, r * 2), en -> !en.hasPickUpDelay() && absorbable(en.getItem()))) {
             ItemStack s = e.getItem();
             String id = BuiltInRegistries.ITEM.getKey(s.getItem()).toString();
             boolean known = v.contains(id);

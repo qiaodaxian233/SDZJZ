@@ -88,7 +88,7 @@ public class PortableVaultSlot extends Slot {
         }
 
         public static State of(MinecraftServer server) {
-            return server.overworld().getDataStorage().getOrCreate(TYPE, "sdzjz_vault_slot");
+            return server.overworld().getDataStorage().computeIfAbsent(TYPE, "sdzjz_vault_slot");
         }
 
         public ItemStack get(UUID u) {

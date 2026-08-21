@@ -228,7 +228,7 @@ public final class SciSkin {
                              float x1, float y1, float x2, float y2, int top, int bottom) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
                 ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().last().getPositionMatrix();
+        org.joml.Matrix4f mat = ctx.pose().last().pose();
         vc.addVertex(mat, x1, y1, 0).setColor(top);
         vc.addVertex(mat, x1, y2, 0).setColor(bottom);
         vc.addVertex(mat, x2, y2, 0).setColor(bottom);
@@ -240,7 +240,7 @@ public final class SciSkin {
                              float x1, float y1, float x2, float y2, int left, int right) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
                 ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().last().getPositionMatrix();
+        org.joml.Matrix4f mat = ctx.pose().last().pose();
         vc.addVertex(mat, x1, y1, 0).setColor(left);
         vc.addVertex(mat, x1, y2, 0).setColor(left);
         vc.addVertex(mat, x2, y2, 0).setColor(right);

@@ -1321,7 +1321,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         com.mojang.blaze3d.vertex.VertexConsumer vc =
                 ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().last().getPositionMatrix();
+        org.joml.Matrix4f mat = ctx.pose().last().pose();
 
         int rgb = color & 0xFFFFFF;
         float time = (System.currentTimeMillis() % 600000L) / 1000f;
@@ -1521,7 +1521,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     tip.add(Component.literal(sb.toString()));
                     if (def.consumesInputs()) tip.add(Component.literal("消耗输入（对齐原版）"));
                 }
-                ctx.renderTooltip(this.font, tip, mouseX, mouseY);
+                ctx.renderComponentTooltip(this.font, tip, mouseX, mouseY);
                 break;
             }
         }
@@ -2984,7 +2984,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
             var reg = mc.level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-            var es = reg.streamEntries().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            var es = reg.listElements().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
             es.sort(java.util.Comparator.comparing(e -> net.minecraft.world.item.enchantment.Enchantment.getFullname(e, 1).getString()));
             for (var e : es) {
                 String id = e.registryKey().getValue().toString();
@@ -3086,7 +3086,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (mc.level != null)
                 for (var e : mc.level.getRecipeManager().getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.SMELTING))
                     for (var ing : e.value().getIngredients())
-                        for (ItemStack ms : ing.getMatchingStacks()) set.add(ms.getItem());
+                        for (ItemStack ms : ing.getItems()) set.add(ms.getItem());
             // m283 候选=仓库现有可烧（作者点名"读取存储终端里有什么可以烧的，不是全选出来"）——
             // m163b 同款刀法：busIds 通道(m85/m163b,含精确条目,零新协议)∩可熔炼输入集，按仓库存量序排列
             // （busTopIds 本就多者在前=常烧的矿在最前）。端点没同步到（列表空）回退全表不堵人；

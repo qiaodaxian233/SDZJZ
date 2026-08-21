@@ -7685,3 +7685,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   本轮新增两点：随身仓库右键塞物（验 overrideOtherStackedOnMe 改名后"物品叠到仓库上"仍生效）、
   区块移除器右键开屏（验 sidedSuccess 换名后主副手返回值仍正确）。
 - 零新配置键；行为层零改动主张，待 build 绿后由 GameTest 全量用例判定。
+
+## m418 第四轮红清单 24 条清零：arity 判据第三次立功，收敛进个位数量级
+
+- **上轮战果**：m417 推送后第四轮 CI（run 32487207559）四绿两红，build 红 **24 条**
+  （轨迹 2765 → 238 → **24**，两轮各降一个数量级）。24 条无一是"成片同族"，全是零散尾巴。
+- **arity 第三次立功**——`World.setBlockState` 按参数个数分两条路（8 处）：
+  2 参 `(pos,state)` → `Level.setBlockAndUpdate`；**3 参带 flags** `(pos,state,flags)` → `LevelWriter.setBlock`。
+  m417 我一律映成 setBlockAndUpdate，被 `required: BlockPos,BlockState / found: ...,int` 整齐点名。
+  教训延伸：**同一 Yarn 名在同一受体上都可能分岔**，此前以为"受体定了就唯一"，实际"受体+签名"才唯一。
+  另：批量正则按顶层逗号切 flags 尾参时，`DataCableBlock:104` 因**嵌套三层括号**漏网，
+  靠"全库残余 grep 终检"抓出手工补——印证工作流铁律里"写盘置尾 + 残留 grep 终检"那条不是形式主义。
+- **重载分流纠正**：`GuiGraphics.drawTooltip(Font, List<Component>, x, y)` → **renderComponentTooltip**，
+  m417 我按 TSV 首个目标取了 renderTooltip（那是 `(Font, ItemStack, x, y)` 的重载），
+  被"no suitable method found"点名。
+- **按表直改批**（每条过 TSV 宿主）：`ItemStack.addEnchantment→enchant` 2、
+  `LevelChunkSection.isEmpty→hasOnlyAir` 1（假朋友：mojmap 的 isEmpty 是别的语义）、
+  `PoseStack.Pose.getPositionMatrix→pose` 3、`HolderLookup.streamEntries→listElements` 1、
+  `HolderGetter.getOptional→get` 1、`Ingredient.getMatchingStacks→getItems` 1、
+  `DimensionDataStorage.getOrCreate→computeIfAbsent` 2、`ItemEntity.cannotPickup→hasPickUpDelay` 1、
+  `ItemEntity.getStack→getItem` 1、`Box.of→AABB.ofSize` 1（m417 只改了 PortableVaultItem 那处，
+  StructureCoreBlockEntity:3734 同形态漏网）。
+- **级联自愈确认**：m417 判为"泛型未解析级联"的 3 条 Object 转型错，本轮随 streamEntries/getOptional
+  改对后确实只剩 1 条（`Enchantment.getFullname` 那处），且它挂在同一条 RegistryLookup 链上，
+  预期本轮一并消。判"级联"不硬修的口径成立。
+- **验证**：全库 javac 冒烟（155 文件）错误 3522 全为缺 MC 依赖噪音，真语法错 **0**、自家类符号错 **0**；
+  13 道离线闸全绿；`setBlockAndUpdate` 全库残余 grep=1 且确为合法 2 参调用（GameTests:489）。
+- **实机验证脚本**：沿用 m416/m417 那套，本轮新增：结构核心封边模式跑一轮（验 setBlock 三参改名后
+  快写标志位 wflag 仍按位生效，m395/m396 语义不许变）、数据线连通性改一次朝向（验 DataCableBlock
+  端头刷新仍走 flags=3）、交易所买一本附魔书（验 ItemStack.enchant 改名后附魔书不混堆不变裸）。
+- 零新配置键；行为层零改动主张，待 build 绿后由 GameTest 全量用例判定。
