@@ -15,7 +15,7 @@ public record NodeFilterPayload(BlockPos pos, int index, String entry) implement
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeFilterPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeFilterPayload::pos,
-            ByteBufCodecs.INTEGER, NodeFilterPayload::index,
+            ByteBufCodecs.INT, NodeFilterPayload::index,
             Bounded.string(128), NodeFilterPayload::entry, // m291
             NodeFilterPayload::new
     );

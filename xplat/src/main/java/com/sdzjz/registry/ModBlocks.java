@@ -20,28 +20,28 @@ import net.minecraft.core.Registry;
 public class ModBlocks {
 
     public static final StructureCoreBlock STRUCTURE_CORE =
-            reg("structure_core", new StructureCoreBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque(), 1));
+            reg("structure_core", new StructureCoreBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque(), 1));
 
     public static final SuperBenchBlock SUPER_BENCH =
-            reg("super_bench", new SuperBenchBlock(BlockBehaviour.Properties.copy(Blocks.CRAFTING_TABLE)));
+            reg("super_bench", new SuperBenchBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)));
 
     public static final DataPanelBlock DATA_PANEL =
-            reg("data_panel", new DataPanelBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("data_panel", new DataPanelBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final StorageCoreBlock STORAGE_CORE =
-            reg("storage_core", new StorageCoreBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("storage_core", new StorageCoreBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final DataCableBlock DATA_CABLE =
-            reg("data_cable", new DataCableBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("data_cable", new DataCableBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final WirelessNodeBlock WIRELESS_NODE =
-            reg("wireless_node", new WirelessNodeBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("wireless_node", new WirelessNodeBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final SatelliteNodeBlock SATELLITE_NODE =
-            reg("satellite_node", new SatelliteNodeBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("satellite_node", new SatelliteNodeBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     public static final TradeCenterBlock TRADE_CENTER =
-            reg("trade_center", new TradeCenterBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).nonOpaque()));
+            reg("trade_center", new TradeCenterBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).nonOpaque()));
 
     private static <T extends Block> T reg(String name, T block) {
         T b = Registry.register(BuiltInRegistries.BLOCK, Sdzjz.id(name), block);

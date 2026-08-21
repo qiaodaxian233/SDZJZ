@@ -154,7 +154,7 @@ public final class SciSkin {
         ctx.fill(x + 1, y, x + w - 1, y + h, frm);
         ctx.fill(x + 1, y + 1, x + w - 1, y + h - 1, face);
         vGrad(ctx, x + 1, y + 1, x + w - 1, y + h / 2f, withAlpha(termHi(), primary ? 0.25f : 0.10f), withAlpha(termHi(), 0f));
-        ctx.drawText(tr, label, x + (w - tr.getWidth(label)) / 2, y + (h - 8) / 2, termHi(), false);
+        ctx.drawString(tr, label, x + (w - tr.width(label)) / 2, y + (h - 8) / 2, termHi(), false);
     }
     public static final int GROUP_FILL = 0x142B2E56; // 画布分组框面（m192 立、m207 转靛）（极淡，透出网格不压内容）
 
@@ -166,7 +166,7 @@ public final class SciSkin {
 
     /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
     public static void drawSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {
-        ctx.drawTexture(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
+        ctx.blit(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
     }
 
     /** m120 画布卡片 · m187 质感升级：软投影(三层渐淡)+外分离暗环+平滑渐变面(顶点插值,
@@ -227,24 +227,24 @@ public final class SciSkin {
     public static void vGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int top, int bottom) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
-                ctx.getVertexConsumers().getBuffer(net.minecraft.client.renderer.RenderType.getGui());
-        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
-        vc.vertex(mat, x1, y1, 0).color(top);
-        vc.vertex(mat, x1, y2, 0).color(bottom);
-        vc.vertex(mat, x2, y2, 0).color(bottom);
-        vc.vertex(mat, x2, y1, 0).color(top);
+                ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
+        org.joml.Matrix4f mat = ctx.pose().peek().getPositionMatrix();
+        vc.addVertex(mat, x1, y1, 0).color(top);
+        vc.addVertex(mat, x1, y2, 0).color(bottom);
+        vc.addVertex(mat, x2, y2, 0).color(bottom);
+        vc.addVertex(mat, x2, y1, 0).color(top);
     }
 
     /** m187 平滑横向渐变矩形。 */
     public static void hGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int left, int right) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =
-                ctx.getVertexConsumers().getBuffer(net.minecraft.client.renderer.RenderType.getGui());
-        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
-        vc.vertex(mat, x1, y1, 0).color(left);
-        vc.vertex(mat, x1, y2, 0).color(left);
-        vc.vertex(mat, x2, y2, 0).color(right);
-        vc.vertex(mat, x2, y1, 0).color(right);
+                ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
+        org.joml.Matrix4f mat = ctx.pose().peek().getPositionMatrix();
+        vc.addVertex(mat, x1, y1, 0).color(left);
+        vc.addVertex(mat, x1, y2, 0).color(left);
+        vc.addVertex(mat, x2, y2, 0).color(right);
+        vc.addVertex(mat, x2, y1, 0).color(right);
     }
 
     /** m187 软投影：三层递缩递浓半透黑（中心叠深、边缘渐淡），替代旧单层硬边黑块。 */
@@ -319,8 +319,8 @@ public final class SciSkin {
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */
     public static void drawButton(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h, boolean hover) {
         int v = hover ? 16 : 0, cap = 8;
-        ctx.drawTexture(BUTTON_TEX, x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
-        ctx.drawTexture(BUTTON_TEX, x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);
-        ctx.drawTexture(BUTTON_TEX, x + cap, y, w - 2 * cap, h, cap, v, 200 - 2 * cap, 16, 200, 32);
+        ctx.blit(BUTTON_TEX, x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
+        ctx.blit(BUTTON_TEX, x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);
+        ctx.blit(BUTTON_TEX, x + cap, y, w - 2 * cap, h, cap, v, 200 - 2 * cap, 16, 200, 32);
     }
 }

@@ -25,7 +25,7 @@ public record NodeGroupPayload(BlockPos pos, int gid, String name, List<Integer>
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeGroupPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeGroupPayload::pos,
-            ByteBufCodecs.INTEGER, NodeGroupPayload::gid,
+            ByteBufCodecs.INT, NodeGroupPayload::gid,
             Bounded.string(64), NodeGroupPayload::name, // m291 组名(UI setMaxLength 24，协议留余量)
             Bounded.intList(4096), NodeGroupPayload::members, // m291 协议硬顶(玩法上限 maxNodes 可调，协议顶只防分配放大)
             NodeGroupPayload::new

@@ -16,16 +16,16 @@ import java.util.List;
  */
 public class SensorNodeItem extends MachineItem {
 
-    public SensorNodeItem(Settings settings, MachineDef def) {
+    public SensorNodeItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("画布逻辑节点：按存储量开/关物流闸门").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("例：铁锭 < 10000 才放行 → 自动补货防爆仓").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("闸门关闭时上游机器整台暂停（不白产）").formatted(ChatFormatting.DARK_GREEN));
-        tooltip.add(Component.literal("默认监测主存储；连一条 存储→传感器 供料线=监测那个库").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("放入画布后右键节点配置").formatted(ChatFormatting.GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("画布逻辑节点：按存储量开/关物流闸门").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("例：铁锭 < 10000 才放行 → 自动补货防爆仓").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("闸门关闭时上游机器整台暂停（不白产）").withStyle(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("默认监测主存储；连一条 存储→传感器 供料线=监测那个库").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("放入画布后右键节点配置").withStyle(ChatFormatting.GRAY));
     }
 }

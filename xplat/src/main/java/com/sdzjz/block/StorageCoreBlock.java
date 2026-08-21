@@ -24,53 +24,53 @@ import org.jetbrains.annotations.Nullable;
 /** 存储核心方块：手持存储升级右键=升级(提升类型上限)；空手右键=显示用量。 */
 public class StorageCoreBlock extends BaseEntityBlock {
 
-    public static final MapCodec<StorageCoreBlock> CODEC = createCodec(StorageCoreBlock::new);
+    public static final MapCodec<StorageCoreBlock> CODEC = simpleCodec(StorageCoreBlock::new);
 
     public StorageCoreBlock(Properties settings) {
         super(settings);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> getCodec() {
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
     }
 
     @Nullable
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new StorageCoreBlockEntity(pos, state);
     }
 
     @Override
-    protected RenderShape getRenderType(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level world, BlockState state, BlockEntityType<T> type) {
-        if (world.isClient) return null;
-        return validateTicker(type, ModBlockEntities.STORAGE_CORE_BE, StorageCoreBlockEntity::tick);
+        if (world.isClientSide) return null;
+        return createTickerHelper(type, ModBlockEntities.STORAGE_CORE_BE, StorageCoreBlockEntity::tick);
     }
 
     @Override
-    protected InteractionResult onUse(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
-        if (world.isClient) return InteractionResult.SUCCESS;
+    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        if (world.isClientSide) return InteractionResult.SUCCESS;
         if (!(world.getBlockEntity(pos) instanceof StorageCoreBlockEntity core)) return InteractionResult.SUCCESS;
-        ItemStack held = player.getStackInHand(InteractionHand.MAIN_HAND);
-        if (held.isOf(ModItems.STORAGE_UPGRADE)) {
+        ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (held.is(ModItems.STORAGE_UPGRADE)) {
             if (core.maxTypes() == Integer.MAX_VALUE) { // m98：无限类型下不白扣升级
-                player.sendMessage(Component.literal("存储核心为无限类型，无需升级（config storageTypesPerTier 可启用上限机制）"), true);
+                player.displayClientMessage(Component.literal("存储核心为无限类型，无需升级（config storageTypesPerTier 可启用上限机制）"), true);
                 return InteractionResult.SUCCESS;
             }
             core.upgrade();
-            held.decrement(1);
-            player.sendMessage(Component.literal("存储核心已升级：类型上限 " + core.maxTypes()), true);
+            held.shrink(1);
+            player.displayClientMessage(Component.literal("存储核心已升级：类型上限 " + core.maxTypes()), true);
             return InteractionResult.SUCCESS;
         }
         if (held.isEmpty()) {
             String cap = core.maxTypes() == Integer.MAX_VALUE ? "已存 " + core.usedTypes() + " 种 · 类型无限"
                     : "类型 " + core.usedTypes() + "/" + core.maxTypes();
-            player.sendMessage(Component.literal("存储核心：" + cap + "（用数据面板/终端访问内容）"), true);
+            player.displayClientMessage(Component.literal("存储核心：" + cap + "（用数据面板/终端访问内容）"), true);
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;

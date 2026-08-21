@@ -21,7 +21,7 @@ import java.util.List;
  */
 public class ChunkDataCoreItem extends Item {
 
-    public ChunkDataCoreItem(Settings settings) {
+    public ChunkDataCoreItem(Properties settings) {
         super(settings);
     }
 
@@ -40,15 +40,15 @@ public class ChunkDataCoreItem extends Item {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         if (n.contains("tid")) {
-            tooltip.add(Component.literal("源区块 (" + n.getInt("ox") + ", " + n.getInt("oz") + ") · " + n.getString("dim")).formatted(ChatFormatting.AQUA));
-            tooltip.add(Component.literal("可重建方块 " + n.getLong("tt") + " · 材料 " + n.getInt("ty") + " 种").formatted(ChatFormatting.GRAY));
-            tooltip.add(Component.literal("模板 " + n.getString("tid").substring(0, 8) + "…（服务端模板库）").formatted(ChatFormatting.DARK_GRAY));
+            tooltip.add(Component.literal("源区块 (" + n.getInt("ox") + ", " + n.getInt("oz") + ") · " + n.getString("dim")).withStyle(ChatFormatting.AQUA));
+            tooltip.add(Component.literal("可重建方块 " + n.getLong("tt") + " · 材料 " + n.getInt("ty") + " 种").withStyle(ChatFormatting.GRAY));
+            tooltip.add(Component.literal("模板 " + n.getString("tid").substring(0, 8) + "…（服务端模板库）").withStyle(ChatFormatting.DARK_GRAY));
         } else {
-            tooltip.add(Component.literal("空核心（未关联模板——只能由区块储存器产出）").formatted(ChatFormatting.RED));
+            tooltip.add(Component.literal("空核心（未关联模板——只能由区块储存器产出）").withStyle(ChatFormatting.RED));
         }
-        tooltip.add(Component.literal("交给区块复制器即可异地重建（收料照模板 BOM）").formatted(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("交给区块复制器即可异地重建（收料照模板 BOM）").withStyle(ChatFormatting.LIGHT_PURPLE));
     }
 }

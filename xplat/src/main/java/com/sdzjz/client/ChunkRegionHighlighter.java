@@ -62,19 +62,19 @@ public final class ChunkRegionHighlighter {
         SdzjzConfig cfg = SdzjzConfig.get();
         if (!cfg.chunkFxEnabled) { gateLog("chunkFxEnabled=false"); return; }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
-        String dim = mc.world.getRegistryKey().getValue().toString();
-        double y1 = mc.world.getBottomY(), y2 = mc.world.getTopY();
-        ms.push();
+        String dim = mc.level.dimension().location().toString();
+        double y1 = mc.level.getMinBuildHeight(), y2 = mc.level.getMaxBuildHeight();
+        ms.pushPose();
         ms.translate(-cam.x, -cam.y, -cam.z); // 顶点必须相对相机（fabric 原文 IMPORTANT 条）
-        float pulse = 0.55f + 0.35f * (float) Math.sin(Util.getMeasuringTimeMs() / 300.0);
+        float pulse = 0.55f + 0.35f * (float) Math.sin(Util.getMillis() / 300.0);
         java.util.HashSet<Long> seen = new java.util.HashSet<>(8); // 同区域去重（键=中心分块，工作态先画即占位）
         boolean any = false;
 
         // ① 工作态：附近核心里已绑定未清完的移除器（作者点名"放进核心也显示边框"）
         if (cfg.chunkHighlightRunning) {
-            long now = Util.getMeasuringTimeMs();
+            long now = Util.getMillis();
             if (now >= nextScanMs || !dim.equals(scanDim)) { nextScanMs = now + 500L; scanDim = dim; rescan(mc, dim, cfg); }
             for (int k = 0; k < WORKING.size(); k++) {
                 int[] a = WORKING.get(k);
@@ -85,8 +85,8 @@ public final class ChunkRegionHighlighter {
         }
 
         // ② 瞄准态：手持已绑定的移除器
-        ItemStack held = mc.player.getMainHandStack();
-        if (!(held.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) held = mc.player.getOffHandStack();
+        ItemStack held = mc.player.getMainHandItem();
+        if (!(held.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) held = mc.player.getOffhandItem();
         if (held.getItem() instanceof com.sdzjz.item.ChunkRemoverItem
                 && NodeTags.chunkBound(held)
                 && dim.equals(NodeTags.chunkDim(held))) {
@@ -97,7 +97,7 @@ public final class ChunkRegionHighlighter {
                 any = true;
             }
         }
-        ms.pop();
+        ms.popPose();
 
         if (any && !loggedDraw) {
             loggedDraw = true;
@@ -116,15 +116,15 @@ public final class ChunkRegionHighlighter {
         int w = 2 * r + 1;
         double x1 = (double) ((cx - r) << 4), z1 = (double) ((cz - r) << 4);
         double x2 = x1 + w * 16.0, z2 = z1 + w * 16.0;
-        VertexConsumer vc = consumers.getBuffer(RenderType.getLines());
-        LevelRenderer.drawBox(ms, vc, x1, y1, z1, x2, y2, z2, cr, cg, cb, pulse);
-        LevelRenderer.drawBox(ms, vc, x1 + 0.06, y1, z1 + 0.06, x2 - 0.06, y2, z2 - 0.06,
+        VertexConsumer vc = consumers.getBuffer(RenderType.lines());
+        LevelRenderer.renderLineBox(ms, vc, x1, y1, z1, x2, y2, z2, cr, cg, cb, pulse);
+        LevelRenderer.renderLineBox(ms, vc, x1 + 0.06, y1, z1 + 0.06, x2 - 0.06, y2, z2 - 0.06,
                 Math.min(1.0f, cr + 0.13f), Math.min(1.0f, cg + 0.20f), Math.min(1.0f, cb + 0.10f), pulse * 0.8f); // m385 双画内缩伪加粗
         if (r > 0) { // 内部分块格线（退化盒=恒淡竖直隔板框，玩家一眼读出 3×3/5×5）
             for (int gi = 1; gi < w; gi++) {
                 double gx = x1 + gi * 16.0, gz = z1 + gi * 16.0;
-                LevelRenderer.drawBox(ms, vc, gx, y1, z1, gx, y2, z2, cr * 0.85f, cg * 0.85f, cb * 0.90f, 0.25f);
-                LevelRenderer.drawBox(ms, vc, x1, y1, gz, x2, y2, gz, cr * 0.85f, cg * 0.85f, cb * 0.90f, 0.25f);
+                LevelRenderer.renderLineBox(ms, vc, gx, y1, z1, gx, y2, z2, cr * 0.85f, cg * 0.85f, cb * 0.90f, 0.25f);
+                LevelRenderer.renderLineBox(ms, vc, x1, y1, gz, x2, y2, gz, cr * 0.85f, cg * 0.85f, cb * 0.90f, 0.25f);
             }
         }
         if (cfg.chunkHighlightXray) xray(ms, consumers, x1, y1, z1, x2, y2, z2, cr, cg, cb);
@@ -136,9 +136,9 @@ public final class ChunkRegionHighlighter {
     private static void xray(PoseStack ms, MultiBufferSource consumers,
                              double x1, double y1, double z1, double x2, double y2, double z2,
                              float cr, float cg, float cb) {
-        RenderType layer = RenderType.getDebugLineStrip(2.0);
+        RenderType layer = RenderType.debugLineStrip(2.0);
         VertexConsumer vc = consumers.getBuffer(layer);
-        org.joml.Matrix4f m = ms.peek().getPositionMatrix();
+        org.joml.Matrix4f m = ms.last().getPositionMatrix();
         float r = cr * 0.75f, g = cg * 0.75f, b = cb * 0.75f, a = 0.60f;
         float ax = (float) x1, bx = (float) x2, az = (float) z1, bz = (float) z2, ay = (float) y1, by = (float) y2;
         // 单笔路径：底框四棱 → 立柱与顶框交替（每根立柱上去、走一条顶棱、原路回描下来）
@@ -151,12 +151,12 @@ public final class ChunkRegionHighlighter {
         pt(vc, m, bx, by, bz, r, g, b, a); pt(vc, m, ax, by, bz, r, g, b, a);
         pt(vc, m, ax, ay, bz, r, g, b, a); pt(vc, m, ax, by, bz, r, g, b, a);
         pt(vc, m, ax, by, az, r, g, b, a);
-        if (consumers instanceof MultiBufferSource.BufferSource imm) imm.draw(layer);
+        if (consumers instanceof MultiBufferSource.BufferSource imm) imm.endBatch(layer);
     }
 
     private static void pt(VertexConsumer vc, org.joml.Matrix4f m, float x, float y, float z,
                            float r, float g, float b, float a) {
-        vc.vertex(m, x, y, z).color(r, g, b, a);
+        vc.addVertex(m, x, y, z).color(r, g, b, a);
     }
 
     /** m393 工作态重扫：遍历玩家周边已加载分块的方块实体表，收核心画布里的移除器节点选区。
@@ -165,13 +165,13 @@ public final class ChunkRegionHighlighter {
     private static void rescan(Minecraft mc, String dim, SdzjzConfig cfg) {
         WORKING.clear();
         int rad = Math.max(1, Math.min(16, cfg.chunkHighlightScanChunks));
-        int pcx = mc.player.getBlockPos().getX() >> 4, pcz = mc.player.getBlockPos().getZ() >> 4;
-        net.minecraft.world.level.chunk.ChunkSource cm = mc.world.getChunkManager();
+        int pcx = mc.player.blockPosition().getX() >> 4, pcz = mc.player.blockPosition().getZ() >> 4;
+        net.minecraft.world.level.chunk.ChunkSource cm = mc.level.getChunkManager();
         for (int dx = -rad; dx <= rad; dx++) {
             for (int dz = -rad; dz <= rad; dz++) {
                 int cx = pcx + dx, cz = pcz + dz;
-                if (!cm.isChunkLoaded(cx, cz)) continue;
-                net.minecraft.world.level.chunk.LevelChunk ch = cm.getWorldChunk(cx, cz);
+                if (!cm.hasChunk(cx, cz)) continue;
+                net.minecraft.world.level.chunk.LevelChunk ch = cm.getChunkNow(cx, cz);
                 if (ch == null) continue;
                 for (net.minecraft.world.level.block.entity.BlockEntity be : ch.getBlockEntities().values()) {
                     if (!(be instanceof com.sdzjz.block.StructureCoreBlockEntity core)) continue;

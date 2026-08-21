@@ -44,9 +44,9 @@ public final class SatelliteNodeModel implements UnbakedModel {
     private static final ResourceLocation MODEL_ID = ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_node");
     private static final ResourceLocation GEO_ID = ResourceLocation.fromNamespaceAndPath("sdzjz", "models/block/satellite_node_geo.json");
     private static final Material ATLAS = new Material(
-            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_node_atlas"));
+            TextureAtlas.LOCATION_BLOCKS, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_node_atlas"));
     private static final Material JOINT = new Material(
-            TextureAtlas.BLOCK_ATLAS_TEXTURE, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_dish_joint"));
+            TextureAtlas.LOCATION_BLOCKS, ResourceLocation.fromNamespaceAndPath("sdzjz", "block/satellite_dish_joint"));
 
     /** m156：BER 接管渲染时静态模型烘空壳（只留粒子 sprite）——否则双重渲染。
      *  BER 若编译/运行出问题，把这里改 false 即回 m151 静态渲染兜底。 */
@@ -72,7 +72,7 @@ public final class SatelliteNodeModel implements UnbakedModel {
     }
 
     private static JsonArray loadGeo() {
-        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
+        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).open()) {
             var root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             if (root.isJsonObject()) return root.getAsJsonObject().getAsJsonArray("quads"); // m156 v2 格式
             return root.getAsJsonArray();
@@ -82,8 +82,8 @@ public final class SatelliteNodeModel implements UnbakedModel {
         }
     }
 
-    @Override public Collection<ResourceLocation> getModelDependencies() { return Collections.emptyList(); }
-    @Override public void setParents(Function<ResourceLocation, UnbakedModel> modelLoader) {}
+    @Override public Collection<ResourceLocation> getDependencies() { return Collections.emptyList(); }
+    @Override public void resolveParents(Function<ResourceLocation, UnbakedModel> modelLoader) {}
 
     @Override
     public BakedModel bake(ModelBaker baker, Function<Material, TextureAtlasSprite> textureGetter, ModelState settings) {
@@ -105,8 +105,8 @@ public final class SatelliteNodeModel implements UnbakedModel {
                 data[o + 1] = Float.floatToRawIntBits(y);
                 data[o + 2] = Float.floatToRawIntBits(z);
                 data[o + 3] = 0xFFFFFFFF; // 白，光照着色交给渲染管线
-                data[o + 4] = Float.floatToRawIntBits(spr.getFrameU(u / 16f));
-                data[o + 5] = Float.floatToRawIntBits(spr.getFrameV(vv / 16f));
+                data[o + 4] = Float.floatToRawIntBits(spr.getU(u / 16f));
+                data[o + 5] = Float.floatToRawIntBits(spr.getV(vv / 16f));
                 data[o + 6] = 0;          // lightmap 由方块光决定
                 data[o + 7] = packedN;
             }
@@ -116,7 +116,7 @@ public final class SatelliteNodeModel implements UnbakedModel {
     }
 
     private static Direction faceOf(float nx, float ny, float nz) {
-        return Direction.getFacing(nx, ny, nz);
+        return Direction.getNearest(nx, ny, nz);
     }
 
     private record Baked(List<BakedQuad> all, TextureAtlasSprite particle) implements BakedModel {
@@ -124,11 +124,11 @@ public final class SatelliteNodeModel implements UnbakedModel {
             return face == null ? all : Collections.emptyList(); // 不做邻面剔除：斜面几何塞方向桶会被邻方块错误剔掉
         }
         @Override public boolean useAmbientOcclusion() { return false; } // 薄件斜面吃 AO 会出黑斑
-        @Override public boolean hasDepth() { return true; }
-        @Override public boolean isSideLit() { return true; }
-        @Override public boolean isBuiltin() { return false; }
-        @Override public TextureAtlasSprite getParticleSprite() { return particle; }
-        @Override public ItemTransforms getTransformation() { return ItemTransforms.NONE; }
+        @Override public boolean isGui3d() { return true; }
+        @Override public boolean usesBlockLight() { return true; }
+        @Override public boolean isCustomRenderer() { return false; }
+        @Override public TextureAtlasSprite getParticleIcon() { return particle; }
+        @Override public ItemTransforms getTransforms() { return ItemTransforms.NO_TRANSFORMS; }
         @Override public ItemOverrides getOverrides() { return ItemOverrides.EMPTY; }
     }
 }

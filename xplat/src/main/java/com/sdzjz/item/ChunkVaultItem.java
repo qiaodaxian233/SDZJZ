@@ -59,33 +59,33 @@ public class ChunkVaultItem extends MachineItem {
         }
     }
 
-    public ChunkVaultItem(Settings settings, MachineDef def) {
+    public ChunkVaultItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public InteractionResult useOnBlock(UseOnContext ctx) {
-        Level world = ctx.getWorld();
-        if (world.isClient) return InteractionResult.SUCCESS;
-        BlockPos pos = ctx.getBlockPos();
-        ItemStack stack = ctx.getStack();
+    public InteractionResult useOn(UseOnContext ctx) {
+        Level world = ctx.getLevel();
+        if (world.isClientSide) return InteractionResult.SUCCESS;
+        BlockPos pos = ctx.getClickedPos();
+        ItemStack stack = ctx.getItemInHand();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("zx", cx);
         n.putInt("zz", cz);
-        n.putString("zd", world.getRegistryKey().getValue().toString());
-        n.putInt("zy", world.getTopY() - 1);
+        n.putString("zd", world.dimension().location().toString());
+        n.putInt("zy", world.getMaxBuildHeight() - 1);
         n.putInt("zi", 0);
         n.remove("tf"); n.remove("tu"); n.remove("tt"); // 重绑=新扫新模板（旧模板留库不动）
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         if (ctx.getPlayer() != null)
-            ctx.getPlayer().sendMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开始存档"), true);
+            ctx.getPlayer().displayClientMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开始存档"), true);
         return InteractionResult.SUCCESS;
     }
 
     /** 扫描中游标落盘（zy/zi 复用移除器 z 族）。 */
     public static void cursor(ItemStack s, int y, int idx) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("zy", y);
         n.putInt("zi", idx);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
@@ -93,7 +93,7 @@ public class ChunkVaultItem extends MachineItem {
 
     /** 存档收官：就绪位+模板 UUID+可重建总数落节点（卡面读数）。 */
     public static void finish(ItemStack s, String uuid, long total) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putBoolean("tf", true);
         n.putString("tu", uuid);
         n.putLong("tt", total);
@@ -101,11 +101,11 @@ public class ChunkVaultItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("区块存档：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("放入画布后只读扫描存成模板，产出\"区块数据核心\"×1").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("空气/基岩/箱子等方块实体/水岩浆火传送门 不入模板").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("模板存服务端库（config 封顶），核心只揣引用——丢核心≠丢模板").formatted(ChatFormatting.DARK_GRAY));
-        tooltip.add(Component.literal("重绑=新扫新模板；配区块复制器重建（收料照模板 BOM）").formatted(ChatFormatting.LIGHT_PURPLE));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("区块存档：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后只读扫描存成模板，产出\"区块数据核心\"×1").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("空气/基岩/箱子等方块实体/水岩浆火传送门 不入模板").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("模板存服务端库（config 封顶），核心只揣引用——丢核心≠丢模板").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("重绑=新扫新模板；配区块复制器重建（收料照模板 BOM）").withStyle(ChatFormatting.LIGHT_PURPLE));
     }
 }

@@ -18,8 +18,8 @@ public record StorageNodeMovePayload(BlockPos pos, long storagePos, int nx, int 
     public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeMovePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, StorageNodeMovePayload::pos,
             ByteBufCodecs.VAR_LONG, StorageNodeMovePayload::storagePos,
-            ByteBufCodecs.INTEGER, StorageNodeMovePayload::nx,
-            ByteBufCodecs.INTEGER, StorageNodeMovePayload::ny,
+            ByteBufCodecs.INT, StorageNodeMovePayload::nx,
+            ByteBufCodecs.INT, StorageNodeMovePayload::ny,
             ByteBufCodecs.BOOL, StorageNodeMovePayload::dock,
             StorageNodeMovePayload::new
     );

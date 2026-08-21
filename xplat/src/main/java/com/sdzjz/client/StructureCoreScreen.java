@@ -155,7 +155,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     private boolean cacheHit() {
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         return p != null && p.asLong() == endsCachePos;
     }
 
@@ -186,7 +186,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (System.currentTimeMillis() <= until) return homesHold.get(pl); // hold 值为 null=按住"停靠"
             homesHoldUntil.remove(pl); homesHold.remove(pl);
         }
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (p != null && p.asLong() == homesCachePos) return homesCache.get(pl);
         return be != null && be.storageNodePlaced(pl)
                 ? new int[]{be.storageNodeX(pl, 0), be.storageNodeY(pl, 0)} : null; // 缓存未热身走 BE 后备（m89 口径）
@@ -296,8 +296,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     public StructureCoreScreen(StructureCoreScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
-        this.backgroundWidth = 360;
-        this.backgroundHeight = 256;
+        this.imageWidth = 360;
+        this.imageHeight = 256;
     }
 
     @Override
@@ -305,10 +305,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         super.init();
         // m121 画布全屏：把 GUI 占位声明成整屏（x/y=0）——JEI/REI 只往界面右侧空余区放列表，
         // 判定没空间就自动隐藏；本 handler 零槽位，挪 x/y 不影响任何槽渲染。背包等物品界面 JEI 照常。
-        this.x = 0; this.y = 0;
-        this.backgroundWidth = this.width;
-        this.backgroundHeight = this.height;
-        BlockPos p = this.handler.blockPos();
+        this.leftPos = 0; this.topPos = 0;
+        this.imageWidth = this.width;
+        this.imageHeight = this.height;
+        BlockPos p = this.menu.blockPos();
         if (p != null && VIEW.containsKey(p)) {
             double[] v = VIEW.get(p);
             setViewInstant(v[0], v[1], v[2]); // m186 恢复视图走直设，顺带对齐动效目标
@@ -326,69 +326,69 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 new TermButton(0, 0, bbW[4], bbH, Component.literal("重置视角"), b -> setViewInstant(0, 0, 1.0))
         };
         layoutBottomButtons();
-        for (TermButton btn : bottomBtns) this.addDrawableChild(btn);
-        this.addDrawableChild(new TermButton(132, 2, 60, 16, Component.literal("机器库"), b -> libOpen = !libOpen)); // m88
-        this.addDrawableChild(new TermButton(196, 2, 44, 16, Component.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
-        this.addDrawableChild(new TermButton(244, 2, 44, 16, Component.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
+        for (TermButton btn : bottomBtns) this.addRenderableWidget(btn);
+        this.addRenderableWidget(new TermButton(132, 2, 60, 16, Component.literal("机器库"), b -> libOpen = !libOpen)); // m88
+        this.addRenderableWidget(new TermButton(196, 2, 44, 16, Component.literal("地图"), b -> mapOpen = !mapOpen)); // m110a
+        this.addRenderableWidget(new TermButton(244, 2, 44, 16, Component.translatable("sdzjz.canvas.settings"), // m199 画布设置面板；244+44=288≤312，320 最小视口安全边距内（m182 口径核过）
                 b -> { if (settingsOpen) closeSettings(); else openSettings(); }));
-        this.addDrawableChild(new TermButton(292, 2, 40, 16, Component.translatable("sdzjz.canvas.status"), // m219 状态区开合（即点即存；320 极窄视口下与右簇重叠属既有降级，见 DEVLOG）
+        this.addRenderableWidget(new TermButton(292, 2, 40, 16, Component.translatable("sdzjz.canvas.status"), // m219 状态区开合（即点即存；320 极窄视口下与右簇重叠属既有降级，见 DEVLOG）
                 b -> { com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen = !com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen;
                        com.sdzjz.config.SdzjzConfig.save(); layoutBottomButtons(); }));
-        this.addDrawableChild(new TermButton(336, 2, 40, 16, Component.translatable("sdzjz.canvas.help"), // m219 帮助卡（操作提示行迁入）
+        this.addRenderableWidget(new TermButton(336, 2, 40, 16, Component.translatable("sdzjz.canvas.help"), // m219 帮助卡（操作提示行迁入）
                 b -> helpOpen = !helpOpen));
         int wr2 = this.width - 8; // m121 视图控制随全屏右移
-        this.addDrawableChild(new TermButton(wr2 - 170, 2, 16, 16, Component.literal("−"), b -> zoomBy(1 / 1.2)));
-        this.addDrawableChild(new TermButton(wr2 - 106, 2, 16, 16, Component.literal("+"), b -> zoomBy(1.2)));
-        this.addDrawableChild(new TermButton(wr2 - 86, 2, 78, 16, Component.literal("适应视图"), b -> fitView()));
-        String keep = pickerField != null ? pickerField.getText() : "";
-        this.pickerField = new EditBox(this.textRenderer, 0, 0, PICK_W - 16, 14, Component.literal("搜索"));
-        this.pickerField.setChangedListener(t -> refilterPicker());
-        this.pickerField.setText(keep);
-        String keepG = renameField != null ? renameField.getText() : ""; // m192 组重命名输入框（照 pickerField 在树写法）
-        this.renameField = new EditBox(this.textRenderer, 0, 0, 184, 14, Component.empty()); // 占位仅narration不上屏，empty保literal棘轮
+        this.addRenderableWidget(new TermButton(wr2 - 170, 2, 16, 16, Component.literal("−"), b -> zoomBy(1 / 1.2)));
+        this.addRenderableWidget(new TermButton(wr2 - 106, 2, 16, 16, Component.literal("+"), b -> zoomBy(1.2)));
+        this.addRenderableWidget(new TermButton(wr2 - 86, 2, 78, 16, Component.literal("适应视图"), b -> fitView()));
+        String keep = pickerField != null ? pickerField.getValue() : "";
+        this.pickerField = new EditBox(this.font, 0, 0, PICK_W - 16, 14, Component.literal("搜索"));
+        this.pickerField.setResponder(t -> refilterPicker());
+        this.pickerField.setValue(keep);
+        String keepG = renameField != null ? renameField.getValue() : ""; // m192 组重命名输入框（照 pickerField 在树写法）
+        this.renameField = new EditBox(this.font, 0, 0, 184, 14, Component.empty()); // 占位仅narration不上屏，empty保literal棘轮
         this.renameField.setMaxLength(24);
-        this.renameField.setText(keepG);
-        String keepO = wireOutField != null ? wireOutField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor; // m199 颜色框：重排保留输入，首建取配置现值
-        this.wireOutField = new EditBox(this.textRenderer, 0, 0, 58, 14, Component.empty()); // 占位仅narration，empty保literal棘轮（m192 教训）
+        this.renameField.setValue(keepG);
+        String keepO = wireOutField != null ? wireOutField.getValue() : com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor; // m199 颜色框：重排保留输入，首建取配置现值
+        this.wireOutField = new EditBox(this.font, 0, 0, 58, 14, Component.empty()); // 占位仅narration，empty保literal棘轮（m192 教训）
         this.wireOutField.setMaxLength(7);
-        this.wireOutField.setText(keepO == null ? "" : keepO);
-        this.wireOutField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor = t.trim()); // live 写实例=连线即时预览（SciSkin 串比缓存自动重解析）；落盘在关窗
-        String keepI = wireInField != null ? wireInField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasWireInColor;
-        this.wireInField = new EditBox(this.textRenderer, 0, 0, 58, 14, Component.empty());
+        this.wireOutField.setValue(keepO == null ? "" : keepO);
+        this.wireOutField.setResponder(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor = t.trim()); // live 写实例=连线即时预览（SciSkin 串比缓存自动重解析）；落盘在关窗
+        String keepI = wireInField != null ? wireInField.getValue() : com.sdzjz.config.SdzjzConfig.get().canvasWireInColor;
+        this.wireInField = new EditBox(this.font, 0, 0, 58, 14, Component.empty());
         this.wireInField.setMaxLength(7);
-        this.wireInField.setText(keepI == null ? "" : keepI);
-        this.wireInField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireInColor = t.trim());
-        String keepB = bgField != null ? bgField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasBgColor; // m217 背景色/网格色框（wire 同款：live 写实例即时预览，落盘在关窗）
-        this.bgField = new EditBox(this.textRenderer, 0, 0, 58, 14, Component.empty());
+        this.wireInField.setValue(keepI == null ? "" : keepI);
+        this.wireInField.setResponder(t -> com.sdzjz.config.SdzjzConfig.get().canvasWireInColor = t.trim());
+        String keepB = bgField != null ? bgField.getValue() : com.sdzjz.config.SdzjzConfig.get().canvasBgColor; // m217 背景色/网格色框（wire 同款：live 写实例即时预览，落盘在关窗）
+        this.bgField = new EditBox(this.font, 0, 0, 58, 14, Component.empty());
         this.bgField.setMaxLength(7);
-        this.bgField.setText(keepB == null ? "" : keepB);
-        this.bgField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasBgColor = t.trim());
-        String keepGc = gridColField != null ? gridColField.getText() : com.sdzjz.config.SdzjzConfig.get().canvasGridColor;
-        this.gridColField = new EditBox(this.textRenderer, 0, 0, 58, 14, Component.empty());
+        this.bgField.setValue(keepB == null ? "" : keepB);
+        this.bgField.setResponder(t -> com.sdzjz.config.SdzjzConfig.get().canvasBgColor = t.trim());
+        String keepGc = gridColField != null ? gridColField.getValue() : com.sdzjz.config.SdzjzConfig.get().canvasGridColor;
+        this.gridColField = new EditBox(this.font, 0, 0, 58, 14, Component.empty());
         this.gridColField.setMaxLength(7);
-        this.gridColField.setText(keepGc == null ? "" : keepGc);
-        this.gridColField.setChangedListener(t -> com.sdzjz.config.SdzjzConfig.get().canvasGridColor = t.trim());
+        this.gridColField.setValue(keepGc == null ? "" : keepGc);
+        this.gridColField.setResponder(t -> com.sdzjz.config.SdzjzConfig.get().canvasGridColor = t.trim());
     }
 
     @Override
     public void removed() {
         if (zoomAnim) { zoom = zoomTarget; panX = zoomAnchorSx - zoomAnchorWx * zoom; panY = zoomAnchorSy - zoomAnchorWy * zoom; zoomAnim = false; } // m186 结算未完动效再存视图
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (p != null) VIEW.put(p, new double[]{panX, panY, zoom});
         if (settingsOpen) com.sdzjz.config.SdzjzConfig.save(); // m199 设置窗开着直接关屏也把颜色改动落盘
         super.removed();
     }
 
     private void click(int id) {
-        if (this.client != null && this.client.interactionManager != null) {
-            this.client.interactionManager.clickButton(this.handler.syncId, id);
+        if (this.minecraft != null && this.minecraft.gameMode != null) {
+            this.minecraft.gameMode.clickButton(this.menu.containerId, id);
         }
     }
 
     private StructureCoreBlockEntity be() {
-        BlockPos p = this.handler.blockPos();
-        if (p != null && this.client != null && this.client.world != null
-                && this.client.world.getBlockEntity(p) instanceof StructureCoreBlockEntity c) return c;
+        BlockPos p = this.menu.blockPos();
+        if (p != null && this.minecraft != null && this.minecraft.world != null
+                && this.minecraft.world.getBlockEntity(p) instanceof StructureCoreBlockEntity c) return c;
         return null;
     }
 
@@ -420,9 +420,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** m88 机器库：背包里可入画布的物品去重合并计数。 */
     private List<ItemStack> libItems() {
         List<ItemStack> out = new java.util.ArrayList<>();
-        if (this.client == null || this.client.player == null) return out;
+        if (this.minecraft == null || this.minecraft.player == null) return out;
         java.util.LinkedHashMap<net.minecraft.world.item.Item, Integer> m2 = new java.util.LinkedHashMap<>();
-        var inv = this.client.player.getInventory();
+        var inv = this.minecraft.player.getInventory();
         for (int i = 0; i < inv.size(); i++) {
             ItemStack st = inv.getStack(i);
             if (st.isEmpty() || !nodeInsertable(st)) continue;
@@ -442,8 +442,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     /** m87：文本按宽度截断，尾加省略号——底栏任何文字不越 JEI 界。 */
     private String fitText(String t, int maxW) {
-        if (this.textRenderer.getWidth(t) <= maxW) return t;
-        while (!t.isEmpty() && this.textRenderer.getWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
+        if (this.font.getWidth(t) <= maxW) return t;
+        while (!t.isEmpty() && this.font.getWidth(t + "…") > maxW) t = t.substring(0, t.length() - 1);
         return t + "…";
     }
 
@@ -530,11 +530,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     @Override
-    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
+    protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
         ctx.fill(0, 0, this.width, this.height, SciSkin.canvasBg()); // m203 全屏底随主题；m217 配置可覆盖（空=跟随主题墨色）
         if (com.sdzjz.config.SdzjzConfig.get().canvasBgDecor && !SciSkin.canvasBgOverridden()) // m220 设了背景色=纯色画布，装饰底图让位（作者截图：改色无感+装饰边碍眼同根）；canvasBgDecor=false 可无条件关
-            ctx.drawTexture(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
+            ctx.blit(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
         SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
         // m210 底栏浅带迁到背景层：AbstractContainerScreen 帧序=背景→按钮→前景，m203 的不透明浅带留在前景层
@@ -600,8 +600,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         boolean bundleOn = !gm.isEmpty() && com.sdzjz.config.SdzjzConfig.get().canvasGroupBundleWires; // m193 归并开关
         // m192 组框（最底层：存储线/机器线/卡片全画其上）——世界坐标独立一次变换
         if (!gm.isEmpty()) {
-            PoseStack mg = ctx.getMatrices();
-            mg.push();
+            PoseStack mg = ctx.pose();
+            mg.pushPose();
             mg.translate(panX, panY, 0);
             mg.scale((float) zoom, (float) zoom, 1);
             for (var ge : gm.entrySet()) {
@@ -615,10 +615,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 ctx.fill(r[0], r[1], r[0] + 1, r[3], fc);
                 ctx.fill(r[2] - 1, r[1], r[2], r[3], fc);
                 ctx.fill(r[0], r[1] + GBAND - 1, r[2], r[1] + GBAND, SciSkin.withAlpha(fc, 0.45f));
-                ctx.drawText(this.textRenderer, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
+                ctx.drawString(this.font, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
                         + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
             }
-            mg.pop();
+            mg.popPose();
         }
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
@@ -681,8 +681,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             }
         }
 
-        PoseStack m = ctx.getMatrices();
-        m.push();
+        PoseStack m = ctx.pose();
+        m.pushPose();
         m.translate(panX, panY, 0);
         m.scale((float) zoom, (float) zoom, 1);
 
@@ -748,7 +748,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (StructureCoreBlockEntity.nodePaused(nodes.get(i))) { // m110b 暂停视觉：压暗+角标
                 ctx.fill(nx, ny, nx + NW, ny + NH, 0x66000000);
                 ctx.fill(nx + NW - 43, ny + NH - 15, nx + NW - 3, ny + NH - 3, 0xE0121A28); // m164a 角标垫底，不再与目标行叠字
-                ctx.drawText(this.textRenderer, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
+                ctx.drawString(this.font, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
             }
         }
         { // m387 悬停原因浮窗（全机器通用）：黄/红灯节点悬停=完整原因全文——卡面副行
@@ -762,9 +762,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 int stvR = be.nodeStatus(i);
                 if ((stvR == 2 || stvR == 3) && !whyR.isEmpty()) {
                     java.util.List<net.minecraft.util.FormattedCharSequence> lsR =
-                            this.textRenderer.wrapLines(net.minecraft.network.chat.Component.literal(whyR), 190);
+                            this.font.wrapLines(net.minecraft.network.chat.Component.literal(whyR), 190);
                     int twR = 0;
-                    for (net.minecraft.util.FormattedCharSequence l : lsR) twR = Math.max(twR, this.textRenderer.getWidth(l));
+                    for (net.minecraft.util.FormattedCharSequence l : lsR) twR = Math.max(twR, this.font.getWidth(l));
                     int thR = lsR.size() * 10 + 8;
                     int bxR = nxR, byR = nyR - thR - 6;
                     int frameR = stvR == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD;
@@ -772,7 +772,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     ctx.fill(bxR, byR, bxR + twR + 12, byR + thR, SciSkin.CELL);
                     int tyR = byR + 4;
                     for (net.minecraft.util.FormattedCharSequence l : lsR) {
-                        ctx.drawText(this.textRenderer, l, bxR + 6, tyR, SciSkin.TXT, false);
+                        ctx.drawString(this.font, l, bxR + 6, tyR, SciSkin.TXT, false);
                         tyR += 10;
                     }
                 }
@@ -800,7 +800,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.fill(bx1, by1, bx1 + 1, by2, boxC);
             ctx.fill(bx2 - 1, by1, bx2, by2, boxC);
         }
-        m.pop();
+        m.popPose();
         ctx.disableScissor(); // m263 机器层剪刀到此为止（顶缘=带底）
 
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
@@ -809,21 +809,21 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int bot = bandBot; // m263 与机器层剪刀同源（收起=只留头部行，内容底缘41，两模式同高）
             SciSkin.termBand(ctx, 8, 24, workRight() - 8, bot); // m203 总线带换浅色主题（旧半透深底字面量退役）
             SciSkin.termBandLine(ctx, 8, workRight() - 8, bot - 2); // m203 底轨随主题（旧轨道色字面量退役）
-            ctx.drawText(this.textRenderer, "存储总线（网络库存）", 14, 29, SciSkin.termInk(), false); // m203 浅带写墨字
+            ctx.drawString(this.font, "存储总线（网络库存）", 14, 29, SciSkin.termInk(), false); // m203 浅带写墨字
             // 收起/展开开关（右上角小块）
             int tx = workRight() - 34;
             boolean th = mouseX >= tx && mouseX <= tx + 22 && mouseY >= 26 && mouseY <= 40;
             ctx.fill(tx - 1, 25, tx + 23, 41, th ? SciSkin.termAccentDeep() : SciSkin.termFrame());
             ctx.fill(tx, 26, tx + 22, 40, SciSkin.mix(SciSkin.termBase(), SciSkin.termHi(), 0.35f));
-            ctx.drawText(this.textRenderer, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? SciSkin.termAccentDeep() : SciSkin.termInk(), false);
+            ctx.drawString(this.font, busCollapsed ? "▼" : "▲", tx + 7, 29, th ? SciSkin.termAccentDeep() : SciSkin.termInk(), false);
             // m93：总线大小滑块（0.8x~1.25x）
             int trx = busTrackX();
-            ctx.drawText(this.textRenderer, "尺寸", trx - 26, 29, SciSkin.termSub(), false);
+            ctx.drawString(this.font, "尺寸", trx - 26, 29, SciSkin.termSub(), false);
             ctx.fill(trx, 31, trx + BUS_TRACK_W, 35, SciSkin.termBaseDeep()); // m203 滑轨浅井+紫钮（照设计稿）
             int knx = trx + Math.round((busScale - BUS_MIN) / (BUS_MAX - BUS_MIN) * (BUS_TRACK_W - 6));
             ctx.fill(knx, 27, knx + 6, 39, busScaleDrag ? SciSkin.termAccentDeep() : SciSkin.termAccent());
             if (busVisible() && ends.isEmpty())
-                ctx.drawText(this.textRenderer, "端点同步中…（2秒内应出现输出接口）", 14, busCardTop() + 4, SciSkin.termSub(), false);
+                ctx.drawString(this.font, "端点同步中…（2秒内应出现输出接口）", 14, busCardTop() + 4, SciSkin.termSub(), false);
             // m85：网络库存条（前10物品，服务端聚合同步）——概念图顶栏样式
             int cx = 132;
             java.util.List<String> bi = busIdsOf(be);
@@ -832,10 +832,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 ItemStack ist = new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(bi.get(k2))));
                 if (ist.isEmpty()) continue;
                 String cnt = fmtNum(bc.get(k2));
-                int cw = 20 + this.textRenderer.getWidth(cnt) + 10;
-                if (cx + cw > workRight() - 186) { ctx.drawText(this.textRenderer, "…", cx, 29, SciSkin.termSub(), false); break; }
-                ctx.drawItem(ist, cx, 22);
-                ctx.drawText(this.textRenderer, cnt, cx + 18, 29, SciSkin.termInk(), false);
+                int cw = 20 + this.font.getWidth(cnt) + 10;
+                if (cx + cw > workRight() - 186) { ctx.drawString(this.font, "…", cx, 29, SciSkin.termSub(), false); break; }
+                ctx.renderItem(ist, cx, 22);
+                ctx.drawString(this.font, cnt, cx + 18, 29, SciSkin.termInk(), false);
                 cx += cw;
             }
         }
@@ -902,7 +902,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         ctx.fill(mx, my, mx + MAP_W, my + 2, CYAN);
         List<ItemStack> nodes = be.nodes();
         if (nodes.isEmpty()) {
-            ctx.drawText(this.textRenderer, "画布为空", mx + (MAP_W - this.textRenderer.getWidth("画布为空")) / 2,
+            ctx.drawString(this.font, "画布为空", mx + (MAP_W - this.font.getWidth("画布为空")) / 2,
                     my + MAP_H / 2 - 4, SUB, false);
             return;
         }
@@ -969,10 +969,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 SciSkin.withAlpha(SciSkin.BACKDROP, 0.75f)); // m150b 图标暗托盘（图标不再悬空；m207 字面量退役随族）
         ctx.fill(x + 3, y + (bh() - ipx) / 2 - 1, x + 5 + ipx + 1, y + (bh() - ipx) / 2,
                 SciSkin.withAlpha(frm, 0.4f));
-        var msI = ctx.getMatrices(); msI.push();
+        var msI = ctx.pose(); msI.push();
         msI.translate(x + 4, y + (bh() - 16 * isc) / 2f, 0);
         msI.scale(isc, isc, 1f);
-        ctx.drawItem(icon, 0, 0);
+        ctx.renderItem(icon, 0, 0);
         msI.pop();
         int txI = x + 8 + Math.round(16 * isc); // 文字随图标宽度让位
         String title;
@@ -986,30 +986,30 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         String tag = KIND[Math.min(kind, 6)];
         int tagC = iface ? CYAN : kind == 4 ? SUB : kind == 5 ? 0xFFB9A0F0 : ON;
-        int tw = this.textRenderer.getWidth(tag);
+        int tw = this.font.getWidth(tag);
         // m189 标题行自动适配（用户截图：药丸/长标题出框）：药丸右贴卡缘位置恒定，
         // 标题按剩余宽截断加省略号——副行 m164a 已治过，这行是漏网的（tgx 原先跟着标题漂无钳位）。
         int tgx = Math.max(txI + 12, x + bw() - tw - 7);
-        ctx.drawText(this.textRenderer, fitText(title, tgx - 6 - txI), txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
+        ctx.drawString(this.font, fitText(title, tgx - 6 - txI), txI, y + 5, SciSkin.TXT_MAX, false); // m150b 标题提亮
         ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 14, SciSkin.mix(tagC, SciSkin.CELL, 0.8f)); // m150b 类型药丸（m207 归队）
         ctx.fill(tgx - 3, y + 4, tgx + tw + 3, y + 5, SciSkin.withAlpha(tagC, 0.55f));
         ctx.fill(tgx - 3, y + 13, tgx + tw + 3, y + 14, SciSkin.withAlpha(tagC, 0.55f));
-        ctx.drawText(this.textRenderer, tag, tgx, y + 5, tagC, false);
+        ctx.drawString(this.font, tag, tgx, y + 5, tagC, false);
         String sub;
         if (iface) {
             sub = "自动寻路: 绑定>有线>无线>卫星";
         } else {
-            BlockPos bp = BlockPos.fromLong(pl);
+            BlockPos bp = BlockPos.of(pl);
             sub = bp.getX() + "," + bp.getY() + "," + bp.getZ();
-            boolean sameDim = this.client != null && this.client.world != null
+            boolean sameDim = this.minecraft != null && this.minecraft.world != null
                     && (dim == null || dim.isEmpty()
-                        || dim.equals(this.client.world.getRegistryKey().getValue().toString()));
-            if (sameDim && this.client.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
+                        || dim.equals(this.minecraft.world.dimension().location().toString()));
+            if (sameDim && this.minecraft.world.getBlockEntity(bp) instanceof StorageCoreBlockEntity sc) {
                 sub += sc.maxTypes() == Integer.MAX_VALUE ? ("  类型 " + sc.usedTypes()) : ("  类型 " + sc.usedTypes() + "/" + sc.maxTypes()); // 仅同维度读数; m98 无限不显上限
             }
         }
         // m164a 文字自适应（用户点名"上面的文字都出框了"）：副行按卡片剩余宽度截断加省略号
-        ctx.drawText(this.textRenderer, fitText(sub, x + bw() - txI - 4), txI, y + 17, SUB, false);
+        ctx.drawString(this.font, fitText(sub, x + bw() - txI - 4), txI, y + 17, SUB, false);
     }
 
     private void drawNode(GuiGraphics ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
@@ -1021,8 +1021,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int oyP = y + NH / 2 - 10, iyP = y + NH / 2 + 4; // 柱心=NH/2∓7，与锚点分高同源
             ctx.fill(x - 4, oyP, x + 2, oyP + 6, ON);           ctx.fill(x + NW - 2, oyP, x + NW + 4, oyP + 6, ON);   // 出口柱×2
             ctx.fill(x - 4, iyP, x + 2, iyP + 6, CYAN);         ctx.fill(x + NW - 2, iyP, x + NW + 4, iyP + 6, CYAN); // 进口柱×2
-            ctx.drawText(this.textRenderer, "出", x - 16, oyP - 1, ON, false);   ctx.drawText(this.textRenderer, "出", x + NW + 7, oyP - 1, ON, false);
-            ctx.drawText(this.textRenderer, "进", x - 16, iyP - 1, CYAN, false); ctx.drawText(this.textRenderer, "进", x + NW + 7, iyP - 1, CYAN, false);
+            ctx.drawString(this.font, "出", x - 16, oyP - 1, ON, false);   ctx.drawString(this.font, "出", x + NW + 7, oyP - 1, ON, false);
+            ctx.drawString(this.font, "进", x - 16, iyP - 1, CYAN, false); ctx.drawString(this.font, "进", x + NW + 7, iyP - 1, CYAN, false);
         } else {
             boolean swP = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped; // m341 进出口互换（关=单侧旧行为，此键仍生效）
             int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
@@ -1030,33 +1030,33 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
             // m342 字标画卡外（作者点名"加上进和出"）：柱在左缘=字在柱左，柱在右缘=字在柱右，不压卡面图标
             boolean inRight = inX > x + NW / 2;
-            ctx.drawText(this.textRenderer, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
-            ctx.drawText(this.textRenderer, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
+            ctx.drawString(this.font, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
+            ctx.drawString(this.font, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
         }
         int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
         float isc = 2f + 0.45f * mt;
-        var msi = ctx.getMatrices();
+        var msi = ctx.pose();
         msi.push();
         msi.translate(x + 6, y + 16 - (isc - 2f) * 10, 0);
         msi.scale(isc, isc, 1f);
-        ctx.drawItem(st, 0, 0);
+        ctx.renderItem(st, 0, 0);
         msi.pop();
         String pre = mt <= 0 ? "" : mt == 1 ? "超级·" : mt == 2 ? "神级·" : "GM·";
-        int preW = pre.isEmpty() ? 0 : this.textRenderer.getWidth(pre);
-        if (preW > 0) ctx.drawText(this.textRenderer, pre, x + 6, y + 6,
+        int preW = pre.isEmpty() ? 0 : this.font.getWidth(pre);
+        if (preW > 0) ctx.drawString(this.font, pre, x + 6, y + 6,
                 mt == 1 ? SciSkin.GOLD : mt == 2 ? 0xFFB06AE8 : SciSkin.RED, false);
-        String name = st.getName().getString();
-        if (this.textRenderer.getWidth(name) > NW - 22 - preW) {
-            while (name.length() > 1 && this.textRenderer.getWidth(name + "…") > NW - 22 - preW) name = name.substring(0, name.length() - 1);
+        String name = st.getHoverName().getString();
+        if (this.font.getWidth(name) > NW - 22 - preW) {
+            while (name.length() > 1 && this.font.getWidth(name + "…") > NW - 22 - preW) name = name.substring(0, name.length() - 1);
             name = name + "…";
         }
-        ctx.drawText(this.textRenderer, name, x + 6 + preW, y + 6, TXT, false);
+        ctx.drawString(this.font, name, x + 6 + preW, y + 6, TXT, false);
         drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
         if (StructureCoreBlockEntity.isDistributor(st)) {
             int outs = 0;
             for (int[] c : be.connections()) if (c[0] == i) outs++;
-            ctx.drawText(this.textRenderer, "均分 → " + outs + " 路", x + 44, y + 26, CYAN, false);
-            ctx.drawText(this.textRenderer, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
+            ctx.drawString(this.font, "均分 → " + outs + " 路", x + 44, y + 26, CYAN, false);
+            ctx.drawString(this.font, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停显示 + m159 速率与已抽读数
@@ -1064,22 +1064,22 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int bfx = onX ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
-            ctx.drawText(this.textRenderer, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
+            ctx.drawString(this.font, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
             String siX = StructureCoreBlockEntity.sensorItem(st);
             if (!siX.isEmpty()) { // m160 自动启停行：图标 <阈值 [−][+]
-                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(siX))), x + 4, y + 44); } catch (Exception ignored) {}
+                try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(siX))), x + 4, y + 44); } catch (Exception ignored) {}
                 long thX = StructureCoreBlockEntity.sensorThreshold(st);
-                ctx.drawText(this.textRenderer, (StructureCoreBlockEntity.sensorLess(st) ? "<" : ">") + fmtNum(thX),
+                ctx.drawString(this.font, (StructureCoreBlockEntity.sensorLess(st) ? "<" : ">") + fmtNum(thX),
                         x + 22, y + 48, CYAN, false);
                 ctx.fill(x + 62, y + 46, x + 76, y + 59, SciSkin.BTN_FACE);
                 ctx.fill(x + 79, y + 46, x + 93, y + 59, SciSkin.BTN_FACE);
-                ctx.drawText(this.textRenderer, "-", x + 67, y + 49, TXT, false);
-                ctx.drawText(this.textRenderer, "+", x + 84, y + 49, TXT, false);
+                ctx.drawString(this.font, "-", x + 67, y + 49, TXT, false);
+                ctx.drawString(this.font, "+", x + 84, y + 49, TXT, false);
             } else {
                 long xr = StructureCoreBlockEntity.extractorRate(st);
                 long xc = StructureCoreBlockEntity.extractorCount(st);
                 // m164a：262144 挡原样拼"262144/轮×升级"必出框——速率走 fmtNum(262.1K)，整行 fitText 兜底
-                ctx.drawText(this.textRenderer, fitText(fmtNum(xr) + "/轮" + (xc > 0 ? " 抽" + fmtNum(xc) : "×升级"), NW - 48),
+                ctx.drawString(this.font, fitText(fmtNum(xr) + "/轮" + (xc > 0 ? " 抽" + fmtNum(xc) : "×升级"), NW - 48),
                         x + 44, y + 48, SUB, false);
             }
             return;
@@ -1089,46 +1089,46 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int bfr = on ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? SciSkin.ON_DARK : 0xFF141A24);
-            ctx.drawText(this.textRenderer, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
+            ctx.drawString(this.font, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
             return;
         }
         if (StructureCoreBlockEntity.isTrash(st)) { // m150 卡面 / 菜单入口见 openNodeMenu
             long ate = StructureCoreBlockEntity.trashCount(st);
             int tfN = StructureCoreBlockEntity.filterList(st).size();
-            ctx.drawText(this.textRenderer, tfN > 0 ? "[白名单·" + tfN + "]" : "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
-            ctx.drawText(this.textRenderer, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
+            ctx.drawString(this.font, tfN > 0 ? "[白名单·" + tfN + "]" : "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
+            ctx.drawString(this.font, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 卡面：行1 名单摘要 / 行2 吞炼账
             int vfN = StructureCoreBlockEntity.filterList(st).size();
-            ctx.drawText(this.textRenderer, vfN > 0 ? "[白名单·" + vfN + "]" : "[全炼]", x + 44, y + 26, SciSkin.GOLD, false);
-            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
+            ctx.drawString(this.font, vfN > 0 ? "[白名单·" + vfN + "]" : "[全炼]", x + 44, y + 26, SciSkin.GOLD, false);
+            ctx.drawString(this.font, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
             return;
         }
         if (st.getItem() instanceof com.sdzjz.item.ChunkVaultItem) { // m381 卡面三态：未绑定/存档中/已存档
             if (!com.sdzjz.node.NodeTags.chunkBound(st)) {
-                ctx.drawText(this.textRenderer, "[储存器]", x + 44, y + 26, SUB, false);
-                ctx.drawText(this.textRenderer, "手持右键目标区块", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "[储存器]", x + 44, y + 26, SUB, false);
+                ctx.drawString(this.font, "手持右键目标区块", x + 44, y + 38, SUB, false);
             } else if (!com.sdzjz.node.NodeTags.vaultDone(st)) {
-                ctx.drawText(this.textRenderer, "存档中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
-                ctx.drawText(this.textRenderer, "区块(" + com.sdzjz.node.NodeTags.chunkX(st) + "," + com.sdzjz.node.NodeTags.chunkZ(st) + ")", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "存档中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
+                ctx.drawString(this.font, "区块(" + com.sdzjz.node.NodeTags.chunkX(st) + "," + com.sdzjz.node.NodeTags.chunkZ(st) + ")", x + 44, y + 38, SUB, false);
             } else {
-                ctx.drawText(this.textRenderer, "已存档 ✔", x + 44, y + 26, ON, false);
-                ctx.drawText(this.textRenderer, fitText("可重建 " + fmtNum(com.sdzjz.node.NodeTags.vaultTotal(st)) + "·核心已产出", NW - 50), x + 44, y + 38, SciSkin.GOLD, false);
+                ctx.drawString(this.font, "已存档 ✔", x + 44, y + 26, ON, false);
+                ctx.drawString(this.font, fitText("可重建 " + fmtNum(com.sdzjz.node.NodeTags.vaultTotal(st)) + "·核心已产出", NW - 50), x + 44, y + 38, SciSkin.GOLD, false);
             }
             return;
         }
         if (st.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 卡面三态：未绑定/扫描中/报告摘要（m180 铁律：NodeTags 直连）
             if (!com.sdzjz.node.NodeTags.chunkBound(st)) {
-                ctx.drawText(this.textRenderer, "[扫描器]", x + 44, y + 26, SUB, false);
-                ctx.drawText(this.textRenderer, "手持右键目标区块", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "[扫描器]", x + 44, y + 26, SUB, false);
+                ctx.drawString(this.font, "手持右键目标区块", x + 44, y + 38, SUB, false);
             } else if (!com.sdzjz.node.NodeTags.scanDone(st)) {
-                ctx.drawText(this.textRenderer, "扫描中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
-                ctx.drawText(this.textRenderer, "方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st)), x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "扫描中 Y=" + com.sdzjz.node.NodeTags.chunkY(st), x + 44, y + 26, CYAN, false);
+                ctx.drawString(this.font, "方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st)), x + 44, y + 38, SUB, false);
             } else {
-                ctx.drawText(this.textRenderer, fitText("方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st))
-                        + "·类 " + com.sdzjz.node.NodeTags.scanTypes(st).getKeys().size(), NW - 50), x + 44, y + 26, ON, false);
-                ctx.drawText(this.textRenderer, fitText("矿 " + fmtNum(com.sdzjz.node.NodeTags.scanOre(st))
+                ctx.drawString(this.font, fitText("方块 " + fmtNum(com.sdzjz.node.NodeTags.scanTotal(st))
+                        + "·类 " + com.sdzjz.node.NodeTags.scanTypes(st).getAllKeys().size(), NW - 50), x + 44, y + 26, ON, false);
+                ctx.drawString(this.font, fitText("矿 " + fmtNum(com.sdzjz.node.NodeTags.scanOre(st))
                         + "·柜 " + com.sdzjz.node.NodeTags.scanContainers(st)
                         + "·怪 " + com.sdzjz.node.NodeTags.scanEntities(st), NW - 50), x + 44, y + 38, SciSkin.GOLD, false);
             }
@@ -1137,45 +1137,45 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 区块过滤器卡面：行1 名单摘要 / 行2 Y 挡名
             int cfN = StructureCoreBlockEntity.filterList(st).size();
             boolean cfB = StructureCoreBlockEntity.filterBlacklist(st);
-            ctx.drawText(this.textRenderer, cfN == 0 ? "[不限方块]" : (cfB ? "[黑名单·" : "[白名单·") + cfN + "]",
+            ctx.drawString(this.font, cfN == 0 ? "[不限方块]" : (cfB ? "[黑名单·" : "[白名单·") + cfN + "]",
                     x + 44, y + 26, cfN == 0 ? SUB : cfB ? SciSkin.GOLD : ON, false);
-            ctx.drawText(this.textRenderer, fitText("Y挡:" + com.sdzjz.item.ChunkFilterItem.presetName(st), NW - 50),
+            ctx.drawString(this.font, fitText("Y挡:" + com.sdzjz.item.ChunkFilterItem.presetName(st), NW - 50),
                     x + 44, y + 38, CYAN, false);
             return;
         }
         if (StructureCoreBlockEntity.isFilter(st)) {
             boolean black = StructureCoreBlockEntity.filterBlacklist(st);
-            ctx.drawText(this.textRenderer, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
+            ctx.drawString(this.font, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
             List<String> fl = StructureCoreBlockEntity.filterList(st);
             if (fl.isEmpty()) {
-                ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
             } else {
                 int shown = Math.min(3, fl.size());
                 for (int k = 0; k < shown; k++) {
-                    try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
+                    try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
                 }
-                if (fl.size() > 3) ctx.drawText(this.textRenderer, "+" + (fl.size() - 3), x + 42 + 54, y + 38, SUB, false);
+                if (fl.size() > 3) ctx.drawString(this.font, "+" + (fl.size() - 3), x + 42 + 54, y + 38, SUB, false);
             }
             return;
         }
         if (StructureCoreBlockEntity.isSensor(st)) {
             String si = StructureCoreBlockEntity.sensorItem(st);
             if (si.isEmpty()) {
-                ctx.drawText(this.textRenderer, "直通(未配置)", x + 44, y + 26, SUB, false);
-                ctx.drawText(this.textRenderer, "右键配置", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "直通(未配置)", x + 44, y + 26, SUB, false);
+                ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
             } else {
-                try { ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(si))), x + 40, y + 20); } catch (Exception ignored) {}
+                try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(si))), x + 40, y + 20); } catch (Exception ignored) {}
                 long th = StructureCoreBlockEntity.sensorThreshold(st);
                 boolean less = StructureCoreBlockEntity.sensorLess(st);
-                ctx.drawText(this.textRenderer, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
+                ctx.drawString(this.font, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
                 ctx.fill(x + 57, y + 36, x + 71, y + 49, SciSkin.BTN_FACE); // [−]
                 ctx.fill(x + 74, y + 36, x + 88, y + 49, SciSkin.BTN_FACE); // [+]
-                ctx.drawText(this.textRenderer, "-", x + 62, y + 39, TXT, false);
-                ctx.drawText(this.textRenderer, "+", x + 79, y + 39, TXT, false);
+                ctx.drawString(this.font, "-", x + 62, y + 39, TXT, false);
+                ctx.drawString(this.font, "+", x + 79, y + 39, TXT, false);
             }
             return;
         }
-        ctx.drawText(this.textRenderer, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
+        ctx.drawString(this.font, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
         String why178 = be.nodeReason(i); // m178 阻塞原因：黄/红灯时常显在 y+38 行（徽章副行让位）
         int stv178 = be.nodeStatus(i);
         boolean showWhy = (stv178 == 2 || stv178 == 3) && !why178.isEmpty();
@@ -1191,48 +1191,48 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             java.util.List<String> cropsSel = isCrop ? StructureCoreBlockEntity.cropList(st) : java.util.List.of();
             String t = StructureCoreBlockEntity.craftTarget(st);
             if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
-                ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(0)))), bx + 2, by + 2);
+                ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(0)))), bx + 2, by + 2);
                 if (!showWhy) { // m178 阻塞时让位原因行
                     int nm = Math.min(3, cropsSel.size());
                     for (int k = 0; k < nm; k++)
-                        ctx.drawItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
-                    ctx.drawText(this.textRenderer, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
+                        ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(k)))), x + 42 + k * 13, y + 34);
+                    ctx.drawString(this.font, "×" + cropsSel.size() + "种", x + 42 + nm * 13 + 4, y + 38, ON, false);
                 }
             } else if (!isCrop && !t.isEmpty()) {
                 ItemStack ts = isBrew ? (ItemStack) com.sdzjz.machine.BrewPlanner.targetStack(t)
-                        : isEnch ? (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(Minecraft.getInstance().world, t)
+                        : isEnch ? (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(Minecraft.getInstance().level, t)
                         : isTrade ? com.sdzjz.machine.TradePlanner.iconStack(t)
                         : new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(t)));
                 if (ts == null) ts = new ItemStack(isEnch ? net.minecraft.world.item.Items.ENCHANTED_BOOK
                         : isTrade ? net.minecraft.world.item.Items.EMERALD
                         : net.minecraft.world.item.Items.BREWING_STAND); // 目标串解析失败兜底（模组卸载/数据包变更等）
-                ctx.drawItem(ts, bx + 2, by + 2);
-                String tn = ts.getName().getString();
+                ctx.renderItem(ts, bx + 2, by + 2);
+                String tn = ts.getHoverName().getString();
                 if (isEnch) { // m132 附魔书名恒为"附魔书"——徽章文字用附魔名（罗马数字自带）
-                    var en = (net.minecraft.network.chat.Component) com.sdzjz.machine.EnchantPlanner.targetName(Minecraft.getInstance().world, t); // m364 句柄拆封
+                    var en = (net.minecraft.network.chat.Component) com.sdzjz.machine.EnchantPlanner.targetName(Minecraft.getInstance().level, t); // m364 句柄拆封
                     if (en != null) tn = en.getString();
                 }
                 if (isTrade) tn = com.sdzjz.machine.TradePlanner.displayName(t).getString(); // m146 徽章=整条交易
-                tn = fitText(tn, NW - 50 - this.textRenderer.getWidth("→")); // m164a：硬切改省略号截断
-                if (!showWhy) ctx.drawText(this.textRenderer, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字;m178 阻塞时让位
+                tn = fitText(tn, NW - 50 - this.font.getWidth("→")); // m164a：硬切改省略号截断
+                if (!showWhy) ctx.drawString(this.font, "→" + tn, x + 44, y + 38, ON, false); // 放大图标后挪右，避免压字;m178 阻塞时让位
             } else {
-                ctx.drawText(this.textRenderer, "?", bx + 7, by + 6, SUB, false);
-                if (!showWhy) ctx.drawText(this.textRenderer, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : isDup ? "选复制" : "设目标", x + 44, y + 38, SUB, false);
+                ctx.drawString(this.font, "?", bx + 7, by + 6, SUB, false);
+                if (!showWhy) ctx.drawString(this.font, isCrop ? "选作物" : isEnch ? "选附魔" : isTrade ? "选交易" : isDup ? "选复制" : "设目标", x + 44, y + 38, SUB, false);
             }
         }
         if (st.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem && !showWhy) // m399 无限距离信标：无选择器徽章，副行=效果/等级/料耗
-            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.InfiniteBeaconItem.canvasLine(st), NW - 50), x + 44, y + 38, ON, false);
+            ctx.drawString(this.font, fitText(com.sdzjz.item.InfiniteBeaconItem.canvasLine(st), NW - 50), x + 44, y + 38, ON, false);
         if (st.getItem() instanceof com.sdzjz.item.ChunkRemoverItem && !showWhy) // m376 区块移除器：目标在世界内绑定无选择器徽章，副行=绑定指引/挖掘进度
-            ctx.drawText(this.textRenderer, fitText(com.sdzjz.item.ChunkRemoverItem.canvasLine(st), NW - 50),
+            ctx.drawString(this.font, fitText(com.sdzjz.item.ChunkRemoverItem.canvasLine(st), NW - 50),
                     x + 44, y + 38, com.sdzjz.node.NodeTags.chunkBound(st) ? ON : SUB, false);
         if (showWhy) // m178 错误解释：从"猜"到"可诊断"——缺料红字/阻塞金字，转绿自动消失
-            ctx.drawText(this.textRenderer, fitText(why178, NW - 50), x + 44, y + 38, stv178 == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD, false);
+            ctx.drawString(this.font, fitText(why178, NW - 50), x + 44, y + 38, stv178 == 3 ? SciSkin.RED_SOFT : SciSkin.GOLD, false);
     }
 
     /** 状态灯：核心停机=灰；1 绿呼吸=运行 2 黄=阻塞/关闸 3 红=缺料 其余=待机灰。 */
     private void drawStatusDot(GuiGraphics ctx, int x, int y, int stat) {
         int c;
-        if (!this.handler.isRunning()) c = 0xFF3A424E;
+        if (!this.menu.isRunning()) c = 0xFF3A424E;
         else c = switch (stat) {
             case 1 -> ((165 + (int) (88 * Math.sin(System.currentTimeMillis() / 300.0))) << 24) | 0x33D07A;
             case 2 -> SciSkin.GOLD;
@@ -1257,14 +1257,14 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.fill(sx - 1, sy - 1, sx + 25, sy + 19, NODEFRM);
             ctx.fill(sx, sy, sx + 24, sy + 18, SciSkin.BTN_FACE);
             SciSkin.drawSlot(ctx, sx + 1, sy + 1); // m120 物品坐进角括号插槽，与终端同语言
-            ctx.drawItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
+            ctx.renderItem(new ItemStack(UPG[k]), sx + 1, sy + 1);
             // m352 计数进格内右下角（作者截图：128 画在格外右侧仅 7px 预算，被右邻格框盖字——painter
             // 序后画的框压先画的字）。原版堆叠数样式：右下对齐+阴影+z抬200压图标，邻格永远够不着；fmtNum 防四位数再溢。
             String cntU = fmtNum(lv[k]);
-            int cwU = this.textRenderer.getWidth(cntU);
-            var msU = ctx.getMatrices();
+            int cwU = this.font.getWidth(cntU);
+            var msU = ctx.pose();
             msU.push(); msU.translate(0, 0, 200);
-            ctx.drawText(this.textRenderer, cntU, sx + 24 - cwU, sy + 10, lv[k] > 0 ? ON : SUB, true);
+            ctx.drawString(this.font, cntU, sx + 24 - cwU, sy + 10, lv[k] > 0 ? ON : SUB, true);
             msU.pop();
         }
     }
@@ -1320,8 +1320,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (i > 0) cum[i] = cum[i - 1] + (float) Math.hypot(px[i] - px[i - 1], py[i] - py[i - 1]);
         }
         com.mojang.blaze3d.vertex.VertexConsumer vc =
-                ctx.getVertexConsumers().getBuffer(net.minecraft.client.renderer.RenderType.getGui());
-        org.joml.Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
+                ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
+        org.joml.Matrix4f mat = ctx.pose().peek().getPositionMatrix();
 
         int rgb = color & 0xFFFFFF;
         float time = (System.currentTimeMillis() % 600000L) / 1000f;
@@ -1410,10 +1410,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void quad(com.mojang.blaze3d.vertex.VertexConsumer vc, org.joml.Matrix4f mat,
                       float x1, float y1, int c1, float x2, float y2, int c2,
                       float x3, float y3, int c3, float x4, float y4, int c4) {
-        vc.vertex(mat, x1, y1, 0).color(c1);
-        vc.vertex(mat, x2, y2, 0).color(c2);
-        vc.vertex(mat, x3, y3, 0).color(c3);
-        vc.vertex(mat, x4, y4, 0).color(c4);
+        vc.addVertex(mat, x1, y1, 0).color(c1);
+        vc.addVertex(mat, x2, y2, 0).color(c2);
+        vc.addVertex(mat, x3, y3, 0).color(c3);
+        vc.addVertex(mat, x4, y4, 0).color(c4);
     }
 
     private static int mulRgb(int rgb, float f) {
@@ -1430,22 +1430,22 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     @Override
-    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
+    protected void renderLabels(GuiGraphics ctx, int mouseX, int mouseY) {
         // m85：AbstractContainerScreen 会把前景层平移 (x,y)——之前标题/状态因此漂到屏幕中间。translate 回去，用真屏幕坐标。
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(-this.x, -this.y, 0);
+        ctx.pose().push();
+        ctx.pose().translate(-this.leftPos, -this.topPos, 0);
         // m83：状态栏下沉到底部（用户点名，参考 ME 终端把信息压在操作区）——顶部只留窄标题条，给存储总线腾地方
         // m210：此处原有 0..19 重复浅带已撤——顶条带(0..22)在背景层画过，前景层再铺一条不透明浅带
         // 正好把 机器库/地图/设置/−/＋/适应视图 六钮糊死（浅带时代的画序坑，深色半透时代只是压暗看不出）。
-        String tierName = this.handler.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
-        ctx.drawText(this.textRenderer, tierName, 10, 6, SciSkin.termInk(), false); // m203 浅带写墨字
+        String tierName = this.menu.tier() >= 2 ? "超大工作台 · 画布" : "结构核心 · 画布";
+        ctx.drawString(this.font, tierName, 10, 6, SciSkin.termInk(), false); // m203 浅带写墨字
         String zp = Math.round(zoom * 100) + "%"; // m86 顶条缩放读数（−/＋按钮之间）
-        ctx.drawText(this.textRenderer, zp, workRight() - 128 - this.textRenderer.getWidth(zp) / 2, 6, SciSkin.termInk(), false);
+        ctx.drawString(this.font, zp, workRight() - 128 - this.font.getWidth(zp) / 2, 6, SciSkin.termInk(), false);
 
         // 底部背板：按钮 + 状态 + 提示 一体
         // m87：底栏加高到 78，状态改画在按钮下方整行——之前固定 x=498 起画，GUI 缩放大时直接怼进 JEI（用户截图实锤）
         // m210：底栏浅带已迁背景层（同上画序坑，盖死底部五钮）；本层只写状态/提示文字。
-        boolean run = this.handler.isRunning();
+        boolean run = this.menu.isRunning();
         int stor = 0, term = 0;
         StructureCoreBlockEntity be = be();
         if (be != null) for (long[] e : endsOf(be)) { if (e[1] == 5) term++; else if (e[1] != 6) stor++; }
@@ -1457,16 +1457,16 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         int maxW = workRight() - 16;
         if (com.sdzjz.config.SdzjzConfig.get().canvasStatusOpen) { // m219 状态区可收（顶栏"状态"钮开合）；提示行已迁"帮助"卡
             int sy1 = this.height - (compactChrome() ? 22 : 36), sy2 = this.height - (compactChrome() ? 12 : 24); // m215 行距节奏原样，整体上提填掉旧提示行位
-            ctx.drawText(this.textRenderer, run ? "● 运行中" : "○ 已停止", 8, sy1, run ? ON : SciSkin.termSub(), false);
-            ctx.drawText(this.textRenderer, fitText("经验 " + fmtNum(this.handler.xp())
-                    + "  机器 " + this.handler.machineCount()
+            ctx.drawString(this.font, run ? "● 运行中" : "○ 已停止", 8, sy1, run ? ON : SciSkin.termSub(), false);
+            ctx.drawString(this.font, fitText("经验 " + fmtNum(this.menu.xp())
+                    + "  机器 " + this.menu.machineCount()
                     + "  存储 " + stor + " · 面板 " + term
-                    + "  缓存 " + fmtNum(this.handler.buffered())
+                    + "  缓存 " + fmtNum(this.menu.buffered())
                     + "  产出 " + (be == null ? "0" : fmtNum(be.prodPerMinView())) + "/分(实测)", maxW - 62), 70, sy1, SciSkin.termInk(), false); // m203
-            ctx.drawText(this.textRenderer, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
-                    + "  升级∑ 加速" + this.handler.speedLv()
-                    + " 数量" + this.handler.countLv()
-                    + " 并列" + this.handler.parallelLv()
+            ctx.drawString(this.font, fitText("运行 " + nRun + " · 阻塞 " + nBlk + " · 缺料 " + nLack
+                    + "  升级∑ 加速" + this.menu.speedLv()
+                    + " 数量" + this.menu.countLv()
+                    + " 并列" + this.menu.parallelLv()
                     + "  缩放" + Math.round(zoom * 100) + "%", maxW), 8, sy2, SciSkin.termSub(), false);
         }
 
@@ -1476,7 +1476,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int lx = 8, ly = 24, lw = 160, lb = botTop() - 6;
             ctx.fill(lx, ly, lx + lw, lb, 0xE0081120);
             ctx.fill(lx, ly, lx + lw, ly + 14, 0xFF10253A);
-            ctx.drawText(this.textRenderer, "机器库（背包）", lx + 6, ly + 3, TXT, false);
+            ctx.drawString(this.font, "机器库（背包）", lx + 6, ly + 3, TXT, false);
             List<ItemStack> lib = libItems();
             int rowH = 20, visible = Math.max(1, (lb - ly - 30) / rowH);
             libScroll = Math.max(0, Math.min(libScroll, Math.max(0, lib.size() - visible)));
@@ -1485,13 +1485,13 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 int ry = ly + 16 + r * rowH;
                 boolean hov = mouseX >= lx && mouseX <= lx + lw && mouseY >= ry && mouseY < ry + rowH;
                 if (hov) ctx.fill(lx, ry, lx + lw, ry + rowH, 0x552E6E8E);
-                ctx.drawItem(it, lx + 4, ry + 1);
-                ctx.drawText(this.textRenderer, fitText(it.getName().getString(), lw - 56), lx + 24, ry + 5, TXT, false);
+                ctx.renderItem(it, lx + 4, ry + 1);
+                ctx.drawString(this.font, fitText(it.getHoverName().getString(), lw - 56), lx + 24, ry + 5, TXT, false);
                 String c = "×" + it.getCount();
-                ctx.drawText(this.textRenderer, c, lx + lw - 6 - this.textRenderer.getWidth(c), ry + 5, SUB, false);
+                ctx.drawString(this.font, c, lx + lw - 6 - this.font.getWidth(c), ry + 5, SUB, false);
             }
-            if (lib.isEmpty()) ctx.drawText(this.textRenderer, "背包里没有机器", lx + 8, ly + 22, SUB, false);
-            ctx.drawText(this.textRenderer, "点击=放 1 台进画布 · 滚轮翻", lx + 6, lb - 12, SUB, false);
+            if (lib.isEmpty()) ctx.drawString(this.font, "背包里没有机器", lx + 8, ly + 22, SUB, false);
+            ctx.drawString(this.font, "点击=放 1 台进画布 · 滚轮翻", lx + 6, lb - 12, SUB, false);
         }
 
         // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
@@ -1502,9 +1502,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 if (mouseX < nx || mouseX > nx + (int) (NW * zoom) || mouseY < ny || mouseY > ny + (int) (NH * zoom)) continue;
                 ItemStack st = nodes.get(i);
                 java.util.List<net.minecraft.network.chat.Component> tip = new java.util.ArrayList<>();
-                tip.add(Component.literal(st.getName().getString() + " ×" + st.getCount()));
+                tip.add(Component.literal(st.getHoverName().getString() + " ×" + st.getCount()));
                 int stt = be.nodeStatus(i);
-                tip.add(Component.literal("状态: " + (!this.handler.isRunning() ? "核心停机"
+                tip.add(Component.literal("状态: " + (!this.menu.isRunning() ? "核心停机"
                         : switch (stt) { case 1 -> "运行中"; case 2 -> "阻塞/关闸"; case 3 -> "缺料"; default -> "待机"; })));
                 if (st.getItem() instanceof com.sdzjz.item.MachineItem mi2) {
                     var def = mi2.def();
@@ -1515,17 +1515,17 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     StringBuilder sb = new StringBuilder("产出: ");
                     for (int k2 = 0; k2 < def.outputs().size() && k2 < 3; k2++) {
                         if (k2 > 0) sb.append("、");
-                        sb.append(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(def.outputs().get(k2).item()))).getName().getString());
+                        sb.append(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(def.outputs().get(k2).item()))).getHoverName().getString());
                     }
                     if (def.outputs().size() > 3) sb.append("…");
                     tip.add(Component.literal(sb.toString()));
                     if (def.consumesInputs()) tip.add(Component.literal("消耗输入（对齐原版）"));
                 }
-                ctx.drawTooltip(this.textRenderer, tip, mouseX, mouseY);
+                ctx.drawTooltip(this.font, tip, mouseX, mouseY);
                 break;
             }
         }
-        ctx.getMatrices().pop();
+        ctx.pose().pop();
     }
 
     @Override
@@ -1546,7 +1546,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     // ================= 右键菜单 =================
     private void openMenu(int x, int y) {
         menuOpen = true;
-        menuOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 开合动画从零起
+        menuOpenMs = net.minecraft.Util.getMillis(); // m148 开合动画从零起
         menuHoverP = new float[menuLabels.size()];
         int th = menuTitle != null ? MENU_TITLE_H : 0;
         menuX = Math.min(x, workRight() - MENU_W - 4);
@@ -1682,7 +1682,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** 建组：当前选中集发服务端（≥2 台才发，服务端还会再验一遍），发完清选。 */
     private void createGroupFromSelection() {
         StructureCoreBlockEntity be = be();
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         List<Integer> ms = new ArrayList<>();
         for (int i : selected) if (i >= 0 && i < be.nodes().size()) ms.add(i);
@@ -1694,7 +1694,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** 组菜单（右键标题带）：重命名 / 解散（解散纯视觉，机器与连线不动）。 */
     private void openGroupMenu(int gid, int atX, int atY) {
         StructureCoreBlockEntity be = be();
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         clearMenu();
         menuTitle = be.groupsView().getOrDefault(gid, "组" + gid);
@@ -1709,7 +1709,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         StructureCoreBlockEntity be = be();
         if (be == null) return;
         renameGid = gid;
-        renameField.setText(be.groupsView().getOrDefault(gid, ""));
+        renameField.setValue(be.groupsView().getOrDefault(gid, ""));
         this.setFocused(renameField);
         renameField.setFocused(true);
     }
@@ -1720,8 +1720,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     private void confirmRename() {
-        BlockPos p = this.handler.blockPos();
-        String nm = renameField.getText().trim();
+        BlockPos p = this.menu.blockPos();
+        String nm = renameField.getValue().trim();
         if (p != null && renameGid >= 0 && !nm.isEmpty())
             com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, renameGid, nm, java.util.List.of()));
         closeRename();
@@ -1730,14 +1730,14 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** 重命名小窗（照 renderPicker 的 pickerField 写法：每帧摆位再渲染）。 */
     private void renderRename(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         int w = 200, h = 58, px = (this.width - w) / 2, py = (this.height - h) / 2;
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, 0, 400); // m202 同病同修：抬z防卡内物品穿透
+        ctx.pose().push();
+        ctx.pose().translate(0, 0, 400); // m202 同病同修：抬z防卡内物品穿透
         SciSkin.drawCard(ctx, px, py, w, h, SciSkin.FRAME);
-        ctx.drawText(this.textRenderer, "重命名组（回车确认·Esc取消）", px + 8, py + 7, SciSkin.TXT_HI, false);
+        ctx.drawString(this.font, "重命名组（回车确认·Esc取消）", px + 8, py + 7, SciSkin.TXT_HI, false);
         renameField.setX(px + 8);
         renameField.setY(py + 26);
         renameField.render(ctx, mouseX, mouseY, delta);
-        ctx.getMatrices().pop();
+        ctx.pose().pop();
     }
 
     // ===== m199 画布设置面板（六项画布客户端配置 + 恢复默认；机器数值项仍走 config/sdzjz.json）=====
@@ -1745,10 +1745,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (menuOpen) clearMenu();
         if (pickerNode >= 0) closePicker();
         if (renameGid >= 0) closeRename();
-        wireOutField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor); // 开窗对齐配置现值（可能被恢复默认/改文件动过）
-        wireInField.setText(com.sdzjz.config.SdzjzConfig.get().canvasWireInColor);
-        bgField.setText(com.sdzjz.config.SdzjzConfig.get().canvasBgColor);       // m217
-        gridColField.setText(com.sdzjz.config.SdzjzConfig.get().canvasGridColor);
+        wireOutField.setValue(com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor); // 开窗对齐配置现值（可能被恢复默认/改文件动过）
+        wireInField.setValue(com.sdzjz.config.SdzjzConfig.get().canvasWireInColor);
+        bgField.setValue(com.sdzjz.config.SdzjzConfig.get().canvasBgColor);       // m217
+        gridColField.setValue(com.sdzjz.config.SdzjzConfig.get().canvasGridColor);
         settingsOpen = true;
     }
 
@@ -1788,7 +1788,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         int cv = settColorVal(settColSel);
         int r = (cv >> 16) & 0xFF, g = (cv >> 8) & 0xFF, b = cv & 0xFF;
         if (settSlDrag == 0) r = v; else if (settSlDrag == 1) g = v; else b = v;
-        settColorField(settColSel).setText(String.format("%02X%02X%02X", r, g, b));
+        settColorField(settColSel).setValue(String.format("%02X%02X%02X", r, g, b));
     }
 
     /** RRGGBB 合法性（允许带#，1~6 位十六进制）；只作红线提示，非法值渲染层自会回退默认（m198 parseHex）。 */
@@ -1804,16 +1804,16 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void renderSettings(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         int px = settPos()[0], py = settPos()[1];
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, 0, 400); // m202 抬z：卡内物品图标画在带深度的高z，z0后画填充会被穿透（终端实锤同病）
+        ctx.pose().push();
+        ctx.pose().translate(0, 0, 400); // m202 抬z：卡内物品图标画在带深度的高z，z0后画填充会被穿透（终端实锤同病）
         SciSkin.drawCard(ctx, px, py, SETT_W, SETT_H, SciSkin.FRAME);
-        ctx.drawText(this.textRenderer, "画布设置", px + 8, py + 7, SciSkin.TXT_HI, false);
+        ctx.drawString(this.font, "画布设置", px + 8, py + 7, SciSkin.TXT_HI, false);
         String[] labels = {"缩放平滑动效", "连线宽度随缩放", "线宽封顶倍率", "出线颜色 RRGGBB", "进线颜色 RRGGBB", "跨组连线归并 ×N",
                 "背景色(空=随主题)", "网格色(空=随主题)", "网格浓度", "暗角强度"}; // m217 背景四行
         boolean[] tog = {c.canvasSmoothZoom, c.canvasWireScaleWithZoom, false, false, false, c.canvasGroupBundleWires, false, false, false, false};
         for (int r = 0; r < 10; r++) {
             int ry = py + SETT_ROW0 + r * SETT_ROW; // m262 行区起点收口
-            ctx.drawText(this.textRenderer, labels[r], px + 10, ry + 3, SciSkin.TXT, false);
+            ctx.drawString(this.font, labels[r], px + 10, ry + 3, SciSkin.TXT, false);
             if (r == 0 || r == 1 || r == 5) { // 开关药丸（开=运行绿族，关=离线灰）
                 boolean on = tog[r];
                 int bx = px + SETT_W - 56;
@@ -1821,7 +1821,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 ctx.fill(bx - 1, ry - 1, bx + 47, ry + 15, on ? SciSkin.ON : SciSkin.CELL_FRM);
                 ctx.fill(bx, ry, bx + 46, ry + 14, on ? SciSkin.ON_DARK : (hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE));
                 String tx = on ? "开" : "关";
-                ctx.drawText(this.textRenderer, tx, bx + 23 - this.textRenderer.getWidth(tx) / 2, ry + 3,
+                ctx.drawString(this.font, tx, bx + 23 - this.font.getWidth(tx) / 2, ry + 3,
                         on ? SciSkin.ON : SciSkin.OFF_GRAY, false);
             } else if (r == 2 || r == 8 || r == 9) { // 步进器 [−] 值 [+]（照传感器阈值钮，屏幕坐标版）
                 stBox(ctx, px + SETT_W - 80, ry, "−", mouseX, mouseY);
@@ -1829,7 +1829,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 String v = r == 2 ? "×" + (Math.round(Math.max(0.2, c.canvasWireMaxScale) * 10) / 10.0) // double 拼串恒小数点，免 Locale 逗号坑
                          : r == 8 ? Math.round(Math.max(0, Math.min(3, c.canvasGridStrength)) * 100) + "%"
                                   : Math.round(Math.max(0, Math.min(2, c.canvasVignetteStrength)) * 100) + "%";
-                ctx.drawText(this.textRenderer, v, px + SETT_W - 42 - this.textRenderer.getWidth(v) / 2, ry + 3, SciSkin.TXT_HI, false);
+                ctx.drawString(this.font, v, px + SETT_W - 42 - this.font.getWidth(v) / 2, ry + 3, SciSkin.TXT_HI, false);
             } else { // 颜色行：输入框 + 生效色样片（样片直读生效色=非法/空自动显回退色，红下划线只提示"非空且非法"——背景/网格行空=跟随主题属合法）
                 int sel = settSelOfRow(r); // m223 点行/点样片可选中，下方滑杆调它
                 EditBox f = settColorField(sel);
@@ -1840,29 +1840,29 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 ctx.fill(px + SETT_W - 25, ry - 1, px + SETT_W - 9, ry + 15,
                         sel == settColSel ? SciSkin.ACCENT : SciSkin.CELL_FRM); // m223 选中环（照 m202 终端选中环工艺）
                 ctx.fill(px + SETT_W - 24, ry, px + SETT_W - 10, ry + 14, sw);
-                boolean emptyOk = (r == 6 || r == 7) && f.getText().isBlank();
-                if (!emptyOk && !hexOk(f.getText())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
+                boolean emptyOk = (r == 6 || r == 7) && f.getValue().isBlank();
+                if (!emptyOk && !hexOk(f.getValue())) ctx.fill(px + SETT_W - 96, ry + 16, px + SETT_W - 38, ry + 17, SciSkin.RED);
             }
         }
         // ===== m223 RGB 滑杆调节区（照 m202 终端主题编辑器工艺；拖滑杆写十六进制串→listener→配置→即时预览）=====
         int sy0 = py + SETT_SL_Y;
-        ctx.drawText(this.textRenderer, "调节: " + SETT_COLOR_NAMES[settColSel] + "（点色行切换）", px + 10, sy0, SciSkin.TXT, false);
+        ctx.drawString(this.font, "调节: " + SETT_COLOR_NAMES[settColSel] + "（点色行切换）", px + 10, sy0, SciSkin.TXT, false);
         int cvSel = settColorVal(settColSel);
         String[] chn = {"R", "G", "B"};
         for (int ch = 0; ch < 3; ch++) {
             int v = (cvSel >> (16 - ch * 8)) & 0xFF;
             int sy = sy0 + 14 + ch * SETT_SL_SP; // m239 内距收口
-            ctx.drawText(this.textRenderer, chn[ch], px + 14, sy + 1, SciSkin.SUB, false);
+            ctx.drawString(this.font, chn[ch], px + 14, sy + 1, SciSkin.SUB, false);
             ctx.fill(px + SETT_SL_X - 1, sy - 1, px + SETT_SL_X + SETT_SL_W + 1, sy + 11, SciSkin.CELL_FRM); // 轨
             ctx.fill(px + SETT_SL_X, sy, px + SETT_SL_X + SETT_SL_W, sy + 10, SciSkin.CELL);
             int kx = px + SETT_SL_X + (int) Math.round(v / 255.0 * (SETT_SL_W - 4));
             ctx.fill(px + SETT_SL_X, sy, kx + 2, sy + 10, SciSkin.withAlpha(SciSkin.ACCENT, 0.55f)); // 已填段
             ctx.fill(kx, sy - 1, kx + 4, sy + 11, settSlDrag == ch ? SciSkin.TXT_MAX : SciSkin.ACCENT); // 滑钮
             ctx.fill(kx + 1, sy, kx + 3, sy + 10, SciSkin.TXT_MAX);
-            ctx.drawText(this.textRenderer, String.valueOf(v), px + SETT_SL_X + SETT_SL_W + 8, sy + 1, SciSkin.TXT_HI, false);
+            ctx.drawString(this.font, String.valueOf(v), px + SETT_SL_X + SETT_SL_W + 8, sy + 1, SciSkin.TXT_HI, false);
         }
         int ry6 = py + SETT_PRESET_Y; // m211 主题预设行：5 套一键换肤（m214 只写画布7键；m223 下移至常量位）
-        ctx.drawText(this.textRenderer, "主题预设", px + 10, ry6 + 3, SciSkin.TXT, false);
+        ctx.drawString(this.font, "主题预设", px + 10, ry6 + 3, SciSkin.TXT, false);
         int hovPk = -1;
         for (int k = 0; k < SciSkin.TERM_PRESET_NAMES.length; k++) {
             int bx = px + SETT_W - 126 + k * 24;
@@ -1872,26 +1872,26 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.fill(bx, ry6, bx + 20, ry6 + 14, SciSkin.hex(SciSkin.TERM_PRESETS[k][0], SciSkin.termBase()));   // 底=预设主色（照终端样片工艺）
             ctx.fill(bx + 3, ry6 + 3, bx + 17, ry6 + 11, SciSkin.hex(SciSkin.TERM_PRESETS[k][2], SciSkin.termAccent())); // 心=预设强调
         }
-        if (hovPk >= 0) ctx.drawText(this.textRenderer, SciSkin.TERM_PRESET_NAMES[hovPk], px + 62, ry6 + 3, SciSkin.TXT_HI, false);
+        if (hovPk >= 0) ctx.drawString(this.font, SciSkin.TERM_PRESET_NAMES[hovPk], px + 62, ry6 + 3, SciSkin.TXT_HI, false);
         int rx = px + (SETT_W - 64) / 2, rby = py + SETT_RESET_Y; // 恢复默认（回本面板十项；m223 下移至常量位）
         boolean rh = mouseX >= rx && mouseX <= rx + 64 && mouseY >= rby && mouseY <= rby + 16;
         ctx.fill(rx - 1, rby - 1, rx + 65, rby + 17, rh ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(rx, rby, rx + 64, rby + 16, rh ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
-        ctx.drawText(this.textRenderer, "恢复默认", rx + 32 - this.textRenderer.getWidth("恢复默认") / 2, rby + 4,
+        ctx.drawString(this.font, "恢复默认", rx + 32 - this.font.getWidth("恢复默认") / 2, rby + 4,
                 rh ? SciSkin.TXT_MAX : SciSkin.TXT, false);
         String tip = "即改即存 · Esc/点外=关"; // m262 挪标题行右侧（原底行与恢复默认钮重叠且占高）
-        ctx.drawText(this.textRenderer, tip, px + SETT_W - 8 - this.textRenderer.getWidth(tip), py + 7, SciSkin.SUB, false);
-        ctx.getMatrices().pop();
+        ctx.drawString(this.font, tip, px + SETT_W - 8 - this.font.getWidth(tip), py + 7, SciSkin.SUB, false);
+        ctx.pose().pop();
     }
 
     /** m219 帮助卡：操作提示行迁入（原底带一行塞不下的内容摊开写；纯静态无交互，点哪都关）。 */
     private void renderHelp(GuiGraphics ctx) {
         int hw = 236, hh = 124; // m313 快捷键两行加高
         int px = Math.max(8, Math.min(336, workRight() - hw - 8)), py = 22; // 锚"帮助"钮下方，窄屏向左让位
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, 0, 400); // m202 抬z口径
+        ctx.pose().push();
+        ctx.pose().translate(0, 0, 400); // m202 抬z口径
         SciSkin.drawCard(ctx, px, py, hw, hh, SciSkin.FRAME);
-        ctx.drawText(this.textRenderer, "操作帮助", px + 8, py + 7, SciSkin.TXT_HI, false);
+        ctx.drawString(this.font, "操作帮助", px + 8, py + 7, SciSkin.TXT_HI, false);
         String[] lines = {
                 "右键节点=菜单 · 拖节点=移动",
                 "绿口拖线=连线 · 滚轮=缩放",
@@ -1901,9 +1901,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 "G组合所选 · Shift+G解散组 · F2改组名",
         };
         for (int i = 0; i < lines.length; i++)
-            ctx.drawText(this.textRenderer, lines[i], px + 10, py + 24 + i * 14, i < 2 ? SciSkin.TXT : SciSkin.SUB, false);
-        ctx.drawText(this.textRenderer, "点任意处关闭", px + 8, py + hh - 13, SciSkin.SUB, false);
-        ctx.getMatrices().pop();
+            ctx.drawString(this.font, lines[i], px + 10, py + 24 + i * 14, i < 2 ? SciSkin.TXT : SciSkin.SUB, false);
+        ctx.drawString(this.font, "点任意处关闭", px + 8, py + hh - 13, SciSkin.SUB, false);
+        ctx.pose().pop();
     }
 
     /** m199 步进小方钮（纯 fill 不依赖字形）。 */
@@ -1911,7 +1911,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         boolean hov = mouseX >= bx && mouseX <= bx + 14 && mouseY >= by && mouseY <= by + 14;
         ctx.fill(bx - 1, by - 1, bx + 15, by + 15, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(bx, by, bx + 14, by + 14, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
-        ctx.drawText(this.textRenderer, s, bx + 7 - this.textRenderer.getWidth(s) / 2, by + 3, hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
+        ctx.drawString(this.font, s, bx + 7 - this.font.getWidth(s) / 2, by + 3, hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
     }
 
     /** m199 设置面板点击派发（几何与 renderSettings 同一套）。恒返回 true=modal 吞穿透（m103 教训）。 */
@@ -1980,10 +1980,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             c.canvasWireScaleWithZoom = d.canvasWireScaleWithZoom;
             c.canvasWireMaxScale = d.canvasWireMaxScale;
             c.canvasGroupBundleWires = d.canvasGroupBundleWires;
-            wireOutField.setText(d.canvasWireOutColor); // setText 触发 listener 回写配置串
-            wireInField.setText(d.canvasWireInColor);
-            bgField.setText(d.canvasBgColor);       // m217 背景四项一并回默认
-            gridColField.setText(d.canvasGridColor);
+            wireOutField.setValue(d.canvasWireOutColor); // setText 触发 listener 回写配置串
+            wireInField.setValue(d.canvasWireInColor);
+            bgField.setValue(d.canvasBgColor);       // m217 背景四项一并回默认
+            gridColField.setValue(d.canvasGridColor);
             c.canvasGridStrength = d.canvasGridStrength;
             c.canvasVignetteStrength = d.canvasVignetteStrength;
             com.sdzjz.config.SdzjzConfig.save();
@@ -2011,10 +2011,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void drawBundleBadge(GuiGraphics ctx, float midX, float midY, int n, boolean lit) {
         if (n < 2) return;
         String bt = "×" + n;
-        int tw = this.textRenderer.getWidth(bt);
+        int tw = this.font.getWidth(bt);
         int bx = (int) midX - tw / 2, by = (int) midY - 5;
         ctx.fill(bx - 2, by - 2, bx + tw + 2, by + 9, SciSkin.withAlpha(SciSkin.termInk(), 0.78f));
-        ctx.drawText(this.textRenderer, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
+        ctx.drawString(this.font, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
     }
 
     /** m235 配方摘要：按配方格序取前两种材料"N×名+N×名+…"。 */
@@ -2025,7 +2025,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (k++ == 2) { b.append("+…"); break; }
             if (b.length() > 0) b.append('+');
             b.append(en.getValue()).append('×')
-             .append(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(en.getKey()))).getName().getString());
+             .append(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(en.getKey()))).getHoverName().getString());
         }
         return b.toString();
     }
@@ -2034,9 +2034,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         StructureCoreBlockEntity be = be();
         if (be == null || idx < 0 || idx >= be.nodes().size()) return;
         final ItemStack st = be.nodes().get(idx);
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         clearMenu();
-        menuTitle = st.getName().getString(); // m148 标题带=机器名
+        menuTitle = st.getHoverName().getString(); // m148 标题带=机器名
         if (StructureCoreBlockEntity.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
             addMenu("恢复运行", mi(net.minecraft.world.item.Items.LIME_DYE),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
@@ -2062,9 +2062,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (st.getItem() instanceof AutoCrafterItem) {
             addMenu("选择合成目标", mi(net.minecraft.world.item.Items.CRAFTING_TABLE), 2, () -> openPicker(idx));
             String tgtR = StructureCoreBlockEntity.craftTarget(st); // m235 多配方目标可手选配方（单配方不显示不添乱）
-            if (!tgtR.isEmpty() && this.client != null && this.client.world != null) {
+            if (!tgtR.isEmpty() && this.minecraft != null && this.minecraft.world != null) {
                 java.util.List<com.sdzjz.machine.CraftPlanner.Plan> psR =
-                        com.sdzjz.machine.CraftPlanner.plans(this.client.world, tgtR);
+                        com.sdzjz.machine.CraftPlanner.plans(this.minecraft.world, tgtR);
                 if (psR.size() > 1) {
                     String curR = StructureCoreBlockEntity.craftRecipe(st);
                     String lbl = "配方: 自动(按库存)";
@@ -2116,7 +2116,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             if (com.sdzjz.node.NodeTags.scanDone(st)) {
                 var smS = com.sdzjz.node.NodeTags.scanTypes(st);
                 java.util.List<java.util.Map.Entry<String, Long>> topS = new java.util.ArrayList<>();
-                for (String k : smS.getKeys()) topS.add(java.util.Map.entry(k, smS.getLong(k)));
+                for (String k : smS.getAllKeys()) topS.add(java.util.Map.entry(k, smS.getLong(k)));
                 topS.sort((a2, b2) -> Long.compare(b2.getValue(), a2.getValue()));
                 int shownS = Math.min(8, topS.size());
                 for (int k = 0; k < shownS; k++) {
@@ -2125,7 +2125,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                             : BuiltInRegistries.ITEM.get(ResourceLocation.parse(eS.getKey()));
                     boolean okIcS = icS != net.minecraft.world.item.Items.AIR;
                     String nmS = eS.getKey().startsWith("#") ? "其他" // 溢出桶
-                            : okIcS ? new ItemStack(icS).getName().getString() // 本地化名（拼音搜索同款体验）
+                            : okIcS ? new ItemStack(icS).getHoverName().getString() // 本地化名（拼音搜索同款体验）
                             : eS.getKey().substring(eS.getKey().indexOf(':') + 1); // 无物品形态方块退 id 路径
                     addMenu((k + 1) + ". " + nmS + " " + fmtNum(eS.getValue()),
                             mi(okIcS ? icS : net.minecraft.world.item.Items.BARRIER), () -> {});
@@ -2228,17 +2228,17 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void renderMenu(GuiGraphics ctx, int mouseX, int mouseY) {
         int th = menuTitle != null ? MENU_TITLE_H : 0;
         int h = menuLabels.size() * MENU_H + th;
-        float ease = SciSkin.easeOut((net.minecraft.Util.getMeasuringTimeMs() - menuOpenMs) / 110f);
+        float ease = SciSkin.easeOut((net.minecraft.Util.getMillis() - menuOpenMs) / 110f);
         if (menuHoverP.length != menuLabels.size()) menuHoverP = new float[menuLabels.size()];
-        ctx.getMatrices().push(); // 弹入：以菜单左上角为锚 0.92→1.0
+        ctx.pose().push(); // 弹入：以菜单左上角为锚 0.92→1.0
         // m316 整体抬 z=400（m202/m283 同病同刀）：画布节点的物品图标/升级角标由 drawItem 画在
         // z100~200 带深度测试，菜单 z0 平面填充画得再晚也被穿透（作者截图实锤：节点端口图标叠在
         // 菜单标题带上）。重命名/设置/帮助/选择器四浮层早已各自抬 400，唯菜单漏网，本笔补齐。
-        ctx.getMatrices().translate(0, 0, 400);
-        ctx.getMatrices().translate(menuX, menuY, 0);
+        ctx.pose().translate(0, 0, 400);
+        ctx.pose().translate(menuX, menuY, 0);
         float sc = 0.92f + 0.08f * ease;
-        ctx.getMatrices().scale(sc, sc, 1f);
-        ctx.getMatrices().translate(-menuX, -menuY, 0);
+        ctx.pose().scale(sc, sc, 1f);
+        ctx.pose().translate(-menuX, -menuY, 0);
         ctx.fill(menuX + 3, menuY + 4, menuX + MENU_W + 3, menuY + h + 4, SciSkin.withAlpha(0x66000000, ease));
         ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, SciSkin.withAlpha(NODEFRM, ease));
         ctx.fill(menuX, menuY, menuX + MENU_W, menuY + h, SciSkin.withAlpha(SciSkin.withAlpha8(SciSkin.CELL, 0xF0), ease)); // m207 归队
@@ -2246,8 +2246,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.fill(menuX, menuY, menuX + MENU_W, menuY + th, SciSkin.withAlpha(0xF00E2438, ease));
             ctx.fill(menuX, menuY + th - 1, menuX + MENU_W, menuY + th, SciSkin.withAlpha(CYAN, ease * 0.9f));
             String tt = menuTitle;
-            while (tt.length() > 1 && this.textRenderer.getWidth(tt) > MENU_W - 12) tt = tt.substring(0, tt.length() - 1);
-            ctx.drawText(this.textRenderer, tt, menuX + 6, menuY + 3,
+            while (tt.length() > 1 && this.font.getWidth(tt) > MENU_W - 12) tt = tt.substring(0, tt.length() - 1);
+            ctx.drawString(this.font, tt, menuX + 6, menuY + 3,
                     SciSkin.withAlpha(SciSkin.TXT_HI, Math.max(0.3f, ease)), false);
         }
         int tick = SciSkin.lighten(NODEFRM); // 四角刻与卡片语言呼应
@@ -2277,29 +2277,29 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int tx = menuX + 6 + Math.round(2 * pv);
             net.minecraft.resources.ResourceLocation tex = menuTexs.get(i); // m313 贴图图标优先
             if (tex != null) {
-                ctx.drawTexture(tex, tx, y0 + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
+                ctx.blit(tex, tx, y0 + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
                 tx += 20; // m316：贴图满幅 16px，原 +16 零间隙文字贴脸（作者截图点名），补 4px 呼吸位
             }
             ItemStack ic = menuIcons.get(i);
             if (ic != null && !ic.isEmpty()) {
-                ctx.getMatrices().push();
-                ctx.getMatrices().translate(tx, y0 + 2, 0);
-                ctx.getMatrices().scale(0.8f, 0.8f, 1f);
-                ctx.drawItem(ic, 0, 0);
-                ctx.getMatrices().pop();
+                ctx.pose().push();
+                ctx.pose().translate(tx, y0 + 2, 0);
+                ctx.pose().scale(0.8f, 0.8f, 1f);
+                ctx.renderItem(ic, 0, 0);
+                ctx.pose().pop();
                 tx += 18; // m316：0.8×实占 12.8px，原 +16 只剩 3px，与贴图行对齐补到约 5px
             }
             int col = danger ? SciSkin.mix(SciSkin.RED_SOFT, SciSkin.RED, pv) : SciSkin.mix(TXT, SciSkin.TXT_MAX, pv);
-            ctx.drawText(this.textRenderer, menuLabels.get(i), tx, y0 + 5,
+            ctx.drawString(this.font, menuLabels.get(i), tx, y0 + 5,
                     SciSkin.withAlpha(col, Math.max(0.3f, ease)), false);
         }
-        ctx.getMatrices().pop();
+        ctx.pose().pop();
     }
 
     /** 断开某机器节点的全部连线（机器边 + 存储边，逐条 toggle）。 */
     private void clearLinksOfMachine(int idx) {
         StructureCoreBlockEntity be = be();
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         for (int[] c : new ArrayList<>(be.connections()))
             if (c[0] == idx || c[1] == idx) com.sdzjz.client.ClientNet.toServer(new NodeLinkPayload(p, c[0], c[1]));
@@ -2315,7 +2315,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     private void clearLinksOfStorage(long pl) {
         StructureCoreBlockEntity be = be();
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         List<String> dims = endDimsOf(be);
         List<long[]> ends = endsOf(be);
@@ -2328,7 +2328,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** 整理布局：机器排网格，存储排右列。 */
     private void autoLayout() {
         StructureCoreBlockEntity be = be();
-        BlockPos p = this.handler.blockPos();
+        BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); // m221 间距收紧+进配置（作者截图点名"离得有点远"）：
         int rows = Math.max(1, c.canvasLayoutRows);                          // 旧 150/130 定值退役；步距=卡实占+间隙
@@ -2377,9 +2377,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 int visible = Math.max(1, (lb - ly - 30) / rowH);
                 int r = (int) ((mouseY - (ly + 16)) / rowH);
                 if (mouseY >= ly + 16 && r >= 0 && r < visible && r + libScroll < lib.size()) {
-                    BlockPos p = this.handler.blockPos();
+                    BlockPos p = this.menu.blockPos();
                     if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeAddPayload(p,
-                            BuiltInRegistries.ITEM.getId(lib.get(r + libScroll).getItem()).toString()));
+                            BuiltInRegistries.ITEM.getKey(lib.get(r + libScroll).getItem()).toString()));
                 }
             }
             return true;
@@ -2393,7 +2393,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 clearMenu();
                 if (act != null) {
                     Minecraft.getInstance().getSoundManager().play( // m148 点选音（原版按钮同款）
-                            net.minecraft.client.resources.sounds.SimpleSoundInstance.master(
+                            net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                                     net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
                     act.run();
                 }
@@ -2417,7 +2417,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 for (int k = 0; k < potionFiltered.size(); k++) {
                     int cx = pgx + (k % PICK_COLS) * 21, cy = pgy + (k / PICK_COLS) * 21;
                     if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
-                        BlockPos bpp = this.handler.blockPos();
+                        BlockPos bpp = this.menu.blockPos();
                         if (bpp != null && button == 0)
                             com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpp, pickerNode, potionFilteredIds.get(k)));
                         closePicker();
@@ -2432,7 +2432,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 for (int k = 0; k < tradeFilteredIds.size(); k++) {
                     int ry = rgy + k * ENCH_ROW_H;
                     if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
-                        BlockPos bpt = this.handler.blockPos();
+                        BlockPos bpt = this.menu.blockPos();
                         if (bpt != null && button == 0)
                             com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpt, pickerNode, tradeFilteredIds.get(k)));
                         closePicker();
@@ -2447,7 +2447,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 for (int k = 0; k < enchFilteredIds.size(); k++) {
                     int ry = rgy + k * ENCH_ROW_H;
                     if (mouseX >= rgx && mouseX < rgx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2) {
-                        BlockPos bpe = this.handler.blockPos();
+                        BlockPos bpe = this.menu.blockPos();
                         if (bpe != null && button == 0)
                             com.sdzjz.client.ClientNet.toServer(new NodeTargetPayload(bpe, pickerNode, enchFilteredIds.get(k)));
                         closePicker();
@@ -2461,8 +2461,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             for (int k = 0; k < pickerFiltered.size(); k++) {
                 int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
                 if (mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20) {
-                    BlockPos bp = this.handler.blockPos();
-                    String iid = BuiltInRegistries.ITEM.getId(pickerFiltered.get(k)).toString();
+                    BlockPos bp = this.menu.blockPos();
+                    String iid = BuiltInRegistries.ITEM.getKey(pickerFiltered.get(k)).toString();
                     if (bp != null) {
                         if (pickerMode == 1) { // 过滤多选：切名单项，不关窗
                             com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(bp, pickerNode, iid));
@@ -2509,7 +2509,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
                         if (wx >= sx && wx <= sx + 24 && wy >= sy && wy <= sy + 18) {
-                            BlockPos p = this.handler.blockPos();
+                            BlockPos p = this.menu.blockPos();
                             // m115a：Shift+点击=批量（一次至多64个，服务端按背包/格内实况截断）
                             if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeUpgradePayload(p, i, k, button == 0, hasShiftDown() ? 64 : 1));
                             return true;
@@ -2536,7 +2536,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                             clearMenu();
                             menuTitle = "存储连线"; // m148
                             if (endPlaced(be, pl) && endsPlaceableOn()) { // m265 放置卡多一条：收回总线（拖回带内同义）
-                                BlockPos pDock = this.handler.blockPos();
+                                BlockPos pDock = this.menu.blockPos();
                                 addMenu("收回总线", mi(net.minecraft.world.item.Items.ENDER_PEARL), () -> {
                                     if (pDock != null) {
                                         holdHome(pl, null);
@@ -2613,7 +2613,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         if (!StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx + 43 && wx <= nx + 91 && wy >= ny + 23 && wy <= ny + 45) {
-                            BlockPos p = this.handler.blockPos();
+                            BlockPos p = this.menu.blockPos();
                             if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, i));
                             return true;
                         }
@@ -2633,7 +2633,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         if (hit != 0) {
                             long step = hasShiftDown() ? 1000 : 100;
                             long th = Math.max(0, StructureCoreBlockEntity.sensorThreshold(nodes.get(i)) + hit * step);
-                            BlockPos p = this.handler.blockPos();
+                            BlockPos p = this.menu.blockPos();
                             if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, i, "", th,
                                     StructureCoreBlockEntity.sensorLess(nodes.get(i))));
                             return true;
@@ -2768,7 +2768,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int relX = dragEndX, relY = dragEndY;
             dragEnd = Long.MIN_VALUE; // 先清，snx/sny 回真源
             StructureCoreBlockEntity be = be();
-            BlockPos p = this.handler.blockPos();
+            BlockPos p = this.menu.blockPos();
             if (be != null && p != null && moved && endsPlaceableOn()) {
                 List<long[]> ends = endsOf(be);
                 int bandBot = Math.min(busVisible()
@@ -2790,7 +2790,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         if (button == 0 && linking) {
             StructureCoreBlockEntity be = be();
-            BlockPos p = this.handler.blockPos();
+            BlockPos p = this.menu.blockPos();
             if (be != null && p != null) {
                 List<ItemStack> nodes = be.nodes();
                 List<long[]> ends = endsOf(be);
@@ -2860,7 +2860,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         if (button == 0 && dragIndex >= 0) {
             StructureCoreBlockEntity be = be();
-            BlockPos p = this.handler.blockPos();
+            BlockPos p = this.menu.blockPos();
             if (be != null && p != null && dragIndex < be.nodes().size()) {
                 be.setNodePos(dragIndex, dragCurX, dragCurY); // m196 本地定格 + 发包用覆盖坐标——从 BE 回读会被中途同步盖成旧值(漂移元凶)
                 com.sdzjz.client.ClientNet.toServer(new NodeMovePayload(p, dragIndex, dragCurX, dragCurY));
@@ -2869,7 +2869,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             return true;
         }
         if (button == 0 && dragGid >= 0) { // m192 组拖动松手：一包发总增量（服务端批量改+单次同步，防N连发全量同步）
-            BlockPos p = this.handler.blockPos();
+            BlockPos p = this.menu.blockPos();
             StructureCoreBlockEntity gbe = be(); // m196 覆盖失效前按快照+增量本地定格——否则松手到服务端回同步之间闪回旧位置
             if (gbe != null) for (var en : dragGidSnap.entrySet())
                 if (en.getKey() < gbe.nodes().size())
@@ -2919,10 +2919,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openDupPicker(int node) {
         pickerMode = 0;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs();
+        pickerOpenMs = net.minecraft.Util.getMillis();
         if (allItems == null) buildAllItems();
         pickerSrcOverride = allItems;
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -2933,11 +2933,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openSealPicker(int node) {
         pickerMode = 0;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs();
+        pickerOpenMs = net.minecraft.Util.getMillis();
         if (allItems == null) buildAllItems();
         pickerSrcOverride = allItems;
         pickerTitleOverride = "选择封边材料（要有方块形态；自定义料从存储扣，不够=黄灯提醒并回落免费石墙）";
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -2946,9 +2946,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openPicker(int node) {
         pickerMode = 0;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         if (craftables == null) buildCraftables();
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -2958,9 +2958,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openPotionPicker(int node) {
         pickerMode = 4;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         if (potionIds == null) {
-            potionIds = new ArrayList<>(BuiltInRegistries.POTION.getIds());
+            potionIds = new ArrayList<>(BuiltInRegistries.POTION.keySet());
             potionIds.sort(java.util.Comparator.comparing(net.minecraft.resources.ResourceLocation::toString));
         }
         StructureCoreBlockEntity beP = be();
@@ -2968,7 +2968,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             String t = StructureCoreBlockEntity.craftTarget(beP.nodes().get(node));
             brewForm = t.endsWith("|s") ? 1 : t.endsWith("|l") ? 2 : 0;
         }
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -2978,14 +2978,14 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openEnchantPicker(int node) {
         pickerMode = 5;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         enchAllIds = new ArrayList<>();
         enchAllNames = new ArrayList<>();
         Minecraft mc = Minecraft.getInstance();
-        if (mc.world != null) {
-            var reg = mc.world.getRegistryManager().getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        if (mc.level != null) {
+            var reg = mc.level.registryAccess().getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
             var es = reg.streamEntries().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            es.sort(java.util.Comparator.comparing(e -> net.minecraft.world.item.enchantment.Enchantment.getName(e, 1).getString()));
+            es.sort(java.util.Comparator.comparing(e -> net.minecraft.world.item.enchantment.Enchantment.getFullname(e, 1).getString()));
             for (var e : es) {
                 String id = e.registryKey().getValue().toString();
                 for (int lv = e.value().getMaxLevel(); lv >= 1; lv--) {
@@ -2994,7 +2994,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 }
             }
         }
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3004,9 +3004,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openTradePicker(int node) {
         pickerMode = 6;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         tradeAllIds = com.sdzjz.machine.TradePlanner.allTargets();
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3017,7 +3017,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         tradeFilteredIds.clear();
         tradeFilteredNames.clear();
         if (tradeAllIds == null) return;
-        String q = pickerField.getText().trim().toLowerCase();
+        String q = pickerField.getValue().trim().toLowerCase();
         for (String tgt : tradeAllIds) {
             net.minecraft.network.chat.Component nm = com.sdzjz.machine.TradePlanner.displayName(tgt);
             if (!q.isEmpty() && !nm.getString().toLowerCase().contains(q) && !tgt.contains(q)) continue;
@@ -3035,14 +3035,14 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         enchFilteredIds.clear();
         enchFilteredNames.clear();
         if (enchAllIds == null) return;
-        String q = pickerField.getText().trim().toLowerCase();
+        String q = pickerField.getValue().trim().toLowerCase();
         Minecraft mc = Minecraft.getInstance();
-        if (mc.world == null) return;
+        if (mc.level == null) return;
         for (int k = 0; k < enchAllIds.size(); k++) {
             String tgt = enchAllIds.get(k);
             net.minecraft.network.chat.Component nm = enchAllNames.get(k);
             if (!q.isEmpty() && !nm.getString().toLowerCase().contains(q) && !tgt.contains(q)) continue;
-            ItemStack bs = (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(mc.world, tgt); // m364 句柄拆封
+            ItemStack bs = (ItemStack) com.sdzjz.machine.EnchantPlanner.targetStack(mc.level, tgt); // m364 句柄拆封
             if (bs == null) continue;
             enchFiltered.add(bs);
             enchFilteredIds.add(tgt);
@@ -3057,13 +3057,13 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void refilterPotions() {
         potionFiltered.clear();
         potionFilteredIds.clear();
-        String q = pickerField.getText().trim().toLowerCase();
+        String q = pickerField.getValue().trim().toLowerCase();
         for (net.minecraft.resources.ResourceLocation pid : potionIds) {
             if (brewForm == 0 && pid.getPath().equals("water")) continue; // 普通水瓶无酿造意义（喷溅水=水+火药可酿，保留）
             String tgt = pid + "|" + brewFormChar(brewForm);
             ItemStack ps = (ItemStack) com.sdzjz.machine.BrewPlanner.targetStack(tgt); // m364 句柄拆封
             if (ps == null) continue;
-            if (q.isEmpty() || ps.getName().getString().toLowerCase().contains(q) || pid.getPath().contains(q)) {
+            if (q.isEmpty() || ps.getHoverName().getString().toLowerCase().contains(q) || pid.getPath().contains(q)) {
                 potionFiltered.add(ps);
                 potionFilteredIds.add(tgt);
                 if (potionFiltered.size() >= PICK_COLS * PICK_ROWS) break;
@@ -3083,8 +3083,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         LinkedHashSet<Item> set = new LinkedHashSet<>();
         if (com.sdzjz.machine.Machines.smelterFamily(mif.def().id())) { // m173 熔炉族
             Minecraft mc = Minecraft.getInstance();
-            if (mc.world != null)
-                for (var e : mc.world.getRecipeManager().listAllOfType(net.minecraft.world.item.crafting.RecipeType.SMELTING))
+            if (mc.level != null)
+                for (var e : mc.level.getRecipeManager().listAllOfType(net.minecraft.world.item.crafting.RecipeType.SMELTING))
                     for (var ing : e.value().getIngredients())
                         for (ItemStack ms : ing.getMatchingStacks()) set.add(ms.getItem());
             // m283 候选=仓库现有可烧（作者点名"读取存储终端里有什么可以烧的，不是全选出来"）——
@@ -3112,8 +3112,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         pickerSrcOverride = src;
         pickerMode = 1;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs();
-        pickerField.setText("");
+        pickerOpenMs = net.minecraft.Util.getMillis();
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3122,7 +3122,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openFilterPicker(int node) {
         pickerMode = 1;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         if (allItems == null) buildAllItems();
         // m163b 抽取白名单候选=仓库现有（用户点名：别给我列全物品表）——复用 m149 的 pickerSrcOverride
         // 机制 + m85/m163b 总线库存同步通道（busIdsCache，含精确条目），零新协议。已选置顶逻辑按 id
@@ -3140,7 +3140,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 pickerTitleOverride = "抽取白名单（候选=仓库现有·点选=加/移·Esc完成）";
             }
         }
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3150,9 +3150,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openSensorPicker(int node) {
         pickerMode = 2;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         if (allItems == null) buildAllItems();
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3164,13 +3164,13 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void openCropPicker(int node) {
         pickerMode = 3;
         pickerNode = node;
-        pickerOpenMs = net.minecraft.Util.getMeasuringTimeMs(); // m148 淡入
+        pickerOpenMs = net.minecraft.Util.getMillis(); // m148 淡入
         if (cropItems == null) {
             cropItems = new ArrayList<>();
             for (String id : com.sdzjz.machine.CropFarms.KEYS)
                 cropItems.add(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)));
         }
-        pickerField.setText("");
+        pickerField.setValue("");
         refilterPicker();
         this.setFocused(pickerField);
         pickerField.setFocused(true);
@@ -3195,11 +3195,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private void buildCraftables() {
         craftables = new ArrayList<>();
         Minecraft mc = Minecraft.getInstance();
-        if (mc.world == null) return;
+        if (mc.level == null) return;
         LinkedHashSet<Item> set = new LinkedHashSet<>();
-        for (RecipeHolder<CraftingRecipe> e : mc.world.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
+        for (RecipeHolder<CraftingRecipe> e : mc.level.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
             try {
-                ItemStack out = e.value().getResult(mc.world.getRegistryManager());
+                ItemStack out = e.value().getResult(mc.level.registryAccess());
                 if (out != null && !out.isEmpty()) set.add(out.getItem());
             } catch (Exception ignored) {}
         }
@@ -3209,7 +3209,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** m335 网格命中唯一口：查询语法（学JEI：@模组/-排除/|并联，PickerQuery 自写实现）+名字/id缓存。 */
     private boolean pickerHit(Item it, String q) {
         String[] ni = pickerNameCache.computeIfAbsent(it, k -> new String[]{
-                new ItemStack(k).getName().getString().toLowerCase(), BuiltInRegistries.ITEM.getId(k).toString()});
+                new ItemStack(k).getHoverName().getString().toLowerCase(), BuiltInRegistries.ITEM.getKey(k).toString()});
         if (com.sdzjz.config.SdzjzConfig.get().pickerQuerySyntax)
             return com.sdzjz.machine.PickerQuery.matches(ni[0], ni[1], q);
         return q.isEmpty() || ni[0].contains(q) || ni[1].substring(ni[1].indexOf(':') + 1).contains(q); // 旧口径
@@ -3224,7 +3224,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         List<Item> src = pickerSrcOverride != null ? pickerSrcOverride // m149 机器加工过滤候选源
                 : pickerMode == 0 ? craftables : pickerMode == 3 ? cropItems : allItems;
         if (src == null) return;
-        String q = pickerField.getText().trim().toLowerCase();
+        String q = pickerField.getValue().trim().toLowerCase();
         // m116：已选项置顶——窗口只显示一页 70 格，1400+ 物品里已选的经常根本翻不到（用户点名）。
         // 按 id 直接解析已选（数量个位数级），不进大扫描，每键成本不回退 m107a。
         if (pickerMode == 1 || pickerMode == 3) {
@@ -3255,10 +3255,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         // m283 整体抬 z=400（m202 同病同刀）：画布节点物品/数量角标画在 z100~200 带深度测试，
         // 选择器 z0 后画的填充会被剔除=底下机器图标穿透面板（作者点名"面板会透出来层级"）。
         // 面板内 drawItem 自带 +150 落在 ~550，仍低于原版 tooltip 常规带之上无冲突；命中判定全用屏幕坐标不受影响。
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, 0, 400);
+        ctx.pose().push();
+        ctx.pose().translate(0, 0, 400);
         int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
-        float easeP = SciSkin.easeOut((net.minecraft.Util.getMeasuringTimeMs() - pickerOpenMs) / 130f); // m148 淡入
+        float easeP = SciSkin.easeOut((net.minecraft.Util.getMillis() - pickerOpenMs) / 130f); // m148 淡入
         ctx.fill(0, 0, this.width, this.height, SciSkin.withAlpha(0xA0000000, 0.35f + 0.65f * easeP));
         ctx.fill(px + 3, py + 4, px + PICK_W + 3, py + PICK_H + 4, SciSkin.withAlpha(0x66000000, easeP)); // 投影
         ctx.fill(px - 1, py - 1, px + PICK_W + 1, py + PICK_H + 1, NODEFRM);
@@ -3277,7 +3277,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 : pickerMode == 5 ? "选择目标附魔（中文/英文搜索）"
                 : pickerMode == 6 ? "选择交易条目（职业：付出→获得·可搜索）"
                 : "选择目标产物（中文/英文搜索）";
-        ctx.drawText(this.textRenderer, ptitle, px + 8, py + 8, TXT, false);
+        ctx.drawString(this.font, ptitle, px + 8, py + 8, TXT, false);
         if (pickerMode == 4) { // m131b 形态切换按钮
             for (int f = 0; f < 3; f++) {
                 int fx = px + PICK_W - 118 + f * 38, fy = py + 5;
@@ -3285,7 +3285,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 boolean hovF = mouseX >= fx && mouseX < fx + 34 && mouseY >= fy && mouseY < fy + 14;
                 ctx.fill(fx - 1, fy - 1, fx + 35, fy + 15, NODEFRM);
                 ctx.fill(fx, fy, fx + 34, fy + 14, on ? SciSkin.ON_DARK : hovF ? SciSkin.HOVER : SciSkin.BTN_FACE);
-                ctx.drawText(this.textRenderer, BREW_FORM_NAMES[f], fx + 5, fy + 3, on ? ON : SUB, false);
+                ctx.drawString(this.font, BREW_FORM_NAMES[f], fx + 5, fy + 3, on ? ON : SUB, false);
             }
         }
         List<String> selIds = java.util.Collections.emptyList();
@@ -3314,12 +3314,12 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 boolean sel = tradeFilteredIds.get(k).equals(curT);
                 if (sel) ctx.fill(gx - 1, ry - 1, gx + PICK_W - 15, ry + ENCH_ROW_H - 1, ON);
                 ctx.fill(gx, ry, gx + PICK_W - 16, ry + ENCH_ROW_H - 2, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-                ctx.drawItem(tradeFiltered.get(k), gx + 1, ry);
-                ctx.drawText(this.textRenderer, tradeFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
+                ctx.renderItem(tradeFiltered.get(k), gx + 1, ry);
+                ctx.drawString(this.font, tradeFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
                 if (hov) { hoveredStack = tradeFiltered.get(k); hoverName = tradeFilteredNames.get(k).getString(); }
             }
             if (tradeFiltered.isEmpty())
-                ctx.drawText(this.textRenderer, "无匹配交易（试试物品名或职业id）", gx, gy + 4, SUB, false);
+                ctx.drawString(this.font, "无匹配交易（试试物品名或职业id）", gx, gy + 4, SUB, false);
         } else if (pickerMode == 5) { // m132 附魔行式列表：图标+原版名字（罗马数字/诅咒红字），当前目标=绿框
             String curT = "";
             StructureCoreBlockEntity beE = be();
@@ -3331,12 +3331,12 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 boolean sel = enchFilteredIds.get(k).equals(curT);
                 if (sel) ctx.fill(gx - 1, ry - 1, gx + PICK_W - 15, ry + ENCH_ROW_H - 1, ON);
                 ctx.fill(gx, ry, gx + PICK_W - 16, ry + ENCH_ROW_H - 2, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-                ctx.drawItem(enchFiltered.get(k), gx + 1, ry);
-                ctx.drawText(this.textRenderer, enchFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
+                ctx.renderItem(enchFiltered.get(k), gx + 1, ry);
+                ctx.drawString(this.font, enchFilteredNames.get(k), gx + 22, ry + 4, TXT, false);
                 if (hov) { hoveredStack = enchFiltered.get(k); hoverName = enchFilteredNames.get(k).getString(); }
             }
             if (enchFiltered.isEmpty())
-                ctx.drawText(this.textRenderer, "无匹配附魔（试试中文名或英文id）", gx, gy + 4, SUB, false);
+                ctx.drawString(this.font, "无匹配附魔（试试中文名或英文id）", gx, gy + 4, SUB, false);
         } else if (pickerMode == 4) { // m131b 药水网格：栈直绘（带药水配色），当前目标=绿框
             String curT = "";
             StructureCoreBlockEntity beC = be();
@@ -3348,30 +3348,30 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 boolean sel = potionFilteredIds.get(k).equals(curT);
                 if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON);
                 ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-                ctx.drawItem(potionFiltered.get(k), cx + 2, cy + 2);
+                ctx.renderItem(potionFiltered.get(k), cx + 2, cy + 2);
                 if (hov) hoveredStack = potionFiltered.get(k);
             }
         } else {
             for (int k = 0; k < pickerFiltered.size(); k++) {
                 int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
                 boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;
-                boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(BuiltInRegistries.ITEM.getId(pickerFiltered.get(k)).toString());
+                boolean sel = (pickerMode == 1 || pickerMode == 3) && selIds.contains(BuiltInRegistries.ITEM.getKey(pickerFiltered.get(k)).toString());
                 if (sel) ctx.fill(cx - 1, cy - 1, cx + 21, cy + 21, ON); // 多选已选=绿框
                 ctx.fill(cx, cy, cx + 20, cy + 20, hov ? SciSkin.HOVER : sel ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-                ctx.drawItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
+                ctx.renderItem(new ItemStack(pickerFiltered.get(k)), cx + 2, cy + 2);
                 if (hov) hovered = pickerFiltered.get(k);
             }
         }
         String tip = hoverName != null ? hoverName
-                : hoveredStack != null ? hoveredStack.getName().getString()
-                : hovered != null ? new ItemStack(hovered).getName().getString() + " · " + BuiltInRegistries.ITEM.getId(hovered) // m335 悬停带id
+                : hoveredStack != null ? hoveredStack.getHoverName().getString()
+                : hovered != null ? new ItemStack(hovered).getHoverName().getString() + " · " + BuiltInRegistries.ITEM.getKey(hovered) // m335 悬停带id
                 : pickerMode == 4 || pickerMode == 5 || pickerMode == 6 ? "点击图标设为目标 · Esc 关闭"
                 : pickerMatchTotal > PICK_COLS * PICK_ROWS
                         ? "匹配 " + pickerMatchTotal + " · 仅显前 " + (PICK_COLS * PICK_ROWS) + " · @模组 -排除 |并联"
                         : "匹配 " + pickerMatchTotal + " · @模组 -排除 |并联 · Esc 关闭"; // m335 学JEI语法习惯（自写）
         tip = fitText(tip, PICK_W - 16); // m335 防溢出（m164a 省略号刀）
-        ctx.drawText(this.textRenderer, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
-        ctx.getMatrices().pop(); // m283 与顶部 translate(0,0,400) 配对
+        ctx.drawString(this.font, tip, px + 8, py + PICK_H - 14, (hovered != null || hoveredStack != null) ? ON : SUB, false);
+        ctx.pose().pop(); // m283 与顶部 translate(0,0,400) 配对
     }
 
     @Override
@@ -3399,7 +3399,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         if (!menuOpen) { // m313 画布快捷键（作者点名"要支持快捷键"）：悬停节点即生效；各 modal 已在上方截前
             int hv = hoveredNode();
-            BlockPos kp = this.handler.blockPos();
+            BlockPos kp = this.menu.blockPos();
             if (keyCode == 71 && hasShiftDown() && hv >= 0 && kp != null) { // Shift+G=解散悬停节点所属组（解散纯视觉，先于普通 G）
                 int gid = groupOfNode(hv);
                 if (gid >= 0) {

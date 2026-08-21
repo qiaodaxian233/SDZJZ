@@ -15,7 +15,7 @@ public record NodeFusePayload(BlockPos pos, int index, boolean up) implements Cu
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeFusePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeFusePayload::pos,
-            ByteBufCodecs.INTEGER, NodeFusePayload::index,
+            ByteBufCodecs.INT, NodeFusePayload::index,
             ByteBufCodecs.BOOL, NodeFusePayload::up,
             NodeFusePayload::new
     );

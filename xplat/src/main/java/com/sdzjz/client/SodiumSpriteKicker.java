@@ -132,8 +132,8 @@ public final class SodiumSpriteKicker {
         if (!resolved) resolve();
         if (disabled) return;
         try {
-            TextureAtlas atlas = client.getBakedModelManager()
-                    .getAtlas(TextureAtlas.BLOCK_ATLAS_TEXTURE); // 1.21 物品精灵同在方块图集
+            TextureAtlas atlas = client.getModelManager()
+                    .getAtlas(TextureAtlas.LOCATION_BLOCKS); // 1.21 物品精灵同在方块图集
             for (ResourceLocation id : SPRITES) {
                 TextureAtlasSprite s = atlas.getSprite(id);
                 if (s != null) mark.invoke(markTarget, s);

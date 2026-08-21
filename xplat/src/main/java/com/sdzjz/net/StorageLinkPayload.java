@@ -15,9 +15,9 @@ public record StorageLinkPayload(BlockPos pos, int machineIndex, long storagePos
 
     public static final StreamCodec<RegistryFriendlyByteBuf, StorageLinkPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, StorageLinkPayload::pos,
-            ByteBufCodecs.INTEGER, StorageLinkPayload::machineIndex,
+            ByteBufCodecs.INT, StorageLinkPayload::machineIndex,
             ByteBufCodecs.VAR_LONG, StorageLinkPayload::storagePos,
-            ByteBufCodecs.INTEGER, StorageLinkPayload::dir,
+            ByteBufCodecs.INT, StorageLinkPayload::dir,
             Bounded.string(256), StorageLinkPayload::dim, // m291 维度 id
             StorageLinkPayload::new
     );

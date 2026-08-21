@@ -26,8 +26,8 @@ public record StorageNodeHomePayload(BlockPos pos,
     public static final StreamCodec<RegistryFriendlyByteBuf, StorageNodeHomePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, StorageNodeHomePayload::pos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), StorageNodeHomePayload::endPos,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::nx,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), StorageNodeHomePayload::ny,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INT), StorageNodeHomePayload::nx,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INT), StorageNodeHomePayload::ny,
             StorageNodeHomePayload::new
     );
 

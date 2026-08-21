@@ -15,8 +15,8 @@ public record NodeLinkPayload(BlockPos pos, int from, int to) implements CustomP
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeLinkPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeLinkPayload::pos,
-            ByteBufCodecs.INTEGER, NodeLinkPayload::from,
-            ByteBufCodecs.INTEGER, NodeLinkPayload::to,
+            ByteBufCodecs.INT, NodeLinkPayload::from,
+            ByteBufCodecs.INT, NodeLinkPayload::to,
             NodeLinkPayload::new
     );
 

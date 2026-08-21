@@ -15,7 +15,7 @@ public record NodePausePayload(BlockPos pos, int index) implements CustomPacketP
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodePausePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodePausePayload::pos,
-            ByteBufCodecs.INTEGER, NodePausePayload::index,
+            ByteBufCodecs.INT, NodePausePayload::index,
             NodePausePayload::new
     );
 

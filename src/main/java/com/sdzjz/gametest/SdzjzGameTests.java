@@ -30,9 +30,9 @@ public class SdzjzGameTests implements FabricGameTest {
     /** 每用例现放一台存储核心（EMPTY_STRUCTURE 里 (0,1,0)）。 */
     private static StorageCoreBlockEntity core(GameTestHelper ctx) {
         BlockPos rel = new BlockPos(0, 1, 0);
-        ctx.setBlockState(rel, ModBlocks.STORAGE_CORE.getDefaultState());
+        ctx.setBlockState(rel, ModBlocks.STORAGE_CORE.defaultBlockState());
         if (ctx.getBlockEntity(rel) instanceof StorageCoreBlockEntity c) return c;
-        ctx.throwGameTestException("存储核心方块实体未生成");
+        ctx.fail("存储核心方块实体未生成");
         return null; // 不可达（上一行抛）
     }
 
@@ -55,7 +55,7 @@ public class SdzjzGameTests implements FabricGameTest {
         int b = c.withdraw("minecraft:cobblestone", 64);
         ctx.assertTrue(a + b == 64, "两路取和必须=64（无复制无凭空蒸发），实得 " + a + "+" + b);
         ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "取尽后余量必须=0");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** 审计 fabricTransactionAbortRestoresNormalEntry：外层事务回滚，普通账目还原。 */
@@ -72,7 +72,7 @@ public class SdzjzGameTests implements FabricGameTest {
         }
         ctx.assertTrue(c.count("minecraft:cobblestone") == 32,
                 "回滚后普通账目应还原 32，实得 " + c.count("minecraft:cobblestone"));
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** 审计 fabricNestedTransactionAbortRestoresExactEntry：内层提交、外层回滚，精确账目
@@ -96,16 +96,16 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(c.exactCount(0) == 10, "回滚后精确计数应还原 10，实得 " + c.exactCount(0));
         int again = c.withdrawExact(exactSample(1, 1), 10); // 索引置脏后懒重建的直查还能命中
         ctx.assertTrue(again == 10, "回滚后按模板提取应得 10（索引懒重建正确），实得 " + again);
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** 审计 oversizedPanelViewPayloadRejected：m291 有界 Codec 必须在**解码期**拒掉超长表。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void oversized_panel_view_payload_rejected(GameTestHelper ctx) {
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),
-                ctx.getWorld().getRegistryManager());
-        buf.writeBlockPos(BlockPos.ORIGIN);
-        buf.writeString("q", 128);
+                ctx.getLevel().registryAccess());
+        buf.writeBlockPos(BlockPos.ZERO);
+        buf.writeUtf("q", 128);
         buf.writeInt(0);                 // scrollRow：tuple 用 PacketCodecs.INTEGER=4 字节
         buf.writeVarInt(1_000_000);      // 恶意声明：一百万条匹配 id
         boolean rejected = false;
@@ -115,7 +115,7 @@ public class SdzjzGameTests implements FabricGameTest {
             rejected = true; // 期望路径：分配前拒收
         }
         ctx.assertTrue(rejected, "超长匹配表必须在解码期抛 DecoderException 拒收");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** 审计建议③的落地验证：类型绝对安全上限只闸新类型，已有类型照常进出。 */
@@ -137,7 +137,7 @@ public class SdzjzGameTests implements FabricGameTest {
         } finally {
             cfg.absoluteStorageTypeSafetyLimit = old; // 测试自还原，不污染同批次其它用例
         }
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m295 精确索引与列表同步：删中间条目（下标平移）后按模板直查仍逐一命中。 */
@@ -154,7 +154,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(c.exactTemplates().size() == 2, "平移后并账不得新开条目，实得 " + c.exactTemplates().size());
         int k3 = c.withdrawExact(exactSample(3, 1), 99);
         ctx.assertTrue(k3 == 10, "k=3 应累计 10（5+5），实得 " + k3);
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m305 调度器防饥饿 soak（评审③复评"下一步是测"）：100 个合成核心按**固定序**（有序不公平
@@ -169,7 +169,7 @@ public class SdzjzGameTests implements FabricGameTest {
         final int CORES = 100, CAP = 100, TICKS = 120;
         final long[] fed = new long[CORES];
         final int[] ran = {0};
-        ctx.runAtEveryTick(() -> {
+        ctx.failIfEver(() -> {
             if (ran[0] >= TICKS) return;
             ran[0]++;
             for (int i = 0; i < CORES; i++) // 固定序=BE tick 序稳定的最坏形
@@ -181,7 +181,7 @@ public class SdzjzGameTests implements FabricGameTest {
                 ctx.assertTrue(sum <= (long) CAP * TICKS, "总批准 " + sum + " 超预算硬顶 " + ((long) CAP * TICKS));
                 ctx.assertTrue(min >= TICKS / 4, "存在长期饥饿核心：min=" + min + " < " + (TICKS / 4) + "（防饥饿保底失效）");
                 ctx.assertTrue(max > 0, "全体零批准（预算通道疑似全堵）");
-                ctx.complete();
+                ctx.succeed();
             }
         });
     }
@@ -197,7 +197,7 @@ public class SdzjzGameTests implements FabricGameTest {
         final int CORES = 105, CAP = 100, WARM = 20, RUN = 100;
         final long[] fed = new long[CORES];
         final int[] ran = {0};
-        ctx.runAtEveryTick(() -> {
+        ctx.failIfEver(() -> {
             if (ran[0] >= WARM + RUN) return;
             ran[0]++;
             boolean count = ran[0] > WARM;
@@ -213,7 +213,7 @@ public class SdzjzGameTests implements FabricGameTest {
                 com.sdzjz.machine.CoreScheduler.clearAll();
                 ctx.assertTrue(min > 0, "k>cap 稳态仍有恒饿核心（资历轮转失效）");
                 ctx.assertTrue(min >= RUN / 8, "最低核窗口吞吐 " + min + " < " + (RUN / 8) + "（有界饥饿超界）");
-                ctx.complete();
+                ctx.succeed();
             }
         });
     }
@@ -223,13 +223,13 @@ public class SdzjzGameTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE)
     public void big_stacks_native(GameTestHelper ctx) {
         ItemStack big = new ItemStack(Items.COBBLESTONE, 1_000_000);
-        ctx.assertTrue(big.getMaxCount() >= 1_000_000, "大堆叠未生效：cobble getMaxCount=" + big.getMaxCount());
-        ctx.assertTrue(new ItemStack(Items.DIAMOND_PICKAXE).getMaxCount() == 1, "不可堆叠物被误抬（耐久合并风险）");
-        var ops = net.minecraft.resources.RegistryOps.of(net.minecraft.nbt.NbtOps.INSTANCE, ctx.getWorld().getRegistryManager());
+        ctx.assertTrue(big.getMaxStackSize() >= 1_000_000, "大堆叠未生效：cobble getMaxCount=" + big.getMaxStackSize());
+        ctx.assertTrue(new ItemStack(Items.DIAMOND_PICKAXE).getMaxStackSize() == 1, "不可堆叠物被误抬（耐久合并风险）");
+        var ops = net.minecraft.resources.RegistryOps.of(net.minecraft.nbt.NbtOps.INSTANCE, ctx.getLevel().registryAccess());
         var enc = ItemStack.CODEC.encodeStart(ops, big).getOrThrow();
         ItemStack back = ItemStack.CODEC.parse(ops, enc).getOrThrow();
         ctx.assertTrue(back.getCount() == 1_000_000, "计数存档往返丢失：读回 " + back.getCount() + "（Codec 钳位未放宽）");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m311 随身仓库账本：跨 int 边界入账（30 亿）→整包倾倒进核心→逐 id 对账+包倒空。 */
@@ -246,7 +246,7 @@ public class SdzjzGameTests implements FabricGameTest {
                 "倾倒后核心账不符：" + c.count("minecraft:cobblestone") + "（int 边界切块有误）");
         ctx.assertTrue(c.count("minecraft:dirt") == 5L, "小额账目丢失");
         ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultTypes(vault) == 0, "倾倒后包未清空");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m322 终端主快照缓存：账本没动=命中同一引用；**只动精确账本也必须失效**（本笔给
@@ -256,9 +256,9 @@ public class SdzjzGameTests implements FabricGameTest {
     public void panel_master_snapshot_tracks_exact_ledger(GameTestHelper ctx) {
         StorageCoreBlockEntity c = core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0); // 与核心贴邻，connectedCores BFS 直连
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.COBBLESTONE, 64));
         c.depositExact(exactSample(1, 5));
@@ -278,7 +278,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(a4 != a3, "普通账本变动必须打掉缓存");
         ctx.assertTrue(a4.get(0).tpl != null && a4.get(0).n == 8, "重排序：精确件 8 > 普通件 4 应升第一");
         ctx.assertTrue(a4.get(1).tpl == null && a4.get(1).n == 4, "普通件余量应为 4，实得 " + a4.get(1).n);
-        ctx.complete();
+        ctx.succeed();
     }
 
     // ===== m323 端到端第一批（评审第四优先：网络包→ScreenHandler→玩家库存→BE→存档 完整链）=====
@@ -290,23 +290,23 @@ public class SdzjzGameTests implements FabricGameTest {
     public void two_players_shift_take_last_stack_via_handlers(GameTestHelper ctx) {
         StorageCoreBlockEntity c = core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0);
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.COBBLESTONE, 64)); // 最后一组
-        var p1 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        var p2 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p1 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p2 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel); // 双 handler 构造即各刷首页——都看见 64
-        h1.quickMove(p1, com.sdzjz.screen.DataPanelScreenHandler.DISP0);
-        h2.quickMove(p2, com.sdzjz.screen.DataPanelScreenHandler.DISP0); // h2 展示页此刻仍是陈旧 64（10t 窗口）——复制窗正形
+        h1.quickMoveStack(p1, com.sdzjz.screen.DataPanelScreenHandler.DISP0);
+        h2.quickMoveStack(p2, com.sdzjz.screen.DataPanelScreenHandler.DISP0); // h2 展示页此刻仍是陈旧 64（10t 窗口）——复制窗正形
         int g1 = p1.getInventory().count(Items.COBBLESTONE);
         int g2 = p2.getInventory().count(Items.COBBLESTONE);
         ctx.assertTrue(g1 + g2 == 64, "两人实收和必须=64（无复制无蒸发），实得 " + g1 + "+" + g2);
         ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "账本应取尽=0，实余 " + c.count("minecraft:cobblestone"));
-        h1.onClosed(p1); h2.onClosed(p2); // 注销监听/观众计数（m126a/m107a 口径）
-        ctx.complete();
+        h1.removed(p1); h2.removed(p2); // 注销监听/观众计数（m126a/m107a 口径）
+        ctx.succeed();
     }
 
     /** m323 评审清单#2：两玩家同开同一面板各搜不同词——m292 视图迁 handler 的 E2E 回归
@@ -315,27 +315,27 @@ public class SdzjzGameTests implements FabricGameTest {
     public void two_players_search_independently(GameTestHelper ctx) {
         StorageCoreBlockEntity c = core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0);
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.IRON_INGOT, 32));
         c.deposit(new ItemStack(Items.DIAMOND, 16));
-        var p1 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        var p2 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p1 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p2 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
         int d0 = com.sdzjz.screen.DataPanelScreenHandler.DISP0;
-        ctx.waitAndRun(3, () -> { // 构造首刷占了本 tick 名额（≥2t 节流），隔 3 拍再设视图=立即真刷
+        ctx.runAfterDelay(3, () -> { // 构造首刷占了本 tick 名额（≥2t 节流），隔 3 拍再设视图=立即真刷
             h1.setView("iron", 0, java.util.List.of());
             h2.setView("diamond", 0, java.util.List.of());
-            ctx.assertTrue(h1.getSlot(d0).getStack().isOf(Items.IRON_INGOT), "玩家A搜iron首格应为铁锭");
-            ctx.assertTrue(h1.getSlot(d0 + 1).getStack().isEmpty(), "玩家A过滤后应只剩 1 条");
-            ctx.assertTrue(h2.getSlot(d0).getStack().isOf(Items.DIAMOND), "玩家B搜diamond首格应为钻石（若被A覆盖=m292回归）");
-            ctx.assertTrue(h2.getSlot(d0 + 1).getStack().isEmpty(), "玩家B过滤后应只剩 1 条");
-            ctx.assertTrue(h1.getSlot(d0).getStack().isOf(Items.IRON_INGOT), "B设视图后A的页面不许被动");
-            h1.onClosed(p1); h2.onClosed(p2);
-            ctx.complete();
+            ctx.assertTrue(h1.getSlot(d0).getItem().is(Items.IRON_INGOT), "玩家A搜iron首格应为铁锭");
+            ctx.assertTrue(h1.getSlot(d0 + 1).getItem().isEmpty(), "玩家A过滤后应只剩 1 条");
+            ctx.assertTrue(h2.getSlot(d0).getItem().is(Items.DIAMOND), "玩家B搜diamond首格应为钻石（若被A覆盖=m292回归）");
+            ctx.assertTrue(h2.getSlot(d0 + 1).getItem().isEmpty(), "玩家B过滤后应只剩 1 条");
+            ctx.assertTrue(h1.getSlot(d0).getItem().is(Items.IRON_INGOT), "B设视图后A的页面不许被动");
+            h1.removed(p1); h2.removed(p2);
+            ctx.succeed();
         });
     }
 
@@ -354,12 +354,12 @@ public class SdzjzGameTests implements FabricGameTest {
             ctx.assertTrue(ins == 3_000_000_000L, "FTA 长插应收 30 亿，实收 " + ins);
             tx.commit();
         }
-        var lookup = ctx.getWorld().getRegistryManager();
+        var lookup = ctx.getLevel().registryAccess();
         CompoundTag saved = c.createNbt(lookup);
         BlockPos rel2 = new BlockPos(2, 1, 0);
-        ctx.setBlockState(rel2, ModBlocks.STORAGE_CORE.getDefaultState());
+        ctx.setBlockState(rel2, ModBlocks.STORAGE_CORE.defaultBlockState());
         if (!(ctx.getBlockEntity(rel2) instanceof StorageCoreBlockEntity c2)) {
-            ctx.throwGameTestException("对账用第二核心未生成"); return;
+            ctx.fail("对账用第二核心未生成"); return;
         }
         c2.read(saved, lookup);
         ctx.assertTrue(c2.storeView().equals(c.storeView()),
@@ -367,12 +367,12 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(c2.exactTemplates().size() == c.exactTemplates().size(),
                 "精确条目数不符：写 " + c.exactTemplates().size() + " 读 " + c2.exactTemplates().size());
         for (int i = 0; i < c.exactTemplates().size(); i++) {
-            ctx.assertTrue(ItemStack.areItemsAndComponentsEqual(c.exactTemplates().get(i), c2.exactTemplates().get(i)),
+            ctx.assertTrue(ItemStack.isSameItemSameComponents(c.exactTemplates().get(i), c2.exactTemplates().get(i)),
                     "精确模板第 " + i + " 条组件往返漂移");
             ctx.assertTrue(c.exactCount(i) == c2.exactCount(i),
                     "精确计数第 " + i + " 条不符：写 " + c.exactCount(i) + " 读 " + c2.exactCount(i));
         }
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m323 评审清单#9：Fabric 事务与同 tick 手账混部——m278 增量 undo 的核心性质 E2E：
@@ -400,7 +400,7 @@ public class SdzjzGameTests implements FabricGameTest {
         int direct = c.withdraw("minecraft:cobblestone", 25);
         ctx.assertTrue(direct == 25 && c.count("minecraft:cobblestone") == 50,
                 "事务提交+手账串行后应余 50，实余 " + c.count("minecraft:cobblestone"));
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m324 区块级预算（maxRecipesPerChunkTick 真接线）：同区块同账/异区块异账/换拍复位。
@@ -408,23 +408,23 @@ public class SdzjzGameTests implements FabricGameTest {
      *  的区块键天然不撞（真核心的 chunkCharge 记它们自己的区块）。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void chunk_budget_shares_and_resets(GameTestHelper ctx) {
-        var w = ctx.getWorld();
+        var w = ctx.getLevel();
         long cap = 10;
         BlockPos p1 = new BlockPos(1_234_567, 64, 1_234_567);
-        BlockPos p2 = p1.add(3, 0, 0);   // 同区块
-        BlockPos p3 = p1.add(160, 0, 0); // 异区块（隔 10 个区块）
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), cap, ticksW(w)) == 10, "初始余量应=cap");
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), 0, ticksW(w)) == Long.MAX_VALUE, "cap<=0 应=闸关无限");
-        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), 7, ticksW(w));
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p2), cap, ticksW(w)) == 3,
-                "同区块同账：邻坐标余量应=3，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p2), cap, ticksW(w)));
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p3), cap, ticksW(w)) == 10, "异区块异账：远坐标余量应=10");
-        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p2), 3, ticksW(w));
-        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), cap, ticksW(w)) == 0, "记满后余量应=0");
-        ctx.waitAndRun(1, () -> { // 下一 server tick：区块账换拍复位（独立时钟，不依赖全服闸开）
-            ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), cap, ticksW(w)) == 10,
-                    "换拍后余量应复位=cap，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.toLong(p1), cap, ticksW(w)));
-            ctx.complete();
+        BlockPos p2 = p1.offset(3, 0, 0);   // 同区块
+        BlockPos p3 = p1.offset(160, 0, 0); // 异区块（隔 10 个区块）
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), cap, ticksW(w)) == 10, "初始余量应=cap");
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), 0, ticksW(w)) == Long.MAX_VALUE, "cap<=0 应=闸关无限");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), 7, ticksW(w));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p2), cap, ticksW(w)) == 3,
+                "同区块同账：邻坐标余量应=3，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p2), cap, ticksW(w)));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p3), cap, ticksW(w)) == 10, "异区块异账：远坐标余量应=10");
+        com.sdzjz.machine.CoreScheduler.chunkCharge(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p2), 3, ticksW(w));
+        ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), cap, ticksW(w)) == 0, "记满后余量应=0");
+        ctx.runAfterDelay(1, () -> { // 下一 server tick：区块账换拍复位（独立时钟，不依赖全服闸开）
+            ctx.assertTrue(com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), cap, ticksW(w)) == 10,
+                    "换拍后余量应复位=cap，实得 " + com.sdzjz.machine.CoreScheduler.chunkHeadroom(dimW(w), net.minecraft.world.level.ChunkPos.asLong(p1), cap, ticksW(w)));
+            ctx.succeed();
         });
     }
 
@@ -437,30 +437,30 @@ public class SdzjzGameTests implements FabricGameTest {
     public void shared_craft_grid_two_players(GameTestHelper ctx) {
         StorageCoreBlockEntity c = core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0);
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
-        var p1 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        var p2 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p1 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p2 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         var h1 = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel);
         var h2 = new com.sdzjz.screen.DataPanelScreenHandler(2, p2.getInventory(), panel);
         int r = com.sdzjz.screen.DataPanelScreenHandler.RESULT;
-        h1.getSlot(0).setStack(new ItemStack(Items.OAK_PLANKS)); // 竖排两板=木棍配方
-        h1.getSlot(3).setStack(new ItemStack(Items.OAK_PLANKS));
-        ctx.assertTrue(h2.getSlot(0).getStack().isOf(Items.OAK_PLANKS), "共享网格：A 摆料 B 必须实时可见");
-        ctx.assertTrue(h1.getSlot(r).getStack().isOf(Items.STICK) && h1.getSlot(r).getStack().getCount() == 4,
+        h1.getSlot(0).setByPlayer(new ItemStack(Items.OAK_PLANKS)); // 竖排两板=木棍配方
+        h1.getSlot(3).setByPlayer(new ItemStack(Items.OAK_PLANKS));
+        ctx.assertTrue(h2.getSlot(0).getItem().is(Items.OAK_PLANKS), "共享网格：A 摆料 B 必须实时可见");
+        ctx.assertTrue(h1.getSlot(r).getItem().is(Items.STICK) && h1.getSlot(r).getItem().getCount() == 4,
                 "A 结果格应出 4 木棍");
-        ctx.assertTrue(h2.getSlot(r).getStack().isOf(Items.STICK) && h2.getSlot(r).getStack().getCount() == 4,
+        ctx.assertTrue(h2.getSlot(r).getItem().is(Items.STICK) && h2.getSlot(r).getItem().getCount() == 4,
                 "B 结果格各算各的，同网格应同出 4 木棍");
-        h1.quickMove(p1, r); // 连续合成：仓里无板材→补料断→恰好一轮
+        h1.quickMoveStack(p1, r); // 连续合成：仓里无板材→补料断→恰好一轮
         ctx.assertTrue(p1.getInventory().count(Items.STICK) == 4,
                 "无补料应恰产一轮 4 木棍，实得 " + p1.getInventory().count(Items.STICK));
-        ctx.assertTrue(h1.getSlot(0).getStack().isEmpty() && h1.getSlot(3).getStack().isEmpty(), "扣料后网格应清空");
-        ctx.assertTrue(h2.getSlot(r).getStack().isEmpty(), "网格空了 B 的结果格必须跟着清（监听器同步）");
+        ctx.assertTrue(h1.getSlot(0).getItem().isEmpty() && h1.getSlot(3).getItem().isEmpty(), "扣料后网格应清空");
+        ctx.assertTrue(h2.getSlot(r).getItem().isEmpty(), "网格空了 B 的结果格必须跟着清（监听器同步）");
         ctx.assertTrue(c.count("minecraft:oak_planks") == 0, "核心从头到尾没板材（对照锚）");
-        h1.onClosed(p1); h2.onClosed(p2);
-        ctx.complete();
+        h1.removed(p1); h2.removed(p2);
+        ctx.succeed();
     }
 
     /** m326 评审清单#4：面板被拆后旧 handler 继续发包——canUse 立刻假（m299 存活三判触发
@@ -469,29 +469,29 @@ public class SdzjzGameTests implements FabricGameTest {
     public void stale_handler_after_panel_broken(GameTestHelper ctx) {
         StorageCoreBlockEntity c = core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0);
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
         c.deposit(new ItemStack(Items.COBBLESTONE, 64));
-        var p1 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var p1 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack term = new ItemStack(com.sdzjz.registry.ModItems.TERMINAL);
-        p1.getInventory().setStack(0, term); // 主手（selectedSlot=0）
-        var hitPos = panel.getPos();
+        p1.getInventory().setItem(0, term); // 主手（selectedSlot=0）
+        var hitPos = panel.getBlockPos();
         var uctx = new net.minecraft.world.item.context.UseOnContext(p1, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(
                         net.minecraft.world.phys.Vec3.ofCenter(hitPos), net.minecraft.core.Direction.UP, hitPos, false));
         ctx.assertTrue(((com.sdzjz.item.TerminalItem) com.sdzjz.registry.ModItems.TERMINAL)
-                        .useOnBlock(uctx) == net.minecraft.world.InteractionResult.SUCCESS, "真绑定路径应 SUCCESS");
+                        .useOn(uctx) == net.minecraft.world.InteractionResult.SUCCESS, "真绑定路径应 SUCCESS");
         var h = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel, true); // 远程屏（免距离判，专测存活）
-        ctx.assertTrue(h.canUse(p1), "面板在、钥匙在：canUse 应为真");
-        ctx.waitAndRun(3, () -> { // 隔开 ctor 首刷的 ≥2t 节流名额，让迟到包走完整 repage 路
-            ctx.getWorld().setBlockState(hitPos, net.minecraft.world.level.block.Blocks.AIR.getDefaultState());
+        ctx.assertTrue(h.stillValid(p1), "面板在、钥匙在：canUse 应为真");
+        ctx.runAfterDelay(3, () -> { // 隔开 ctor 首刷的 ≥2t 节流名额，让迟到包走完整 repage 路
+            ctx.getLevel().setBlockState(hitPos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
             ctx.assertTrue(panel.isRemoved(), "拆除后 BE 应已 removed");
-            ctx.assertTrue(!h.canUse(p1), "面板被拆：canUse 必须立刻为假（m299 存活三判）");
+            ctx.assertTrue(!h.stillValid(p1), "面板被拆：canUse 必须立刻为假（m299 存活三判）");
             h.setView("stone", 0, java.util.List.of()); // 迟到视图包：完整 repage 在 removed BE 上不许抛
-            h.onClosed(p1);
-            ctx.complete();
+            h.removed(p1);
+            ctx.succeed();
         });
     }
 
@@ -501,36 +501,36 @@ public class SdzjzGameTests implements FabricGameTest {
     public void remote_terminal_key_lifecycle(GameTestHelper ctx) {
         core(ctx);
         BlockPos prel = new BlockPos(1, 1, 0);
-        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.getDefaultState());
+        ctx.setBlockState(prel, ModBlocks.DATA_PANEL.defaultBlockState());
         if (!(ctx.getBlockEntity(prel) instanceof com.sdzjz.block.DataPanelBlockEntity panel)) {
-            ctx.throwGameTestException("数据面板方块实体未生成"); return;
+            ctx.fail("数据面板方块实体未生成"); return;
         }
-        var p1 = ctx.createMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
-        p1.getInventory().setStack(0, new ItemStack(com.sdzjz.registry.ModItems.TERMINAL));
-        var hitPos = panel.getPos();
+        var p1 = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        p1.getInventory().setItem(0, new ItemStack(com.sdzjz.registry.ModItems.TERMINAL));
+        var hitPos = panel.getBlockPos();
         var uctx = new net.minecraft.world.item.context.UseOnContext(p1, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(
                         net.minecraft.world.phys.Vec3.ofCenter(hitPos), net.minecraft.core.Direction.UP, hitPos, false));
-        ((com.sdzjz.item.TerminalItem) com.sdzjz.registry.ModItems.TERMINAL).useOnBlock(uctx);
-        ctx.assertTrue(com.sdzjz.item.TerminalItem.isBoundTo(p1.getInventory().getStack(0), hitPos, ctx.getWorld()),
+        ((com.sdzjz.item.TerminalItem) com.sdzjz.registry.ModItems.TERMINAL).useOn(uctx);
+        ctx.assertTrue(com.sdzjz.item.TerminalItem.isBoundTo(p1.getInventory().getItem(0), hitPos, ctx.getLevel()),
                 "绑定后 isBoundTo 应为真");
         var h = new com.sdzjz.screen.DataPanelScreenHandler(1, p1.getInventory(), panel, true);
-        ctx.assertTrue(h.canUse(p1), "持钥匙：canUse 应为真");
-        ItemStack key = p1.getInventory().getStack(0);
-        p1.getInventory().setStack(0, ItemStack.EMPTY);
-        ctx.assertTrue(!h.canUse(p1), "钥匙离身：canUse 必须为假");
-        h.setCursorStack(key);
-        ctx.assertTrue(h.canUse(p1), "光标栈也算身上：界面内挪动终端不许误关（m303 明文）");
-        h.setCursorStack(ItemStack.EMPTY);
-        ctx.assertTrue(!h.canUse(p1), "彻底丢弃：canUse 必须为假");
-        h.onClosed(p1);
-        ctx.complete();
+        ctx.assertTrue(h.stillValid(p1), "持钥匙：canUse 应为真");
+        ItemStack key = p1.getInventory().getItem(0);
+        p1.getInventory().setItem(0, ItemStack.EMPTY);
+        ctx.assertTrue(!h.stillValid(p1), "钥匙离身：canUse 必须为假");
+        h.setCarried(key);
+        ctx.assertTrue(h.stillValid(p1), "光标栈也算身上：界面内挪动终端不许误关（m303 明文）");
+        h.setCarried(ItemStack.EMPTY);
+        ctx.assertTrue(!h.stillValid(p1), "彻底丢弃：canUse 必须为假");
+        h.removed(p1);
+        ctx.succeed();
     }
 
     /** m332 廿一号：随身仓库专属仓位——账面 PersistentState 存档往返（long 账本跨 int 边界）+ 仓位准入规则。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void portable_vault_slot_state_roundtrip(GameTestHelper ctx) {
-        var lookup = ctx.getWorld().getRegistryManager();
+        var lookup = ctx.getLevel().registryAccess();
         java.util.UUID u = java.util.UUID.randomUUID();
         ItemStack vault = new ItemStack(com.sdzjz.registry.ModItems.PORTABLE_VAULT);
         ctx.assertTrue(com.sdzjz.item.PortableVaultItem.vaultAdd(vault, "minecraft:stone", 3_000_000_000L),
@@ -546,10 +546,10 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(b.get(java.util.UUID.randomUUID()).isEmpty(), "陌生 UUID 读空");
         // 仓位准入：只收随身仓库、格上限恒 1（m310 SlotMaxCountMixin 打在超类无参口，本覆写直返不受累）
         var slot = new com.sdzjz.item.PortableVaultSlot(new net.minecraft.world.SimpleContainer(1));
-        ctx.assertTrue(slot.canInsert(vault), "仓位应收随身仓库");
-        ctx.assertTrue(!slot.canInsert(new ItemStack(net.minecraft.world.item.Items.STONE)), "仓位拒收普通物品");
-        ctx.assertTrue(slot.getMaxItemCount() == 1, "仓位格上限恒 1");
-        ctx.complete();
+        ctx.assertTrue(slot.mayPlace(vault), "仓位应收随身仓库");
+        ctx.assertTrue(!slot.mayPlace(new ItemStack(net.minecraft.world.item.Items.STONE)), "仓位拒收普通物品");
+        ctx.assertTrue(slot.getMaxStackSize() == 1, "仓位格上限恒 1");
+        ctx.succeed();
     }
 
     /** m333 廿二号：交易所等级系统——门槛升级/满级封顶/旧合同按大师接管/交易表序号锚定不漂移。 */
@@ -584,7 +584,7 @@ public class SdzjzGameTests implements FabricGameTest {
                 "librarian|4 仍是经验修补（m101 序）");
         ctx.assertTrue("minecraft:lapis_lazuli".equals(com.sdzjz.machine.VillagerTrades.ALL.get("cleric").trades().get(0).outItem()),
                 "cleric|0 仍是青金石量产口（m153）");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m334 廿三号：无限复制机——目标校验唯一口径 + 配方"超级难"回归闸 + 六件套注册闭环。 */
@@ -610,7 +610,7 @@ public class SdzjzGameTests implements FabricGameTest {
         // 注册闭环：物品/def 同 id
         ctx.assertTrue(com.sdzjz.registry.ModItems.DUPLICATOR instanceof com.sdzjz.item.DuplicatorItem, "物品注册为 DuplicatorItem");
         ctx.assertTrue("duplicator".equals(com.sdzjz.machine.Machines.DUPLICATOR.id()), "def id=duplicator");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m335 廿四号：选择器查询语法真值表（学 JEI 语法习惯、实现自写——@模组/-排除/|并联/大小写/空查询）。 */
@@ -634,7 +634,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(Q.apply(diamond, "redstone|diamond"), "|并联任一组命中即真");
         ctx.assertTrue(!Q.apply(diamond, "redstone|lapis"), "|并联全不中为假");
         ctx.assertTrue(!Q.apply(diamond, " - @ "), "全废词组不放行");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m339 廿五号：经验池公平裁决真值表——礼让期非名单节点吃 0，名单节点照吃，无人挨饿先到先得，开关关=旧行为。 */
@@ -652,7 +652,7 @@ public class SdzjzGameTests implements FabricGameTest {
                 "池空：名单节点也吃不到（继续挂名等池涨）");
         ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xpFairDecide(3, 99, true, false, false) == 3,
                 "池量富余按需取小");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m343 廿六号：合成机槽位替代材料（外部审计P0）——"任意木板"配方（工作台）用云杉木板
@@ -660,7 +660,7 @@ public class SdzjzGameTests implements FabricGameTest {
      *  真配方表口径：用 ctx 世界的 RecipeManager 解析，不造假配方。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void craft_ingredient_alternatives(GameTestHelper ctx) {
-        var plans = com.sdzjz.machine.CraftPlanner.plans(ctx.getWorld(), "minecraft:crafting_table");
+        var plans = com.sdzjz.machine.CraftPlanner.plans(ctx.getLevel(), "minecraft:crafting_table");
         ctx.assertTrue(!plans.isEmpty(), "工作台应有合成配方");
         var plan = plans.get(0);
         ctx.assertTrue(!plan.groups().isEmpty() && plan.groups().get(0).candidates().size() > 1,
@@ -684,7 +684,7 @@ public class SdzjzGameTests implements FabricGameTest {
         mix.put("minecraft:spruce_planks", 3L);
         ctx.assertTrue(com.sdzjz.machine.CraftPlanner.maxCrafts(plan, 999, k -> mix.getOrDefault(k, 0L), true) == 1,
                 "3 橡木+3 云杉=1 次（跨类型合计 6/4，缺 2 不虚算）");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m344 廿七号：画布观众登记表——开屏挂号/关屏销号（handler 双钩）+ 漏钩自愈
@@ -697,11 +697,11 @@ public class SdzjzGameTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE)
     public void canvas_viewer_registry(GameTestHelper ctx) {
         BlockPos rel = new BlockPos(0, 1, 0);
-        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.getDefaultState());
+        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
         if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
-            ctx.throwGameTestException("结构核心方块实体未生成"); return;
+            ctx.fail("结构核心方块实体未生成"); return;
         }
-        var sw = ctx.getWorld();
+        var sw = ctx.getLevel();
         var p1 = new net.minecraft.server.level.ServerPlayer(sw.getServer(), sw,
                 new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v1"),
                 net.minecraft.server.level.ClientInformation.createDefault());
@@ -709,18 +709,18 @@ public class SdzjzGameTests implements FabricGameTest {
                 new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v2"),
                 net.minecraft.server.level.ClientInformation.createDefault());
         var h1 = new com.sdzjz.screen.StructureCoreScreenHandler(1, p1.getInventory(), be);
-        p1.currentScreenHandler = h1;
+        p1.containerMenu = h1;
         ctx.assertTrue(be.canvasViewerCount() == 1, "开屏挂号：观众数应=1");
         var h2 = new com.sdzjz.screen.StructureCoreScreenHandler(2, p2.getInventory(), be);
-        p2.currentScreenHandler = h2;
+        p2.containerMenu = h2;
         ctx.assertTrue(be.canvasViewerCount() == 2, "双观众应=2");
-        h2.onClosed(p2);
-        p2.currentScreenHandler = p2.playerScreenHandler; // 归位防悬垂（登记已销，双保险）
+        h2.removed(p2);
+        p2.containerMenu = p2.inventoryMenu; // 归位防悬垂（登记已销，双保险）
         ctx.assertTrue(be.canvasViewerCount() == 1, "关屏销号：应回 1");
-        p1.currentScreenHandler = p1.playerScreenHandler; // 模拟漏钩换屏（未经 onClosed）
-        ctx.waitAndRun(3, () -> { // 核心 tick 的 flushCanvasSnapshot 谓词校验应自愈销号
+        p1.containerMenu = p1.inventoryMenu; // 模拟漏钩换屏（未经 onClosed）
+        ctx.runAfterDelay(3, () -> { // 核心 tick 的 flushCanvasSnapshot 谓词校验应自愈销号
             ctx.assertTrue(be.canvasViewerCount() == 0, "漏钩自愈：谓词失配观众应被 tick 销号，实余 " + be.canvasViewerCount());
-            ctx.complete();
+            ctx.succeed();
         });
     }
 
@@ -744,12 +744,12 @@ public class SdzjzGameTests implements FabricGameTest {
                 "同空间应按配方 id 字典序取最小");
         ctx.assertTrue(com.sdzjz.machine.SmeltPlanner.pickStable(java.util.List.of()) == null,
                 "空候选应返回 null");
-        Object[] stone = com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getWorld(), "minecraft:cobblestone");
+        Object[] stone = com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getLevel(), "minecraft:cobblestone");
         ctx.assertTrue(stone != null && "minecraft:stone".equals(stone[0]) && (Integer) stone[1] == 1,
                 "真配方表锚点：圆石应烧成石头×1");
-        ctx.assertTrue(com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getWorld(), "minecraft:stick") == null,
+        ctx.assertTrue(com.sdzjz.machine.SmeltPlanner.resultOf(ctx.getLevel(), "minecraft:stick") == null,
                 "不可熔炼物应返回 null");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m347 廿九号：孤儿强加载声明渐进核销——force 走真入口（声明+运行时+票三件套），
@@ -757,10 +757,10 @@ public class SdzjzGameTests implements FabricGameTest {
      *  前两击迟滞不动、第三击核销；同批活声明（运行时有主）全程豁免且击数被销。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void chunk_claim_reconcile(GameTestHelper ctx) {
-        var w = ctx.getWorld();
+        var w = ctx.getLevel();
         int base = com.sdzjz.block.CoreChunkLoading.claimCount(w);
-        BlockPos orphanPos = ctx.getAbsolutePos(new BlockPos(0, 1, 0)).add(16384, 0, 16384); // 远离在用区块
-        BlockPos alivePos = orphanPos.add(512, 0, 0);
+        BlockPos orphanPos = ctx.absolutePos(new BlockPos(0, 1, 0)).add(16384, 0, 16384); // 远离在用区块
+        BlockPos alivePos = orphanPos.offset(512, 0, 0);
         com.sdzjz.block.CoreChunkLoading.force(w, orphanPos, false);
         com.sdzjz.block.CoreChunkLoading.force(w, alivePos, false);
         ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base + 2, "两声明应入表");
@@ -779,32 +779,32 @@ public class SdzjzGameTests implements FabricGameTest {
                 "活声明豁免：运行时有主的声明任扫不掉");
         com.sdzjz.block.CoreChunkLoading.release(w, alivePos, false); // 清场不留票
         ctx.assertTrue(com.sdzjz.block.CoreChunkLoading.claimCount(w) == base, "release 清场对账");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m348 三十号：停机核心端点扫描降频——首扫（加载哨兵）/停→开哨兵/开画布哨兵三个新鲜度契约。
-     *  慢拍 200t 的"不扫"负断言故意不测：日历拍相位随 world.getTime() 漂，窗口内撞上 %200==0 就假红。
+     *  慢拍 200t 的"不扫"负断言故意不测：日历拍相位随 world.getGameTime() 漂，窗口内撞上 %200==0 就假红。
      *  观众哨兵走同 tick 原子挂号→断言→销号（m344b 零发包口径：fake 玩家无 networkHandler，
      *  绝不能活过本 tick 让 flush 给它发包）。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void core_idle_scan_relief(GameTestHelper ctx) {
         BlockPos rel = new BlockPos(0, 1, 0), relS = new BlockPos(1, 1, 0), relS2 = new BlockPos(0, 1, 1);
-        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.getDefaultState());
-        ctx.setBlockState(relS, ModBlocks.STORAGE_CORE.getDefaultState());
+        ctx.setBlockState(rel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        ctx.setBlockState(relS, ModBlocks.STORAGE_CORE.defaultBlockState());
         if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
-            ctx.throwGameTestException("结构核心方块实体未生成"); return;
+            ctx.fail("结构核心方块实体未生成"); return;
         }
-        long sPos = ctx.getAbsolutePos(relS).asLong(), s2Pos = ctx.getAbsolutePos(relS2).asLong();
-        ctx.waitAndRun(3, () -> { // ① 首扫：加载哨兵（lastEndpointScan 初值 -1000）停机也要即时扫一次
+        long sPos = ctx.absolutePos(relS).asLong(), s2Pos = ctx.absolutePos(relS2).asLong();
+        ctx.runAfterDelay(3, () -> { // ① 首扫：加载哨兵（lastEndpointScan 初值 -1000）停机也要即时扫一次
             ctx.assertTrue(hasEndpoint(be, sPos), "首扫哨兵：停机核心加载后邻接存储核心应已入端点表");
-            ctx.setBlockState(relS2, ModBlocks.STORAGE_CORE.getDefaultState()); // 停机期新增第二台
+            ctx.setBlockState(relS2, ModBlocks.STORAGE_CORE.defaultBlockState()); // 停机期新增第二台
             be.toggleRunning(true); // ② 停→开转变沿哨兵
             ctx.assertTrue(be.endpointScanPending(), "开机哨兵：toggleRunning(true) 应置扫描待刷");
-            ctx.waitAndRun(3, () -> {
+            ctx.runAfterDelay(3, () -> {
                 ctx.assertTrue(hasEndpoint(be, s2Pos), "开机新鲜度：≤3t 内新端点应入表，慢拍陈旧窗清零");
                 be.toggleRunning(false);
                 ctx.assertTrue(!be.endpointScanPending(), "开→停不置哨兵（上轮已扫清位）");
-                var sw = ctx.getWorld();
+                var sw = ctx.getLevel();
                 var pv = new net.minecraft.server.level.ServerPlayer(sw.getServer(), sw,
                         new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "sdzjz_v3"),
                         net.minecraft.server.level.ClientInformation.createDefault());
@@ -812,16 +812,16 @@ public class SdzjzGameTests implements FabricGameTest {
                 boolean pend = be.endpointScanPending();
                 be.removeCanvasViewer(pv);
                 ctx.assertTrue(pend, "开画布哨兵：addCanvasViewer 应置扫描待刷");
-                ctx.complete();
+                ctx.succeed();
             });
         });
     }
 
     // m366 调度器升 Common 后键/钟折算助手（测试侧=版本侧）
-    private static String dimOf(GameTestHelper ctx) { return ctx.getWorld().getRegistryKey().getValue().toString(); }
-    private static long ticksOf(GameTestHelper ctx) { return ctx.getWorld().getServer().getTicks(); }
-    private static String dimW(net.minecraft.server.level.ServerLevel w) { return w.getRegistryKey().getValue().toString(); }
-    private static long ticksW(net.minecraft.server.level.ServerLevel w) { return w.getServer().getTicks(); }
+    private static String dimOf(GameTestHelper ctx) { return ctx.getLevel().dimension().location().toString(); }
+    private static long ticksOf(GameTestHelper ctx) { return ctx.getLevel().getServer().getTicks(); }
+    private static String dimW(net.minecraft.server.level.ServerLevel w) { return w.dimension().location().toString(); }
+    private static long ticksW(net.minecraft.server.level.ServerLevel w) { return w.getServer().getTickCount(); }
 
     private static boolean hasEndpoint(com.sdzjz.block.StructureCoreBlockEntity be, long posLong) {
         for (long[] e : be.storageEndpointsView()) if (e[0] == posLong) return true;
@@ -833,7 +833,7 @@ public class SdzjzGameTests implements FabricGameTest {
      *  ③手选只看手选；④全缺料回退首候选零扣料；⑤容器残留（蛋糕收 3 空桶）随 Exec 单趟出。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void craft_exec_single_pass(GameTestHelper ctx) {
-        var w = ctx.getWorld();
+        var w = ctx.getLevel();
         var plans = com.sdzjz.machine.CraftPlanner.plans(w, "minecraft:crafting_table");
         ctx.assertTrue(!plans.isEmpty(), "工作台应有合成配方");
         java.util.Map<String, Long> stock = new java.util.HashMap<>();
@@ -877,7 +877,7 @@ public class SdzjzGameTests implements FabricGameTest {
         var exC = com.sdzjz.machine.CraftPlanner.exec(cake, null, p2 -> 999L, id -> ck.getOrDefault(id, 0L), true);
         ctx.assertTrue(exC.crafts() == 1 && exC.remainders().getOrDefault("minecraft:bucket", 0L) == 3L,
                 "蛋糕 1 次：3 桶奶消耗→3 空桶残留，实得 " + exC.remainders());
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m351 卅二号：GC/分配账——两快照单调不减；HotSpot 下服务器线程分配账应覆盖测间真分配
@@ -898,7 +898,7 @@ public class SdzjzGameTests implements FabricGameTest {
         if (a.allocOk)
             ctx.assertTrue(b.allocBytes - a.allocBytes >= 8L * 1024 * 1024,
                     "线程分配账应覆盖 ~32MB 真分配(阈值8MB)，实得 " + (b.allocBytes - a.allocBytes));
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m353 卅三号：NBT 双口语义——①垃圾桶已吞累计持久（丢写 bug 修复判官：旧代码改 copyNbt
@@ -918,7 +918,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(com.sdzjz.node.NodeTags.viewOf(ts).getLong("tc") == 12L, "viewOf 与组件同源零拷贝可见");
         ctx.assertTrue(com.sdzjz.node.NodeTags.viewOf(new ItemStack(net.minecraft.world.item.Items.STONE)).isEmpty(),
                 "无组件栈=空视图不炸");
-        ctx.complete();
+        ctx.succeed();
     }
 
     /** m372 卅四号：配方域 SPI 行为契约（作者拍板 A 线）——判官只此一份在 Common
@@ -930,11 +930,11 @@ public class SdzjzGameTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE)
     public void recipe_domain_contract(GameTestHelper ctx) {
         try {
-            com.sdzjz.platform.RecipeDomainAssertions.runAll(ctx.getWorld(), com.sdzjz.platform.Platform.recipes());
+            com.sdzjz.platform.RecipeDomainAssertions.runAll(ctx.getLevel(), com.sdzjz.platform.Platform.recipes());
         } catch (AssertionError e) {
-            ctx.throwGameTestException("配方域契约失败: " + e.getMessage());
+            ctx.fail("配方域契约失败: " + e.getMessage());
             return;
         }
-        ctx.complete();
+        ctx.succeed();
     }
 }

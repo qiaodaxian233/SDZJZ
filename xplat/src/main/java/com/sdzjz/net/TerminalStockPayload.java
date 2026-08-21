@@ -23,7 +23,7 @@ public record TerminalStockPayload(int syncId, List<String> ids, List<Integer> c
 
     public static final StreamCodec<RegistryFriendlyByteBuf, TerminalStockPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, TerminalStockPayload::syncId,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), TerminalStockPayload::ids,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING_UTF8), TerminalStockPayload::ids,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_INT), TerminalStockPayload::counts,
             ByteBufCodecs.BOOL, TerminalStockPayload::truncated, // m298
             TerminalStockPayload::new

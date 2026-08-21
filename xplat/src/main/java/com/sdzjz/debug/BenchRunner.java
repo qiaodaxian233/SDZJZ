@@ -111,11 +111,11 @@ public final class BenchRunner {
         capParam = cap;
         world = w;
         // 高空铺场：脚下 +60（躲开多数地形；山体内会替换方块、清场留空洞——建议空旷处执行，边界立档）
-        origin = at.up(60);
+        origin = at.above(60);
         starter = by;
         SITES.clear();
         for (int i = 0; i < cores; i++)
-            SITES.add(origin.add((i % 10) * 64, 0, (i / 10) * 64));
+            SITES.add(origin.offset((i % 10) * 64, 0, (i / 10) * 64));
         Sdzjz_log("[sdzjz bench] 铺场清单（中途停服按此手清）: origin=" + origin.toShortString()
                 + " cores=" + cores + " 间距64 每站=核心+东侧存储 " + SITES.get(0).toShortString()
                 + " .. " + SITES.get(SITES.size() - 1).toShortString());
@@ -210,7 +210,7 @@ public final class BenchRunner {
                 long now = System.nanoTime();
                 if (prevNano != 0 && tickCount < tickNs.length) {
                     // m307 忙时真值：原版把本拍耗时写在 tickTimes[ticks%100]，END_SERVER_TICK 时已写毕
-                    busyNs[tickCount] = server.getTickTimes()[server.getTicks() % 100];
+                    busyNs[tickCount] = server.getTickTimesNanos()[server.getTickCount() % 100];
                     tickNs[tickCount++] = now - prevNano;
                 }
                 prevNano = now;
@@ -244,8 +244,8 @@ public final class BenchRunner {
 
     private static void spawnSite(int idx) {
         BlockPos p = SITES.get(idx);
-        world.setBlockState(p, ModBlocks.STRUCTURE_CORE.getDefaultState(), 3);
-        world.setBlockState(p.east(), ModBlocks.STORAGE_CORE.getDefaultState(), 3);
+        world.setBlockState(p, ModBlocks.STRUCTURE_CORE.defaultBlockState(), 3);
+        world.setBlockState(p.east(), ModBlocks.STORAGE_CORE.defaultBlockState(), 3);
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) {
             switch (siteWl[idx]) { // m359/m360 逐站工况铺场
                 case IDLE -> { /* 零节点：纯核心框架开销基线 */ }
@@ -309,7 +309,7 @@ public final class BenchRunner {
         BlockPos p = SITES.get(idx);
         if (!(world.getBlockEntity(p) instanceof StructureCoreBlockEntity core)) return;
         long sp = p.east().asLong();
-        String dim = world.getRegistryKey().getValue().toString();
+        String dim = world.dimension().location().toString();
         switch (siteWl[idx]) {
             case CRAFT_FED -> {
                 for (int k = 0; k < nodesPer / 2; k++) {
@@ -338,8 +338,8 @@ public final class BenchRunner {
 
     private static void cleanSite(BlockPos p) {
         if (world.getBlockEntity(p) instanceof StructureCoreBlockEntity core) core.benchClearNodes();
-        world.setBlockState(p, net.minecraft.world.level.block.Blocks.AIR.getDefaultState(), 3);       // 节点已清空,dropAll 散落=零件
-        world.setBlockState(p.east(), net.minecraft.world.level.block.Blocks.AIR.getDefaultState(), 3); // 存储账本是虚拟账,拆块零散落
+        world.setBlockState(p, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);       // 节点已清空,dropAll 散落=零件
+        world.setBlockState(p.east(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3); // 存储账本是虚拟账,拆块零散落
         com.sdzjz.block.CoreChunkLoading.release(world, p, false); // m307 兜底：核心若始终没tick,
         // chunkForceActive=false 拆块走不到释放——补一发注销自举票（已释放时=孤儿声明清理,幂等无害）
     }
@@ -390,7 +390,7 @@ public final class BenchRunner {
               case MIXED -> "mixed(25%×4轮布: idle/cobble/craft_fed/craft_chain)"; })
           .append(" duration=").append(seconds).append("s cap=")
           .append(capParam > 0 ? String.valueOf(capParam) : ("未改动(现值" + capUsed + ")")).append('\n');
-        sb.append("维度: ").append(world.getRegistryKey().getValue()).append("  origin=").append(origin.toShortString())
+        sb.append("维度: ").append(world.dimension().location()).append("  origin=").append(origin.toShortString())
           .append("  站距64格(跨区块=真实BE tick序)  上账核心=").append(bench.size()).append('/').append(cores).append("\n\n");
         sb.append(String.format("服务器忙时MSPT(原版tickTimes, %d样本): 均值 %.2f ms | P95 %.2f ms | 峰值 %.2f ms%n",
                 tickCount, busy[0], busy[1], busy[2]));
@@ -467,17 +467,17 @@ public final class BenchRunner {
         sb.append('\n').append("Top Hotspots（m321 阶段账，细分计时压测期自动开）:\n");
         for (String ln : CoreProfiler.phaseReport()) sb.append("  ").append(ln).append('\n');
         sb.append('\n').append("逐核明细(granted升序; tick耗时µs来自/sdzjz profile core同一环形窗):\n");
-        String dim = world.getRegistryKey().getValue().toString();
+        String dim = world.dimension().location().toString();
         List<CoreProfiler.Stats> prof = CoreProfiler.active(dim);
         for (CoreScheduler.Row r : bench) {
             CoreProfiler.Stats s = null;
             for (CoreProfiler.Stats c : prof) if (c.pos == r.pos) { s = c; break; } // m366 双侧同 long
-            sb.append(String.format("  %s granted=%d 记名=%d", BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents));
+            sb.append(String.format("  %s granted=%d 记名=%d", BlockPos.of(r.pos).toShortString(), r.granted, r.zeroEvents));
             if (s != null) sb.append(String.format("  tick均%.0fµs 峰%.0fµs 编译%d", s.avgMicros(), s.maxMicros(), s.planCompiles));
             sb.append('\n');
         }
 
-        reportPath = server.getRunDirectory().resolve("sdzjz_bench_" + ts + ".txt");
+        reportPath = server.getServerDirectory().resolve("sdzjz_bench_" + ts + ".txt");
         Files.write(reportPath, sb.toString().getBytes(StandardCharsets.UTF_8));
         Sdzjz_log("[sdzjz bench] 报告已写盘: " + reportPath);
         if (matrixRows != null && matrixQueue != null && matrixQueue.isEmpty()) { // m355 末档=落汇总
@@ -486,7 +486,7 @@ public final class BenchRunner {
               .append(" 工况=").append(workload)
               .append("；看点：核tick均µs 随规模是否近似持平（超线性=争抢/缓存失效），类型前三是否换位（换位=下一刀换靶）\n\n");
             for (String r : matrixRows) ms.append(r).append('\n');
-            java.nio.file.Path mp = server.getRunDirectory().resolve("sdzjz_bench_matrix_" + ts + ".txt");
+            java.nio.file.Path mp = server.getServerDirectory().resolve("sdzjz_bench_matrix_" + ts + ".txt");
             Files.write(mp, ms.toString().getBytes(StandardCharsets.UTF_8));
             msg(server, "§a[sdzjz] 三档矩阵汇总已写盘: " + mp);
         }
@@ -494,8 +494,8 @@ public final class BenchRunner {
 
     private static void msg(MinecraftServer server, String s) {
         if (starter != null) {
-            ServerPlayer p = server.getPlayerManager().getPlayer(starter);
-            if (p != null) p.sendMessage(Component.literal(s), false);
+            ServerPlayer p = server.getPlayerList().getPlayer(starter);
+            if (p != null) p.displayClientMessage(Component.literal(s), false);
         }
         Sdzjz_log(s.replaceAll("§.", ""));
     }

@@ -38,38 +38,38 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
 
     public TradeCenterScreen(TradeCenterScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
-        this.backgroundWidth = 360;
-        this.backgroundHeight = 256;
+        this.imageWidth = 360;
+        this.imageHeight = 256;
     }
 
     @Override
-    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
+    protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         ctx.fill(0, 0, this.width, this.height, BACKDROP);
-        int x = this.x, y = this.y;
-        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, backgroundHeight, backgroundWidth, backgroundHeight);
+        int x = this.leftPos, y = this.topPos;
+        ctx.blit(BG, x, y, 0.0F, 0.0F, imageWidth, imageHeight, imageWidth, imageHeight);
 
-        ctx.drawText(this.textRenderer, "村民交易所", x + 10, y + 8, CYAN, false);
+        ctx.drawString(this.font, "村民交易所", x + 10, y + 8, CYAN, false);
 
         // 合同槽底
         cell(ctx, x + 30, y + 40);
-        ctx.drawText(this.textRenderer, "合同", x + 26, y + 26, SUB, false);
+        ctx.drawString(this.font, "合同", x + 26, y + 26, SUB, false);
 
-        ItemStack c = this.handler.contract();
+        ItemStack c = this.menu.contract();
         String prof = TradeCenterBlockEntity.contractProf(c);
 
         if (c.isEmpty()) {
-            ctx.drawText(this.textRenderer, "放入村民合同开始交易（村民繁殖机可产出）", x + 80, y + 44, SUB, false);
+            ctx.drawString(this.font, "放入村民合同开始交易（村民繁殖机可产出）", x + 80, y + 44, SUB, false);
         } else if (prof == null) {
             // 就业选择
-            ctx.drawText(this.textRenderer, "选择职业就业（消耗存储网络里 1 个对应工作方块）：", x + 80, y + 30, TXT, false);
+            ctx.drawString(this.font, "选择职业就业（消耗存储网络里 1 个对应工作方块）：", x + 80, y + 30, TXT, false);
             List<String> ids = VillagerTrades.professionIds();
             for (int i = 0; i < ids.size(); i++) {
                 int bx = x + 80 + (i % 4) * 68, by = y + 44 + (i / 4) * 24;
                 boolean hov = mouseX >= bx && mouseX < bx + 64 && mouseY >= by && mouseY < by + 20;
                 ctx.fill(bx, by, bx + 64, by + 20, hov ? SciSkin.HOVER : CELL);
-                ctx.drawBorder(bx, by, 64, 20, hov ? CYAN : CELLFRM);
+                ctx.renderOutline(bx, by, 64, 20, hov ? CYAN : CELLFRM);
                 String name = profName(ids.get(i));
-                ctx.drawText(this.textRenderer, name, bx + (64 - this.textRenderer.getWidth(name)) / 2, by + 6, TXT, false);
+                ctx.drawString(this.font, name, bx + (64 - this.font.getWidth(name)) / 2, by + 6, TXT, false);
             }
         } else {
             int disc = TradeCenterBlockEntity.contractDiscount(c);
@@ -77,7 +77,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
             boolean lvOn = com.sdzjz.config.SdzjzConfig.get().tradeLeveling; // m333 关=全表解锁旧观感
             String lvTxt = !lvOn ? "" : " · " + VillagerTrades.levelName(lvl)
                     + (lvl >= 5 ? "(满级)" : "(" + TradeCenterBlockEntity.contractXp(c) + "/" + VillagerTrades.LEVEL_XP[lvl] + ")");
-            ctx.drawText(this.textRenderer, "职业：" + profName(prof) + lvTxt + " · 折扣Lv" + disc + "(-" + disc * 10 + "%)", x + 80, y + 30, TXT, false);
+            ctx.drawString(this.font, "职业：" + profName(prof) + lvTxt + " · 折扣Lv" + disc + "(-" + disc * 10 + "%)", x + 80, y + 30, TXT, false);
             if (lvOn) { // m335 经验进度条（学原版村民屏的等级条，实现自写、配色走本屏皮肤）
                 int bx0 = x + 80, by0 = y + 41, bw = 200;
                 ctx.fill(bx0, by0, bx0 + bw, by0 + 3, CELL);
@@ -92,8 +92,8 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
             int hx = x + 288, hy = y + 26;
             boolean hovH = mouseX >= hx && mouseX < hx + 62 && mouseY >= hy && mouseY < hy + 18;
             ctx.fill(hx, hy, hx + 62, hy + 18, hovH ? SciSkin.HOVER : CELL);
-            ctx.drawBorder(hx, hy, 62, 18, hovH ? CYAN : CELLFRM);
-            ctx.drawText(this.textRenderer, disc >= 5 ? "折扣已满" : "治愈+折扣", hx + 5, hy + 5, disc >= 5 ? SUB : TXT, false);
+            ctx.renderOutline(hx, hy, 62, 18, hovH ? CYAN : CELLFRM);
+            ctx.drawString(this.font, disc >= 5 ? "折扣已满" : "治愈+折扣", hx + 5, hy + 5, disc >= 5 ? SUB : TXT, false);
 
             // 交易列表（m101 滚动窗口：一次 4 条，滚轮翻页——图书管理员 14 条不再压穿界面）
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
@@ -106,29 +106,29 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 boolean locked = lvOn && lvl < t.minLevel(); // m333 未到级：不亮不点，右侧标解锁等级
                 boolean hov = !locked && mouseX >= rx && mouseX < rx + 270 && mouseY >= ry && mouseY < ry + ROW_H;
                 ctx.fill(rx, ry, rx + 270, ry + ROW_H, hov ? SciSkin.HOVER : CELL);
-                ctx.drawBorder(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
+                ctx.renderOutline(rx, ry, 270, ROW_H, hov ? CYAN : CELLFRM);
                 int need = VillagerTrades.discounted(t.inCount(), disc);
                 ItemStack in = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.inItem())));
                 ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())));
-                ctx.drawItem(in, rx + 4, ry + 3);
-                ctx.drawText(this.textRenderer, "×" + need, rx + 24, ry + 8, TXT, false);
+                ctx.renderItem(in, rx + 4, ry + 3);
+                ctx.drawString(this.font, "×" + need, rx + 24, ry + 8, TXT, false);
                 if (t.in2Item() != null) { // m101 第二输入（附魔书要的那本书）
-                    ctx.drawText(this.textRenderer, "+", rx + 52, ry + 8, SUB, false);
+                    ctx.drawString(this.font, "+", rx + 52, ry + 8, SUB, false);
                     ItemStack in2 = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.in2Item())));
-                    ctx.drawItem(in2, rx + 62, ry + 3);
-                    ctx.drawText(this.textRenderer, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
+                    ctx.renderItem(in2, rx + 62, ry + 3);
+                    ctx.drawString(this.font, "×" + t.in2Count(), rx + 82, ry + 8, TXT, false);
                 }
-                ctx.drawText(this.textRenderer, locked ? "×" : "→", rx + 130, ry + 8, locked ? SciSkin.RED : CYAN, false); // m335 学原版锁定叉
-                ctx.drawItem(out, rx + 150, ry + 3);
+                ctx.drawString(this.font, locked ? "×" : "→", rx + 130, ry + 8, locked ? SciSkin.RED : CYAN, false); // m335 学原版锁定叉
+                ctx.renderItem(out, rx + 150, ry + 3);
                 if (t.enchant() != null) { // m101 附魔书：显示附魔名+等级（走原版翻译键）
                     String en = Component.translatable("enchantment." + t.enchant().replace(':', '.')).getString()
                             + (t.enchantLv() > 1 ? " " + roman(t.enchantLv()) : "");
-                    ctx.drawText(this.textRenderer, en, rx + 170, ry + 8, SciSkin.TXT_HI, false);
+                    ctx.drawString(this.font, en, rx + 170, ry + 8, SciSkin.TXT_HI, false);
                 } else {
-                    ctx.drawText(this.textRenderer, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
+                    ctx.drawString(this.font, "×" + t.outCount(), rx + 170, ry + 8, TXT, false);
                 }
-                if (locked) ctx.drawText(this.textRenderer, VillagerTrades.levelName(t.minLevel()) + "解锁", rx + 214, ry + 8, SUB, false);
-                else if (hov) ctx.drawText(this.textRenderer, "点击交易", rx + 214, ry + 8, CYAN, false);
+                if (locked) ctx.drawString(this.font, VillagerTrades.levelName(t.minLevel()) + "解锁", rx + 214, ry + 8, SUB, false);
+                else if (hov) ctx.drawString(this.font, "点击交易", rx + 214, ry + 8, CYAN, false);
             }
             if (maxScroll > 0) { // m101 滚动条
                 int trackX = x + 352, trackY = y + 48, trackH = VISIBLE_ROWS * (ROW_H + 4) - 4;
@@ -137,12 +137,12 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 int thumbY = trackY + (trackH - thumbH) * tradeScroll / maxScroll;
                 ctx.fill(trackX, thumbY, trackX + 4, thumbY + thumbH, CYAN);
             }
-            ctx.drawText(this.textRenderer, "输入从存储扣·产出存回·附魔书进背包·滚轮翻页", x + 80, y + 156, SUB, false);
+            ctx.drawString(this.font, "输入从存储扣·产出存回·附魔书进背包·滚轮翻页", x + 80, y + 156, SUB, false);
         }
 
         // 背包标题 + 槽底
         ctx.fill(x + 96, y + 166, x + 99, y + 176, CYAN);
-        ctx.drawText(this.textRenderer, "背包", x + 103, y + 167, SUB, false);
+        ctx.drawString(this.font, "背包", x + 103, y + 167, SUB, false);
         for (int r = 0; r < 3; r++)
             for (int col = 0; col < 9; col++) cell(ctx, x + 99 + col * 18, y + 170 + r * 18);
         for (int col = 0; col < 9; col++) cell(ctx, x + 99 + col * 18, y + 228);
@@ -150,7 +150,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
 
     private void cell(GuiGraphics ctx, int cx, int cy) {
         ctx.fill(cx, cy, cx + 16, cy + 16, CELL);
-        ctx.drawBorder(cx - 1, cy - 1, 18, 18, CELLFRM);
+        ctx.renderOutline(cx - 1, cy - 1, 18, 18, CELLFRM);
         ctx.fill(cx - 1, cy - 1, cx + 2, cy, CYAN);
         ctx.fill(cx - 1, cy - 1, cx, cy + 2, CYAN);
         ctx.fill(cx + 14, cy + 15, cx + 17, cy + 16, CYAN);
@@ -172,8 +172,8 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        int x = this.x, y = this.y;
-        ItemStack c = this.handler.contract();
+        int x = this.leftPos, y = this.topPos;
+        ItemStack c = this.menu.contract();
         String prof = TradeCenterBlockEntity.contractProf(c);
 
         if (!c.isEmpty() && prof == null) {
@@ -181,14 +181,14 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
             for (int i = 0; i < ids.size(); i++) {
                 int bx = x + 80 + (i % 4) * 68, by = y + 44 + (i / 4) * 24;
                 if (mx >= bx && mx < bx + 64 && my >= by && my < by + 20) {
-                    this.client.interactionManager.clickButton(this.handler.syncId, i);
+                    this.minecraft.gameMode.clickButton(this.menu.containerId, i);
                     return true;
                 }
             }
         } else if (prof != null) {
             int hx = x + 288, hy = y + 26;
             if (mx >= hx && mx < hx + 62 && my >= hy && my < hy + 18) {
-                this.client.interactionManager.clickButton(this.handler.syncId, TradeCenterScreenHandler.BTN_HEAL);
+                this.minecraft.gameMode.clickButton(this.menu.containerId, TradeCenterScreenHandler.BTN_HEAL);
                 return true;
             }
             List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
@@ -198,7 +198,7 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
                 int rx = x + 80, ry = y + 48 + v * (ROW_H + 4);
                 if (mx >= rx && mx < rx + 270 && my >= ry && my < ry + ROW_H) {
                     if (lvOn && lvl < trades.get(tradeScroll + v).minLevel()) return true; // m333 锁定行吃点击
-                    this.client.interactionManager.clickButton(this.handler.syncId,
+                    this.minecraft.gameMode.clickButton(this.menu.containerId,
                             TradeCenterScreenHandler.BTN_TRADE_BASE + tradeScroll + v);
                     return true;
                 }
@@ -209,10 +209,10 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) { // m101 滚轮翻交易列表; m103 只在悬停列表区时生效,不劫持背包滚轮
-        String prof = TradeCenterBlockEntity.contractProf(this.handler.contract());
+        String prof = TradeCenterBlockEntity.contractProf(this.menu.contract());
         if (prof != null
-                && mx >= this.x + 80 && mx < this.x + 356
-                && my >= this.y + 44 && my < this.y + 152) {
+                && mx >= this.leftPos + 80 && mx < this.leftPos + 356
+                && my >= this.topPos + 44 && my < this.topPos + 152) {
             int maxScroll = Math.max(0, VillagerTrades.ALL.get(prof).trades().size() - VISIBLE_ROWS);
             if (maxScroll > 0) {
                 if (v < 0 && tradeScroll < maxScroll) tradeScroll++;
@@ -226,11 +226,11 @@ public class TradeCenterScreen extends AbstractContainerScreen<TradeCenterScreen
     @Override
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        this.drawMouseoverTooltip(ctx, mouseX, mouseY);
+        this.renderTooltip(ctx, mouseX, mouseY);
     }
 
     @Override
-    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
+    protected void renderLabels(GuiGraphics ctx, int mouseX, int mouseY) {
         // 标题自绘，禁用默认标题
     }
 }

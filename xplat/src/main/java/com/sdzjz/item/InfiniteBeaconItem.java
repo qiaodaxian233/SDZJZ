@@ -37,7 +37,7 @@ public class InfiniteBeaconItem extends MachineItem {
             "minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:emerald",
             "minecraft:diamond", "minecraft:netherite_ingot"};
 
-    public InfiniteBeaconItem(Settings settings, MachineDef def) {
+    public InfiniteBeaconItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
@@ -57,7 +57,7 @@ public class InfiniteBeaconItem extends MachineItem {
     public static net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effectEntry(int idx) {
         net.minecraft.resources.ResourceLocation ident = net.minecraft.resources.ResourceLocation.tryParse(FX_ID[clampFx(idx)]);
         if (ident == null) return null;
-        return net.minecraft.core.registries.BuiltInRegistries.STATUS_EFFECT.getEntry(ident).orElse(null);
+        return net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getEntry(ident).orElse(null);
     }
 
     /** 画布节点副行文案（客户端徽章行唯一口径）。 */
@@ -71,11 +71,11 @@ public class InfiniteBeaconItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("不要金字塔、不要天空、不看距离：放上画布即给全服玩家上 buff").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("每周期从存储网络扣一份信标料（铁锭/金锭/绿宝石/钻石/下界合金锭，先扣便宜的）").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("当前：" + canvasLine(stack) + "；效果/等级在画布节点菜单切换").formatted(ChatFormatting.GREEN));
-        tooltip.add(Component.literal("效果是刷新式（每周期续时长，不叠加不延长）——所以速度/数量升级对本机没有收益，别白灌").formatted(ChatFormatting.YELLOW));
-        tooltip.add(Component.literal("要接存储网络：料从仓里扣，没料=红灯停发（不赊账）").formatted(ChatFormatting.RED));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("不要金字塔、不要天空、不看距离：放上画布即给全服玩家上 buff").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("每周期从存储网络扣一份信标料（铁锭/金锭/绿宝石/钻石/下界合金锭，先扣便宜的）").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("当前：" + canvasLine(stack) + "；效果/等级在画布节点菜单切换").withStyle(ChatFormatting.GREEN));
+        tooltip.add(Component.literal("效果是刷新式（每周期续时长，不叠加不延长）——所以速度/数量升级对本机没有收益，别白灌").withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.literal("要接存储网络：料从仓里扣，没料=红灯停发（不赊账）").withStyle(ChatFormatting.RED));
     }
 }

@@ -15,7 +15,7 @@ public enum CableEnd implements StringRepresentable {
     }
 
     @Override
-    public String asString() {
+    public String getSerializedName() {
         return name;
     }
 }

@@ -31,7 +31,7 @@ import java.util.List;
 public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos> {
 
     public final SimpleContainer contractSlot = new SimpleContainer(1) {
-        @Override public void markDirty() { super.markDirty(); TradeCenterBlockEntity.this.markDirty(); }
+        @Override public void setChanged() { super.setChanged(); TradeCenterBlockEntity.this.setChanged(); }
     };
 
     // ---- m145 已加载交易所注册表（村民打折机的发现面）----
@@ -41,19 +41,19 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
             java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
     @Override
-    public void setWorld(Level world) {
-        super.setWorld(world);
-        if (world != null && !world.isClient)
-            LOADED.computeIfAbsent(world, w -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(pos);
+    public void setLevel(Level world) {
+        super.setLevel(world);
+        if (world != null && !world.isClientSide)
+            LOADED.computeIfAbsent(world, w -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(worldPosition);
     }
 
     @Override
-    public void markRemoved() {
-        if (world != null && !world.isClient) {
-            java.util.Set<BlockPos> s = LOADED.get(world);
-            if (s != null) s.remove(pos);
+    public void setRemoved() {
+        if (level != null && !level.isClientSide) {
+            java.util.Set<BlockPos> s = LOADED.get(level);
+            if (s != null) s.remove(worldPosition);
         }
-        super.markRemoved();
+        super.setRemoved();
     }
 
     /** 当前世界里已加载的交易所（拷贝遍历，坐标验活）。 */
@@ -70,25 +70,25 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     public boolean sharesNetwork(java.util.Collection<StorageCoreBlockEntity> banks) {
         for (StorageCoreBlockEntity a : cores())
             for (StorageCoreBlockEntity b : banks)
-                if (a.getPos().equals(b.getPos())) return true;
+                if (a.getBlockPos().equals(b.getBlockPos())) return true;
         return false;
     }
 
     /** m145 打折机接口：合同可升折扣？（已就业且未满 5 级）。 */
     public boolean canCure() {
-        ItemStack c = contractSlot.getStack(0);
+        ItemStack c = contractSlot.getItem(0);
         return contractProf(c) != null && contractDiscount(c) < 5;
     }
 
     /** m145 打折机接口：升 1 级（调用方已付金苹果——先取料后调用，别反过来）。 */
     public void cureOnce() {
-        ItemStack c = contractSlot.getStack(0);
+        ItemStack c = contractSlot.getItem(0);
         String prof = contractProf(c);
         if (prof == null) return;
         int d = contractDiscount(c);
         if (d >= 5) return;
         setContract(c, prof, d + 1);
-        contractSlot.markDirty();
+        contractSlot.setChanged();
     }
 
     public TradeCenterBlockEntity(BlockPos pos, BlockState state) {
@@ -96,7 +96,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     private List<StorageCoreBlockEntity> cores() {
-        return StorageCoreBlockEntity.connectedCores(this.world, this.pos);
+        return StorageCoreBlockEntity.connectedCores(this.level, this.worldPosition);
     }
 
     private long netCount(String id) {
@@ -124,7 +124,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
 
     // ---- 合同数据 ----
     public static String contractProf(ItemStack s) {
-        if (s.isEmpty() || !s.isOf(ModItems.VILLAGER_CONTRACT)) return null;
+        if (s.isEmpty() || !s.is(ModItems.VILLAGER_CONTRACT)) return null;
         String p = com.sdzjz.node.NodeTags.viewOf(s).getString("prof"); // m353 只读免拷贝（交易机每拍逐合同读）
         return p.isEmpty() ? null : p;
     }
@@ -148,7 +148,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     private static void setLevel(ItemStack s, int lv, int xp) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("lv", lv);
         n.putInt("xp", xp);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
@@ -158,7 +158,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
      *  旧合同（无 lv 键）视同满级零写入；满级封顶（到顶再投入=界面明示"满级"，不静默——m99 之问）。 */
     public static int grantTradeXp(ItemStack c, int gain) {
         if (contractProf(c) == null) return 0;
-        CompoundTag n = c.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = c.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         int lv = n.contains("lv") ? Math.max(1, Math.min(5, n.getInt("lv"))) : 5;
         if (lv >= 5) return 0;
         int xp = Math.max(0, n.getInt("xp")) + Math.max(0, gain);
@@ -171,7 +171,7 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     private static void setContract(ItemStack s, String prof, int disc) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putString("prof", prof);
         n.putInt("disc", disc);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
@@ -181,24 +181,24 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
 
     /** 就业：无职业合同 + 从网络消耗 1 个对应工作方块。 */
     public void employ(Player player, int profIndex) {
-        ItemStack c = contractSlot.getStack(0);
-        if (c.isEmpty() || !c.isOf(ModItems.VILLAGER_CONTRACT) || contractProf(c) != null) return;
+        ItemStack c = contractSlot.getItem(0);
+        if (c.isEmpty() || !c.is(ModItems.VILLAGER_CONTRACT) || contractProf(c) != null) return;
         List<String> ids = VillagerTrades.professionIds();
         if (profIndex < 0 || profIndex >= ids.size()) return;
         String prof = ids.get(profIndex);
         String ws = VillagerTrades.ALL.get(prof).workstation();
         if (netWithdraw(ws, 1) < 1) {
-            player.sendMessage(Component.literal("就业失败：存储网络里没有对应工作方块 " + ws), true);
+            player.displayClientMessage(Component.literal("就业失败：存储网络里没有对应工作方块 " + ws), true);
             return;
         }
         setContract(c, prof, 0);
         setLevel(c, 1, 0); // m333 新就业=新手起步（旧合同无 lv 键=按大师接管，见 contractLevel）
-        contractSlot.markDirty();
+        contractSlot.setChanged();
     }
 
     /** 执行第 index 条交易：输入按折扣从网络取，输出存回网络；附魔书直发玩家背包（m101）。 */
     public void trade(Player player, int index) {
-        ItemStack c = contractSlot.getStack(0);
+        ItemStack c = contractSlot.getItem(0);
         String prof = contractProf(c);
         if (prof == null) return;
         List<VillagerTrades.Trade> trades = VillagerTrades.ALL.get(prof).trades();
@@ -206,82 +206,82 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         VillagerTrades.Trade t = trades.get(index);
         var cfg = com.sdzjz.config.SdzjzConfig.get();
         if (cfg.tradeLeveling && contractLevel(c) < t.minLevel()) { // m333 等级闸（客户端锁行只是礼貌，这里才是门）
-            player.sendMessage(Component.literal("交易未解锁：需 " + VillagerTrades.levelName(t.minLevel())
+            player.displayClientMessage(Component.literal("交易未解锁：需 " + VillagerTrades.levelName(t.minLevel())
                     + "（当前 " + VillagerTrades.levelName(contractLevel(c)) + "）——先做已解锁交易攒经验"), true);
             return;
         }
         int disc = contractDiscount(c);
         int need = VillagerTrades.discounted(t.inCount(), disc);
         if (netCount(t.inItem()) < need) {
-            player.sendMessage(Component.literal("材料不足：需要 " + need + "× " + t.inItem()), true);
+            player.displayClientMessage(Component.literal("材料不足：需要 " + need + "× " + t.inItem()), true);
             return;
         }
         // m101 修现成 bug：双输入交易此前完全没查/没扣第二种料（附魔书要的那本书）
         if (t.in2Item() != null && netCount(t.in2Item()) < t.in2Count()) {
-            player.sendMessage(Component.literal("材料不足：需要 " + t.in2Count() + "× " + t.in2Item()), true);
+            player.displayClientMessage(Component.literal("材料不足：需要 " + t.in2Count() + "× " + t.in2Item()), true);
             return;
         }
         netWithdraw(t.inItem(), need);
         if (t.in2Item() != null) netWithdraw(t.in2Item(), t.in2Count());
 
-        if (t.enchant() != null && this.world != null) {
+        if (t.enchant() != null && this.level != null) {
             // m101 附魔书：按注册表构建带附魔的书。产物**只进玩家背包**——
             // （m329 勘注：原理由"进仓=附魔被抹"自 m130 精确账本起已不成立，m146 交易机的书就走精确账本；
             //  手动交易保留直发背包=既有体验，是否与自动侧统一改走精确账本待作者拍板，行为本笔不动。）
             ItemStack book = new ItemStack(net.minecraft.world.item.Items.ENCHANTED_BOOK);
-            var reg = this.world.getRegistryManager()
+            var reg = this.level.registryAccess()
                     .getWrapperOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-            var entry = reg.getOrThrow(net.minecraft.resources.ResourceKey.of(
+            var entry = reg.getOrThrow(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.parse(t.enchant())));
             book.addEnchantment(entry, t.enchantLv());
-            if (!player.getInventory().insertStack(book)) player.dropItem(book, false);
-            player.sendMessage(Component.literal("附魔书已放入背包（带附魔物品不进仓储，防丢附魔）"), true);
+            if (!player.getInventory().add(book)) player.drop(book, false);
+            player.displayClientMessage(Component.literal("附魔书已放入背包（带附魔物品不进仓储，防丢附魔）"), true);
         } else {
             ItemStack out = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(t.outItem())), t.outCount());
             if (!netDeposit(out)) {
                 // 存储满类型收不下：还给玩家，别凭空消失
-                if (!player.getInventory().insertStack(out)) player.dropItem(out, false);
+                if (!player.getInventory().add(out)) player.drop(out, false);
             }
         }
-        player.addExperience(3 + player.getRandom().nextInt(4)); // 原版交易经验 3-6
+        player.giveExperiencePoints(3 + player.getRandom().nextInt(4)); // 原版交易经验 3-6
         if (cfg.tradeLeveling) { // m333 合同经验：越高档交易喂得越多，升级即时播报
             int up = grantTradeXp(c, VillagerTrades.tradeXp(t) * Math.max(1, cfg.tradeXpMultiplier));
-            contractSlot.markDirty();
-            if (up > 0) player.sendMessage(Component.literal("叮！村民升级：" + VillagerTrades.levelName(contractLevel(c))
+            contractSlot.setChanged();
+            if (up > 0) player.displayClientMessage(Component.literal("叮！村民升级：" + VillagerTrades.levelName(contractLevel(c))
                     + "——交易列表解锁新行"), true);
         }
     }
 
     /** 治愈：消耗网络里 1 个金苹果，折扣 +1（最高 5）。 */
     public void heal(Player player) {
-        ItemStack c = contractSlot.getStack(0);
+        ItemStack c = contractSlot.getItem(0);
         String prof = contractProf(c);
         if (prof == null) return;
         int disc = contractDiscount(c);
         if (disc >= 5) return;
         if (netWithdraw("minecraft:golden_apple", 1) < 1) {
-            player.sendMessage(Component.literal("治愈失败：存储网络里没有金苹果"), true);
+            player.displayClientMessage(Component.literal("治愈失败：存储网络里没有金苹果"), true);
             return;
         }
         setContract(c, prof, disc + 1);
-        contractSlot.markDirty();
+        contractSlot.setChanged();
     }
 
     public void dropAll(Level world, BlockPos pos) {
-        net.minecraft.world.Containers.spawn(world, pos, contractSlot);
+        net.minecraft.world.Containers.dropContents(world, pos, contractSlot);
     }
 
     @Override
     protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
         super.saveAdditional(nbt, lookup);
-        ItemStack c = contractSlot.getStack(0);
+        ItemStack c = contractSlot.getItem(0);
         if (!c.isEmpty()) nbt.put("contract", c.save(lookup));
     }
 
     @Override
     protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
         super.loadAdditional(nbt, lookup);
-        contractSlot.setStack(0, nbt.contains("contract")
+        contractSlot.setItem(0, nbt.contains("contract")
                 ? ItemStack.parse(lookup, nbt.getCompound("contract")).orElse(ItemStack.EMPTY)
                 : ItemStack.EMPTY);
     }
@@ -299,6 +299,6 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
 
     @Override
     public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
-        return this.pos;
+        return this.worldPosition;
     }
 }

@@ -17,7 +17,7 @@ public class WirelessNodeBlock extends Block implements EntityBlock {
     }
 
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new WirelessNodeBlockEntity(pos, state);
     }
 }

@@ -15,44 +15,44 @@ import org.jetbrains.annotations.Nullable;
 /** 村民交易所：右键打开交易 UI；破坏掉落合同。 */
 public class TradeCenterBlock extends BaseEntityBlock {
 
-    public static final MapCodec<TradeCenterBlock> CODEC = createCodec(TradeCenterBlock::new);
+    public static final MapCodec<TradeCenterBlock> CODEC = simpleCodec(TradeCenterBlock::new);
 
     public TradeCenterBlock(Properties settings) {
         super(settings);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> getCodec() {
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
     }
 
     @Nullable
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new TradeCenterBlockEntity(pos, state);
     }
 
     @Override
-    protected RenderShape getRenderType(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
     @Override
-    protected InteractionResult onUse(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
-        if (world.isClient) return InteractionResult.SUCCESS;
+    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        if (world.isClientSide) return InteractionResult.SUCCESS;
         if (world.getBlockEntity(pos) instanceof TradeCenterBlockEntity be) {
-            player.openHandledScreen(be);
+            player.openMenu(be);
         }
         return InteractionResult.SUCCESS;
     }
 
     @Override
-    protected void onStateReplaced(BlockState state, Level world, BlockPos pos, BlockState newState, boolean moved) {
-        if (!state.isOf(newState.getBlock())) {
+    protected void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean moved) {
+        if (!state.is(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof TradeCenterBlockEntity be) {
                 be.dropAll(world, pos);
             }
-            super.onStateReplaced(state, world, pos, newState, moved);
+            super.onRemove(state, world, pos, newState, moved);
         }
     }
 }

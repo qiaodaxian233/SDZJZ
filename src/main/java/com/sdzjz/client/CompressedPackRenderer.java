@@ -41,11 +41,11 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
                        MultiBufferSource vcp, int light, int overlay) {
         Minecraft mc = Minecraft.getInstance();
         ItemRenderer ir = mc.getItemRenderer();
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(0.5F, 0.5F, 0.5F); // 外层已 -0.5，先回中心原点再嵌套（见类注坐标账）
 
         ItemStack frame = new ItemStack(frameItem);
-        var frameModel = ir.getModel(frame, mc.world, null, 0);
+        var frameModel = ir.getModel(frame, mc.level, null, 0);
         String id = CompressedPackItem.innerId(stack);
         Item innerItem = id != null ? BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)) : Items.AIR;
         boolean hasInner = innerItem != Items.AIR && !(innerItem instanceof CompressedPackItem);
@@ -55,19 +55,19 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             // GUI 老路（作者验过说好）：内容物/边框各走自己的 display 变换，边框前移 0.4。
             if (hasInner) {
                 ItemStack inner = new ItemStack(innerItem);
-                var innerModel = ir.getModel(inner, mc.world, null, 0);
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
                 sheen(inner, innerModel); // m285 扁平件扫光
-                matrices.push();
+                matrices.pushPose();
                 matrices.scale(0.8F, 0.8F, 0.8F);
-                if (spd > 0 && innerModel.hasDepth())
-                    matrices.multiply(com.mojang.math.Axis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
+                if (spd > 0 && innerModel.isGui3d())
+                    matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(spinDeg(spd)));
                 ir.renderItem(inner, mode, false, matrices, vcp, light, overlay, innerModel);
-                matrices.pop();
+                matrices.popPose();
             }
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(0.0F, 0.0F, 0.4F);
             ir.renderItem(frame, mode, false, matrices, vcp, light, overlay, frameModel);
-            matrices.pop();
+            matrices.popPose();
         } else {
             // m284 手持/掉落/展示框：此前内容物走方块 display（三人称 t=(0,2.5/16,0)·s0.375）而边框走
             // 扁平件 display（t=(0,3/16,1/16)·s0.55）——两套锚不重合=旋转的方块挂在框外（作者截图实锤）。
@@ -77,27 +77,27 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
             // 0.25×√2≈0.354<0.375=旋转全程不进边框环带；边框前移 0.05 防中孔处 z-fight，无穿插无视差。
             boolean left = mode == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
                     || mode == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
-            matrices.push();
-            frameModel.getTransformation().getTransformation(mode).apply(left, matrices);
+            matrices.pushPose();
+            frameModel.getTransforms().getTransform(mode).apply(left, matrices);
             if (hasInner) {
                 ItemStack inner = new ItemStack(innerItem);
-                var innerModel = ir.getModel(inner, mc.world, null, 0);
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
                 sheen(inner, innerModel); // m285 扁平件扫光
-                matrices.push();
+                matrices.pushPose();
                 matrices.scale(0.5F, 0.5F, 0.5F);
-                if (spd > 0 && innerModel.hasDepth())
-                    matrices.multiply(com.mojang.math.Axis.POSITIVE_Y.rotationDegrees(spinDeg(spd)));
+                if (spd > 0 && innerModel.isGui3d())
+                    matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(spinDeg(spd)));
                 ir.renderItem(inner, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, innerModel);
-                matrices.pop();
+                matrices.popPose();
             }
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(0.0F, 0.0F, 0.05F);
             ir.renderItem(frame, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, frameModel);
-            matrices.pop();
-            matrices.pop();
+            matrices.popPose();
+            matrices.popPose();
         }
 
-        matrices.pop();
+        matrices.popPose();
     }
 
     /** m285 扁平内容物扫光（作者："旋转可以加一个扫光，给那些不能旋转的用"）：3D 方块有自转动效，
@@ -107,13 +107,13 @@ public class CompressedPackRenderer implements BuiltinItemRendererRegistry.Dynam
      *  临时栈，不碰真实物品组件。可能与真附魔物观感混淆——包内容物按构造只会是原版散件、tooltip
      *  写明内容物，可接受；不喜欢一键关配置。 */
     private static void sheen(ItemStack inner, net.minecraft.client.resources.model.BakedModel innerModel) {
-        if (!innerModel.hasDepth() && com.sdzjz.config.SdzjzConfig.get().compressedPackFlatSheen)
+        if (!innerModel.isGui3d() && com.sdzjz.config.SdzjzConfig.get().compressedPackFlatSheen)
             inner.set(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, Boolean.TRUE);
     }
 
     /** m280 自转角：时间源 Util.getMeasuringTimeMs()（m148 在树先例）与 tick 无关恒匀速，按整圈周期取模防浮点漂移。 */
     private static float spinDeg(int spd) {
         long periodMs = Math.max(1L, 360_000L / spd); // m290 夹紧：配置 spd>360000 时整除得 0，%0=ArithmeticException 崩渲染线程
-        return (net.minecraft.Util.getMeasuringTimeMs() % periodMs) * spd / 1000.0F;
+        return (net.minecraft.Util.getMillis() % periodMs) * spd / 1000.0F;
     }
 }

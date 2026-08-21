@@ -22,31 +22,31 @@ import net.minecraft.world.level.Level;
 public class SuperBenchBlock extends BaseEntityBlock {
 
     private static final Component TITLE = Component.literal("超大工作台");
-    public static final MapCodec<SuperBenchBlock> CODEC = createCodec(SuperBenchBlock::new); // yarn method_54094 已核
+    public static final MapCodec<SuperBenchBlock> CODEC = simpleCodec(SuperBenchBlock::new); // yarn method_54094 已核
 
     public SuperBenchBlock(Properties settings) {
         super(settings);
     }
 
     @Override
-    protected MapCodec<? extends BaseEntityBlock> getCodec() {
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
     }
 
     @Override
-    protected RenderShape getRenderType(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
     @Override
-    public BlockEntity createBlockEntity(net.minecraft.core.BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, BlockState state) {
         return new SuperBenchBlockEntity(pos, state);
     }
 
     @Override
-    protected InteractionResult onUse(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!world.isClient) {
-            player.openHandledScreen(new SimpleMenuProvider(
+    protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        if (!world.isClientSide) {
+            player.openMenu(new SimpleMenuProvider(
                     (syncId, inv, p) -> new SuperBenchScreenHandler(syncId, inv, ContainerLevelAccess.create(world, pos)),
                     TITLE));
         }

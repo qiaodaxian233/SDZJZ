@@ -24,13 +24,13 @@ import java.util.List;
  */
 public class VoidProcessorItem extends MachineItem {
 
-    public VoidProcessorItem(Settings settings, MachineDef def) {
+    public VoidProcessorItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     /** tick 侧结算写器（三键一笔：va 累计吞 / vc 汇率余数 / vn 累计炼得经验）。 */
     public static void settle(ItemStack s, long eatenDelta, long carryLeft, long xpDelta) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putLong("va", n.getLong("va") + eatenDelta);
         n.putLong("vc", carryLeft);
         if (xpDelta > 0) n.putLong("vn", n.getLong("vn") + xpDelta);
@@ -45,12 +45,12 @@ public class VoidProcessorItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("垃圾炼经验：吞掉连线送来的物品，炼成经验进本核心经验池").formatted(ChatFormatting.AQUA));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("垃圾炼经验：吞掉连线送来的物品，炼成经验进本核心经验池").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.literal("汇率 " + Math.max(1, com.sdzjz.config.SdzjzConfig.get().voidXpPerItemsEaten)
-                + " 件=1 经验（config 可调），余数记账进位不丢").formatted(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("白名单空=连啥炼啥 · 非空=只收名单内（名单外回仓）").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("只吞推送来的，直连仓不抽；经过滤器转接=授权照拉").formatted(ChatFormatting.DARK_GRAY));
-        tooltip.add(Component.literal("吃下的东西没了换不回，白名单请慎配").formatted(ChatFormatting.RED));
+                + " 件=1 经验（config 可调），余数记账进位不丢").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("白名单空=连啥炼啥 · 非空=只收名单内（名单外回仓）").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("只吞推送来的，直连仓不抽；经过滤器转接=授权照拉").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("吃下的东西没了换不回，白名单请慎配").withStyle(ChatFormatting.RED));
     }
 }

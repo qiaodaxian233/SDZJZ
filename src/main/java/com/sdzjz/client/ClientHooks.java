@@ -49,7 +49,7 @@ public final class ClientHooks {
     public static void onWorldDrawAfterEntities(WorldDraw h) {
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
             if (ctx.matrixStack() == null || ctx.consumers() == null || ctx.camera() == null) return;
-            h.draw(ctx.matrixStack(), ctx.consumers(), ctx.camera().getPos());
+            h.draw(ctx.matrixStack(), ctx.consumers(), ctx.camera().getPosition());
         });
     }
 }

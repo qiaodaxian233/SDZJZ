@@ -28,7 +28,7 @@ public class CompressedPackItem extends Item {
     /** 压缩倍率：一级 64，二级 4096。 */
     public final int ratio;
 
-    public CompressedPackItem(Settings settings, int ratio) {
+    public CompressedPackItem(Properties settings, int ratio) {
         super(settings);
         this.ratio = ratio;
     }
@@ -47,7 +47,7 @@ public class CompressedPackItem extends Item {
         if (!(stack.getItem() instanceof CompressedPackItem)) return null;
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return null;
-        CompoundTag nbt = c.copyNbt();
+        CompoundTag nbt = c.copyTag();
         return nbt.contains(KEY) ? nbt.getString(KEY) : null;
     }
 
@@ -67,23 +67,23 @@ public class CompressedPackItem extends Item {
     public Component getName(ItemStack stack) { // yarn method_7864 已核
         Item in = inner(stack);
         if (in == null) return super.getName(stack);
-        return Component.translatable(this.getTranslationKey()).copy().append(" · ").append(in.getName());
+        return Component.translatable(this.getDescriptionId()).copy().append(" · ").append(in.getName());
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
         Item in = inner(stack);
         if (in != null) {
             tooltip.add(Component.literal("= " + ratio + " × ").append(in.getName())
-                    .formatted(net.minecraft.ChatFormatting.AQUA));
+                    .withStyle(net.minecraft.ChatFormatting.AQUA));
             tooltip.add(Component.literal("配方核算按原版计数折算（本栈合计 "
-                    + fmt(rawCount(stack)) + " 件）").formatted(net.minecraft.ChatFormatting.GRAY));
+                    + fmt(rawCount(stack)) + " 件）").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {
             tooltip.add(Component.literal("空包 · 在超大工作台压缩区把 " + ratio + " 件同种普通物品压成 1 包")
-                    .formatted(net.minecraft.ChatFormatting.GRAY));
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
         }
-        tooltip.add(Component.literal("超大工作台右下压缩区可压缩/拆开").formatted(net.minecraft.ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("超大工作台右下压缩区可压缩/拆开").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 
     /** 大数缩写（与数据面板口径一致的 K/M/B）。 */

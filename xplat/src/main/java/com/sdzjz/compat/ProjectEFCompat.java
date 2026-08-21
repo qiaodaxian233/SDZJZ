@@ -51,7 +51,7 @@ public final class ProjectEFCompat {
 
     /** 邻块是不是转化桌（按注册 id 判**无需反射**——未装 ProjectEF 时 id 不会命中；客户端也安全）。 */
     public static boolean isTransmutationTable(BlockState s) {
-        return "projecte:transmutation_table".equals(BuiltInRegistries.BLOCK.getId(s.getBlock()).toString());
+        return "projecte:transmutation_table".equals(BuiltInRegistries.BLOCK.getKey(s.getBlock()).toString());
     }
 
     /** 单件 EMC 估值（0=无价不可卖）。 */
@@ -64,7 +64,7 @@ public final class ProjectEFCompat {
     public static boolean credit(ServerPlayer owner, long emc) {
         if (!available() || owner == null || emc <= 0) return false;
         try {
-            Object kp = mKpFor.invoke(txProxy, owner.getUuid());
+            Object kp = mKpFor.invoke(txProxy, owner.getUUID());
             BigInteger cur = (BigInteger) mGetEmc.invoke(kp);
             mSetEmc.invoke(kp, cur.add(BigInteger.valueOf(emc)));
             mSyncEmc.invoke(kp, owner);

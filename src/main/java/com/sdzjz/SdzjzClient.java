@@ -41,25 +41,25 @@ public class SdzjzClient implements ClientModInitializer {
         // m275：观众定向渲染快照 → 写回客户端 BE 渲染字段（画布屏 be() 读法零改动）
         com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.CanvasSnapshotPayload.ID,
                 (payload, client) -> {
-                    var w = client.world;
+                    var w = client.level;
                     if (w != null && w.getBlockEntity(payload.pos()) instanceof com.sdzjz.block.StructureCoreBlockEntity be)
-                        be.applyRenderSnapshot(payload.nbt(), w.getRegistryManager());
+                        be.applyRenderSnapshot(payload.nbt(), w.registryAccess());
                 });
         // m289：终端库存摘要 → 灌进正开着的终端 handler 并催书重算"可合成"
         com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.TerminalStockPayload.ID,
                 (payload, client) -> {
                     var pl = client.player;
-                    if (pl != null && pl.currentScreenHandler instanceof com.sdzjz.screen.DataPanelScreenHandler h
-                            && h.syncId == payload.syncId()) {
+                    if (pl != null && pl.containerMenu instanceof com.sdzjz.screen.DataPanelScreenHandler h
+                            && h.containerId == payload.syncId()) {
                         h.applyStock(payload.ids(), payload.counts(), payload.truncated()); // m298
-                        if (client.currentScreen instanceof com.sdzjz.client.DataPanelScreen ds)
+                        if (client.screen instanceof com.sdzjz.client.DataPanelScreen ds)
                             ds.onStockSync();
                     }
                 });
         // m80：全模组物品 tooltip 水印
         com.sdzjz.client.ClientHooks.onItemTooltip((stack, lines) -> { // m405 平台口
-            if ("sdzjz".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(stack.getItem()).getNamespace()))
-                lines.add(net.minecraft.network.chat.Component.literal("DY：乔大仙").formatted(net.minecraft.ChatFormatting.GOLD));
+            if ("sdzjz".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace()))
+                lines.add(net.minecraft.network.chat.Component.literal("DY：乔大仙").withStyle(net.minecraft.ChatFormatting.GOLD));
         });
         // m320：Sodium"仅动画可见纹理"优化会冻结纯 GUI 物品动画精灵（方块精灵靠世界渲染保活不受累）
         // ——每客户端 tick 给四件动画物品精灵标活跃；未装 Sodium 垫片自动熔断零开销。
@@ -70,10 +70,10 @@ public class SdzjzClient implements ClientModInitializer {
         var chunkCfgKey = com.sdzjz.client.ClientHooks.registerKey("key.sdzjz.chunk_config",
                 org.lwjgl.glfw.GLFW.GLFW_KEY_R, "category.sdzjz"); // m405 平台口
         com.sdzjz.client.ClientHooks.onClientTickEnd(mc -> {
-            while (chunkCfgKey.wasPressed()) {
-                if (mc.player == null || mc.currentScreen != null) continue;
-                int handK = mc.player.getMainHandStack().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 0
-                        : mc.player.getOffHandStack().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 1 : -1;
+            while (chunkCfgKey.consumeClick()) {
+                if (mc.player == null || mc.screen != null) continue;
+                int handK = mc.player.getMainHandItem().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 0
+                        : mc.player.getOffhandItem().getItem() instanceof com.sdzjz.item.ChunkRemoverItem ? 1 : -1;
                 if (handK >= 0) mc.setScreen(new com.sdzjz.client.ChunkRemoverConfigScreen(handK));
             }
         });

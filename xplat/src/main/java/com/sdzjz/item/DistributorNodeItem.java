@@ -15,15 +15,15 @@ import java.util.List;
  */
 public class DistributorNodeItem extends MachineItem {
 
-    public DistributorNodeItem(Settings settings, MachineDef def) {
+    public DistributorNodeItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("画布逻辑节点：来料在多条出线间均分").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("只分给吃得下的目标，余数轮转补齐").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("没人要的自动进存储（不堵死）").formatted(ChatFormatting.DARK_GREEN));
-        tooltip.add(Component.literal("用法：机器→分配器→多台下游").formatted(ChatFormatting.GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("画布逻辑节点：来料在多条出线间均分").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("只分给吃得下的目标，余数轮转补齐").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("没人要的自动进存储（不堵死）").withStyle(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("用法：机器→分配器→多台下游").withStyle(ChatFormatting.GRAY));
     }
 }

@@ -32,43 +32,43 @@ public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEnti
     @Override
     public void render(DataCableBlockEntity be, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay) {
-        BlockState state = be.getCachedState();
+        BlockState state = be.getBlockState();
         if (!(state.getBlock() instanceof com.sdzjz.block.DataCableBlock)) return;
-        float time = (be.getWorld() != null ? be.getWorld().getTime() % 30L : 0L) + tickDelta; // 1.5s=30t
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
+        float time = (be.getLevel() != null ? be.getLevel().getTime() % 30L : 0L) + tickDelta; // 1.5s=30t
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
 
         for (int i = 0; i < DIRS.length; i++) {
             Direction d = DIRS[i];
-            if (state.get(com.sdzjz.block.DataCableBlock.END_PROPS.get(d)) == com.sdzjz.block.CableEnd.NONE) continue;
+            if (state.getValue(com.sdzjz.block.DataCableBlock.END_PROPS.get(d)) == com.sdzjz.block.CableEnd.NONE) continue;
             float progress = ((time + i * 5f) % 30f) / 30f;          // 各方向错相 0.25s
             float zLocal = 0.06f + progress * 0.44f;                  // 外端 → 中心
             float fade = (float) Math.sin(Math.PI * progress);        // 端点淡入淡出
             float scale = 0.35f + 0.65f * fade;                       // 对应原 0.2↔1 缩放包络
 
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(0.5f, 0.5f, 0.5f);
-            matrices.multiply(rotationFor(d));
+            matrices.mulPose(rotationFor(d));
             matrices.translate(0f, 0f, zLocal - 0.5f);                // 局部脉冲中心移到臂上
             matrices.scale(scale, scale, scale);
-            emit(matrices.peek(), vc, light, overlay);
-            matrices.pop();
+            emit(matrices.last(), vc, light, overlay);
+            matrices.popPose();
         }
     }
 
     private static Quaternionf rotationFor(Direction d) {
         return switch (d) {
             case NORTH -> new Quaternionf();
-            case SOUTH -> Axis.POSITIVE_Y.rotationDegrees(180f);
-            case WEST  -> Axis.POSITIVE_Y.rotationDegrees(90f);
-            case EAST  -> Axis.POSITIVE_Y.rotationDegrees(-90f);
-            case UP    -> Axis.POSITIVE_X.rotationDegrees(90f);
-            case DOWN  -> Axis.POSITIVE_X.rotationDegrees(-90f);
+            case SOUTH -> Axis.YP.rotationDegrees(180f);
+            case WEST  -> Axis.YP.rotationDegrees(90f);
+            case EAST  -> Axis.YP.rotationDegrees(-90f);
+            case UP    -> Axis.XP.rotationDegrees(90f);
+            case DOWN  -> Axis.XP.rotationDegrees(-90f);
         };
     }
 
     private static void emit(PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
-        Matrix4f pm = entry.getPositionMatrix();
-        Matrix3f nm = entry.getNormalMatrix();
+        Matrix4f pm = entry.pose();
+        Matrix3f nm = entry.normal();
         Vector3f p = new Vector3f(), n = new Vector3f();
         for (float[] q : DataCableAnimGeo.PULSE) {
             nm.transform(n.set(q[0], q[1], q[2]));
@@ -76,7 +76,7 @@ public class DataCableRenderer implements BlockEntityRenderer<DataCableBlockEnti
             for (int v = 0; v < 4; v++) {
                 int o = 3 + v * 5;
                 pm.transformPosition(p.set(q[o], q[o + 1], q[o + 2]));
-                vc.vertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
+                vc.addVertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
             }
         }
     }

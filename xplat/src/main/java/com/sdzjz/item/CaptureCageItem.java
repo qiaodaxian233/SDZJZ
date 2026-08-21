@@ -27,12 +27,12 @@ import net.minecraft.resources.ResourceLocation;
 public class CaptureCageItem extends Item {
     private static final String KEY = "caged";
 
-    public CaptureCageItem(Settings settings) {
+    public CaptureCageItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public InteractionResult useOnEntity(ItemStack stack, Player user, LivingEntity entity, InteractionHand hand) {
+    public InteractionResult interactLivingEntity(ItemStack stack, Player user, LivingEntity entity, InteractionHand hand) {
         // 兜底路径：无右键交互的生物（僵尸/骷髅等）仍会走到这里；
         // 有交互的生物（村民/马/宠物）由 Sdzjz 里注册的 UseEntityCallback 抢先处理（m94）。
         return tryCapture(user, hand, entity);
@@ -44,70 +44,70 @@ public class CaptureCageItem extends Item {
      * useOnEntity 永远轮不到执行；马/驯服猫狗同理。事件挂在交易之前，返回 SUCCESS 即取消原版处理。
      */
     public static InteractionResult tryCapture(Player user, InteractionHand hand, LivingEntity entity) {
-        ItemStack held = user.getStackInHand(hand);
+        ItemStack held = user.getItemInHand(hand);
         if (!(held.getItem() instanceof CaptureCageItem cageItem)) return InteractionResult.PASS;
         if (isCaged(held)) return InteractionResult.PASS;           // 已装了生物
         if (user.isSpectator()) return InteractionResult.PASS;      // 事件挂在旁观检查之前，须自查（Fabric 文档明示）
         if (entity instanceof Player) return InteractionResult.PASS;      // 绝不允许"抓走"玩家
         if (entity instanceof EnderDragon) return InteractionResult.PASS; // 龙战实体，抓走会坏档
         if (!entity.isAlive()) return InteractionResult.PASS;
-        if (user.getWorld().isClient) return InteractionResult.SUCCESS;
+        if (user.level().isClientSide) return InteractionResult.SUCCESS;
 
-        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getId(entity.getType());
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
         // 造一个"1 只"的已捕获笼（不动传入的 stack——创造模式下那是复制品）
         ItemStack caged = new ItemStack(cageItem, 1);
         CompoundTag nbt = new CompoundTag();
         nbt.putString(KEY, id.toString());
         caged.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
         caged.set(DataComponents.CUSTOM_NAME,
-                Component.literal("抓物笼子 · ").append(entity.getType().getName()));
+                Component.literal("抓物笼子 · ").append(entity.getType().getDescription()));
 
         // 操作手上的真实栈（getStackInHand 重新取真身，创造/生存都对）
-        ItemStack real = user.getStackInHand(hand);
+        ItemStack real = user.getItemInHand(hand);
         if (real.getItem() instanceof CaptureCageItem && !isCaged(real)) {
             if (real.getCount() <= 1) {
-                user.setStackInHand(hand, caged);
+                user.setItemInHand(hand, caged);
             } else {
-                real.decrement(1); // 叠里只消耗 1 个空笼
-                if (!user.getInventory().insertStack(caged)) user.dropItem(caged, false);
+                real.shrink(1); // 叠里只消耗 1 个空笼
+                if (!user.getInventory().add(caged)) user.drop(caged, false);
             }
         } else { // 兜底（理论到不了）：直接给玩家
-            if (!user.getInventory().insertStack(caged)) user.dropItem(caged, false);
+            if (!user.getInventory().add(caged)) user.drop(caged, false);
         }
 
-        user.sendMessage(Component.literal("已捕获: ").append(entity.getType().getName())
-                .formatted(net.minecraft.ChatFormatting.GREEN), true); // actionbar 即时反馈
+        user.sendMessage(Component.literal("已捕获: ").append(entity.getType().getDescription())
+                .withStyle(net.minecraft.ChatFormatting.GREEN), true); // actionbar 即时反馈
 
         entity.discard();
         return InteractionResult.SUCCESS;
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
         String id = cagedType(stack);
         if (id != null) {
             Component name;
-            try { name = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).getName(); }
+            try { name = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).getDescription(); }
             catch (Exception ex) { name = Component.literal(id); }
-            tooltip.add(Component.literal("已捕获: ").append(name).formatted(net.minecraft.ChatFormatting.GREEN));
-            tooltip.add(Component.literal("可插画布刷掉落，或作刷怪机器的合成材料").formatted(net.minecraft.ChatFormatting.GRAY));
+            tooltip.add(Component.literal("已捕获: ").append(name).withStyle(net.minecraft.ChatFormatting.GREEN));
+            tooltip.add(Component.literal("可插画布刷掉落，或作刷怪机器的合成材料").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {
-            tooltip.add(Component.literal("空笼 · 右键活体生物捕获").formatted(net.minecraft.ChatFormatting.GRAY));
-            tooltip.add(Component.literal("刷怪机器需装着对应生物的笼子才能合成").formatted(net.minecraft.ChatFormatting.AQUA));
+            tooltip.add(Component.literal("空笼 · 右键活体生物捕获").withStyle(net.minecraft.ChatFormatting.GRAY));
+            tooltip.add(Component.literal("刷怪机器需装着对应生物的笼子才能合成").withStyle(net.minecraft.ChatFormatting.AQUA));
         }
     }
 
     public static boolean isCaged(ItemStack stack) {
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        return c != null && c.copyNbt().contains(KEY);
+        return c != null && c.copyTag().contains(KEY);
     }
 
     /** 取笼子里装的生物类型 id（空笼子返回 null）。 */
     public static String cagedType(ItemStack stack) {
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return null;
-        CompoundTag nbt = c.copyNbt();
+        CompoundTag nbt = c.copyTag();
         return nbt.contains(KEY) ? nbt.getString(KEY) : null;
     }
 }

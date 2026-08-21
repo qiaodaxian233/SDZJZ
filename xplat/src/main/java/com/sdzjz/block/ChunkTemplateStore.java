@@ -30,7 +30,7 @@ public class ChunkTemplateStore extends SavedData {
     public static ChunkTemplateStore read(CompoundTag nbt, HolderLookup.Provider lookup) {
         ChunkTemplateStore s = new ChunkTemplateStore();
         CompoundTag m = nbt.getCompound("tpls");
-        for (String k : m.getKeys()) {
+        for (String k : m.getAllKeys()) {
             try {
                 s.templates.put(UUID.fromString(k), m.getCompound(k));
             } catch (IllegalArgumentException ignored) { // 坏 UUID 键丢弃（m273 读入校验同律）
@@ -48,7 +48,7 @@ public class ChunkTemplateStore extends SavedData {
     }
 
     public static ChunkTemplateStore of(MinecraftServer server) {
-        return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_chunk_templates");
+        return server.overworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_chunk_templates");
     }
 
     /** 入库：封顶即拒（返 null，调用方红灯出声）；成功返新 UUID 并落盘置脏。 */
@@ -56,7 +56,7 @@ public class ChunkTemplateStore extends SavedData {
         if (templates.size() >= Math.max(1, cap)) return null;
         UUID u = UUID.randomUUID();
         templates.put(u, tpl);
-        markDirty();
+        setDirty();
         return u;
     }
 
@@ -65,7 +65,7 @@ public class ChunkTemplateStore extends SavedData {
 
     public boolean remove(UUID u) {
         boolean hit = templates.remove(u) != null;
-        if (hit) markDirty();
+        if (hit) setDirty();
         return hit;
     }
 

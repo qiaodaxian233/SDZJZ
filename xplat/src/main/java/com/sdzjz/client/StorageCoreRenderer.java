@@ -28,34 +28,34 @@ public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlock
     @Override
     public void render(StorageCoreBlockEntity be, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay) {
-        float time = (be.getWorld() != null ? be.getWorld().getTime() % 80L : 0L) + tickDelta; // 4s=80t 循环
+        float time = (be.getLevel() != null ? be.getLevel().getTime() % 80L : 0L) + tickDelta; // 4s=80t 循环
         float phase = (time % 40f) / 40f;                          // 2s 三角波相位
         float tri = phase < 0.5f ? phase * 2f : 2f - phase * 2f;   // 0→1→0
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
 
         // core_energy：绕方块中心(0.5,*,0.5)旋转 + 呼吸
         float coreScale = 1f + 0.08f * tri;
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(0.5f, 0f, 0.5f);
-        matrices.multiply(Axis.POSITIVE_Y.rotationDegrees(-time * 4.5f)); // -90°/s
+        matrices.mulPose(Axis.YP.rotationDegrees(-time * 4.5f)); // -90°/s
         matrices.scale(coreScale, coreScale, coreScale);
         matrices.translate(-0.5f, 0f, -0.5f);
-        emit(StorageCoreAnimGeo.CORE, matrices.peek(), vc, light, overlay);
-        matrices.pop();
+        emit(StorageCoreAnimGeo.CORE, matrices.last(), vc, light, overlay);
+        matrices.popPose();
 
         // corner_lights：呼吸（X/Z 1.04、Y 1.08）
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(0.5f, 0f, 0.5f);
         matrices.scale(1f + 0.04f * tri, 1f + 0.08f * tri, 1f + 0.04f * tri);
         matrices.translate(-0.5f, 0f, -0.5f);
-        emit(StorageCoreAnimGeo.LIGHTS, matrices.peek(), vc, light, overlay);
-        matrices.pop();
+        emit(StorageCoreAnimGeo.LIGHTS, matrices.last(), vc, light, overlay);
+        matrices.popPose();
     }
 
     /** 逐四边形发顶点：行 = nx,ny,nz + 4×(x,y,z,u,v)。 */
     private static void emit(float[][] quads, PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
-        Matrix4f pm = entry.getPositionMatrix();
-        Matrix3f nm = entry.getNormalMatrix();
+        Matrix4f pm = entry.pose();
+        Matrix3f nm = entry.normal();
         Vector3f p = new Vector3f(), n = new Vector3f();
         for (float[] q : quads) {
             nm.transform(n.set(q[0], q[1], q[2]));
@@ -63,7 +63,7 @@ public class StorageCoreRenderer implements BlockEntityRenderer<StorageCoreBlock
             for (int v = 0; v < 4; v++) {
                 int o = 3 + v * 5;
                 pm.transformPosition(p.set(q[o], q[o + 1], q[o + 2]));
-                vc.vertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
+                vc.addVertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
             }
         }
     }

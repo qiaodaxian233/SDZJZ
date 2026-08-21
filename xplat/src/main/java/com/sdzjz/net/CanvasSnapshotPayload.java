@@ -22,7 +22,7 @@ public record CanvasSnapshotPayload(BlockPos pos, CompoundTag nbt) implements Cu
 
     public static final StreamCodec<RegistryFriendlyByteBuf, CanvasSnapshotPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, CanvasSnapshotPayload::pos,
-            ByteBufCodecs.UNLIMITED_NBT_COMPOUND, CanvasSnapshotPayload::nbt,
+            ByteBufCodecs.TRUSTED_COMPOUND_TAG, CanvasSnapshotPayload::nbt,
             CanvasSnapshotPayload::new
     );
 

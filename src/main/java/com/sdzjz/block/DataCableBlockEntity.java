@@ -39,42 +39,42 @@ public class DataCableBlockEntity extends BlockEntity
 
     public DataCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_CABLE_BE, pos, state);
-        upgrades.addListener(inv -> this.markDirty()); // m230 升级槽改动落盘（markDirty 自带 world==null 守卫）
+        upgrades.addListener(inv -> this.setChanged()); // m230 升级槽改动落盘（markDirty 自带 world==null 守卫）
     }
 
     /** m230 生效周期：基础周期 ÷ (1+速度级)，触底 1t（触底后的富余速度折进单拍批量，见 effBudget——
      *  m99 教训"到顶之后玩家再投入会怎样"：每一件升级永远有增益，绝不静默无效）。 */
     public int effPeriod() {
         int base = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
-        return Math.max(1, base / (1 + upgrades.getStack(0).getCount()));
+        return Math.max(1, base / (1 + upgrades.getItem(0).getCount()));
     }
 
     /** m230 单拍批量：基础批量 × (1+数量级) × (1+并发级) × 速度触底折算倍率。 */
     public long effBudget() {
         int base = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
-        long speedFactor = 1 + upgrades.getStack(0).getCount();
+        long speedFactor = 1 + upgrades.getItem(0).getCount();
         long fold = speedFactor <= base ? 1 : (speedFactor + base - 1) / base; // 超出 1t 触底的速度折进批量（向上取整保单调）
         return Math.max(1, SdzjzConfig.get().extractPortBatch)
-                * (1 + upgrades.getStack(1).getCount())
-                * (1 + upgrades.getStack(2).getCount()) * fold;
+                * (1 + upgrades.getItem(1).getCount())
+                * (1 + upgrades.getItem(2).getCount()) * fold;
     }
 
     public boolean extractOn() { return extractOn; }
-    public void setExtractOn(boolean on) { extractOn = on; markDirty(); }
+    public void setExtractOn(boolean on) { extractOn = on; setChanged(); }
     /** m229 认领所有者：谁配置这个口（开界面/潜行开关），转化桌出售的 EMC 就记谁账上。 */
     public void claimOwner(net.minecraft.world.entity.player.Player p) {
-        if (p != null && !p.getUuid().equals(owner)) { owner = p.getUuid(); markDirty(); }
+        if (p != null && !p.getUUID().equals(owner)) { owner = p.getUUID(); setChanged(); }
     }
     public java.util.UUID owner() { return owner; }
     public boolean pullMode() { return pullMode; }
-    public void setPullMode(boolean pull) { pullMode = pull; markDirty(); } // m231
+    public void setPullMode(boolean pull) { pullMode = pull; setChanged(); } // m231
 
     // ===== m233 按面断开 =====
     public boolean faceDisabled(Direction d) { return (offFaces & (1 << d.get3DDataValue())) != 0; }
     public void toggleFace(Direction d) {
         offFaces ^= (1 << d.get3DDataValue());
         coresScanTick = Long.MIN_VALUE; // 拓扑变了，相连核心缓存立即作废（40t 缓存别撑到下一窗）
-        markDirty();
+        setChanged();
     }
 
     /** m233 网络通行判定：cur→np 这条边是否被数据线按面断开（任一端是数据线且该面被禁=不通）。
@@ -102,7 +102,7 @@ public class DataCableBlockEntity extends BlockEntity
 
     @Override
     public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
-        return this.pos;
+        return this.worldPosition;
     }
 
     /** m224 邻接可抽取存储探测（走 Fabric Transfer API 标准口不做逐模组集成）→ m228 升级「六面视图」：
@@ -116,11 +116,11 @@ public class DataCableBlockEntity extends BlockEntity
         List<Object> targets = new ArrayList<>(); // m404 不透明句柄（Fabric=Storage<ItemVariant>，Neo=IItemHandler）
         int blocks = 0;
         boolean sellTable = false;
-        if (world == null || world.isClient) return new Adjacency(targets, 0, false);
+        if (world == null || world.isClientSide) return new Adjacency(targets, 0, false);
         DataCableBlockEntity self = world.getBlockEntity(pos) instanceof DataCableBlockEntity c ? c : null;
         for (Direction d : Direction.values()) {
             if (self != null && self.faceDisabled(d)) continue; // m233 断开面不对接（送出/回收/卖桌/计数四口径同断）
-            BlockPos np = pos.offset(d);
+            BlockPos np = pos.relative(d);
             BlockEntity be = world.getBlockEntity(np);
             if (be != null && be.getClass().getName().startsWith("com.sdzjz")) continue; // 自家网络方块不作抽取目标
             if (com.sdzjz.compat.ProjectEFCompat.isTransmutationTable(world.getBlockState(np))) {
@@ -148,14 +148,14 @@ public class DataCableBlockEntity extends BlockEntity
 
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），每拍最多搬 extractPortBatch 件。 */
     public static void tick(Level world, BlockPos pos, BlockState state, DataCableBlockEntity be) {
-        if (world.isClient || !be.extractOn) return;
+        if (world.isClientSide || !be.extractOn) return;
         int period = be.effPeriod(); // m230 升级生效
-        if (Math.floorMod(world.getTime() + pos.hashCode(), period) != 0) return;
+        if (Math.floorMod(world.getGameTime() + pos.hashCode(), period) != 0) return;
         Adjacency adj = scanAdjacent(world, pos);
         List<Object> targets = adj.targets();
         be.opSeller = null; // m229 本拍卖手：贴桌+已认领+所有者在线（离线提供者不可变，写=白写，不卖留货）
         if (!be.pullMode && adj.sellTable() && be.owner != null && world.getServer() != null)
-            be.opSeller = world.getServer().getPlayerManager().getPlayer(be.owner);
+            be.opSeller = world.getServer().getPlayerList().getPlayer(be.owner);
         if (targets.isEmpty() && be.opSeller == null) return;
         List<StorageCoreBlockEntity> cores = be.cores(world, pos);
         if (cores.isEmpty()) return;
@@ -174,10 +174,10 @@ public class DataCableBlockEntity extends BlockEntity
     /** 相连存储核心（数据线 BFS，40t 缓存防每拍裸扫——m218b 精确支路同教训；存位置逐拍 loadedCoreAt
      *  解引用，绝不缓存 BE 引用跨卸载）。 */
     private List<StorageCoreBlockEntity> cores(Level world, BlockPos pos) {
-        if (coresScanTick == Long.MIN_VALUE || world.getTime() - coresScanTick >= 40) {
-            coresScanTick = world.getTime();
+        if (coresScanTick == Long.MIN_VALUE || world.getGameTime() - coresScanTick >= 40) {
+            coresScanTick = world.getGameTime();
             List<BlockPos> ps = new ArrayList<>();
-            for (StorageCoreBlockEntity c : StorageCoreBlockEntity.connectedCores(world, pos)) ps.add(c.getPos().toImmutable());
+            for (StorageCoreBlockEntity c : StorageCoreBlockEntity.connectedCores(world, pos)) ps.add(c.getBlockPos().immutable());
             coresCache = ps;
         }
         List<StorageCoreBlockEntity> out = new ArrayList<>(coresCache.size());
@@ -192,8 +192,8 @@ public class DataCableBlockEntity extends BlockEntity
      *  塞不下的一律回账本绝不落地；返回实际搬动件数。 */
     private long extractSpec(List<StorageCoreBlockEntity> cores, List<Object> targets, ItemStack tpl, long max) {
         if (tpl.isEmpty() || max <= 0) return 0;
-        boolean exact = !tpl.getComponentChanges().isEmpty();
-        String id = exact ? null : BuiltInRegistries.ITEM.getId(tpl.getItem()).toString();
+        boolean exact = !tpl.getComponentsPatch().isEmpty();
+        String id = exact ? null : BuiltInRegistries.ITEM.getKey(tpl.getItem()).toString();
         long moved = 0;
         for (StorageCoreBlockEntity core : cores) {
             while (moved < max) {
@@ -263,9 +263,9 @@ public class DataCableBlockEntity extends BlockEntity
         for (ItemStack tpl : filter) {
             if (tpl.isEmpty()) continue;
             any = true;
-            if (tpl.getComponentChanges().isEmpty()) { // 无组件模板=只收该 id 的裸物品（m225 口径）
-                if (vs.isOf(tpl.getItem()) && vs.getComponentChanges().isEmpty()) return true;
-            } else if (ItemStack.areItemsAndComponentsEqual(vs, tpl)) return true; // 精确模板连组件匹配
+            if (tpl.getComponentsPatch().isEmpty()) { // 无组件模板=只收该 id 的裸物品（m225 口径）
+                if (vs.is(tpl.getItem()) && vs.getComponentsPatch().isEmpty()) return true;
+            } else if (ItemStack.isSameItemSameComponents(vs, tpl)) return true; // 精确模板连组件匹配
         }
         return !any; // 空过滤=全收
     }
@@ -292,11 +292,11 @@ public class DataCableBlockEntity extends BlockEntity
     protected void saveAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
         super.saveAdditional(nbt, lookup);
         nbt.putBoolean("extractOn", extractOn);
-        if (owner != null) nbt.putUuid("owner", owner); // m229 所有者
+        if (owner != null) nbt.putUUID("owner", owner); // m229 所有者
         nbt.putBoolean("pullMode", pullMode); // m231 方向
         if (offFaces != 0) nbt.putInt("offFaces", offFaces); // m233
         for (int i = 0; i < 3; i++) // m230 升级槽（定槽键，空不写）
-            if (!upgrades.getStack(i).isEmpty()) nbt.put("up" + i, upgrades.getStack(i).save(lookup));
+            if (!upgrades.getItem(i).isEmpty()) nbt.put("up" + i, upgrades.getItem(i).save(lookup));
         ListTag fl = new ListTag(); // 过滤模板持久化（精确账本 m130 同款 encode）
         for (ItemStack f : filter) if (!f.isEmpty()) fl.add(f.save(lookup));
         nbt.put("filter", fl);
@@ -306,15 +306,15 @@ public class DataCableBlockEntity extends BlockEntity
     protected void loadAdditional(CompoundTag nbt, HolderLookup.Provider lookup) {
         super.loadAdditional(nbt, lookup);
         extractOn = nbt.getBoolean("extractOn");
-        owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null; // m229
+        owner = nbt.hasUUID("owner") ? nbt.getUUID("owner") : null; // m229
         pullMode = nbt.getBoolean("pullMode"); // m231
         offFaces = nbt.getInt("offFaces"); // m233
         for (int i = 0; i < 3; i++) { // m230
-            upgrades.setStack(i, nbt.contains("up" + i)
+            upgrades.setItem(i, nbt.contains("up" + i)
                     ? ItemStack.parse(lookup, nbt.getCompound("up" + i)).orElse(ItemStack.EMPTY) : ItemStack.EMPTY);
         }
         filter.clear();
-        ListTag fl = nbt.getList("filter", Tag.COMPOUND_TYPE);
+        ListTag fl = nbt.getList("filter", Tag.TAG_COMPOUND);
         for (int i = 0; i < fl.size(); i++) {
             ItemStack t = ItemStack.parse(lookup, fl.getCompound(i)).orElse(ItemStack.EMPTY);
             if (!t.isEmpty()) filter.add(t.copyWithCount(1)); // 解析失败/物品已卸载静默跳过，不炸档

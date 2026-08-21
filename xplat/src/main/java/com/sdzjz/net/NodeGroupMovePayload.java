@@ -19,9 +19,9 @@ public record NodeGroupMovePayload(BlockPos pos, int gid, int dx, int dy) implem
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeGroupMovePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeGroupMovePayload::pos,
-            ByteBufCodecs.INTEGER, NodeGroupMovePayload::gid,
-            ByteBufCodecs.INTEGER, NodeGroupMovePayload::dx,
-            ByteBufCodecs.INTEGER, NodeGroupMovePayload::dy,
+            ByteBufCodecs.INT, NodeGroupMovePayload::gid,
+            ByteBufCodecs.INT, NodeGroupMovePayload::dx,
+            ByteBufCodecs.INT, NodeGroupMovePayload::dy,
             NodeGroupMovePayload::new
     );
 

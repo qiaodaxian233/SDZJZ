@@ -39,11 +39,11 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         Item target = BuiltInRegistries.ITEM.get(ResourceLocation.parse(targetId));
         if (target == Items.AIR) return java.util.List.of();
         java.util.List<Map.Entry<ResourceLocation, CraftPlanner.Plan>> found = new java.util.ArrayList<>();
-        for (RecipeHolder<CraftingRecipe> entry : world.getRecipeManager().listAllOfType(RecipeType.CRAFTING)) {
+        for (RecipeHolder<CraftingRecipe> entry : world.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
             CraftingRecipe r = entry.value();
             ItemStack out;
             try {
-                out = r.getResult(world.getRegistryManager());
+                out = r.getResult(world.registryAccess());
             } catch (Exception ex) {
                 continue; // 特殊配方（烟花/染色等）取结果可能异常，跳过
             }
@@ -55,15 +55,15 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
             boolean ok = true;
             for (Ingredient ing : r.getIngredients()) {
                 if (ing.isEmpty()) continue;
-                ItemStack[] matching = ing.getMatchingStacks();
+                ItemStack[] matching = ing.getItems();
                 if (matching == null || matching.length == 0) { ok = false; break; }
                 java.util.LinkedHashSet<String> cset = new java.util.LinkedHashSet<>(); // 保 matching 序去重
-                for (ItemStack ms : matching) cset.add(BuiltInRegistries.ITEM.getId(ms.getItem()).toString());
+                for (ItemStack ms : matching) cset.add(BuiltInRegistries.ITEM.getKey(ms.getItem()).toString());
                 groupCount.merge(java.util.List.copyOf(cset), 1, Integer::sum);
                 Item pick = matching[0].getItem(); // 首选口径（显示/回退；实际计数扣料走 groups——m343）
-                needs.merge(BuiltInRegistries.ITEM.getId(pick).toString(), 1, Integer::sum);
-                Item rem = pick.getRecipeRemainder();
-                if (rem != null) remainders.merge(BuiltInRegistries.ITEM.getId(rem).toString(), 1, Integer::sum);
+                needs.merge(BuiltInRegistries.ITEM.getKey(pick).toString(), 1, Integer::sum);
+                Item rem = pick.getCraftingRemainingItem();
+                if (rem != null) remainders.merge(BuiltInRegistries.ITEM.getKey(rem).toString(), 1, Integer::sum);
             }
             if (!ok || needs.isEmpty()) continue; // 无固定材料的特殊配方不支持
             java.util.List<CraftPlanner.Group> groups = new java.util.ArrayList<>(groupCount.size());
@@ -82,16 +82,16 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         Level world = (Level) level;
         java.util.Map<String, java.util.List<Object[]>> cands = new java.util.HashMap<>();
         for (RecipeHolder<net.minecraft.world.item.crafting.SmeltingRecipe> e
-                : world.getRecipeManager().listAllOfType(RecipeType.SMELTING)) {
+                : world.getRecipeManager().getAllRecipesFor(RecipeType.SMELTING)) {
             try {
-                ItemStack out = e.value().getResult(world.getRegistryManager());
+                ItemStack out = e.value().getResult(world.registryAccess());
                 if (out == null || out.isEmpty()) continue;
                 ResourceLocation rid = e.id();
-                String outId = BuiltInRegistries.ITEM.getId(out.getItem()).toString();
+                String outId = BuiltInRegistries.ITEM.getKey(out.getItem()).toString();
                 int outCount = out.getCount();
                 for (Ingredient ing : e.value().getIngredients()) {
-                    for (ItemStack s : ing.getMatchingStacks()) {
-                        cands.computeIfAbsent(BuiltInRegistries.ITEM.getId(s.getItem()).toString(), k -> new java.util.ArrayList<>())
+                    for (ItemStack s : ing.getItems()) {
+                        cands.computeIfAbsent(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), k -> new java.util.ArrayList<>())
                                 .add(new Object[]{rid.toString(), outId, outCount});
                     }
                 }
@@ -102,8 +102,8 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
 
     @Override
     public String craftRemainderOf(String itemId) {
-        Item rem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)).getRecipeRemainder();
-        return rem != null ? BuiltInRegistries.ITEM.getId(rem).toString() : null;
+        Item rem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)).getCraftingRemainingItem();
+        return rem != null ? BuiltInRegistries.ITEM.getKey(rem).toString() : null;
     }
 
     // ===== m364 酿造/附魔解析层（BrewPlanner/EnchantPlanner 原文平移，m180 刀法） =====
@@ -139,21 +139,21 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         if (container == null) return null;
         ResourceLocation pid = ResourceLocation.tryParse(target.substring(0, cut));
         if (pid == null) return null;
-        var entry = BuiltInRegistries.POTION.getEntry(pid);
+        var entry = BuiltInRegistries.POTION.getHolder(pid);
         if (entry.isEmpty()) return null;
         return PotionContents.createStack(container, entry.get());
     }
 
     private static String key(ItemStack s) {
-        PotionContents pc = s.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.DEFAULT);
-        String pot = pc.potion().map(e -> e.getIdAsString()).orElse("-");
-        return BuiltInRegistries.ITEM.getId(s.getItem()) + "|" + pot;
+        PotionContents pc = s.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+        String pot = pc.potion().map(e -> e.getRegisteredName()).orElse("-");
+        return BuiltInRegistries.ITEM.getKey(s.getItem()) + "|" + pot;
     }
 
     private static List<ItemStack> ingredients(Level world) {
         List<ItemStack> list = INGREDIENTS;
         if (list != null) return list;
-        var reg = world.getBrewingRecipeRegistry();
+        var reg = world.potionBrewing();
         list = new ArrayList<>();
         for (Item it : BuiltInRegistries.ITEM) {
             ItemStack s = new ItemStack(it);
@@ -167,10 +167,10 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         ItemStack goal = brewTargetStack0(target);
         if (goal == null) return null;
         String goalKey = key(goal);
-        var reg = world.getBrewingRecipeRegistry();
+        var reg = world.potionBrewing();
         List<ItemStack> ings = ingredients(world);
 
-        ItemStack start = PotionContents.createStack(Items.POTION, Potions.WATER);
+        ItemStack start = PotionContents.createItemStack(Items.POTION, Potions.WATER);
         String startKey = key(start);
         Map<String, String[]> prev = new HashMap<>();   // key → {prevKey, 材料id}；起点值=null
         Map<String, ItemStack> stacks = new HashMap<>();
@@ -183,10 +183,10 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
             ItemStack cur = stacks.get(curKey);
             for (ItemStack ing : ings) {
                 ItemStack out = reg.craft(ing, cur.copy());
-                if (out.isEmpty() || ItemStack.areItemsAndComponentsEqual(out, cur)) continue; // 无此配方
+                if (out.isEmpty() || ItemStack.isSameItemSameComponents(out, cur)) continue; // 无此配方
                 String ok = key(out);
                 if (prev.containsKey(ok)) continue; // BFS 首达即最短链
-                prev.put(ok, new String[]{curKey, BuiltInRegistries.ITEM.getId(ing.getItem()).toString()});
+                prev.put(ok, new String[]{curKey, BuiltInRegistries.ITEM.getKey(ing.getItem()).toString()});
                 stacks.put(ok, out);
                 queue.add(ok);
             }
@@ -223,8 +223,8 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         }
         ResourceLocation id = ResourceLocation.tryParse(target.substring(0, cut));
         if (id == null) return null;
-        var reg = world.getRegistryManager().getWrapperOrThrow(Registries.ENCHANTMENT);
-        var entry = reg.getOptional(ResourceKey.of(Registries.ENCHANTMENT, id));
+        var reg = world.registryAccess().getWrapperOrThrow(Registries.ENCHANTMENT);
+        var entry = reg.getOptional(ResourceKey.create(Registries.ENCHANTMENT, id));
         if (entry.isEmpty()) return null;
         Enchantment ench = entry.get().value();
         if (lv < 1 || lv > ench.getMaxLevel()) return null;
@@ -235,20 +235,20 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         var e = parse(world, target);
         if (e == null) return null;
         ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-        book.addEnchantment(e.entry(), e.level()); // m101 交易所同款 API（已编译验证）
+        book.enchant(e.entry(), e.level()); // m101 交易所同款 API（已编译验证）
         return book;
     }
 
     private static Component enchTargetName0(Level world, String target) {
         var e = parse(world, target);
-        return e == null ? null : Enchantment.getName(e.entry(), e.level());
+        return e == null ? null : Enchantment.getFullname(e.entry(), e.level());
     }
 
     private static com.sdzjz.machine.EnchantPlanner.Plan enchResolve(Level world, String target) {
         var e = parse(world, target);
         if (e == null) return null;
         ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-        book.addEnchantment(e.entry(), e.level());
+        book.enchant(e.entry(), e.level());
         Map<String, Integer> needs = new HashMap<>();
         needs.put(com.sdzjz.machine.EnchantPlanner.BOOK_ID, 1);
         needs.put(com.sdzjz.machine.EnchantPlanner.LAPIS_ID, com.sdzjz.machine.EnchantPlanner.LAPIS_PER_LEVEL * e.level());

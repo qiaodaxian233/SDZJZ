@@ -29,9 +29,9 @@ public record CanvasEndsPayload(BlockPos pos,
     public static final StreamCodec<RegistryFriendlyByteBuf, CanvasEndsPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, CanvasEndsPayload::pos,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), CanvasEndsPayload::endPos,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INTEGER), CanvasEndsPayload::endKind,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), CanvasEndsPayload::endDim,
-            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING), CanvasEndsPayload::busIds,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.INT), CanvasEndsPayload::endKind,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING_UTF8), CanvasEndsPayload::endDim,
+            ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.STRING_UTF8), CanvasEndsPayload::busIds,
             ByteBufCodecs.collection(ArrayList::new, ByteBufCodecs.VAR_LONG), CanvasEndsPayload::busCounts,
             CanvasEndsPayload::new
     );

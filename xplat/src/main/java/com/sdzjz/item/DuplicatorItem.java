@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class DuplicatorItem extends MachineItem {
 
-    public DuplicatorItem(Settings settings, MachineDef def) {
+    public DuplicatorItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
@@ -33,13 +33,13 @@ public class DuplicatorItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("放入画布后，点徽章选择复制目标（全物品·可搜索）").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("母本制：网络里须有 ≥1 件目标物品压阵，母本不消耗").formatted(ChatFormatting.RED));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("放入画布后，点徽章选择复制目标（全物品·可搜索）").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("母本制：网络里须有 ≥1 件目标物品压阵，母本不消耗").withStyle(ChatFormatting.RED));
         tooltip.add(Component.literal("每复制 1 件消耗核心经验池 "
                 + Math.max(1, com.sdzjz.config.SdzjzConfig.get().duplicatorXpPerItem)
-                + " 经验（config 可调）").formatted(ChatFormatting.LIGHT_PURPLE));
-        tooltip.add(Component.literal("组件不复制：附魔书/药水复制出来是素体（物流只认 id 记账）").formatted(ChatFormatting.DARK_GRAY));
-        tooltip.add(Component.literal("产出走出线或存回存储").formatted(ChatFormatting.AQUA));
+                + " 经验（config 可调）").withStyle(ChatFormatting.LIGHT_PURPLE));
+        tooltip.add(Component.literal("组件不复制：附魔书/药水复制出来是素体（物流只认 id 记账）").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("产出走出线或存回存储").withStyle(ChatFormatting.AQUA));
     }
 }

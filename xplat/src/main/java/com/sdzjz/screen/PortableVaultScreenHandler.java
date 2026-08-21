@@ -31,7 +31,7 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
     public PortableVaultScreenHandler(int syncId, Inventory playerInv) {
         super(ModScreenHandlers.PORTABLE_VAULT, syncId);
         this.player = playerInv.player;
-        this.hand = playerInv.player.getStackInHand(InteractionHand.MAIN_HAND).getItem() instanceof PortableVaultItem
+        this.hand = playerInv.player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PortableVaultItem
                 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 9; c++)
@@ -42,7 +42,7 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
 
     /** 客户端渲染/双端校验都从这拿包（手上实时读，被换手/丢弃即空）。 */
     public ItemStack vault() {
-        ItemStack s = player.getStackInHand(hand);
+        ItemStack s = player.getItemInHand(hand);
         if (s.getItem() instanceof PortableVaultItem) return s;
         // m332 专属仓位兜底：从仓位开的屏照常校验/渲染；仓位栈走原版槽位同步（playerScreenHandler
         // 每 playerTick 恒广播，本屏开着也刷）——客户端列表读数与服务端账本同源不冻。
@@ -50,27 +50,27 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean canUse(Player p) {
+    public boolean stillValid(Player p) {
         return !vault().isEmpty(); // 包离手即关屏
     }
 
     /** 背包 shift 点=整叠入账（账本只在服务端动——m95 铁律；客户端只清格做预测，服务端同步兜正）。 */
     @Override
-    public ItemStack quickMove(Player p, int index) {
+    public ItemStack quickMoveStack(Player p, int index) {
         Slot slot = this.slots.get(index);
-        if (slot == null || !slot.hasStack()) return ItemStack.EMPTY;
-        ItemStack st = slot.getStack();
-        if (st.isEmpty() || st.getMaxCount() <= 1 || !st.getComponentChanges().isEmpty()) return ItemStack.EMPTY; // 只收普通可堆叠物
-        if (!p.getWorld().isClient) {
+        if (slot == null || !slot.hasItem()) return ItemStack.EMPTY;
+        ItemStack st = slot.getItem();
+        if (st.isEmpty() || st.getMaxStackSize() <= 1 || !st.getComponentsPatch().isEmpty()) return ItemStack.EMPTY; // 只收普通可堆叠物
+        if (!p.level().isClientSide) {
             ItemStack v = vault();
             if (v.isEmpty()) return ItemStack.EMPTY;
-            String id = BuiltInRegistries.ITEM.getId(st.getItem()).toString();
+            String id = BuiltInRegistries.ITEM.getKey(st.getItem()).toString();
             if (!PortableVaultItem.vaultAdd(v, id, st.getCount())) {
-                p.sendMessage(Component.literal("仓库类型已满（config portableVaultTypeCap）"), true);
+                p.displayClientMessage(Component.literal("仓库类型已满（config portableVaultTypeCap）"), true);
                 return ItemStack.EMPTY;
             }
         }
-        slot.setStack(ItemStack.EMPTY);
+        slot.setByPlayer(ItemStack.EMPTY);
         return ItemStack.EMPTY; // 已入账本，终结循环
     }
 
@@ -85,7 +85,7 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
         var acct = PortableVaultItem.ledger(v);
         long left = acct.getLong(rawId);
         if (left <= 0) return;
-        int slotMax = Math.max(1, new ItemStack(it).getMaxCount());
+        int slotMax = Math.max(1, new ItemStack(it).getMaxStackSize());
         long budget = switch (mode) {
             case 1 -> Math.min(left, slotMax);
             case 2 -> left;
@@ -95,17 +95,17 @@ public class PortableVaultScreenHandler extends AbstractContainerMenu {
         while (budget > 0) {
             int chunk = (int) Math.min(budget, slotMax);
             ItemStack give = new ItemStack(it, chunk);
-            p.getInventory().insertStack(give);
+            p.getInventory().add(give);
             int in = chunk - give.getCount();
             taken += in;
             budget -= in;
             if (in < chunk) break; // 背包满：余量天然留账本（只扣实收）
         }
-        if (taken <= 0) { p.sendMessage(Component.literal("背包没有空位"), true); return; }
+        if (taken <= 0) { p.displayClientMessage(Component.literal("背包没有空位"), true); return; }
         long remain = left - taken;
         if (remain > 0) acct.putLong(rawId, remain); else acct.remove(rawId);
         PortableVaultItem.writeLedger(v, acct);
-        p.sendMessage(Component.literal("叮！取出 " + new ItemStack(it).getName().getString() + " ×" + taken
+        p.sendMessage(Component.literal("叮！取出 " + new ItemStack(it).getHoverName().getString() + " ×" + taken
                 + (budget > 0 ? "（背包已满，余量在库）" : "")), true);
     }
 }

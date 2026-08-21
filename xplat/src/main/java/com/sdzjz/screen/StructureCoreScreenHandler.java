@@ -39,17 +39,17 @@ public class StructureCoreScreenHandler extends AbstractContainerMenu {
         this.core = be;
         this.inv = (be != null) ? be : new SimpleContainer(StructureCoreBlockEntity.SIZE);
         this.props = props;
-        this.blockPos = (be != null) ? be.getPos() : null;
-        this.inv.onOpen(playerInv.player);
-        addProperties(props);
+        this.blockPos = (be != null) ? be.getBlockPos() : null;
+        this.inv.startOpen(playerInv.player);
+        addDataSlots(props);
         // 画布界面：无槽位（机器=节点；机器/升级经右键方块放入；产出自动推送到连接的存储）
         if (be != null && playerInv.player instanceof net.minecraft.server.level.ServerPlayer sp)
             be.addCanvasViewer(sp); // m344 开屏挂号（客户端构造 player 非 ServerPlayerEntity，天然不进）
     }
 
     @Override
-    public void onClosed(Player player) { // m344 关屏销号（断线/换屏走原版关闭链同样到这）
-        super.onClosed(player);
+    public void removed(Player player) { // m344 关屏销号（断线/换屏走原版关闭链同样到这）
+        super.removed(player);
         if (core != null && player instanceof net.minecraft.server.level.ServerPlayer sp)
             core.removeCanvasViewer(sp);
     }
@@ -57,7 +57,7 @@ public class StructureCoreScreenHandler extends AbstractContainerMenu {
     public BlockPos blockPos() { return blockPos; }
 
     private static StructureCoreBlockEntity resolve(Inventory playerInv, BlockPos pos) {
-        BlockEntity be = playerInv.player.getWorld().getBlockEntity(pos);
+        BlockEntity be = playerInv.player.level().getBlockEntity(pos);
         return be instanceof StructureCoreBlockEntity s ? s : null;
     }
 
@@ -73,7 +73,7 @@ public class StructureCoreScreenHandler extends AbstractContainerMenu {
     public long buffered()       { return ((long) props.get(9) << 15) | (props.get(8) & 0x7FFFL); }
 
     @Override
-    public boolean onButtonClick(Player player, int id) {
+    public boolean clickMenuButton(Player player, int id) {
         if (core == null) return false;
         if (id == 2) { core.collectXp(player); return true; }
         core.toggleRunning(id == 0);
@@ -81,12 +81,12 @@ public class StructureCoreScreenHandler extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean canUse(Player player) {
-        return inv.canPlayerUse(player);
+    public boolean stillValid(Player player) {
+        return inv.stillValid(player);
     }
 
     @Override
-    public ItemStack quickMove(Player player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         return ItemStack.EMPTY; // 无玩家背包槽，禁用 shift 快速移动
     }
 }

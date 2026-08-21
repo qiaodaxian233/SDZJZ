@@ -12,7 +12,7 @@ import java.util.List;
  * 口径：**解码阶段越界=直接 DecoderException 断连拒收**（不读完再截）；编码阶段静默截断
  * （自家客户端字段本就在界内，截断只是防御性自保不崩发送端）。
  * 上限对齐服务端业务层 sanitize（搜索 128 / 单 id 128 / 匹配表 256），双层防御并存。
- * readString(int)/writeString(String,int)=method_10800/method_10788，StreamCodec.of=method_56438（编码器值先行）。
+ * readString(int)/writeString(String,int)=method_10800/method_10788，StreamCodec.of=method_56438（mojmap 编码器缓冲区先行，m416 换序）。
  */
 public final class Bounded {
 
@@ -21,32 +21,32 @@ public final class Bounded {
     /** 有界字符串：解码超长抛 DecoderException（readString(max) 原版语义），编码超长截断。 */
     public static StreamCodec<RegistryFriendlyByteBuf, String> string(int max) {
         return StreamCodec.of(
-                (v, buf) -> buf.writeString(v.length() > max ? v.substring(0, max) : v, max),
-                buf -> buf.readString(max));
+                (buf, v) -> buf.writeUtf(v.length() > max ? v.substring(0, max) : v, max),
+                buf -> buf.readUtf(max));
     }
 
     /** 有界字符串表：先读声明长度，越界立即拒绝——ArrayList 预分配也按夹紧后的值走，不给分配放大留口。 */
     public static StreamCodec<RegistryFriendlyByteBuf, List<String>> stringList(int maxEach, int maxItems) {
-        return StreamCodec.of((v, buf) -> {
+        return StreamCodec.of((buf, v) -> {
             int n = Math.min(v.size(), maxItems);
             buf.writeVarInt(n);
             for (int i = 0; i < n; i++) {
                 String s = v.get(i);
-                buf.writeString(s.length() > maxEach ? s.substring(0, maxEach) : s, maxEach);
+                buf.writeUtf(s.length() > maxEach ? s.substring(0, maxEach) : s, maxEach);
             }
         }, buf -> {
             int n = buf.readVarInt();
             if (n < 0 || n > maxItems)
                 throw new io.netty.handler.codec.DecoderException("sdzjz: string list too long: " + n + " > " + maxItems);
             List<String> out = new ArrayList<>(n);
-            for (int i = 0; i < n; i++) out.add(buf.readString(maxEach));
+            for (int i = 0; i < n; i++) out.add(buf.readUtf(maxEach));
             return out;
         });
     }
 
     /** 有界整数表（VarInt 元素）。 */
     public static StreamCodec<RegistryFriendlyByteBuf, List<Integer>> intList(int maxItems) {
-        return StreamCodec.of((v, buf) -> {
+        return StreamCodec.of((buf, v) -> {
             int n = Math.min(v.size(), maxItems);
             buf.writeVarInt(n);
             for (int i = 0; i < n; i++) buf.writeVarInt(v.get(i));

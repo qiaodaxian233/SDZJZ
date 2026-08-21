@@ -45,14 +45,14 @@ public final class NodeTags {
     /** 写路起手口：返回**拷贝**——改完必须 s.set(CUSTOM_DATA, CustomData.of(n)) 回写，否则丢写
      *  （m353 垃圾桶 tc 就栽在这：改了拷贝没回写，"已吞"自组件化起是死数）。只读请走 viewOf 零拷贝。 */
     public static CompoundTag nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
-        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
     }
 
     /** m353 免拷贝只读视图（yarn getNbt=组件内部实包，mojmap getUnsafe 同口，1.21.1 核名 method_57463）。
      *  铁律：**绝对只读**——改它=篡改组件内部状态，且 DEFAULT 空件全局共享一份，写它=全服中毒。
      *  要写走 nbtOf 拷贝→改→set 三段。读路全面换本口是压测 447MB/s 分配火源的主刀（m353）。 */
     public static CompoundTag viewOf(ItemStack s) {
-        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).getNbt();
+        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getNbt();
     }
 
     /** m353 垃圾桶已吞计数累加（修丢写 bug：拷贝→加→set 回三段全）。 */
@@ -62,11 +62,11 @@ public final class NodeTags {
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
-    public static boolean isFilter(ItemStack s) { return s.isOf(ModItems.FILTER_NODE); }
+    public static boolean isFilter(ItemStack s) { return s.is(ModItems.FILTER_NODE); }
 
-    public static boolean isTrash(ItemStack s) { return s.isOf(ModItems.TRASH_NODE); }
+    public static boolean isTrash(ItemStack s) { return s.is(ModItems.TRASH_NODE); }
 
-    public static boolean isExtractor(ItemStack s) { return s.isOf(ModItems.EXTRACTOR_NODE); }
+    public static boolean isExtractor(ItemStack s) { return s.is(ModItems.EXTRACTOR_NODE); }
 
     public static boolean extractorOn(ItemStack s) { return viewOf(s).getBoolean("xo"); }
 
@@ -79,11 +79,11 @@ public final class NodeTags {
 
     public static long trashCount(ItemStack s) { return viewOf(s).getLong("tc"); }
 
-    public static boolean isSensor(ItemStack s) { return s.isOf(ModItems.SENSOR_NODE); }
+    public static boolean isSensor(ItemStack s) { return s.is(ModItems.SENSOR_NODE); }
 
-    public static boolean isSwitch(ItemStack s) { return s.isOf(ModItems.SWITCH_NODE); }
+    public static boolean isSwitch(ItemStack s) { return s.is(ModItems.SWITCH_NODE); }
 
-    public static boolean isDistributor(ItemStack s) { return s.isOf(ModItems.DISTRIBUTOR_NODE); }
+    public static boolean isDistributor(ItemStack s) { return s.is(ModItems.DISTRIBUTOR_NODE); }
 
     public static boolean switchOn(ItemStack s) {
         CompoundTag n = viewOf(s);
@@ -103,7 +103,7 @@ public final class NodeTags {
     public static boolean filterBlacklist(ItemStack s) { return viewOf(s).getBoolean("fb"); }
 
     public static java.util.List<String> filterList(ItemStack s) {
-        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.TAG_STRING);
         java.util.List<String> out = new java.util.ArrayList<>(l.size());
         for (int i = 0; i < l.size(); i++) out.add(l.getString(i));
         return out;
@@ -111,7 +111,7 @@ public final class NodeTags {
 
     public static boolean filterPasses(ItemStack s, String id) {
         boolean in = false;
-        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.TAG_STRING);
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) { in = true; break; }
         return filterBlacklist(s) ? !in : in;
     }
@@ -122,7 +122,7 @@ public final class NodeTags {
     }
 
     public static boolean machineFilterAllows(ItemStack s, String id) {
-        ListTag l = viewOf(s).getList("fl", Tag.STRING_TYPE);
+        ListTag l = viewOf(s).getList("fl", Tag.TAG_STRING);
         if (l.isEmpty()) return true;
         for (int i = 0; i < l.size(); i++) if (l.getString(i).equals(id)) return true;
         return false;

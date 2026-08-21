@@ -15,7 +15,7 @@ public record NodeSwitchPayload(BlockPos pos, int index) implements CustomPacket
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeSwitchPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeSwitchPayload::pos,
-            ByteBufCodecs.INTEGER, NodeSwitchPayload::index,
+            ByteBufCodecs.INT, NodeSwitchPayload::index,
             NodeSwitchPayload::new
     );
 

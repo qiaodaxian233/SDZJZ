@@ -28,17 +28,17 @@ public class ModItems {
     public static final Item COUNT_UPGRADE    = reg("count_upgrade", new Item(new Item.Properties()));
     public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Properties()));
     public static final Item STORAGE_UPGRADE   = reg("storage_upgrade", new Item(new Item.Properties()));
-    public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Properties().maxCount(1)));
+    public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Properties().stacksTo(1)));
     public static final Item COMPRESSED_PACK       = reg("compressed_pack",       new com.sdzjz.item.CompressedPackItem(new Item.Properties(), 64));   // m241 方案A 一级 64:1
     public static final Item SUPER_COMPRESSED_PACK = reg("super_compressed_pack", new com.sdzjz.item.CompressedPackItem(new Item.Properties(), 4096)); // m241 方案A 二级 64²:1
     // m243 边框渲染件（压缩包动态图标的叠层素材）：只为客户端渲染注册模型/贴图，不进创造栏属设计
     public static final Item COMPRESSED_PACK_FRAME       = reg("compressed_pack_frame",       new Item(new Item.Properties()));
     public static final Item SUPER_COMPRESSED_PACK_FRAME = reg("super_compressed_pack_frame", new Item(new Item.Properties()));
-    public static final Item LINKER = reg("linker", new LinkerItem(new Item.Properties().maxCount(1)));
-    public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Properties().maxCount(1)));
-    public static final Item PORTABLE_VAULT = reg("portable_vault", new PortableVaultItem(new Item.Properties().maxCount(1))); // m311 随身仓库（long账本+吸附）
+    public static final Item LINKER = reg("linker", new LinkerItem(new Item.Properties().stacksTo(1)));
+    public static final Item TERMINAL = reg("terminal", new TerminalItem(new Item.Properties().stacksTo(1)));
+    public static final Item PORTABLE_VAULT = reg("portable_vault", new PortableVaultItem(new Item.Properties().stacksTo(1))); // m311 随身仓库（long账本+吸附）
     public static final Item LOGO = reg("logo", new Item(new Item.Properties())); // m93 创造栏标签图标(不入栏)
-    public static final Item AUTO_FEEDER = reg("auto_feeder", new com.sdzjz.item.AutoFeederItem(new Item.Properties().maxCount(1)));
+    public static final Item AUTO_FEEDER = reg("auto_feeder", new com.sdzjz.item.AutoFeederItem(new Item.Properties().stacksTo(1)));
 
     // 自动合成机（量产一切：画布上设目标，按原版配方吃料出货）
     public static final Item AUTO_CRAFTER = reg("auto_crafter", new AutoCrafterItem(new Item.Properties(), Machines.AUTO_CRAFTER));
@@ -57,7 +57,7 @@ public class ModItems {
     public static final Item CHUNK_SCANNER = reg("chunk_scanner", new com.sdzjz.item.ChunkScannerItem(new Item.Properties(), Machines.CHUNK_SCANNER)); // m380 区块扫描器
     public static final Item CHUNK_VAULT = reg("chunk_vault", new com.sdzjz.item.ChunkVaultItem(new Item.Properties(), Machines.CHUNK_VAULT)); // m381 区块储存器
     public static final Item INFINITE_BEACON = reg("infinite_beacon", new com.sdzjz.item.InfiniteBeaconItem(new Item.Properties(), Machines.INFINITE_BEACON)); // m399 无限距离信标
-    public static final Item CHUNK_DATA_CORE = reg("chunk_data_core", new com.sdzjz.item.ChunkDataCoreItem(new Item.Properties().maxCount(1))); // m381 区块数据核心（不可合成，储存器产）
+    public static final Item CHUNK_DATA_CORE = reg("chunk_data_core", new com.sdzjz.item.ChunkDataCoreItem(new Item.Properties().stacksTo(1))); // m381 区块数据核心（不可合成，储存器产）
     public static final Item GRINDSTONE_RECYCLER = reg("grindstone_recycler", new MachineItem(new Item.Properties(), Machines.GRINDSTONE_RECYCLER));
     public static final Item FILTER_NODE = reg("filter_node", new com.sdzjz.item.FilterNodeItem(new Item.Properties(), Machines.FILTER_NODE));
     public static final Item TRASH_NODE = reg("trash_node", new com.sdzjz.item.TrashNodeItem(new Item.Properties(), Machines.TRASH_NODE));
@@ -154,10 +154,10 @@ public class ModItems {
     public static final Item VILLAGER_BREEDER = reg("villager_breeder", new MachineItem(new Item.Properties(), Machines.VILLAGER_BREEDER));
 
     public static final ResourceKey<CreativeModeTab> GROUP_KEY =
-            ResourceKey.of(Registries.ITEM_GROUP, Sdzjz.id("main"));
+            ResourceKey.of(Registries.CREATIVE_MODE_TAB, Sdzjz.id("main"));
     public static final CreativeModeTab GROUP = FabricItemGroup.builder()
             .icon(() -> new ItemStack(LOGO)) // m93 用户点名：标签图标换 MOD 红色核心
-            .displayName(Component.translatable("itemGroup.sdzjz.main"))
+            .title(Component.translatable("itemGroup.sdzjz.main"))
             .build();
 
     private static Item reg(String name, Item item) {
@@ -165,136 +165,136 @@ public class ModItems {
     }
 
     public static void init() {
-        Registry.register(BuiltInRegistries.ITEM_GROUP, GROUP_KEY, GROUP);
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, GROUP_KEY, GROUP);
         ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
-            entries.add(CORE_MODULE);
-            entries.add(AUTO_CRAFTER);
-            entries.add(BREWING_TOWER);
-            entries.add(ENCHANT_FACTORY);
-            entries.add(WITHER_FARM);
-            entries.add(WITHER_KILLER);
-            entries.add(G_MISC_MACHINE);
-            entries.add(SCULK_LINE);
-            entries.add(VILLAGER_DISCOUNT_MACHINE);
-            entries.add(VILLAGER_TRADER);
-            entries.add(DUPLICATOR); // m334
-            entries.add(CHUNK_REMOVER); // m376
-            entries.add(CHUNK_FILTER); // m377
-            entries.add(VOID_PROCESSOR); // m378
-            entries.add(CHUNK_SCANNER); // m380
-            entries.add(CHUNK_VAULT); // m381
-            entries.add(INFINITE_BEACON); // m399
-            entries.add(CHUNK_DATA_CORE); // m381
-            entries.add(GRINDSTONE_RECYCLER);
-            entries.add(FILTER_NODE);
-            entries.add(TRASH_NODE);
-            entries.add(EXTRACTOR_NODE);
-            entries.add(SENSOR_NODE);
-            entries.add(SWITCH_NODE);
-            entries.add(DISTRIBUTOR_NODE);
-            entries.add(CHICKEN_FARM);
-            entries.add(SHEEP_FARM);
-            entries.add(COW_FARM);
-            entries.add(PIG_FARM);
-            entries.add(ANIMAL_FARM);
-            entries.add(CROP_FARM);
-            entries.add(MEGA_CROP_FARM);
-            entries.add(DEEP_MINING_PLATFORM);
-            entries.add(TUNNEL_BORER);
-            entries.add(ARCHAEOLOGY_STATION);
-            entries.add(END_EXPEDITION_PLATFORM);
-            entries.add(DRAGON_CANNON);
-            entries.add(TRIAL_FARM);
-            entries.add(MEGA_TRIAL_FARM);
-            entries.add(SPEED_UPGRADE);
-            entries.add(COUNT_UPGRADE);
-            entries.add(PARALLEL_UPGRADE);
-            entries.add(STORAGE_UPGRADE);
-            entries.add(CAPTURE_CAGE);
-            entries.add(COMPRESSED_PACK);       // m241
-            entries.add(SUPER_COMPRESSED_PACK); // m241
-            entries.add(LINKER);
-            entries.add(TERMINAL);
-            entries.add(PORTABLE_VAULT); // m311
-            entries.add(AUTO_FEEDER);
-            entries.add(WIRE_BRUSHER);
-            entries.add(COBBLE_MAKER);
-            entries.add(MEGA_COBBLE_MAKER);
-            entries.add(BONE_FARM);
-            entries.add(GUNPOWDER_FARM);
-            entries.add(FLESH_FARM);
-            entries.add(PEARL_FARM);
-            entries.add(SLIME_FARM);
-            entries.add(MEGA_SLIME_FARM);
-            entries.add(IRON_FARM);
-            entries.add(MEGA_IRON_FARM);
-            entries.add(IRON_FARM_160);
-            entries.add(TREE_FARM);
-            entries.add(SUGARCANE_FARM);
-            entries.add(BAMBOO_FARM);
-            entries.add(SAND_MAKER);
-            entries.add(ICE_MAKER);
-            entries.add(OBSIDIAN_MAKER);
-            entries.add(SWAMP_SPAWNER);
-            entries.add(WITCH_TOWER);
-            entries.add(MEGA_WITCH_TOWER);
-            entries.add(GUARDIAN_FARM);
-            entries.add(MEGA_GUARDIAN_FARM);
-            entries.add(MAGMA_FARM);
-            entries.add(SHULKER_FARM);
-            entries.add(RAID_TOWER);
-            entries.add(MEGA_RAID_TOWER);
-            entries.add(PIGMAN_TOWER);
-            entries.add(MEGA_PIGMAN_TOWER);
-            entries.add(HOGLIN_FARM);
-            entries.add(PIGLIN_BARTER);
-            entries.add(MEGA_PIGLIN_BARTER);
-            entries.add(CACTUS_FARM);
-            entries.add(NETHER_WART_FARM);
-            entries.add(KELP_FARM);
-            entries.add(BLAZE_FARM);
-            entries.add(WITHER_SKELETON_FARM);
-            entries.add(MEGA_WITHER_SKELETON_FARM);
-            entries.add(WITHER_ROSE_FARM);
-            entries.add(HONEY_FARM);
-            entries.add(MEGA_HONEY_FARM);
-            entries.add(IRON_SMELTER);
-            entries.add(GOLD_SMELTER);
-            entries.add(CHARCOAL_KILN);
-            entries.add(GLASS_KILN);
-            entries.add(RAIL_MACHINE);
-            entries.add(CARPET_MACHINE);
-            entries.add(MOB_TOWER);
-            entries.add(MEGA_MOB_TOWER);
-            entries.add(NETHER_TREE_FARM);
-            entries.add(CHORUS_FARM);
-            entries.add(DROWNED_TOWER);
-            entries.add(MEGA_DROWNED_TOWER);
-            entries.add(SUPER_SMELTER);
-            entries.add(MEGA_SUPER_SMELTER);
-            entries.add(GHAST_TOWER);
-            entries.add(BREEZE_FARM);
-            entries.add(BONEMEAL_MACHINE);
-            entries.add(MOSS_FARM);
-            entries.add(AMETHYST_FARM);
-            entries.add(MEGA_AMETHYST_FARM);
-            entries.add(CLAY_MACHINE);
-            entries.add(DRIPSTONE_FARM);
-            entries.add(SNOW_MACHINE);
-            entries.add(BASALT_MACHINE);
-            entries.add(FISHING_MACHINE);
-            entries.add(MEGA_FISHING_MACHINE);
-            entries.add(DISC_MACHINE);
-            entries.add(STONECUTTER_MACHINE);
-            entries.add(VILLAGER_CONTRACT);
-            entries.add(VILLAGER_BREEDER);
-            entries.add(ModBlocks.STRUCTURE_CORE);
-            entries.add(ModBlocks.SUPER_BENCH);
-            entries.add(ModBlocks.DATA_PANEL);
-            entries.add(ModBlocks.STORAGE_CORE);
-            entries.add(ModBlocks.DATA_CABLE);
-            entries.add(ModBlocks.WIRELESS_NODE);
-            entries.add(ModBlocks.SATELLITE_NODE);
+            entries.accept(CORE_MODULE);
+            entries.accept(AUTO_CRAFTER);
+            entries.accept(BREWING_TOWER);
+            entries.accept(ENCHANT_FACTORY);
+            entries.accept(WITHER_FARM);
+            entries.accept(WITHER_KILLER);
+            entries.accept(G_MISC_MACHINE);
+            entries.accept(SCULK_LINE);
+            entries.accept(VILLAGER_DISCOUNT_MACHINE);
+            entries.accept(VILLAGER_TRADER);
+            entries.accept(DUPLICATOR); // m334
+            entries.accept(CHUNK_REMOVER); // m376
+            entries.accept(CHUNK_FILTER); // m377
+            entries.accept(VOID_PROCESSOR); // m378
+            entries.accept(CHUNK_SCANNER); // m380
+            entries.accept(CHUNK_VAULT); // m381
+            entries.accept(INFINITE_BEACON); // m399
+            entries.accept(CHUNK_DATA_CORE); // m381
+            entries.accept(GRINDSTONE_RECYCLER);
+            entries.accept(FILTER_NODE);
+            entries.accept(TRASH_NODE);
+            entries.accept(EXTRACTOR_NODE);
+            entries.accept(SENSOR_NODE);
+            entries.accept(SWITCH_NODE);
+            entries.accept(DISTRIBUTOR_NODE);
+            entries.accept(CHICKEN_FARM);
+            entries.accept(SHEEP_FARM);
+            entries.accept(COW_FARM);
+            entries.accept(PIG_FARM);
+            entries.accept(ANIMAL_FARM);
+            entries.accept(CROP_FARM);
+            entries.accept(MEGA_CROP_FARM);
+            entries.accept(DEEP_MINING_PLATFORM);
+            entries.accept(TUNNEL_BORER);
+            entries.accept(ARCHAEOLOGY_STATION);
+            entries.accept(END_EXPEDITION_PLATFORM);
+            entries.accept(DRAGON_CANNON);
+            entries.accept(TRIAL_FARM);
+            entries.accept(MEGA_TRIAL_FARM);
+            entries.accept(SPEED_UPGRADE);
+            entries.accept(COUNT_UPGRADE);
+            entries.accept(PARALLEL_UPGRADE);
+            entries.accept(STORAGE_UPGRADE);
+            entries.accept(CAPTURE_CAGE);
+            entries.accept(COMPRESSED_PACK);       // m241
+            entries.accept(SUPER_COMPRESSED_PACK); // m241
+            entries.accept(LINKER);
+            entries.accept(TERMINAL);
+            entries.accept(PORTABLE_VAULT); // m311
+            entries.accept(AUTO_FEEDER);
+            entries.accept(WIRE_BRUSHER);
+            entries.accept(COBBLE_MAKER);
+            entries.accept(MEGA_COBBLE_MAKER);
+            entries.accept(BONE_FARM);
+            entries.accept(GUNPOWDER_FARM);
+            entries.accept(FLESH_FARM);
+            entries.accept(PEARL_FARM);
+            entries.accept(SLIME_FARM);
+            entries.accept(MEGA_SLIME_FARM);
+            entries.accept(IRON_FARM);
+            entries.accept(MEGA_IRON_FARM);
+            entries.accept(IRON_FARM_160);
+            entries.accept(TREE_FARM);
+            entries.accept(SUGARCANE_FARM);
+            entries.accept(BAMBOO_FARM);
+            entries.accept(SAND_MAKER);
+            entries.accept(ICE_MAKER);
+            entries.accept(OBSIDIAN_MAKER);
+            entries.accept(SWAMP_SPAWNER);
+            entries.accept(WITCH_TOWER);
+            entries.accept(MEGA_WITCH_TOWER);
+            entries.accept(GUARDIAN_FARM);
+            entries.accept(MEGA_GUARDIAN_FARM);
+            entries.accept(MAGMA_FARM);
+            entries.accept(SHULKER_FARM);
+            entries.accept(RAID_TOWER);
+            entries.accept(MEGA_RAID_TOWER);
+            entries.accept(PIGMAN_TOWER);
+            entries.accept(MEGA_PIGMAN_TOWER);
+            entries.accept(HOGLIN_FARM);
+            entries.accept(PIGLIN_BARTER);
+            entries.accept(MEGA_PIGLIN_BARTER);
+            entries.accept(CACTUS_FARM);
+            entries.accept(NETHER_WART_FARM);
+            entries.accept(KELP_FARM);
+            entries.accept(BLAZE_FARM);
+            entries.accept(WITHER_SKELETON_FARM);
+            entries.accept(MEGA_WITHER_SKELETON_FARM);
+            entries.accept(WITHER_ROSE_FARM);
+            entries.accept(HONEY_FARM);
+            entries.accept(MEGA_HONEY_FARM);
+            entries.accept(IRON_SMELTER);
+            entries.accept(GOLD_SMELTER);
+            entries.accept(CHARCOAL_KILN);
+            entries.accept(GLASS_KILN);
+            entries.accept(RAIL_MACHINE);
+            entries.accept(CARPET_MACHINE);
+            entries.accept(MOB_TOWER);
+            entries.accept(MEGA_MOB_TOWER);
+            entries.accept(NETHER_TREE_FARM);
+            entries.accept(CHORUS_FARM);
+            entries.accept(DROWNED_TOWER);
+            entries.accept(MEGA_DROWNED_TOWER);
+            entries.accept(SUPER_SMELTER);
+            entries.accept(MEGA_SUPER_SMELTER);
+            entries.accept(GHAST_TOWER);
+            entries.accept(BREEZE_FARM);
+            entries.accept(BONEMEAL_MACHINE);
+            entries.accept(MOSS_FARM);
+            entries.accept(AMETHYST_FARM);
+            entries.accept(MEGA_AMETHYST_FARM);
+            entries.accept(CLAY_MACHINE);
+            entries.accept(DRIPSTONE_FARM);
+            entries.accept(SNOW_MACHINE);
+            entries.accept(BASALT_MACHINE);
+            entries.accept(FISHING_MACHINE);
+            entries.accept(MEGA_FISHING_MACHINE);
+            entries.accept(DISC_MACHINE);
+            entries.accept(STONECUTTER_MACHINE);
+            entries.accept(VILLAGER_CONTRACT);
+            entries.accept(VILLAGER_BREEDER);
+            entries.accept(ModBlocks.STRUCTURE_CORE);
+            entries.accept(ModBlocks.SUPER_BENCH);
+            entries.accept(ModBlocks.DATA_PANEL);
+            entries.accept(ModBlocks.STORAGE_CORE);
+            entries.accept(ModBlocks.DATA_CABLE);
+            entries.accept(ModBlocks.WIRELESS_NODE);
+            entries.accept(ModBlocks.SATELLITE_NODE);
         });
     }
 }

@@ -26,7 +26,7 @@ public class SciButton extends Button {
         if (hoverP > 0.02f) // m187 底沿强调线随悬停渐显（贴图之上、文字之下）
             ctx.fill(getX() + 2, getY() + height - 2, getX() + width - 2, getY() + height - 1,
                     SciSkin.withAlpha(SciSkin.ACCENT, 0.85f * hoverP));
-        ctx.drawCenteredTextWithShadow(Minecraft.getInstance().textRenderer, getMessage(),
+        ctx.drawCenteredString(Minecraft.getInstance().font, getMessage(),
                 getX() + width / 2, getY() + (height - 8) / 2, tc);
     }
 }

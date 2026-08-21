@@ -16,15 +16,15 @@ import java.util.List;
  */
 public class FilterNodeItem extends MachineItem {
 
-    public FilterNodeItem(Settings settings, MachineDef def) {
+    public FilterNodeItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("画布逻辑节点：接在两台机器之间分流物品").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("白名单=只放行名单内 · 黑名单=拦下名单内").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("放行→沿出线下游；拦下→自动进存储").formatted(ChatFormatting.DARK_GREEN));
-        tooltip.add(Component.literal("放入画布后右键节点配置").formatted(ChatFormatting.GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("画布逻辑节点：接在两台机器之间分流物品").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("白名单=只放行名单内 · 黑名单=拦下名单内").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("放行→沿出线下游；拦下→自动进存储").withStyle(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("放入画布后右键节点配置").withStyle(ChatFormatting.GRAY));
     }
 }

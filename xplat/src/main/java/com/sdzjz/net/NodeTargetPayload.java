@@ -15,7 +15,7 @@ public record NodeTargetPayload(BlockPos pos, int index, String target) implemen
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeTargetPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeTargetPayload::pos,
-            ByteBufCodecs.INTEGER, NodeTargetPayload::index,
+            ByteBufCodecs.INT, NodeTargetPayload::index,
             Bounded.string(256), NodeTargetPayload::target, // m291 目标串(附魔/药水/交易键)给宽些
             NodeTargetPayload::new
     );

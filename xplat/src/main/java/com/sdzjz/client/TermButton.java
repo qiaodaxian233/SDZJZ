@@ -24,7 +24,7 @@ public class TermButton extends SciButton {
         hoverNs = now;
         boolean hover = this.isHovered();
         hoverP += ((hover ? 1f : 0f) - hoverP) * (1f - (float) Math.exp(-18f * dt));
-        SciSkin.termBtn(ctx, net.minecraft.client.Minecraft.getInstance().textRenderer,
+        SciSkin.termBtn(ctx, net.minecraft.client.Minecraft.getInstance().font,
                 getX(), getY(), width, height, getMessage().getString(), hover, primary);
         if (hoverP > 0.02f) // 底沿强调线随悬停渐显（termBtn 之上，质感语言与 SciButton 同族）
             ctx.fill(getX() + 2, getY() + height - 2, getX() + width - 2, getY() + height - 1,

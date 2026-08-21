@@ -71,6 +71,6 @@ public final class TradePlanner {
     }
 
     private static Component itemName(String id) {
-        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)).getTranslationKey());
+        return Component.translatable(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)).getDescriptionId());
     }
 }

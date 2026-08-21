@@ -183,17 +183,17 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
     @Override
     public void render(WirelessNodeBlockEntity be, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light, int overlay) {
-        float t = ((be.getWorld() != null ? be.getWorld().getTime() % (long) LENGTH_TICKS : 0L) + tickDelta) / 20f;
-        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.getEntityCutoutNoCull(TEXTURE));
+        float t = ((be.getLevel() != null ? be.getLevel().getTime() % (long) LENGTH_TICKS : 0L) + tickDelta) / 20f;
+        VertexConsumer vc = vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         for (Wave w : WAVES) {
             float sx = interp(w.times, w.sx, t), sy = interp(w.times, w.sy, t), sz = interp(w.times, w.sz, t);
             if (sx <= 0.01f && sy <= 0.01f && sz <= 0.01f) continue;
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(w.px, w.py, w.pz);
             matrices.scale(sx, sy, sz);
             matrices.translate(-w.px, -w.py, -w.pz);
-            emit(w.quads, matrices.peek(), vc, light, overlay);
-            matrices.pop();
+            emit(w.quads, matrices.last(), vc, light, overlay);
+            matrices.popPose();
         }
     }
 
@@ -210,8 +210,8 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
     }
 
     private static void emit(float[][] quads, PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
-        Matrix4f pm = entry.getPositionMatrix();
-        Matrix3f nm = entry.getNormalMatrix();
+        Matrix4f pm = entry.pose();
+        Matrix3f nm = entry.normal();
         Vector3f p = new Vector3f(), n = new Vector3f();
         for (float[] q : quads) {
             nm.transform(n.set(q[0], q[1], q[2]));
@@ -219,7 +219,7 @@ public class WirelessNodeRenderer implements BlockEntityRenderer<WirelessNodeBlo
             for (int v = 0; v < 4; v++) {
                 int o = 3 + v * 5;
                 pm.transformPosition(p.set(q[o], q[o + 1], q[o + 2]));
-                vc.vertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
+                vc.addVertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
             }
         }
     }

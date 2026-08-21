@@ -39,27 +39,27 @@ public class ChunkScannerItem extends MachineItem {
     /** 类型榜封顶（防节点 NBT/同步包膨胀，m291 有界精神）。 */
     public static final int TYPE_CAP = 64;
 
-    public ChunkScannerItem(Settings settings, MachineDef def) {
+    public ChunkScannerItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public InteractionResult useOnBlock(UseOnContext ctx) {
-        Level world = ctx.getWorld();
-        if (world.isClient) return InteractionResult.SUCCESS;
-        BlockPos pos = ctx.getBlockPos();
-        ItemStack stack = ctx.getStack();
+    public InteractionResult useOn(UseOnContext ctx) {
+        Level world = ctx.getLevel();
+        if (world.isClientSide) return InteractionResult.SUCCESS;
+        BlockPos pos = ctx.getClickedPos();
+        ItemStack stack = ctx.getItemInHand();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("zx", cx);
         n.putInt("zz", cz);
-        n.putString("zd", world.getRegistryKey().getValue().toString());
-        n.putInt("zy", world.getTopY() - 1);
+        n.putString("zd", world.dimension().location().toString());
+        n.putInt("zy", world.getMaxBuildHeight() - 1);
         n.putInt("zi", 0);
         clearReport(n); // 重绑=清报告重扫
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         if (ctx.getPlayer() != null)
-            ctx.getPlayer().sendMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开扫"), true);
+            ctx.getPlayer().displayClientMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开扫"), true);
         return InteractionResult.SUCCESS;
     }
 
@@ -70,7 +70,7 @@ public class ChunkScannerItem extends MachineItem {
     /** #zs 重新扫描（服务端收包口调用）：报告清空、游标回顶；未绑定=无事发生。 */
     public static void resetScan(ItemStack s, int topY) {
         if (!NodeTags.chunkBound(s)) return;
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("zy", topY);
         n.putInt("zi", 0);
         clearReport(n);
@@ -80,7 +80,7 @@ public class ChunkScannerItem extends MachineItem {
     /** tick 侧每拍累计落盘（游标+四计数+类型榜合并，榜满归"#其他"桶）。 */
     public static void accumulate(ItemStack s, int y, int idx, long total, long ore, long containers,
                                   Map<String, Long> typeDelta) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("zy", y);
         n.putInt("zi", idx);
         if (total > 0) n.putLong("sa", n.getLong("sa") + total);
@@ -89,7 +89,7 @@ public class ChunkScannerItem extends MachineItem {
         if (!typeDelta.isEmpty()) {
             CompoundTag m = n.getCompound("sm");
             for (Map.Entry<String, Long> e : typeDelta.entrySet()) {
-                String k = (m.contains(e.getKey()) || m.getKeys().size() < TYPE_CAP) ? e.getKey() : "#其他";
+                String k = (m.contains(e.getKey()) || m.getAllKeys().size() < TYPE_CAP) ? e.getKey() : "#其他";
                 m.putLong(k, m.getLong(k) + e.getValue());
             }
             n.put("sm", m);
@@ -99,20 +99,20 @@ public class ChunkScannerItem extends MachineItem {
 
     /** 扫描收官：生物数一次性入账+就绪位。 */
     public static void finish(ItemStack s, long entities) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.DEFAULT).copyNbt();
+        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putLong("se", entities);
         n.putBoolean("sf", true);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("区块侦察：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("放入画布后只读扫描，出统计报告：方块/类型/矿物/容器/生物 + Top榜").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("卡面看摘要，右键节点菜单看 Top8 明细与重新扫描").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("只读不动世界；挖之前先侦察，配移除器/过滤器食用").formatted(ChatFormatting.DARK_GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("区块侦察：手持对目标区块内方块右键绑定（可交互方块请潜行右键）").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后只读扫描，出统计报告：方块/类型/矿物/容器/生物 + Top榜").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("卡面看摘要，右键节点菜单看 Top8 明细与重新扫描").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("只读不动世界；挖之前先侦察，配移除器/过滤器食用").withStyle(ChatFormatting.DARK_GRAY));
         if (NodeTags.chunkBound(stack))
             tooltip.add(Component.literal("当前绑定：区块(" + NodeTags.chunkX(stack) + "," + NodeTags.chunkZ(stack)
-                    + (NodeTags.scanDone(stack) ? ")·报告就绪" : ")·待扫/扫描中")).formatted(ChatFormatting.GREEN));
+                    + (NodeTags.scanDone(stack) ? ")·报告就绪" : ")·待扫/扫描中")).withStyle(ChatFormatting.GREEN));
     }
 }

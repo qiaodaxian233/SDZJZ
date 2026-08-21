@@ -62,7 +62,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         super(ModScreenHandlers.DATA_PANEL, syncId);
         this.remote = remote; // m303 AccessMode：开屏方式进构造链（m299 立档余账）
         this.panel = be;
-        this.blockPos = (be != null) ? be.getPos() : null;
+        this.blockPos = (be != null) ? be.getBlockPos() : null;
         this.player = playerInv.player;
         this.craft = (be != null) ? be.craftGrid : new CraftGridInventory(); // 客户端 BE 同样有实例，槽位同步写它
         // m300 并发语义立此存照（审计 P1 问询"共享网格是否有意"）：**有意——公共工作台**。
@@ -75,23 +75,23 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         this.display = new SimpleContainer(DataPanelBlockEntity.PAGE); // m292 每玩家自持展示页（此前挂 be.display=全体共享）
         // ===== m201 合成区排前排（0..8 + 结果9，原版填料器口径）=====
         craft.addListener(craftListener);
-        trash.addListener(inv -> { if (!trash.getStack(0).isEmpty()) trash.setStack(0, ItemStack.EMPTY); }); // 放入即销毁
+        trash.addListener(inv -> { if (!trash.getItem(0).isEmpty()) trash.setItem(0, ItemStack.EMPTY); }); // 放入即销毁
         for (int r = 0; r < 3; r++)
             for (int c = 0; c < 3; c++)
                 this.addSlot(new Slot(craft, c + r * 3, 213 + c * 18, 96 + r * 18));
         // 结果格=原版 CraftingResultSlot 子类：EMI CoercedRecipeHandler 按 instanceof 认它（零插件点亮）；
         // onTakeItem 全量覆写走自家 consumeCraft（扣料+网络补料），绝不调 super——原版体内是本地扣格，会二次扣料。
         this.addSlot(new net.minecraft.world.inventory.ResultSlot(playerInv.player, craft, craftResult, 0, 309, 114) {
-            @Override public void onTakeItem(Player player, ItemStack stack) {
+            @Override public void onTake(Player player, ItemStack stack) {
                 consumeCraft(player);
-                this.markDirty(); // 原版 Slot.onTakeItem 的收尾语义
+                this.setChanged(); // 原版 Slot.onTakeItem 的收尾语义
             }
             // m127b：结果格整取或不取——取一半也触发 consumeCraft 扣整份料，随后重算把格内剩余覆盖成
             // 满结果=玩家白丢差额。原版右键取半/近满同类光标/Q键 三条部分取出路径在此焊死；双端同跑零闪烁。
-            @Override public java.util.Optional<ItemStack> tryTakeStackRange(int min, int max, Player player) {
-                ItemStack st = this.getStack();
+            @Override public java.util.Optional<ItemStack> tryRemove(int min, int max, Player player) {
+                ItemStack st = this.getItem();
                 if (!st.isEmpty() && Math.min(min, max) < st.getCount()) return java.util.Optional.empty();
-                return super.tryTakeStackRange(min, max, player);
+                return super.tryRemove(min, max, player);
             }
         });
 
@@ -100,15 +100,15 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             for (int c = 0; c < 9; c++) {
                 int idx = c + r * 9;
                 this.addSlot(new Slot(display, idx, 16 + c * 18, 52 + r * 18) {
-                    @Override public boolean canInsert(ItemStack s) { return false; }
-                    @Override public void onTakeItem(Player player, ItemStack stack) {
+                    @Override public boolean mayPlace(ItemStack s) { return false; }
+                    @Override public void onTake(Player player, ItemStack stack) {
                         // m112：账本只在服务端动（m95 铁律）。此钩子客户端预测也会跑——客户端 BE 账本是空的，
                         // 在这里 withdraw/钳数会按空账把光标预测成 0，还会污染客户端核心读数。
-                        if (!player.getWorld().isClient && panel != null && !stack.isEmpty()) {
+                        if (!player.level().isClientSide && panel != null && !stack.isEmpty()) {
                             ItemStack tpl = stack.copy(); // m130：剥掉 amt 即真身模板——普通/精确统一判别
                             stripAmt(tpl);
-                            int got = tpl.getComponentChanges().isEmpty()
-                                    ? panel.withdraw(BuiltInRegistries.ITEM.getId(stack.getItem()).toString(), stack.getCount())
+                            int got = tpl.getComponentsPatch().isEmpty()
+                                    ? panel.withdraw(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount())
                                     : panel.withdrawExact(tpl, stack.getCount());
                             // m111：网络实收多少给多少——展示栈在 10t 刷新窗口内可能过期，绝不超发凭空造物
                             if (got < stack.getCount()) stack.setCount(Math.max(0, got));
@@ -116,7 +116,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                         }
                         // m130：剥掉展示用的 amt 数量标签（精确件保留自身组件——附魔/损耗/阶位原样带走）
                         stripAmt(stack);
-                        super.onTakeItem(player, stack);
+                        super.onTake(player, stack);
                     }
                 });
             }
@@ -129,18 +129,18 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             this.addSlot(new Slot(playerInv, c, 16 + c * 18, 237));
         // m84b 回收格（m201 合成区已前移至下标 0..9，此处只剩回收殿后=下标 100）
         this.addSlot(new Slot(trash, 0, 269, 202));
-        this.addProperties(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
-        if (be != null && be.getWorld() != null && !be.getWorld().isClient) repage(); // m292 开面板首帧不空白
+        this.addDataSlots(xpProps); // m80c 经验库同步（双属性防 short 截断：id0=低16位 id1=高15位）
+        if (be != null && be.getLevel() != null && !be.getLevel().isClientSide) repage(); // m292 开面板首帧不空白
         // m107a：服务端登记查看者（打开即刷一次，闲置面板不再空转 BFS）；客户端构造 resolve 出的是客户端 BE，不计数
-        if (be != null && be.getWorld() != null && !be.getWorld().isClient) be.addViewer();
+        if (be != null && be.getLevel() != null && !be.getLevel().isClientSide) be.addViewer();
         updateCraftResult(); // m126a：网格常驻后开界面可能已带配方——立即出结果，不等首次改动（内部自带客户端守卫）
     }
 
     // ===== m84b 合成终端（ME 风格：终端里直接手动合成）=====
     private net.minecraft.world.item.crafting.CraftingInput craftInput() {
         java.util.List<ItemStack> l = new java.util.ArrayList<>(9);
-        for (int i = 0; i < 9; i++) l.add(craft.getStack(i));
-        return net.minecraft.world.item.crafting.CraftingInput.create(3, 3, l);
+        for (int i = 0; i < 9; i++) l.add(craft.getItem(i));
+        return net.minecraft.world.item.crafting.CraftingInput.of(3, 3, l);
     }
 
     // m126b：配方查找缓存（学 AE2 currentRecipe：上次命中的配方仍 matches 就直接用，不再全表扫）。
@@ -150,23 +150,23 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     private java.util.Optional<net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>> findRecipe(
             net.minecraft.world.item.crafting.CraftingInput input, net.minecraft.world.level.Level w) {
         if (cachedRecipe != null && cachedRecipe.value().matches(input, w)) return java.util.Optional.of(cachedRecipe);
-        var m = w.getRecipeManager().getFirstMatch(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, w);
+        var m = w.getRecipeManager().getRecipeFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, w);
         cachedRecipe = m.orElse(null);
         return m;
     }
 
     private void updateCraftResult() {
-        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return;
-        var w = panel.getWorld();
+        if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return;
+        var w = panel.getLevel();
         var input = craftInput();
-        craftResult.setStack(0, findRecipe(input, w)
-                .map(e -> e.value().craft(input, w.getRegistryManager())).orElse(ItemStack.EMPTY));
+        craftResult.setItem(0, findRecipe(input, w)
+                .map(e -> e.value().craft(input, w.registryAccess())).orElse(ItemStack.EMPTY));
     }
 
     /** 取走结果：每格扣 1，容器残留(桶等)留在原格或还给玩家，然后 AE 式从网络补料并重算结果。 */
     private void consumeCraft(Player player) {
-        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return; // m95 同款：只在服务端扣料，客户端等同步纠正
-        var w = panel.getWorld();
+        if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return; // m95 同款：只在服务端扣料，客户端等同步纠正
+        var w = panel.getLevel();
         var input = craftInput();
         var match = findRecipe(input, w); // m126b：走缓存，shift/整组连打不再逐轮全表扫
         net.minecraft.core.NonNullList<ItemStack> rem =
@@ -174,27 +174,27 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         // m106b AE 式补料：cores 快照一次，9 格共用（不逐格 BFS）
         var cores = com.sdzjz.block.StorageCoreBlockEntity.connectedCores(w, blockPos);
         for (int i = 0; i < 9; i++) {
-            ItemStack st = craft.getStack(i);
-            boolean plain = !st.isEmpty() && st.getComponentChanges().isEmpty(); // 带组件的(附魔/损耗)不按 id 补
-            String idStr = st.isEmpty() ? null : BuiltInRegistries.ITEM.getId(st.getItem()).toString();
-            if (!st.isEmpty()) st.decrement(1);
+            ItemStack st = craft.getItem(i);
+            boolean plain = !st.isEmpty() && st.getComponentsPatch().isEmpty(); // 带组件的(附魔/损耗)不按 id 补
+            String idStr = st.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(st.getItem()).toString();
+            if (!st.isEmpty()) st.shrink(1);
             boolean remPlaced = false;
             if (rem != null && i < rem.size() && !rem.get(i).isEmpty()) {
                 ItemStack r2 = rem.get(i).copy();
-                if (craft.getStack(i).isEmpty()) { craft.setStack(i, r2); remPlaced = true; }
-                else if (!player.getInventory().insertStack(r2)) player.dropItem(r2, false);
+                if (craft.getItem(i).isEmpty()) { craft.setItem(i, r2); remPlaced = true; }
+                else if (!player.getInventory().add(r2)) player.drop(r2, false);
             }
             // 网格当模板：消耗掉的 1 个从网络抽同款回填，网格保持满编（学 AE2 合成终端，代码自写）
             if (plain && !remPlaced) {
-                ItemStack cur = craft.getStack(i);
+                ItemStack cur = craft.getItem(i);
                 int got = 0;
-                if (cur.isEmpty() || cur.getCount() < cur.getMaxCount()) {
+                if (cur.isEmpty() || cur.getCount() < cur.getMaxStackSize()) {
                     for (var core : cores) { got = core.withdraw(idStr, 1); if (got > 0) break; }
                 }
                 if (got > 0) {
-                    if (cur.isEmpty()) craft.setStack(i, new ItemStack(
+                    if (cur.isEmpty()) craft.setItem(i, new ItemStack(
                             BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(idStr)), 1));
-                    else cur.increment(1);
+                    else cur.grow(1);
                 }
             }
         }
@@ -202,14 +202,14 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         // 共享网格的其他观者监听器不响——B 的服务端结果格滞留幻影产物，且可点：takeStack 先到手、
         // consumeCraft 对空网格无配方=不扣料，= 窄复制窗。收口：这里统一 markDirty 通知全体观者
         // （自家监听器同在注册表里，等价于旧 updateCraftResult() 只刷自己的超集；craftResult 无监听器不递归）。
-        craft.markDirty();
+        craft.setChanged();
     }
 
     /** m212 JEI"+"填料（服务端权威）：仓储优先取料、背包兜底；网格里不匹配的先退回背包（原版清格语义）。
      *  自家 C2S 包驱动（JeiFillPayload），不依赖 JEI 的服务端搬运——专用服务器无需装 JEI。 */
     public int jeiFill(net.minecraft.server.level.ServerPlayer player, net.minecraft.resources.ResourceLocation rid, boolean max) {
-        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return 0; // 服务端权威（m95 口径）
-        var w = panel.getWorld();
+        if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return 0; // 服务端权威（m95 口径）
+        var w = panel.getLevel();
         var entry = w.getRecipeManager().get(rid).orElse(null);
         if (entry == null || !(entry.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe cr)) return 0;
         var ings = cr.getIngredients();
@@ -226,21 +226,21 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         // ① 清场：不匹配的退回背包（原版清格语义，不入仓防组件抹除）
         for (int i = 0; i < 9; i++) {
             net.minecraft.world.item.crafting.Ingredient ing = want[i];
-            ItemStack cur = craft.getStack(i);
-            boolean blank = ing == null || ing.getMatchingStacks().length == 0;
+            ItemStack cur = craft.getItem(i);
+            boolean blank = ing == null || ing.getItems().length == 0;
             if (!cur.isEmpty() && (blank || !ing.test(cur))) {
-                if (!player.getInventory().insertStack(cur)) player.dropItem(cur, false);
-                craft.setStack(i, ItemStack.EMPTY);
+                if (!player.getInventory().add(cur)) player.drop(cur, false);
+                craft.setItem(i, ItemStack.EMPTY);
             }
         }
         // ② 按原料分组（键=候选材质首选项的物品 id；同 3×3 里同一原料共池均分——m213 修"第一格吞光"）
         java.util.LinkedHashMap<String, java.util.List<Integer>> groups = new java.util.LinkedHashMap<>();
         for (int i = 0; i < 9; i++) {
             net.minecraft.world.item.crafting.Ingredient ing = want[i];
-            if (ing == null || ing.getMatchingStacks().length == 0) continue;
-            ItemStack kept = craft.getStack(i);
-            String key = !kept.isEmpty() ? BuiltInRegistries.ITEM.getId(kept.getItem()).toString()
-                    : BuiltInRegistries.ITEM.getId(ing.getMatchingStacks()[0].getItem()).toString();
+            if (ing == null || ing.getItems().length == 0) continue;
+            ItemStack kept = craft.getItem(i);
+            String key = !kept.isEmpty() ? BuiltInRegistries.ITEM.getKey(kept.getItem()).toString()
+                    : BuiltInRegistries.ITEM.getKey(ing.getItems()[0].getItem()).toString();
             groups.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(i);
         }
         int missing = 0;
@@ -249,24 +249,24 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             net.minecraft.world.item.crafting.Ingredient ing = want[slots.get(0)];
             // 组内材质：已留同款则钉死；否则逐候选试取（木板类多材质配方靠这层兜住）
             ItemStack chosen = null;
-            for (int si : slots) if (!craft.getStack(si).isEmpty()) { chosen = craft.getStack(si); break; }
+            for (int si : slots) if (!craft.getItem(si).isEmpty()) { chosen = craft.getItem(si); break; }
             int n = slots.size();
             long pool = 0; ItemStack cand = null;
             java.util.List<ItemStack> tryList = chosen != null ? java.util.List.of(chosen)
-                    : java.util.List.of(ing.getMatchingStacks());
+                    : java.util.List.of(ing.getItems());
             for (ItemStack c2 : tryList) {
-                int cap0 = max ? c2.getMaxCount() : 1;
+                int cap0 = max ? c2.getMaxStackSize() : 1;
                 long req = 0;
-                for (int si : slots) req += Math.max(0, cap0 - craft.getStack(si).getCount());
+                for (int si : slots) req += Math.max(0, cap0 - craft.getItem(si).getCount());
                 if (req <= 0) { cand = c2; break; }
                 long got = pullFor(player, cores, c2, (int) Math.min(Integer.MAX_VALUE, req));
                 if (got > 0 || chosen != null) { cand = c2; pool = got; break; }
             }
             if (cand == null) { missing += n; continue; }
-            int cap = max ? cand.getMaxCount() : 1;
+            int cap = max ? cand.getMaxStackSize() : 1;
             // ③ 均分：二分最大公平水位 T（Σmax(0,T-have)≤pool 且 T≤cap），已高于 T 的格不动
             long[] have = new long[n];
-            for (int k = 0; k < n; k++) have[k] = craft.getStack(slots.get(k)).getCount();
+            for (int k = 0; k < n; k++) have[k] = craft.getItem(slots.get(k)).getCount();
             long lo = 0, hi = cap;
             while (lo < hi) {
                 long mid = (lo + hi + 1) >>> 1, needSum = 0;
@@ -278,24 +278,24 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 long give = Math.max(0, lo - have[k]);
                 if (give <= 0) continue;
                 left -= give;
-                ItemStack cur = craft.getStack(slots.get(k));
-                if (cur.isEmpty()) craft.setStack(slots.get(k), new ItemStack(cand.getItem(), (int) give));
-                else cur.increment((int) give);
+                ItemStack cur = craft.getItem(slots.get(k));
+                if (cur.isEmpty()) craft.setItem(slots.get(k), new ItemStack(cand.getItem(), (int) give));
+                else cur.grow((int) give);
             }
             // ④ 余量回流：背包 → 仓储 → 落地（候选皆无组件，入仓安全；类型已存在不会撞类型闸）
             while (left > 0) {
-                int chunk = (int) Math.min(left, cand.getMaxCount());
+                int chunk = (int) Math.min(left, cand.getMaxStackSize());
                 ItemStack back = new ItemStack(cand.getItem(), chunk);
-                player.getInventory().insertStack(back);
+                player.getInventory().add(back);
                 if (!back.isEmpty() && !cores.isEmpty()) cores.get(0).deposit(back);
-                if (!back.isEmpty()) player.dropItem(back, false);
+                if (!back.isEmpty()) player.drop(back, false);
                 left -= chunk;
             }
-            for (int si : slots) if (craft.getStack(si).isEmpty()) missing++;
+            for (int si : slots) if (craft.getItem(si).isEmpty()) missing++;
         }
         updateCraftResult();
-        sendContentUpdates();
-        if (missing > 0) player.sendMessage(net.minecraft.network.chat.Component.literal("填料：缺 " + missing + " 格材料（仓储+背包都没有）"), true);
+        broadcastChanges();
+        if (missing > 0) player.displayClientMessage(net.minecraft.network.chat.Component.literal("填料：缺 " + missing + " 格材料（仓储+背包都没有）"), true);
         return missing; // m281 配方书路径按它决定是否回发 ghost 包
     }
 
@@ -303,26 +303,26 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     private int pullFor(net.minecraft.server.level.ServerPlayer p,
                         java.util.List<com.sdzjz.block.StorageCoreBlockEntity> cores, ItemStack cand, int n) {
         int got = 0;
-        if (cand.getComponentChanges().isEmpty()) {
-            String id = BuiltInRegistries.ITEM.getId(cand.getItem()).toString();
+        if (cand.getComponentsPatch().isEmpty()) {
+            String id = BuiltInRegistries.ITEM.getKey(cand.getItem()).toString();
             for (var core : cores) { if (got >= n) break; got += core.withdraw(id, n - got); }
         }
         var inv = p.getInventory();
-        for (int s2 = 0; s2 < inv.size() && got < n; s2++) {
-            ItemStack st = inv.getStack(s2);
-            if (!st.isEmpty() && st.isOf(cand.getItem()) && st.getComponentChanges().isEmpty()) {
+        for (int s2 = 0; s2 < inv.getContainerSize() && got < n; s2++) {
+            ItemStack st = inv.getItem(s2);
+            if (!st.isEmpty() && st.is(cand.getItem()) && st.getComponentsPatch().isEmpty()) {
                 int take = Math.min(n - got, st.getCount());
-                st.decrement(take); got += take;
+                st.shrink(take); got += take;
             }
         }
         return got;
     }
 
     @Override
-    public void onClosed(Player player) {
-        super.onClosed(player);
+    public void removed(Player player) {
+        super.removed(player);
         craft.removeListener(craftListener); // m126a：双端都注销——共享 BE 网格，不注销=重开累积泄漏监听器
-        if (player.getWorld().isClient) return;
+        if (player.level().isClientSide) return;
         if (panel != null) panel.removeViewer(); // m107a：注销查看者（断线也走 onClosed，不泄漏）
         // m126a：网格常驻 BE（AE2 式模板），关界面不再回背包——配方摆一次永远在，重开接着合
     }
@@ -337,7 +337,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             return i == 0 ? (int) (v & 0xFFFF) : (int) ((v >> 16) & 0x7FFF);
         }
         @Override public void set(int i, int v) {}
-        @Override public int size() { return 5; }
+        @Override public int getCount() { return 5; }
     };
 
     /** 客户端读经验库总量。 */
@@ -349,8 +349,8 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     /** m107b：客户端读筛选后总行数（真实滚动条/滚动 clamp）。 */
     public int rowsView()      { return rowsSynced; }
     @Override
-    public void setProperty(int id, int value) {
-        super.setProperty(id, value);
+    public void setData(int id, int value) {
+        super.setData(id, value);
         if (id == 0) xpLo = value & 0xFFFF;
         if (id == 1) xpHi = value & 0x7FFF;
         // 原版容器属性包走 16 位 short 通道，0xFFFF(无限哨兵)符号扩展成 -1 → 误判"无存储核心"。
@@ -362,19 +362,19 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
 
     /** 按钮：1=存入全部玩家经验 2=取出全部。服务端执行。 */
     @Override
-    public boolean onButtonClick(Player player, int id) {
+    public boolean clickMenuButton(Player player, int id) {
         if (panel == null) return false;
         if (id >= 1000) { // m82 取指定数量 / m100 批量取出：id = 1000 + 展示格下标*10 + 档位(0..8)
             int slotIdx = (id - 1000) / 10, k = (id - 1000) % 10;
             // 档位 0-4：定量 1/8/16/32/64；5-7：2组/4组/8组(组=该物品堆叠上限)；8：填满背包
             if (slotIdx < DISP0 || slotIdx >= INV0 || k > 8) return false; // m201 展示区=10..63（句柄下标口径）
-            ItemStack disp = this.slots.get(slotIdx).getStack();
+            ItemStack disp = this.slots.get(slotIdx).getItem();
             if (disp.isEmpty()) return true;
             ItemStack tpl = disp.copy(); // m130：剥 amt 即真身——精确件按模板取，普通件按 id 取
             stripAmt(tpl);
-            boolean exact = !tpl.getComponentChanges().isEmpty();
-            String idStr = BuiltInRegistries.ITEM.getId(disp.getItem()).toString();
-            int maxStack = Math.max(1, disp.getItem().getMaxCount());
+            boolean exact = !tpl.getComponentsPatch().isEmpty();
+            String idStr = BuiltInRegistries.ITEM.getKey(disp.getItem()).toString();
+            int maxStack = Math.max(1, disp.getItem().getDefaultMaxStackSize());
             int[] fixed = {1, 8, 16, 32, 64};
             long want = k < 5 ? fixed[k] : (k < 8 ? (long) maxStack * (2L << (k - 5)) : Long.MAX_VALUE); // 5→2组 6→4组 7→8组 8→填满
             long given = 0;
@@ -383,11 +383,11 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 int got = exact ? panel.withdrawExact(tpl, chunk) : panel.withdraw(idStr, chunk);
                 if (got <= 0) break; // 仓储见底
                 ItemStack give = exact ? tpl.copyWithCount(got) : new ItemStack(disp.getItem(), got);
-                player.getInventory().insertStack(give);
+                player.getInventory().add(give);
                 given += got - give.getCount();
                 if (!give.isEmpty()) { // 背包满：余量原路回仓，绝不落地/销毁
                     panel.deposit(give);
-                    if (!give.isEmpty()) player.dropItem(give, false); // 双保险(刚取出的同类物品，理论回得去)
+                    if (!give.isEmpty()) player.drop(give, false); // 双保险(刚取出的同类物品，理论回得去)
                     break;
                 }
                 want -= chunk;
@@ -396,47 +396,47 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             return true;
         }
         if (id == 4 || id == 5) { // m111 AE 手感：光标存入网络（4=全放 5=放1）——服务端权威，客户端零预测
-            ItemStack cur = this.getCursorStack();
+            ItemStack cur = this.getCarried();
             if (cur.isEmpty()) return true;
             // m130：带组件物品进精确账本（deposit 自动分流），拒收闸门拆除
             if (id == 5) {
                 ItemStack one = cur.copyWithCount(1);
                 panel.deposit(one);                    // deposit 按实际存入量扣减
-                if (one.isEmpty()) cur.decrement(1);   // 存进去了才扣，无核心/类型满时原样留在光标
+                if (one.isEmpty()) cur.shrink(1);   // 存进去了才扣，无核心/类型满时原样留在光标
             } else {
                 panel.deposit(cur);
             }
-            this.setCursorStack(cur.isEmpty() ? ItemStack.EMPTY : cur);
+            this.setCarried(cur.isEmpty() ? ItemStack.EMPTY : cur);
             repage();                                  // m292 存完自家页立刻可见
             return true;
         }
         if (id == 6) { // m126b AE CRAFT_STACK：右键结果格=连续合成一整组到光标（服务端权威零预测，m95 同款）
-            ItemStack want = craftResult.getStack(0).copy();
+            ItemStack want = craftResult.getItem(0).copy();
             if (want.isEmpty()) return true;
-            ItemStack cursor = this.getCursorStack();
-            if (!cursor.isEmpty() && !ItemStack.areItemsAndComponentsEqual(cursor, want)) return true; // 光标异类：不动
+            ItemStack cursor = this.getCarried();
+            if (!cursor.isEmpty() && !ItemStack.isSameItemSameComponents(cursor, want)) return true; // 光标异类：不动
             int per = Math.max(1, want.getCount());
             int rounds = 0; // m163c 大堆叠护栏：光标"整组"随 ItemStackProMax 类模组暴涨到百万时，该循环=冻死；
                             // 4096 轮封顶（原版 64 上限下最多 64 轮永不触发），没装满再点一次续装即可
             while (rounds++ < 4096) {
                 updateCraftResult(); // 补料后配方可能断，每轮重算（m106b 同款）
-                ItemStack cur = craftResult.getStack(0);
-                if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
-                int space = cursor.isEmpty() ? want.getMaxCount() : cursor.getMaxCount() - cursor.getCount();
+                ItemStack cur = craftResult.getItem(0);
+                if (cur.isEmpty() || !ItemStack.isSameItemSameComponents(want, cur)) break; // 结果变了即停
+                int space = cursor.isEmpty() ? want.getMaxStackSize() : cursor.getMaxStackSize() - cursor.getCount();
                 if (space < per) break; // 光标装不下下一轮产出即停，绝不超装（单产>堆叠上限的怪配方走左键单取）
-                if (cursor.isEmpty()) cursor = cur.copy(); else cursor.increment(cur.getCount());
+                if (cursor.isEmpty()) cursor = cur.copy(); else cursor.grow(cur.getCount());
                 consumeCraft(player); // 扣料+网络补料+重算
             }
-            this.setCursorStack(cursor.isEmpty() ? ItemStack.EMPTY : cursor); // 光标同步走原版 cursor 跟踪（m111 同通道）
+            this.setCarried(cursor.isEmpty() ? ItemStack.EMPTY : cursor); // 光标同步走原版 cursor 跟踪（m111 同通道）
             return true;
         }
         if (id == 3) { // m107c 清空合成网格：回网络（m130 起带组件也可入仓），无核心的余量回背包，绝不落地销毁
             for (int i = 0; i < 9; i++) {
-                ItemStack st = craft.getStack(i);
+                ItemStack st = craft.getItem(i);
                 if (st.isEmpty()) continue;
-                craft.setStack(i, ItemStack.EMPTY);
+                craft.setItem(i, ItemStack.EMPTY);
                 panel.deposit(st); // deposit 按实际存入量扣减 st；带组件自动分流精确账本
-                if (!st.isEmpty() && !player.getInventory().insertStack(st)) player.dropItem(st, false);
+                if (!st.isEmpty() && !player.getInventory().add(st)) player.drop(st, false);
             }
             return true;
         }
@@ -445,7 +445,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             long pts = totalXp(player);
             if (pts <= 0) { msg(player, "你没有可存入的经验"); return true; }
             if (!panel.xpDeposit(pts)) { msg(player, "网络里没有存储核心，无法存入经验"); return true; }
-            sp.setExperienceLevel(0);  // 这两个 setter 在 ServerPlayerEntity 上（Yarn 1.21 查证），
+            sp.setExperienceLevels(0);  // 这两个 setter 在 ServerPlayerEntity 上（Yarn 1.21 查证），
             sp.setExperiencePoints(0); // Player 没有——onButtonClick 本就服务端执行，安全转型
             msg(player, "已存入经验 " + pts + " 点");
             return true;
@@ -453,21 +453,21 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         if (id == 2) {
             long got = panel.xpWithdraw(Integer.MAX_VALUE);
             if (got <= 0) { msg(player, "经验库是空的"); return true; }
-            player.addExperience((int) Math.min(got, Integer.MAX_VALUE));
+            player.giveExperiencePoints((int) Math.min(got, Integer.MAX_VALUE));
             msg(player, "已取出经验 " + got + " 点");
             return true;
         }
         return false;
     }
 
-    private static void msg(Player p, String s) { p.sendMessage(net.minecraft.network.chat.Component.literal(s), true); }
+    private static void msg(Player p, String s) { p.displayClientMessage(net.minecraft.network.chat.Component.literal(s), true); }
 
     /** m130：从展示栈剥掉数量标签 "amt"——展示栈=真身+amt 注入，剥后即还原真身：
      *  普通物品剥后归零组件可正常堆叠（与旧行为一致）；精确件保留自身其余组件（附魔/损耗/阶位不丢）。 */
     private static void stripAmt(ItemStack stack) {
         var nc = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (nc == null) return;
-        net.minecraft.nbt.CompoundTag n = nc.copyNbt();
+        net.minecraft.nbt.CompoundTag n = nc.copyTag();
         n.remove("amt");
         if (n.isEmpty()) stack.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         else stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
@@ -481,26 +481,26 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         if (lv <= 16) base = (long) lv * lv + 6L * lv;
         else if (lv <= 31) base = Math.round(2.5 * lv * lv - 40.5 * lv + 360);
         else base = Math.round(4.5 * lv * lv - 162.5 * lv + 2220);
-        return base + Math.round((double) p.experienceProgress * p.getNextLevelExperience());
+        return base + Math.round((double) p.experienceProgress * p.getXpNeededForNextLevel());
     }
 
     private static DataPanelBlockEntity resolve(Inventory playerInv, BlockPos pos) {
-        BlockEntity be = playerInv.player.getWorld().getBlockEntity(pos);
+        BlockEntity be = playerInv.player.level().getBlockEntity(pos);
         return be instanceof DataPanelBlockEntity p ? p : null;
     }
 
     public BlockPos blockPos() { return blockPos; }
 
     @Override
-    public boolean canUse(Player player) {
+    public boolean stillValid(Player player) {
         // m299（审计 P2 生命周期）：判面板本体存活——被拆/被同坐标新 BE 顶替/区块卸载
         // 任一发生即关屏（stale BE 的账本 BFS 在卸载区块上本就取不到真数据，关屏是诚实行为）。
         // 原版只在服务端 tick 里执行 canUse（客户端远程时 BE 本就可能不在），后续核对只走服务端。
         if (panel == null || panel.isRemoved()) return false;
-        var w = panel.getWorld();
+        var w = panel.getLevel();
         if (w == null) return false;
-        if (!w.isClient) {
-            if (w.getBlockEntity(panel.getPos()) != panel) return false;
+        if (!w.isClientSide) {
+            if (w.getBlockEntity(panel.getBlockPos()) != panel) return false;
             if (remote) {
                 // m303 AccessMode（m299 立档余账：\"绑定终端仍存在/有效\"）：远程屏=验钥匙——
                 // 玩家身上仍持有绑定本面板的终端才许继续开着（丢弃/被改绑/存进仓库即关屏）；
@@ -510,7 +510,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 // m303：方块开屏恢复原版触达语义——m299 为照顾远程把距离判一刀切全撤了，
                 // 方块路径不该跟着免检（同维度 + canInteractWithBlockAt=1.20.5 触达重做统一口径，
                 // 4.0 附加距离与原版容器 Container.canPlayerUse 同参）。
-                if (player.getWorld() != w || !player.canInteractWithBlockAt(blockPos, 4.0)) return false;
+                if (player.level() != w || !player.canInteractWithBlock(blockPos, 4.0)) return false;
             }
         }
         return true;
@@ -519,11 +519,11 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     /** m303：玩家身上（背包全槽+光标栈）是否仍有绑定本面板的终端——远程屏\"钥匙还在\"核对，
      *  每 tick 41 槽 instanceof 粗筛、仅终端件读组件，开销可忽略。 */
     private boolean carriesBoundTerminal(Player p) {
-        var w = panel.getWorld();
+        var w = panel.getLevel();
         var inv = p.getInventory();
-        for (int i = 0; i < inv.size(); i++)
-            if (com.sdzjz.item.TerminalItem.isBoundTo(inv.getStack(i), blockPos, w)) return true;
-        return com.sdzjz.item.TerminalItem.isBoundTo(this.getCursorStack(), blockPos, w);
+        for (int i = 0; i < inv.getContainerSize(); i++)
+            if (com.sdzjz.item.TerminalItem.isBoundTo(inv.getItem(i), blockPos, w)) return true;
+        return com.sdzjz.item.TerminalItem.isBoundTo(this.getCarried(), blockPos, w);
     }
 
     // m127b：双击收集(PICKUP_ALL)绝缘名单——原版该路径走 takeStack 直取，绕过 tryTakeStackRange 的整取防线：
@@ -531,15 +531,15 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     // ②展示格：常规光标因 amt 组件不相等吸不走，但创造中键 CLONE 出的光标带同款组件可绕开
     // onTakeItem 正门外的账本钳数。本方法另参与拖拽落格判定，两类格 canInsert 本就 false，零行为变化。
     @Override
-    public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-        return slot.inventory != craftResult && slot.inventory != display; // m201 撤下标依赖，按库存身份判
+    public boolean canPlaceItem(ItemStack stack, Slot slot) {
+        return slot.container != craftResult && slot.container != display; // m201 撤下标依赖，按库存身份判
     }
 
     @Override
-    public ItemStack quickMove(Player player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         Slot slot = this.slots.get(index);
-        if (slot == null || !slot.hasStack()) return ItemStack.EMPTY;
-        ItemStack stack = slot.getStack();
+        if (slot == null || !slot.hasItem()) return ItemStack.EMPTY;
+        ItemStack stack = slot.getItem();
 
         if (index >= DISP0 && index < INV0) { // m201 展示区=10..63
             // m266 P0 复制窗修复（外部审计报告）：**先取账本、再按实取量塞背包**。
@@ -550,36 +550,36 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             // 顺序安全性：先扣后塞的老风险（背包满=物品消失）由末尾 deposit 回退兜住。
             ItemStack clean = stack.copy(); // m130：剥 amt 即真身——精确件保留组件，普通件归零组件（双端同算）
             stripAmt(clean);
-            if (player.getWorld().isClient || panel == null) { // 客户端不预测（m95 教训）：账本只在服务端
-                slot.setStack(ItemStack.EMPTY);
+            if (player.level().isClientSide || panel == null) { // 客户端不预测（m95 教训）：账本只在服务端
+                slot.setByPlayer(ItemStack.EMPTY);
                 return ItemStack.EMPTY;
             }
-            int want = Math.min(clean.getCount(), clean.getMaxCount()); // 展示数已是一格量，再钳一道
-            int got = clean.getComponentChanges().isEmpty()
-                    ? panel.withdraw(BuiltInRegistries.ITEM.getId(stack.getItem()).toString(), want)
+            int want = Math.min(clean.getCount(), clean.getMaxStackSize()); // 展示数已是一格量，再钳一道
+            int got = clean.getComponentsPatch().isEmpty()
+                    ? panel.withdraw(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), want)
                     : panel.withdrawExact(clean.copy(), want);
             if (got <= 0) { // 账本已空：什么都不给，立刻刷新让展示缓存跟上真相
                 repage();
-                slot.setStack(ItemStack.EMPTY);
+                slot.setByPlayer(ItemStack.EMPTY);
                 return ItemStack.EMPTY;
             }
             ItemStack giving = clean.copyWithCount(got);
-            this.insertItem(giving, INV0, TRASH, true);
+            this.moveItemStackTo(giving, INV0, TRASH, true);
             if (!giving.isEmpty()) panel.deposit(giving); // 背包塞不下的余量原路退回账本（绝不落地）
             repage(); // m292 余量自家页立刻回显
-            slot.setStack(ItemStack.EMPTY); // 展示格下个刷新周期重建
+            slot.setByPlayer(ItemStack.EMPTY); // 展示格下个刷新周期重建
             return ItemStack.EMPTY;
         } else if (index >= CRAFT0 && index < RESULT) {
             // 合成格 → 背包
-            this.insertItem(stack, INV0, TRASH, true);
-            if (stack.isEmpty()) slot.setStack(ItemStack.EMPTY);
-            slot.markDirty();
+            this.moveItemStackTo(stack, INV0, TRASH, true);
+            if (stack.isEmpty()) slot.setByPlayer(ItemStack.EMPTY);
+            slot.setChanged();
             return ItemStack.EMPTY;
         } else if (index == RESULT) {
             // m106b：shift 点结果格 = 连续合成一整组（学 AE2 CRAFT_SHIFT）。只在服务端跑，
             // 客户端不预测（m95 教训）；结果变化/背包塞不下即停；配合网络补料可一口气合到底。
-            if (player.getWorld().isClient || panel == null || panel.getWorld() == null) return ItemStack.EMPTY;
-            ItemStack first = craftResult.getStack(0);
+            if (player.level().isClientSide || panel == null || panel.getLevel() == null) return ItemStack.EMPTY;
+            ItemStack first = craftResult.getItem(0);
             if (first.isEmpty()) return ItemStack.EMPTY;
             ItemStack want = first.copy();
             int per = Math.max(1, want.getCount());
@@ -587,23 +587,23 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             // "合到一整组"=单次 shift 点击百万轮 updateCraftResult+consumeCraft，服务器当场冻死。
             // 4096 轮封顶——原版 64 上限下 times≤64 永不触发，行为零变化；大堆叠下一次点击最多
             // 4096 轮（还要更多再点/交给自动合成机，量产本就是它的活）。
-            int times = (int) Math.min(Math.max(1, (long) want.getMaxCount() / per), 4096);
+            int times = (int) Math.min(Math.max(1, (long) want.getMaxStackSize() / per), 4096);
             for (int n = 0; n < times; n++) {
                 updateCraftResult(); // 补料后配方可能断，每轮重算
-                ItemStack cur = craftResult.getStack(0);
-                if (cur.isEmpty() || !ItemStack.areItemsAndComponentsEqual(want, cur)) break; // 结果变了即停
+                ItemStack cur = craftResult.getItem(0);
+                if (cur.isEmpty() || !ItemStack.isSameItemSameComponents(want, cur)) break; // 结果变了即停
                 ItemStack out = cur.copy();
-                boolean any = this.insertItem(out, INV0, TRASH, true);
+                boolean any = this.moveItemStackTo(out, INV0, TRASH, true);
                 if (!any) break;          // 一格都塞不进：不扣料直接停，结果留在格里
                 consumeCraft(player);     // 塞进去了才扣料+网络补料+重算
-                if (!out.isEmpty()) { player.dropItem(out, false); break; } // 只塞进一半：余量落脚下(AE2 同款)后停
+                if (!out.isEmpty()) { player.drop(out, false); break; } // 只塞进一半：余量落脚下(AE2 同款)后停
             }
             return ItemStack.EMPTY;
         } else if (index == TRASH) {
             return ItemStack.EMPTY; // 回收格不 shift
         } else {
             // 玩家背包 → 存入面板
-            if (player.getWorld().isClient) return ItemStack.EMPTY; // m112 存入零预测：客户端跑到这会用空账本刷屏（视频实锤的整页清空）
+            if (player.level().isClientSide) return ItemStack.EMPTY; // m112 存入零预测：客户端跑到这会用空账本刷屏（视频实锤的整页清空）
             if (panel != null) {
                 // m130：带组件的物品（附魔/损耗/药水/带阶位机器）自动进精确账本，组件原样保存——
                 // m107c 的"不入仓"拒收闸门就此拆除。
@@ -611,8 +611,8 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 panel.deposit(copy);
                 // 只按实际存入量扣：无存储核心/类型满时余量留在原槽，绝不凭空消失
                 if (copy.getCount() != stack.getCount()) {
-                    slot.setStack(copy.isEmpty() ? ItemStack.EMPTY : copy);
-                    slot.markDirty();
+                    slot.setByPlayer(copy.isEmpty() ? ItemStack.EMPTY : copy);
+                    slot.setChanged();
                     repage(); // m111 存完自家页立刻可见
                 }
                 return ItemStack.EMPTY;
@@ -623,8 +623,8 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
 
     // ===== m201 原版工作台接口实现（AbstractRecipeScreenHandler；名称全按 Yarn 1.21.1 官方映射核过）=====
     @Override
-    public void populateRecipeFinder(net.minecraft.world.entity.player.StackedContents finder) {
-        craft.provideRecipeInputs(finder); // CraftGridInventory 照原版 CraftingInventory 逐格 addUnenchantedInput
+    public void fillCraftSlotsStackedContents(net.minecraft.world.entity.player.StackedContents finder) {
+        craft.fillStackedContents(finder); // CraftGridInventory 照原版 CraftingInventory 逐格 addUnenchantedInput
         // m289：仓储摘要一并计入（此前书的"可合成"只认背包+网格，仓储有料的配方被错灰）。
         // 只在客户端有数据（payload 灌入）；addInput(栈,上限)=method_20478，计数封顶随摘要 9999。
         if (stockIds != null && com.sdzjz.config.SdzjzConfig.get().terminalBookStock) {
@@ -632,7 +632,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 var it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(stockIds.get(i)));
                 int c = stockCounts.get(i);
                 if (it != net.minecraft.world.item.Items.AIR && c > 0)
-                    finder.addInput(new ItemStack(it, c), c);
+                    finder.accountStack(new ItemStack(it, c), c);
             }
         }
     }
@@ -659,7 +659,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         this.searchFilter = sf;
         this.scrollRow = sr;
         this.matchedIds = ms;
-        long now = (panel != null && panel.getWorld() != null) ? panel.getWorld().getTime() : 0L;
+        long now = (panel != null && panel.getLevel() != null) ? panel.getLevel().getTime() : 0L;
         if (now - lastRepageTick < 2L) { viewDirty = true; return; }
         repage();
     }
@@ -679,9 +679,9 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     /** m292 本玩家分页：BE 全量快照 → 本 handler 的过滤/排序（m83 存量降序）/钳滚动/写自家 54 格。
      *  服务端权威；display 是自持 SimpleContainer，原版槽同步只发给本玩家。 */
     private void repage() {
-        if (panel == null || panel.getWorld() == null || panel.getWorld().isClient) return;
+        if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return;
         viewDirty = false;
-        lastRepageTick = panel.getWorld().getTime();
+        lastRepageTick = panel.getLevel().getTime();
         java.util.List<DataPanelBlockEntity.DispEnt> all = panel.masterEntries();
         java.util.List<DataPanelBlockEntity.DispEnt> filtered = new java.util.ArrayList<>();
         String q = searchFilter.toLowerCase();
@@ -700,33 +700,33 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             ItemStack st;
             if (d.tpl == null) {
                 var item = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(d.id));
-                int max = new ItemStack(item).getMaxCount();
+                int max = new ItemStack(item).getMaxStackSize();
                 st = new ItemStack(item, Math.max(1, (int) Math.min(d.n, (long) max)));
             } else {
-                st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxCount())));
+                st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxStackSize())));
             }
             // m130：展示栈=真身+amt 数量标签；取出方剥 amt 还原真身（stripAmt）
             var tag = st.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                    net.minecraft.world.item.component.CustomData.DEFAULT).copyNbt();
+                    net.minecraft.world.item.component.CustomData.EMPTY).copyTag();
             tag.putLong("amt", d.n);
             st.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
                     net.minecraft.world.item.component.CustomData.of(tag));
-            display.setStack(i, st);
+            display.setItem(i, st);
         }
-        for (; i < DataPanelBlockEntity.PAGE; i++) display.setStack(i, ItemStack.EMPTY);
+        for (; i < DataPanelBlockEntity.PAGE; i++) display.setItem(i, ItemStack.EMPTY);
     }
 
     /** m289 服务端：每秒对全网库存算序无关指纹，变了才直发摘要包（开屏首帧必发）。
      *  摘要=各存储核心 storeView 聚合，按存量取前 2048 种、计数封顶 9999；
      *  精确件(exactTemplates,带组件)不入摘要——配方原料按物品匹配、jeiFill 取料也不动精确件，口径一致。 */
     @Override
-    public void sendContentUpdates() {
-        super.sendContentUpdates();
+    public void broadcastChanges() {
+        super.broadcastChanges();
         if (!(player instanceof net.minecraft.server.level.ServerPlayer sp) || panel == null
-                || panel.getWorld() == null || panel.getWorld().isClient) return;
+                || panel.getLevel() == null || panel.getLevel().isClientSide) return;
         // m292 分页节拍（原 BE tick 10t 节律迁入，每玩家独立）：脏视图 ≥2t 即刷；10t 无条件刷兜机器侧进出料
         repageTick++;
-        if (viewDirty && panel.getWorld().getTime() - lastRepageTick >= 2L) repage();
+        if (viewDirty && panel.getLevel().getTime() - lastRepageTick >= 2L) repage();
         else if (repageTick % 10 == 0) repage();
         if (!com.sdzjz.config.SdzjzConfig.get().terminalRecipeBook
                 || !com.sdzjz.config.SdzjzConfig.get().terminalBookStock) return;
@@ -736,7 +736,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         java.util.Map<String, Long> agg = panel.aggregate();
         // m298（审计 P1"假不可合成"）：先过合成原料筛——配方书只按原料判定，非原料物品占 2048 名额
         // 纯属浪费还挤掉真原料。筛后仍超额才截断，并把 truncated 告知客户端（摘要缺席≠0，见书旁提示）。
-        java.util.Set<String> ing = craftIngredientIds(panel.getWorld());
+        java.util.Set<String> ing = craftIngredientIds(panel.getLevel());
         java.util.List<java.util.Map.Entry<String, Long>> top = new java.util.ArrayList<>();
         long fp = 0;
         for (var e : agg.entrySet()) { // 序无关混合：HashMap 迭代序不稳也不误触发（指纹=过滤后口径，非原料变动不空发）
@@ -756,7 +756,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             cnts.add((int) Math.min(top.get(i).getValue(), 9999));
         }
         com.sdzjz.net.Net.toPlayer(sp,
-                new com.sdzjz.net.TerminalStockPayload(this.syncId, ids, cnts, trunc));
+                new com.sdzjz.net.TerminalStockPayload(this.containerId, ids, cnts, trunc));
     }
 
     // m298 合成原料 id 全集（配方书摘要的筛子）。静态跨 handler 共享；数据包重载换 RecipeManager
@@ -768,45 +768,45 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         var rm = w.getRecipeManager();
         if (craftIngredientCache != null && craftIngredientCacheKey == rm) return craftIngredientCache;
         java.util.HashSet<String> out = new java.util.HashSet<>();
-        for (var e : rm.listAllOfType(net.minecraft.world.item.crafting.RecipeType.CRAFTING))
+        for (var e : rm.getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING))
             for (var ig : e.value().getIngredients())
                 for (var st : ig.getMatchingStacks())
-                    if (!st.isEmpty()) out.add(BuiltInRegistries.ITEM.getId(st.getItem()).toString());
+                    if (!st.isEmpty()) out.add(BuiltInRegistries.ITEM.getKey(st.getItem()).toString());
         craftIngredientCache = out;
         craftIngredientCacheKey = rm;
         return out;
     }
 
     @Override
-    public void clearCraftingSlots() { // 原版填料器清格前已把物品移回背包（clearGrid），此处只清格
-        craft.clear(); // 触发监听→updateCraftResult
-        craftResult.clear();
+    public void clearCraftingContent() { // 原版填料器清格前已把物品移回背包（clearGrid），此处只清格
+        craft.clearContent(); // 触发监听→updateCraftResult
+        craftResult.clearContent();
     }
 
     @Override
-    public boolean matches(net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> recipe) {
-        return recipe.value().matches(craftInput(), player.getWorld());
+    public boolean recipeMatches(net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> recipe) {
+        return recipe.value().matches(craftInput(), player.level());
     }
 
     @Override
-    public int getCraftingResultSlotIndex() { return RESULT; }
+    public int getResultSlotIndex() { return RESULT; }
 
     @Override
-    public int getCraftingWidth() { return 3; }
+    public int getGridWidth() { return 3; }
 
     @Override
-    public int getCraftingHeight() { return 3; }
+    public int getGridHeight() { return 3; }
 
     @Override
-    public int getCraftingSlotCount() { return 10; } // 网格9+结果1（原版 CraftingScreenHandler 同口径）
+    public int getSize() { return 10; } // 网格9+结果1（原版 CraftingScreenHandler 同口径）
 
     @Override
-    public net.minecraft.world.inventory.RecipeBookType getCategory() {
+    public net.minecraft.world.inventory.RecipeBookType getRecipeBookType() {
         return net.minecraft.world.inventory.RecipeBookType.CRAFTING;
     }
 
     @Override
-    public boolean canInsertIntoSlot(int index) { // 原版语义：清格时哪些前排格该移回背包
+    public boolean canPlaceItem(int index) { // 原版语义：清格时哪些前排格该移回背包
         return index != RESULT;
     }
 
@@ -818,18 +818,18 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
      *  craftAll(shift点配方)=装满一组，单击=每格 1 个——与 jeiFill 的 max 参数语义一一对应。
      *  【待编译验证】形参按原版源写 RecipeEntry<?>（网络处理器传入的是未定型 entry）；若 CI 红改 RecipeEntry<CraftingRecipe> 重试。 */
     @Override
-    public void fillInputSlots(boolean craftAll, net.minecraft.world.item.crafting.RecipeHolder<?> recipe,
+    public void handlePlacement(boolean craftAll, net.minecraft.world.item.crafting.RecipeHolder<?> recipe,
                                net.minecraft.server.level.ServerPlayer player) {
         int missing = jeiFill(player, recipe.id(), craftAll);
-        if (missing > 0) player.networkHandler.sendPacket(
-                new net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket(this.syncId, recipe));
+        if (missing > 0) player.connection.sendPacket(
+                new net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket(this.containerId, recipe));
     }
 
     @Override
-    public void onInputSlotFillStart() {}
+    public void beginPlacingRecipe() {}
 
     @Override
-    public void onInputSlotFillFinish(net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> recipe) {
+    public void finishPlacingRecipe(net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> recipe) {
         updateCraftResult(); // 填完立即出结果（监听逐格也会触发，这里兜底一次）
     }
 }

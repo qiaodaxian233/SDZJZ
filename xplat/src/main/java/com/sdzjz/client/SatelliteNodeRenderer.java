@@ -48,7 +48,7 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
     @SuppressWarnings("unchecked")
     private static void loadGeo() {
         geoTried = true;
-        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).getInputStream()) {
+        try (var in = Minecraft.getInstance().getResourceManager().getResourceOrThrow(GEO_ID).open()) {
             JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             JsonObject piv = root.getAsJsonObject("pivots");
             if (piv.has("scan")) SCAN_PIVOT = vec(piv.getAsJsonArray("scan"));
@@ -89,35 +89,35 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
             loadGeo();
             if (GEO == null) return;
         }
-        float t = ((be.getWorld() != null ? be.getWorld().getTime() % 1200L : 0L) + tickDelta) / 20f;
+        float t = ((be.getLevel() != null ? be.getLevel().getTime() % 1200L : 0L) + tickDelta) / 20f;
         float scanDeg = 35f * (float) Math.sin(2 * Math.PI * t / SCAN_PERIOD_S);
         float pulse = 0.92f + 0.20f * (float) Math.sin(2 * Math.PI * t / SIGNAL_PERIOD_S);
-        VertexConsumer vcA = vcp.getBuffer(RenderType.getEntityCutoutNoCull(TEX_ATLAS));
-        VertexConsumer vcJ = vcp.getBuffer(RenderType.getEntityCutoutNoCull(TEX_JOINT));
+        VertexConsumer vcA = vcp.getBuffer(RenderType.entityCutoutNoCull(TEX_ATLAS));
+        VertexConsumer vcJ = vcp.getBuffer(RenderType.entityCutoutNoCull(TEX_JOINT));
         // 静组
-        emit(GEO[0][0], matrices.peek(), vcA, light, overlay);
-        emit(GEO[0][1], matrices.peek(), vcJ, light, overlay);
+        emit(GEO[0][0], matrices.last(), vcA, light, overlay);
+        emit(GEO[0][1], matrices.last(), vcJ, light, overlay);
         // 扫描组：绕桅杆轴 Y 往复
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(SCAN_PIVOT[0], 0, SCAN_PIVOT[2]);
-        matrices.multiply(Axis.POSITIVE_Y.rotationDegrees(scanDeg));
+        matrices.mulPose(Axis.YP.rotationDegrees(scanDeg));
         matrices.translate(-SCAN_PIVOT[0], 0, -SCAN_PIVOT[2]);
-        emit(GEO[1][0], matrices.peek(), vcA, light, overlay);
-        emit(GEO[1][1], matrices.peek(), vcJ, light, overlay);
+        emit(GEO[1][0], matrices.last(), vcA, light, overlay);
+        emit(GEO[1][1], matrices.last(), vcJ, light, overlay);
         // 信号波：跟随扫描 + 自身枢轴缩放脉冲
-        matrices.push();
+        matrices.pushPose();
         matrices.translate(SIGNAL_PIVOT[0], SIGNAL_PIVOT[1], SIGNAL_PIVOT[2]);
         matrices.scale(pulse, pulse, pulse);
         matrices.translate(-SIGNAL_PIVOT[0], -SIGNAL_PIVOT[1], -SIGNAL_PIVOT[2]);
-        emit(GEO[2][0], matrices.peek(), vcA, light, overlay);
-        emit(GEO[2][1], matrices.peek(), vcJ, light, overlay);
-        matrices.pop();
-        matrices.pop();
+        emit(GEO[2][0], matrices.last(), vcA, light, overlay);
+        emit(GEO[2][1], matrices.last(), vcJ, light, overlay);
+        matrices.popPose();
+        matrices.popPose();
     }
 
     private static void emit(List<float[]> quads, PoseStack.Pose entry, VertexConsumer vc, int light, int overlay) {
-        Matrix4f pm = entry.getPositionMatrix();
-        Matrix3f nm = entry.getNormalMatrix();
+        Matrix4f pm = entry.pose();
+        Matrix3f nm = entry.normal();
         Vector3f p = new Vector3f(), n = new Vector3f();
         for (float[] q : quads) {
             nm.transform(n.set(q[0], q[1], q[2]));
@@ -125,7 +125,7 @@ public class SatelliteNodeRenderer implements BlockEntityRenderer<SatelliteNodeB
             for (int v = 0; v < 4; v++) {
                 int o = 3 + v * 5;
                 pm.transformPosition(p.set(q[o], q[o + 1], q[o + 2]));
-                vc.vertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
+                vc.addVertex(p.x, p.y, p.z, 0xFFFFFFFF, q[o + 3], q[o + 4], overlay, light, n.x, n.y, n.z);
             }
         }
     }

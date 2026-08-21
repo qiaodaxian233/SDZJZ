@@ -28,8 +28,8 @@ public class ChunkRemoverConfigScreen extends Screen {
     }
 
     private ItemStack stack() {
-        if (client == null || client.player == null) return ItemStack.EMPTY;
-        return client.player.getStackInHand(hand == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+        if (minecraft == null || minecraft.player == null) return ItemStack.EMPTY;
+        return minecraft.player.getItemInHand(hand == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
 
     private int px() { return (width - W) / 2; }
@@ -37,52 +37,52 @@ public class ChunkRemoverConfigScreen extends Screen {
     private int py() { return (height - H) / 2; }
 
     @Override
-    public boolean shouldPause() { return false; }
+    public boolean isPauseScreen() { return false; }
 
     /** m388 去模糊（作者实机点名"面板是模糊的"）：1.21 原版 Screen.renderBackground 会跑菜单
      *  模糊 shader 把整个世界糊掉，本屏是手持快捷面板要的是"看着世界调参数"，覆写成只画
      *  游戏内半透明暗化渐变（renderInGameBackground）。本屏只在世界内打开，无需全景图分支。 */
     @Override
     public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
-        renderInGameBackground(ctx);
+        renderTransparentBackground(ctx);
     }
 
     @Override
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         ItemStack s = stack();
-        if (!(s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) { close(); return; }
+        if (!(s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem)) { onClose(); return; }
         renderBackground(ctx, mouseX, mouseY, delta);
         int x = px(), y = py();
         // 面板体（终端同族：CELL 底+FRAME 边+顶栏条）
         ctx.fill(x - 1, y - 1, x + W + 1, y + H + 1, SciSkin.FRAME);
         ctx.fill(x, y, x + W, y + H, SciSkin.CELL);
         ctx.fill(x, y, x + W, y + 18, SciSkin.BAND_TOP);
-        ctx.drawText(textRenderer, "区块移除器 · 设置", x + 8, y + 5, SciSkin.TXT_MAX, false);
+        ctx.drawString(font, "区块移除器 · 设置", x + 8, y + 5, SciSkin.TXT_MAX, false);
         // 绑定行
         boolean bound = NodeTags.chunkBound(s);
         String bind = bound
                 ? "绑定：区块(" + NodeTags.chunkX(s) + "," + NodeTags.chunkZ(s) + ") · " + NodeTags.chunkDim(s)
                 : "未绑定：手持对目标区块内方块右键";
-        ctx.drawText(textRenderer, bind, x + 10, y + 26, bound ? SciSkin.TXT : SciSkin.SUB, false);
+        ctx.drawString(font, bind, x + 10, y + 26, bound ? SciSkin.TXT : SciSkin.SUB, false);
         // 区域行：[-10][-1]  N×N  [+1][+10]
         int r = Math.max(0, NodeTags.chunkRadius(s));
         int w2 = 2 * r + 1;
-        ctx.drawText(textRenderer, "移除区域", x + 10, y + 48, SciSkin.TXT_SOFT, false);
+        ctx.drawString(font, "移除区域", x + 10, y + 48, SciSkin.TXT_SOFT, false);
         drawBtn(ctx, x + 68, y + 44, 26, "-10", mouseX, mouseY);
         drawBtn(ctx, x + 97, y + 44, 20, "-1", mouseX, mouseY);
         String lab = w2 + "×" + w2;
-        ctx.drawText(textRenderer, lab, x + 132 - textRenderer.getWidth(lab) / 2 + 14, y + 48, SciSkin.TXT_HI, false);
+        ctx.drawString(font, lab, x + 132 - font.getWidth(lab) / 2 + 14, y + 48, SciSkin.TXT_HI, false);
         drawBtn(ctx, x + 172, y + 44, 20, "+1", mouseX, mouseY);
         drawBtn(ctx, x + 195, y + 44, 26, "+10", mouseX, mouseY);
-        ctx.drawText(textRenderer, "上限 " + (2 * Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius) + 1)
+        ctx.drawString(font, "上限 " + (2 * Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius) + 1)
                 + "×同值（config 可改）· 改区域=重扫", x + 10, y + 64, SciSkin.SUB, false);
         // 模式行：宽切换钮
         int m = NodeTags.chunkMode(s);
-        ctx.drawText(textRenderer, "掉落模式", x + 10, y + 86, SciSkin.TXT_SOFT, false);
+        ctx.drawString(font, "掉落模式", x + 10, y + 86, SciSkin.TXT_SOFT, false);
         boolean hovM = in(mouseX, mouseY, x + 68, y + 82, 153, 16);
         ctx.fill(x + 68, y + 82, x + 221, y + 98, hovM ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(x + 69, y + 83, x + 220, y + 97, m != 0 ? SciSkin.BTN_FACE_HOV : SciSkin.ON_DARK);
-        ctx.drawText(textRenderer, com.sdzjz.item.ChunkRemoverItem.modeLabel(m) // m397 三挡
+        ctx.drawString(font, com.sdzjz.item.ChunkRemoverItem.modeLabel(m) // m397 三挡
                         + (m == 2 ? "（基岩也拆）" : m == 1 ? "（方块直接蒸发）" : "（进出线/存储）"),
                 x + 76, y + 87, m == 2 ? SciSkin.RED_SOFT : m == 1 ? SciSkin.GOLD : SciSkin.ON, false);
         // m388 封边挡水勾选行（config 总闸关=灰字不可点）
@@ -91,16 +91,16 @@ public class ChunkRemoverConfigScreen extends Screen {
         boolean hovS = sealAllowed && in(mouseX, mouseY, x + 10, y + 104, 212, 12);
         ctx.fill(x + 10, y + 104, x + 22, y + 116, hovS ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(x + 11, y + 105, x + 21, y + 115, sealOn ? SciSkin.ON_DARK : SciSkin.BTN_FACE);
-        if (sealOn) ctx.drawText(textRenderer, "✔", x + 13, y + 106, SciSkin.ON, false);
-        ctx.drawText(textRenderer, sealAllowed ? ("封边挡水：贴水边界砌 " + com.sdzjz.item.ChunkRemoverItem.sealLabel(s) + "（默认开·材料在画布菜单换）")
+        if (sealOn) ctx.drawString(font, "✔", x + 13, y + 106, SciSkin.ON, false);
+        ctx.drawString(font, sealAllowed ? ("封边挡水：贴水边界砌 " + com.sdzjz.item.ChunkRemoverItem.sealLabel(s) + "（默认开·材料在画布菜单换）")
                         : "封边挡水（服主已在 config 关闭）",
                 x + 27, y + 106, sealAllowed ? (sealOn ? SciSkin.TXT_HI : SciSkin.TXT) : SciSkin.SUB, false);
         // 提示两行
-        ctx.drawText(textRenderer, m == 2 ? "空置域：连基岩一起拆，坑底通虚空——掉下去摔没，三思" // m397 第三挡提示
+        ctx.drawString(font, m == 2 ? "空置域：连基岩一起拆，坑底通虚空——掉下去摔没，三思" // m397 第三挡提示
                         : m == 1 ? "无掉落不产任何物品，清场专用请三思"
                         : "无掉落/空置域速度 ×" + Math.max(1, SdzjzConfig.get().chunkRemoverNoDropSpeedMult) + "（点上方切换）",
                 x + 10, y + 124, m != 0 ? SciSkin.RED_SOFT : SciSkin.SUB, false);
-        ctx.drawText(textRenderer, "Esc 关闭 · 画布节点菜单亦可调 · 潜行右键空处快切模式", x + 10, y + 140, SciSkin.SUB, false);
+        ctx.drawString(font, "Esc 关闭 · 画布节点菜单亦可调 · 潜行右键空处快切模式", x + 10, y + 140, SciSkin.SUB, false);
         super.render(ctx, mouseX, mouseY, delta);
     }
 
@@ -108,7 +108,7 @@ public class ChunkRemoverConfigScreen extends Screen {
         boolean hov = in(mx, my, bx, by, bw, 16);
         ctx.fill(bx, by, bx + bw, by + 16, hov ? SciSkin.BTN_FRM_HOV : SciSkin.BTN_FRM);
         ctx.fill(bx + 1, by + 1, bx + bw - 1, by + 15, hov ? SciSkin.BTN_FACE_HOV : SciSkin.BTN_FACE);
-        ctx.drawText(textRenderer, t, bx + (bw - textRenderer.getWidth(t)) / 2, by + 4,
+        ctx.drawString(font, t, bx + (bw - font.getWidth(t)) / 2, by + 4,
                 hov ? SciSkin.TXT_MAX : SciSkin.TXT, false);
     }
 

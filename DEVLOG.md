@@ -7580,3 +7580,67 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：javac 全库冒烟真语法错 0、自家类符号错 0；13 道离线闸全绿。
 - **预期**：本轮 build 红条数下降且错误形态转向纯方法/字段名（getWorld/getMaxCount 之流），
   -A4 日志到手即 m416 按 location 批量查表修，循环到全绿。
+
+## m416 字典化修复第二轮：2765 条工单按「受体祖先链 + 脱字符列号」机械化清零
+
+- **本轮起点/教训（血的）**：m416 第一枪上一会话已跑出 2530 处落盘，但**没推**，沙箱重置全丢——
+  远端 mojmap 头仍停在 m415 的 ff55c99。铁律「做一步推一步、绝不在本地攒」再吃一次实锤；
+  好在链路可复现（错误清单在 ci-mojmap-errors 分支、成员表 3772 行在库），本轮从零重打并**先推后停**。
+- **工装升级①·落刀锚点下潜到列**：解析 CI 回推的 javac 清单时连**脱字符列号**一起抓（2765/2765 全带列）。
+  落刀锚点由「文件:行+符号」升为「文件:行:**列**」——每一刀落在编译器亲自指的那个字符上。
+  三重校验：文件行内容与日志打印行**逐字符相等** / 列上标识符与报错符号相等 / 目标非空；
+  同行多刀按列**从右往左**改防列号漂移。本轮 2466 处落刀，校验**拦下 0**（锚点无一处失准）。
+- **工装升级②·受体祖先链定裁器**（替代 m415 的人工对表）：从源码扫出自家类 extends/implements，
+  接上手核的 MC 继承链，(Yarn符号, 接收者类) 沿祖先链找成员表宿主。341 对里 **306 对自动定裁**，
+  其余 81 对逐条看现场人工裁。**拒绝"全表唯一即安全"**——分流实锤：
+  `getWorld` 在 BlockEntity 上是 getLevel、在 Entity(Player/ServerPlayer) 上是 **level**；
+  `markDirty` 在 BlockEntity/Container/Slot 上是 setChanged、在 SavedData(Claims/State/ChunkTemplateStore) 上是 **setDirty**。
+- **arity 也是受体的一部分**（本轮新增判据）：`Containers.spawn` 3 参(level,pos,container)→dropContents、
+  5 参(level,x,y,z,stack)→dropItemStack，按括号感知扫描顶层逗号数分流；
+  `getTopY()` 0 参是 HeightLimitView 语义→**getMaxBuildHeight**，祖先链先撞上的 LevelReader#getHeight 是
+  3 参 heightmap 重载，**抢跑了**，已按现场全为 0 参纠正。
+- **158 条 @Override 声明改名**：按所在类祖先链查表，未决 0。屏族(drawBackground→renderBg/
+  drawForeground→renderLabels/drawSlot→renderSlot/onMouseClick→slotClicked/isClickOutsideBounds→hasClickedOutside)、
+  菜单族(quickMove→quickMoveStack/canUse→stillValid/onClosed→removed/onContentChanged→slotsChanged/
+  onButtonClick→clickMenuButton/配方书一族 fillInputSlots→handlePlacement 等)、
+  方块族(createBlockEntity→newBlockEntity/getCodec→codec/getRenderType→getRenderShape/onStateReplaced→onRemove/
+  appendProperties→createBlockStateDefinition/getPlacementState→getStateForPlacement/getStateForNeighborUpdate→updateShape)、
+  物品族(onUse→useWithoutItem/useOnBlock→useOn/appendTooltip→appendHoverText)。
+- **自纠三处误改**（与上一会话同款陷阱、本轮独立复现，坐实这是**系统性**坑不是偶发）：
+  ① `BakedModel.hasDepth` 被我错映成 usesBlockLight（与 isSideLit 撞车），实为 **isGui3d**；
+  ② **匿名 ContainerData 的 `size()`** 被按 Container 改成 getContainerSize，实为 **getCount**（3 处：
+  StructureCoreBlockEntity 属性委托/DataPanelScreenHandler xpProps/ExtractPortScreenHandler props）——
+  同名方法挂在**匿名内部类**上时，受体不是文件的类，是 `new XXX(){}` 的那个 XXX。
+- **新坑入档·改声明会打断编译器没点过名的自家调用点**：javac 因前序解析失败根本没走到那些类，
+  **错误清单本身是不全的**（appendTooltip 全库 27 处声明，本轮清单只点了 8 处）。
+  故改完声明必须做一次**残留 Yarn 名反扫**：本轮反扫补出 287+85 处（GuiGraphics.drawText→drawString 182、
+  CustomData.copyNbt→copyTag 28、Level.isClient→isClientSide 30、ResourceKey.getValue→location 30、
+  ChunkSource.isChunkLoaded→hasChunk 14、Minecraft.interactionManager→gameMode 13 等）。
+- **假朋友批**（两边同名不同义，javac 报的是**类型错**不是符号错，按符号查表永远查不到）：
+  `Registry.getId` 在 mojmap 是"取数字 id"，取 ResourceLocation 的叫 **getKey**（48 处，
+  现象=`int cannot be dereferenced` 42 条）；`ChunkPos.toLong→asLong`（14）；
+  `BlockPos.offset(Direction)→relative`（10，mojmap 的 offset(Vec3i) 是另一路故报类型错）；
+  `Item.getName()` 无参→getDescription()（4）；`getRecipeRemainder→getCraftingRemainingItem`（2）。
+- **StreamCodec.of 参数序**（Bounded.java）：mojmap 编码器 **缓冲区先行**，Yarn 是值先行——
+  三个 codec 的 `(v, buf) ->` 换成 `(buf, v) ->`，连带 writeString→writeUtf / readString→readUtf；
+  头注释同步纠正（此前写的"编码器值先行"是 Yarn 口径，留着会二次误导）。
+- **record 组件与接口方法撞名**：NodeUpgradePayload 的组件 `int type` 与 CustomPacketPayload 的
+  `type()` 冲突（`invalid accessor method in record`）→ 组件改 **kind**，同步 CODEC 取值器 `::kind`
+  与 Sdzjz.java 接收器两处 `payload.kind()`；注释同步。**协议线格式不变**（仍是第三个 VarInt）。
+- **裸 Settings 残余**：Item 子类构造器形参 `Settings settings`（继承作用域裸用，m414 的限定式
+  词边界替换够不着）28 处 → Properties。
+- **零星**：client.player→minecraft.player（本处 javac 报的是"package client does not exist"，
+  与"cannot find symbol variable client"不同形态，字典按符号查不到）、shouldPause→isPauseScreen、
+  BufferSource.draw→endBatch、ChunkSource.getWorldChunk(2参)→getChunkNow、Registry.getEntry→getHolder、
+  PotionContents.DEFAULT→EMPTY、ItemTransforms 两级改名 getTransformation().getTransformation(mode)→
+  getTransforms().getTransform(mode)。
+- **验证**：全库 javac 冒烟（src+xplat+common 155 文件）错误 3522 条**全为缺 MC 依赖噪音**，
+  真语法错 **0**、自家类符号错 **0**（m123/m180 盲区定向检：Machines/Sdzjz/SciSkin/ModItems/NodeTags 各 0）；
+  13 道离线闸**全绿**；common/ 模块零 net.minecraft 引用，本次迁移正确未触碰。
+- **待编译验证（本轮存疑点，留给 CI 判官）**：
+  ① `Slot.setStack(ItemStack)`→setByPlayer 取自成员表（描述符桥实锤），但 mojmap 侧 `set()` 同样可编译，
+  若语义有别 GameTest 会点名；② 反扫是"按受体名猜"的启发式，未被本轮清单覆盖的点位由第三轮 CI 兜底。
+- **实机验证脚本**：CI 绿后进 1.21.1 实例 → `/sdzjz profile core` 看核心 tick 正常 → 放结构核心开画布
+  加/取升级各一次（验 NodeUpgradePayload kind 改名后加速/数量/并列三类升级仍各就各位）→
+  开数据面板搜索框输入超长串（验 Bounded 换序后编解码仍有界）→ 交易所买一笔（验菜单族改名）。
+- 零新配置键；行为层零改动主张，待 build 绿后由 GameTest 全量用例判定。

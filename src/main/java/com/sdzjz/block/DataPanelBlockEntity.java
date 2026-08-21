@@ -34,7 +34,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public DataPanelBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_PANEL_BE, pos, state);
-        craftGrid.addListener(inv -> this.markDirty()); // 网格改动落盘（markDirty 自带 world==null 守卫）
+        craftGrid.addListener(inv -> this.setChanged()); // 网格改动落盘（markDirty 自带 world==null 守卫）
     }
 
     public static void tick(Level world, BlockPos pos, BlockState state, DataPanelBlockEntity be) {
@@ -55,13 +55,13 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private long coresCacheTime = -1000;
 
     private List<StorageCoreBlockEntity> cores() {
-        long now = (this.world != null) ? this.world.getTime() : 0;
+        long now = (this.level != null) ? this.level.getTime() : 0;
         if (coresCache != null && now - coresCacheTime < 40) {
             boolean ok = true;
             for (StorageCoreBlockEntity c : coresCache) if (c.isRemoved()) { ok = false; break; }
             if (ok) return coresCache;
         }
-        coresCache = StorageCoreBlockEntity.connectedCores(this.world, this.pos);
+        coresCache = StorageCoreBlockEntity.connectedCores(this.level, this.worldPosition);
         coresCacheTime = now;
         return coresCache;
     }
@@ -109,7 +109,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     /** 存入：塞进第一个收得下的存储核心。 */
     public void deposit(ItemStack stack) {
-        if (this.world != null && this.world.isClient) return; // m112 保险丝：账本只在服务端
+        if (this.level != null && this.level.isClientSide) return; // m112 保险丝：账本只在服务端
         if (stack.isEmpty()) return;
         for (StorageCoreBlockEntity core : cores()) {
             core.deposit(stack);
@@ -159,7 +159,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
                     merged.merge(e.getKey(), e.getValue(), Long::sum);
             return merged;
         }
-        long now = (this.world != null) ? this.world.getTime() : 0;
+        long now = (this.level != null) ? this.level.getTime() : 0;
         long rs = 0;
         for (StorageCoreBlockEntity core : cs) rs += core.storeRev();
         if (viewCache != null && (now == viewCacheTime || (rs == viewCacheRevSum && cs.size() == viewCacheCoreN)))
@@ -176,7 +176,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     public int withdraw(String id, int amount) {
-        if (this.world != null && this.world.isClient) return 0; // m112 保险丝：账本只在服务端
+        if (this.level != null && this.level.isClientSide) return 0; // m112 保险丝：账本只在服务端
         int got = 0;
         for (StorageCoreBlockEntity core : cores()) {
             if (got >= amount) break;
@@ -187,7 +187,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     /** m130：精确取出（按物品+组件跨核心累计），返回实际取出。 */
     public int withdrawExact(ItemStack template, int amount) {
-        if (this.world != null && this.world.isClient) return 0; // m112 保险丝同款
+        if (this.level != null && this.level.isClientSide) return 0; // m112 保险丝同款
         int got = 0;
         for (StorageCoreBlockEntity core : cores()) {
             if (got >= amount) break;
@@ -221,7 +221,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     private int masterCoreN = -1;
 
     public java.util.List<DispEnt> masterEntries() {
-        if (this.world == null || this.world.isClient) return java.util.List.of();
+        if (this.level == null || this.level.isClientSide) return java.util.List.of();
         List<StorageCoreBlockEntity> cs = cores();
         boolean useCache = com.sdzjz.config.SdzjzConfig.get().panelMasterSnapshotCache;
         long nr = 0, er = 0;
@@ -244,7 +244,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
                 var key = com.sdzjz.storage.StackKey.of(t);
                 DispEnt d = exactMap.get(key);
                 if (d != null) d.n += n;
-                else exactMap.put(key, new DispEnt(BuiltInRegistries.ITEM.getId(t.getItem()).toString(), t.copyWithCount(1), n));
+                else exactMap.put(key, new DispEnt(BuiltInRegistries.ITEM.getKey(t.getItem()).toString(), t.copyWithCount(1), n));
             }
         }
         all.addAll(exactMap.values());
@@ -263,8 +263,8 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         if (c != 0) return c;
         c = Boolean.compare(x.tpl != null, y.tpl != null); // 同量同 id：普通在前
         if (c != 0) return c;
-        String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentChanges()); // 精确同款全平：按组件串稳定
-        String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentChanges());
+        String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentsPatch()); // 精确同款全平：按组件串稳定
+        String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentsPatch());
         return ca.compareTo(cb);
     };
 
@@ -274,7 +274,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
         // m126a：合成网格持久化（稀疏槽位表，照 StorageCoreBlockEntity/TradeCenter 既有 NBT 写法）
         net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
         for (int i = 0; i < 9; i++) {
-            ItemStack st = craftGrid.getStack(i);
+            ItemStack st = craftGrid.getItem(i);
             if (st.isEmpty()) continue;
             CompoundTag c = new CompoundTag();
             c.putInt("slot", i);
@@ -287,19 +287,19 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     @Override
     protected void loadAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {
         super.loadAdditional(nbt, lookup);
-        for (int i = 0; i < 9; i++) craftGrid.setStack(i, ItemStack.EMPTY);
-        net.minecraft.nbt.ListTag list = nbt.getList("craftGrid", net.minecraft.nbt.Tag.COMPOUND_TYPE);
+        for (int i = 0; i < 9; i++) craftGrid.setItem(i, ItemStack.EMPTY);
+        net.minecraft.nbt.ListTag list = nbt.getList("craftGrid", net.minecraft.nbt.Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) {
             CompoundTag c = list.getCompound(i);
             int s = c.getInt("slot");
             if (s >= 0 && s < 9)
-                craftGrid.setStack(s, ItemStack.parse(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
+                craftGrid.setItem(s, ItemStack.parse(lookup, c.getCompound("item")).orElse(ItemStack.EMPTY));
         }
     }
 
     /** m126a：拆方块散落合成网格内容（AE2 addAdditionalDrops 同义，绝不吞）。 */
     public void dropCraftGrid(Level world, BlockPos pos) {
-        net.minecraft.world.Containers.spawn(world, pos, craftGrid);
+        net.minecraft.world.Containers.dropContents(world, pos, craftGrid);
     }
 
     @Override
@@ -315,6 +315,6 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     @Override
     public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
-        return this.pos;
+        return this.worldPosition;
     }
 }

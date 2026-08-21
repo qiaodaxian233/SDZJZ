@@ -34,13 +34,13 @@ public class TradeCenterScreenHandler extends AbstractContainerMenu {
     public TradeCenterScreenHandler(int syncId, Inventory playerInv, TradeCenterBlockEntity be) {
         super(ModScreenHandlers.TRADE_CENTER, syncId);
         this.be = be;
-        this.blockPos = (be != null) ? be.getPos() : null;
+        this.blockPos = (be != null) ? be.getBlockPos() : null;
         Container contract = (be != null) ? be.contractSlot : new SimpleContainer(1);
 
         // 合同槽（只收村民合同）
         this.addSlot(new Slot(contract, 0, 30, 40) {
-            @Override public boolean canInsert(ItemStack s) { return s.isOf(ModItems.VILLAGER_CONTRACT); }
-            @Override public int getMaxItemCount() { return 1; }
+            @Override public boolean mayPlace(ItemStack s) { return s.is(ModItems.VILLAGER_CONTRACT); }
+            @Override public int getMaxStackSize() { return 1; }
         });
 
         // 玩家背包
@@ -53,19 +53,19 @@ public class TradeCenterScreenHandler extends AbstractContainerMenu {
     }
 
     private static TradeCenterBlockEntity resolve(Inventory playerInv, BlockPos pos) {
-        BlockEntity b = playerInv.player.getWorld().getBlockEntity(pos);
+        BlockEntity b = playerInv.player.level().getBlockEntity(pos);
         return b instanceof TradeCenterBlockEntity t ? t : null;
     }
 
     public BlockPos blockPos() { return blockPos; }
 
     public ItemStack contract() {
-        return this.slots.get(0).getStack();
+        return this.slots.get(0).getItem();
     }
 
     @Override
-    public boolean onButtonClick(Player player, int id) {
-        if (be == null || player.getWorld().isClient) return false;
+    public boolean clickMenuButton(Player player, int id) {
+        if (be == null || player.level().isClientSide) return false;
         if (id >= 0 && id <= 6) { be.employ(player, id); return true; }
         if (id >= BTN_TRADE_BASE && id < BTN_HEAL) { be.trade(player, id - BTN_TRADE_BASE); return true; }
         if (id == BTN_HEAL) { be.heal(player); return true; }
@@ -73,24 +73,24 @@ public class TradeCenterScreenHandler extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean canUse(Player player) {
+    public boolean stillValid(Player player) {
         return be != null;
     }
 
     @Override
-    public ItemStack quickMove(Player player, int index) {
+    public ItemStack quickMoveStack(Player player, int index) {
         ItemStack ret = ItemStack.EMPTY;
         Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasStack()) {
-            ItemStack st = slot.getStack();
+        if (slot != null && slot.hasItem()) {
+            ItemStack st = slot.getItem();
             ret = st.copy();
             if (index == 0) {
-                if (!this.insertItem(st, 1, 1 + 36, true)) return ItemStack.EMPTY;
+                if (!this.moveItemStackTo(st, 1, 1 + 36, true)) return ItemStack.EMPTY;
             } else {
-                if (!st.isOf(ModItems.VILLAGER_CONTRACT)) return ItemStack.EMPTY;
-                if (!this.insertItem(st, 0, 1, false)) return ItemStack.EMPTY;
+                if (!st.is(ModItems.VILLAGER_CONTRACT)) return ItemStack.EMPTY;
+                if (!this.moveItemStackTo(st, 0, 1, false)) return ItemStack.EMPTY;
             }
-            if (st.isEmpty()) slot.setStack(ItemStack.EMPTY); else slot.markDirty();
+            if (st.isEmpty()) slot.setByPlayer(ItemStack.EMPTY); else slot.setChanged();
         }
         return ret;
     }

@@ -47,33 +47,33 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
 
     public SuperBenchScreen(SuperBenchScreenHandler handler, Inventory inv, Component title) {
         super(handler, inv, title);
-        this.backgroundWidth = 470;
-        this.backgroundHeight = BH; // m240 底部越界修复：316→332，热栏整体包进框内
+        this.imageWidth = 470;
+        this.imageHeight = BH; // m240 底部越界修复：316→332，热栏整体包进框内
     }
 
     @Override
     protected void init() {
         super.init();
-        String keep = this.search != null ? this.search.getText() : ""; // resize 保留已输入（pickerField 惯例）
+        String keep = this.search != null ? this.search.getValue() : ""; // resize 保留已输入（pickerField 惯例）
         this.search = new net.minecraft.client.gui.components.EditBox(
-                this.textRenderer, this.x + PX, this.y + SEARCH_Y + 1, PW - 6, 12, Component.literal("搜索"));
-        this.search.setDrawsBackground(false); // m161b 去黑壳，底格自绘
-        this.search.setEditableColor(TXT);
-        this.search.setChangedListener(t -> refilter());
-        this.search.setText(keep);
-        this.addDrawableChild(this.search);
+                this.font, this.leftPos + PX, this.topPos + SEARCH_Y + 1, PW - 6, 12, Component.literal("搜索"));
+        this.search.setBordered(false); // m161b 去黑壳，底格自绘
+        this.search.setTextColor(TXT);
+        this.search.setResponder(t -> refilter());
+        this.search.setValue(keep);
+        this.addRenderableWidget(this.search);
         refilter();
     }
 
     /** m237 过滤视图重建：按结果物品显示名/注册 id 匹配（大小写不敏感），空词=全表。 */
     private void refilter() {
         view.clear();
-        String q = search != null ? search.getText().trim().toLowerCase() : "";
+        String q = search != null ? search.getValue().trim().toLowerCase() : "";
         List<SuperBenchRecipes.Recipe> all = SuperBenchRecipes.ALL;
         for (int i = 0; i < all.size(); i++) {
             if (!q.isEmpty()) {
                 SuperBenchRecipes.Recipe r = all.get(i);
-                String nm = SuperBenchRecipes.resultStack(r).getName().getString().toLowerCase();
+                String nm = SuperBenchRecipes.resultStack(r).getHoverName().getString().toLowerCase();
                 if (!nm.contains(q) && !r.result().toLowerCase().contains(q)) continue;
             }
             view.add(i);
@@ -81,7 +81,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
         // m287 按名称排序（作者点名）：中文按码点排没意义，借 m282 的 PinyinInitials 做拼音字母序
         // （抽屉c<刷石机s<自动熔炉z…），同首字母再按显示名稳定序。view 只动显示顺序，
         // selected/clickButton 全走 ALL 原下标，填料协议零改动。
-        view.sort(java.util.Comparator.comparing(i -> sortKey(SuperBenchRecipes.resultStack(all.get(i)).getName().getString())));
+        view.sort(java.util.Comparator.comparing(i -> sortKey(SuperBenchRecipes.resultStack(all.get(i)).getHoverName().getString())));
         scroll = 0;
     }
 
@@ -91,22 +91,22 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     }
 
     @Override
-    protected void drawBackground(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
-        int x = this.x, y = this.y;
+    protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
+        int x = this.leftPos, y = this.topPos;
         ctx.fill(0, 0, this.width, this.height, SciSkin.BACKDROP); // m117：与其余三屏统一的全屏底色（此前唯独本屏漏铺）
-        ctx.fill(x, y, x + backgroundWidth, y + backgroundHeight, PANEL);
+        ctx.fill(x, y, x + imageWidth, y + imageHeight, PANEL);
         // m240 三段带绘：0..304 原样 → 288..304 干净行带平铺补 16px → 304..316 底边带落到新底（艺术零拉伸）
-        ctx.drawTexture(BG, x, y, 0.0F, 0.0F, backgroundWidth, TEX_SPLIT, backgroundWidth, TEX_H);
-        ctx.drawTexture(BG, x, y + TEX_SPLIT, 0.0F, (float) TEX_TILE, backgroundWidth, TEX_SPLIT - TEX_TILE, backgroundWidth, TEX_H);
-        ctx.drawTexture(BG, x, y + TEX_SPLIT + (TEX_SPLIT - TEX_TILE), 0.0F, (float) TEX_SPLIT, backgroundWidth, TEX_H - TEX_SPLIT, backgroundWidth, TEX_H);
-        ctx.fill(x, y, x + backgroundWidth, y + 16, SciSkin.withAlpha8(SciSkin.CELL, 0xB8));       // 标题条可读性底（m207 归队）
-        ctx.fill(x + PX - 6, y + 16, x + backgroundWidth, y + backgroundHeight, SciSkin.withAlpha8(SciSkin.CELL, 0xA0)); // 浏览器区可读性底（m207 归队）
-        ctx.fill(x, y, x + backgroundWidth, y + 1, CYAN);
-        ctx.fill(x, y + 15, x + backgroundWidth, y + 16, CYAN);
-        ctx.fill(x + PX - 6, y + 18, x + PX - 5, y + backgroundHeight, CYAN); // 分隔线
+        ctx.blit(BG, x, y, 0.0F, 0.0F, imageWidth, TEX_SPLIT, imageWidth, TEX_H);
+        ctx.blit(BG, x, y + TEX_SPLIT, 0.0F, (float) TEX_TILE, imageWidth, TEX_SPLIT - TEX_TILE, imageWidth, TEX_H);
+        ctx.blit(BG, x, y + TEX_SPLIT + (TEX_SPLIT - TEX_TILE), 0.0F, (float) TEX_SPLIT, imageWidth, TEX_H - TEX_SPLIT, imageWidth, TEX_H);
+        ctx.fill(x, y, x + imageWidth, y + 16, SciSkin.withAlpha8(SciSkin.CELL, 0xB8));       // 标题条可读性底（m207 归队）
+        ctx.fill(x + PX - 6, y + 16, x + imageWidth, y + imageHeight, SciSkin.withAlpha8(SciSkin.CELL, 0xA0)); // 浏览器区可读性底（m207 归队）
+        ctx.fill(x, y, x + imageWidth, y + 1, CYAN);
+        ctx.fill(x, y + 15, x + imageWidth, y + 16, CYAN);
+        ctx.fill(x + PX - 6, y + 18, x + PX - 5, y + imageHeight, CYAN); // 分隔线
         // m237 搜索框底格（m216 工艺：CELL 底+细边，聚焦=强调色边；提示自绘在 drawForeground）
         ctx.fill(x + PX - 2, y + SEARCH_Y - 1, x + PX + PW - 2, y + SEARCH_Y + 13, SciSkin.CELL);
-        ctx.drawBorder(x + PX - 2, y + SEARCH_Y - 1, PW, 14,
+        ctx.renderOutline(x + PX - 2, y + SEARCH_Y - 1, PW, 14,
                 search != null && search.isFocused() ? CYAN : SciSkin.CELL_FRM);
 
         // m241 压缩区两钮底格（label 在 drawForeground；悬停=强调色边）
@@ -114,7 +114,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             int bx = x + PX + b * (BTN_W + BTN_GAP), by = y + BTN_Y;
             boolean hov = mouseX >= bx && mouseX < bx + BTN_W && mouseY >= by && mouseY < by + BTN_H;
             ctx.fill(bx, by, bx + BTN_W, by + BTN_H, SciSkin.BTN_FACE);
-            ctx.drawBorder(bx, by, BTN_W, BTN_H, hov ? CYAN : SciSkin.CELL_FRM);
+            ctx.renderOutline(bx, by, BTN_W, BTN_H, hov ? CYAN : SciSkin.CELL_FRM);
         }
 
         for (int r = 0; r < 12; r++)
@@ -135,15 +135,15 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     }
 
     @Override
-    protected void drawForeground(GuiGraphics ctx, int mouseX, int mouseY) {
-        ctx.drawText(this.textRenderer, "超大工作台 · 12×12", 8, 4, TXT, false);
-        ctx.drawText(this.textRenderer, "→", 232 - 14, 118 + 4, CYAN, false);
-        ctx.drawText(this.textRenderer, "材料位置随意", 8, 18 + 12 * 18 + 2, SUB, false);
+    protected void renderLabels(GuiGraphics ctx, int mouseX, int mouseY) {
+        ctx.drawString(this.font, "超大工作台 · 12×12", 8, 4, TXT, false);
+        ctx.drawString(this.font, "→", 232 - 14, 118 + 4, CYAN, false);
+        ctx.drawString(this.font, "材料位置随意", 8, 18 + 12 * 18 + 2, SUB, false);
 
         // ===== 右侧配方浏览器 =====
-        ctx.drawText(this.textRenderer, "机器配方（点击填料）", PX, 4, CYAN, false);
-        if (search != null && search.getText().isEmpty()) // m216 自绘提示：空文本两态都可见
-            ctx.drawText(this.textRenderer, "搜索机器…", PX + 1, SEARCH_Y + 2, SUB, false);
+        ctx.drawString(this.font, "机器配方（点击填料）", PX, 4, CYAN, false);
+        if (search != null && search.getValue().isEmpty()) // m216 自绘提示：空文本两态都可见
+            ctx.drawString(this.font, "搜索机器…", PX + 1, SEARCH_Y + 2, SUB, false);
         List<SuperBenchRecipes.Recipe> all = SuperBenchRecipes.ALL;
         int maxScroll = Math.max(0, view.size() - LIST_ROWS); // m237 滚动/翻页全走过滤视图
         if (scroll > maxScroll) scroll = maxScroll;
@@ -155,43 +155,43 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             int ey = LIST_Y + row * ENTRY_H;
             if (idx == selected) ctx.fill(PX, ey - 1, PX + PW, ey + ENTRY_H - 1, SEL);
             ItemStack res = SuperBenchRecipes.resultStack(r);
-            ctx.drawItem(res, PX + 1, ey);
+            ctx.renderItem(res, PX + 1, ey);
             // m165 档位角标：Ⅰ铜石(主世界早期)/Ⅱ铁(下界期)/Ⅲ金钻(终局)，颜色即材质盘暗示；小件 tier=0 不画
             int tier = r.tier();
             int nameW = PW - 22;
             if (tier > 0) {
                 String chip = tier == 1 ? "Ⅰ" : tier == 3 ? "Ⅲ" : "Ⅱ";
                 int cc = tier == 1 ? 0xFFE8A05A : tier == 3 ? 0xFF66E6FF : 0xFFB8C4D0;
-                ctx.drawText(this.textRenderer, chip, PX + PW - 12, ey + 4, cc, false);
+                ctx.drawString(this.font, chip, PX + PW - 12, ey + 4, cc, false);
                 nameW = PW - 36;
             }
-            String nm = this.textRenderer.trimToWidth(res.getName().getString(), nameW);
-            ctx.drawText(this.textRenderer, nm, PX + 20, ey + 4, TXT, false);
+            String nm = this.font.trimToWidth(res.getHoverName().getString(), nameW);
+            ctx.drawString(this.font, nm, PX + 20, ey + 4, TXT, false);
         }
         // m241 压缩区两钮文字（居中；底格在 drawBackground）
         String[] btnLabels = {"材料→压缩包", "拆开材料包"};
         for (int b = 0; b < 2; b++) {
             int bx = PX + b * (BTN_W + BTN_GAP);
-            int tw = this.textRenderer.getWidth(btnLabels[b]);
-            ctx.drawText(this.textRenderer, btnLabels[b], bx + (BTN_W - tw) / 2, BTN_Y + 4, TXT, false);
+            int tw = this.font.getWidth(btnLabels[b]);
+            ctx.drawString(this.font, btnLabels[b], bx + (BTN_W - tw) / 2, BTN_Y + 4, TXT, false);
         }
 
         // 滚动提示
-        ctx.drawText(this.textRenderer, view.isEmpty() ? "没有匹配的机器"
+        ctx.drawString(this.font, view.isEmpty() ? "没有匹配的机器"
                         : (scroll + LIST_ROWS < view.size() ? "▼ 滚轮翻页 " : "") + (scroll > 0 ? "▲" : ""),
                 PX, LIST_Y + LIST_ROWS * ENTRY_H + 2, SUB, false);
 
         // 选中配方的材料（活体对照：绿=已够(网格+背包)，红=还缺，计数显示 现有/需求）
         if (selected >= 0 && selected < all.size()) {
             int dy = LIST_Y + LIST_ROWS * ENTRY_H + 14;
-            ctx.drawText(this.textRenderer, "需要材料：", PX, dy, SUB, false);
+            ctx.drawString(this.font, "需要材料：", PX, dy, SUB, false);
             java.util.List<String> mobs = all.get(selected).mobs();
             if (!mobs.isEmpty()) {
                 StringBuilder sb = new StringBuilder();
                 boolean allOk = true;
                 for (String mob : mobs) { // m166 多生物逐只显示 ✔/✘（如刷铁机=村民+僵尸）
                     String mn;
-                    try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(mob)).getName().getString(); }
+                    try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(mob)).getDescription().getString(); }
                     catch (Exception ex) { mn = mob; }
                     if (sb.length() > 0) sb.append(' ');
                     boolean caged = hasCagedMob(mob);
@@ -199,7 +199,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                     sb.append(mn).append(caged ? "✔" : "✘");
                 }
                 String line = (allOk ? "已捕获: " : "需捕获(笼子装它): ") + sb;
-                ctx.drawText(this.textRenderer, this.textRenderer.trimToWidth(line, PW - 58),
+                ctx.drawString(this.font, this.font.trimToWidth(line, PW - 58),
                         PX + 58, dy, allOk ? 0xFF50E850 : SciSkin.RED, false);
             }
             Map<String, Integer> have = countAvailable();
@@ -218,25 +218,25 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 int got = Math.min(have.getOrDefault(e.getKey(), 0), e.getValue());
                 bl.put(e.getKey(), got >= e.getValue() ? "×" + cnt(e.getValue()) : cnt(got) + "/" + cnt(e.getValue()));
             }
-            bom.sort(java.util.Comparator.comparing(e -> sortKey(bs.get(e.getKey()).getName().getString())));
+            bom.sort(java.util.Comparator.comparing(e -> sortKey(bs.get(e.getKey()).getHoverName().getString())));
             final float S = 0.62F;
             int labelW = 12;
-            for (String l : bl.values()) labelW = Math.max(labelW, this.textRenderer.getWidth(l));
+            for (String l : bl.values()) labelW = Math.max(labelW, this.font.getWidth(l));
             int colW = 16 + labelW + 4, rowH = 18; // 行高 18：0.62 缩放下 (298-240)/0.62/18=5 行×6 列=30 格，守卫者农场级 BOM 全显
             int cols = Math.max(1, (int) (PW / S) / colW);
             int rows = Math.max(1, (int) ((BTN_Y - 4 - (dy + 12)) / S) / rowH); // 上界=两钮顶再让 4px
             int cap = cols * rows;
             boolean over = bom.size() > cap;
             int show = over ? cap - 1 : bom.size();
-            ctx.getMatrices().push();
-            ctx.getMatrices().translate(PX, dy + 12, 0);
-            ctx.getMatrices().scale(S, S, 1.0F);
+            ctx.pose().push();
+            ctx.pose().translate(PX, dy + 12, 0);
+            ctx.pose().scale(S, S, 1.0F);
             for (int k = 0; k < show; k++) {
                 Map.Entry<String, Integer> e = bom.get(k);
                 int sx = (k % cols) * colW, sy = (k / cols) * rowH;
-                ctx.drawItem(bs.get(e.getKey()), sx, sy);
+                ctx.renderItem(bs.get(e.getKey()), sx, sy);
                 boolean ok = bl.get(e.getKey()).startsWith("×");
-                ctx.drawText(this.textRenderer, bl.get(e.getKey()), sx + 17, sy + 5,
+                ctx.drawString(this.font, bl.get(e.getKey()), sx + 17, sy + 5,
                         ok ? 0xFF50E850 : SciSkin.RED, false);
             }
             bomOver = over; // m338 热区缓存（渲染点击同源）
@@ -245,20 +245,20 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             bomMoreW = (int) (S * colW);
             bomMoreH = (int) (S * rowH);
             if (over) {
-                boolean hovMore = mouseX - this.x >= bomMoreX && mouseX - this.x < bomMoreX + bomMoreW
-                        && mouseY - this.y >= bomMoreY && mouseY - this.y < bomMoreY + bomMoreH;
-                ctx.drawText(this.textRenderer, "+" + (bom.size() - show) + "▼",
+                boolean hovMore = mouseX - this.leftPos >= bomMoreX && mouseX - this.leftPos < bomMoreX + bomMoreW
+                        && mouseY - this.topPos >= bomMoreY && mouseY - this.topPos < bomMoreY + bomMoreH;
+                ctx.drawString(this.font, "+" + (bom.size() - show) + "▼",
                         (show % cols) * colW, (show / cols) * rowH + 5, hovMore ? SciSkin.ACCENT : SUB, false);
             }
-            ctx.getMatrices().pop();
+            ctx.pose().pop();
 
             if (bomExpanded) { // m338 材料总览卡：盖右栏（不压任何槽位，槽提示零穿透），原尺寸网格+滚轮翻行
                 int ox = PX - 4, oy = 20, ow = PW + 8, oh = BTN_Y + BTN_H - oy + 2;
-                ctx.getMatrices().push();
-                ctx.getMatrices().translate(0, 0, 400); // m283 置顶刀
+                ctx.pose().push();
+                ctx.pose().translate(0, 0, 400); // m283 置顶刀
                 ctx.fill(ox - 1, oy - 1, ox + ow + 1, oy + oh + 1, SciSkin.FRAME);
                 ctx.fill(ox, oy, ox + ow, oy + oh, SciSkin.CELL);
-                ctx.drawText(this.textRenderer, "全部材料（" + bom.size() + " 种）", ox + 6, oy + 5, TXT, false);
+                ctx.drawString(this.font, "全部材料（" + bom.size() + " 种）", ox + 6, oy + 5, TXT, false);
                 int gcolW = 16 + labelW + 6, gcols = Math.max(1, (ow - 14) / gcolW);
                 int grows = Math.max(1, (oh - 34) / 18);
                 int totalRows = (bom.size() + gcols - 1) / gcols;
@@ -268,13 +268,13 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                     int kk = k - bomScroll * gcols;
                     int sx = ox + 6 + (kk % gcols) * gcolW, sy = oy + 16 + (kk / gcols) * 18;
                     Map.Entry<String, Integer> e = bom.get(k);
-                    ctx.drawItem(bs.get(e.getKey()), sx, sy);
+                    ctx.renderItem(bs.get(e.getKey()), sx, sy);
                     boolean okE = bl.get(e.getKey()).startsWith("×");
-                    ctx.drawText(this.textRenderer, bl.get(e.getKey()), sx + 17, sy + 5,
+                    ctx.drawString(this.font, bl.get(e.getKey()), sx + 17, sy + 5,
                             okE ? 0xFF50E850 : SciSkin.RED, false);
-                    if (mouseX - this.x >= sx && mouseX - this.x < sx + gcolW
-                            && mouseY - this.y >= sy && mouseY - this.y < sy + 18)
-                        foot = bs.get(e.getKey()).getName().getString() + "  "
+                    if (mouseX - this.leftPos >= sx && mouseX - this.leftPos < sx + gcolW
+                            && mouseY - this.topPos >= sy && mouseY - this.topPos < sy + 18)
+                        foot = bs.get(e.getKey()).getHoverName().getString() + "  "
                                 + have.getOrDefault(e.getKey(), 0) + "/" + e.getValue(); // 悬停=精确数（cnt 缩写的全量口）
                 }
                 if (totalRows > grows) { // 迷你滚动条
@@ -284,10 +284,10 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                     int thumbY = trackY + (trackH - thumbH) * bomScroll / Math.max(1, totalRows - grows);
                     ctx.fill(ox + ow - 5, thumbY, ox + ow - 3, thumbY + thumbH, SciSkin.ACCENT);
                 }
-                ctx.drawText(this.textRenderer,
-                        foot != null ? this.textRenderer.trimToWidth(foot, ow - 12) : "滚轮翻行 · 再点/Esc 收起",
+                ctx.drawString(this.font,
+                        foot != null ? this.font.trimToWidth(foot, ow - 12) : "滚轮翻行 · 再点/Esc 收起",
                         ox + 6, oy + oh - 11, foot != null ? TXT : SUB, false);
-                ctx.getMatrices().pop();
+                ctx.pose().pop();
             }
         }
     }
@@ -300,22 +300,22 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     /** 网格 + 玩家背包里每种物品的可用量（客户端本地算，零网络）。 */
     private Map<String, Integer> countAvailable() {
         Map<String, Integer> m = new java.util.HashMap<>();
-        for (int i = 0; i < this.handler.slots.size(); i++) {
-            ItemStack s = this.handler.slots.get(i).getStack();
+        for (int i = 0; i < this.menu.slots.size(); i++) {
+            ItemStack s = this.menu.slots.get(i).getStack();
             if (s.isEmpty()) continue;
             // m242 认包：绿/红对照与服务端 gridMultiset 同口径——包按 内容物×倍率 计原版件数
             long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
             if (raw > 0) m.merge(com.sdzjz.item.CompressedPackItem.innerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
             else if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem))
-                m.merge(BuiltInRegistries.ITEM.getId(s.getItem()).toString(), s.getCount(), Integer::sum);
+                m.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         return m;
     }
 
     /** 网格或背包里是否有「装着指定生物」的抓物笼子。 */
     private boolean hasCagedMob(String mob) {
-        for (int i = 0; i < this.handler.slots.size(); i++) {
-            ItemStack s = this.handler.slots.get(i).getStack();
+        for (int i = 0; i < this.menu.slots.size(); i++) {
+            ItemStack s = this.menu.slots.get(i).getStack();
             if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
                     && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) return true;
         }
@@ -328,7 +328,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
             if (v < 0) bomScroll++; else if (v > 0) bomScroll = Math.max(0, bomScroll - 1);
             return true;
         }
-        double rx = mouseX - this.x;
+        double rx = mouseX - this.leftPos;
         if (rx >= PX - 6) {
             scroll = Math.max(0, scroll - (int) Math.signum(v));
             return true;
@@ -338,7 +338,7 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        double rx = mouseX - this.x, ry = mouseY - this.y;
+        double rx = mouseX - this.leftPos, ry = mouseY - this.topPos;
         if (bomExpanded) { bomExpanded = false; return true; } // m338 任意点=收起（可预期，不藏关闭钮）
         if (button == 0 && bomOver && rx >= bomMoreX && rx < bomMoreX + bomMoreW
                 && ry >= bomMoreY && ry < bomMoreY + bomMoreH) {
@@ -346,8 +346,8 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
         }
         if (button == 0 && ry >= BTN_Y && ry < BTN_Y + BTN_H && rx >= PX && rx < PX + PW) { // m241 压缩区两钮
             int b = rx < PX + BTN_W ? 0 : (rx >= PX + BTN_W + BTN_GAP ? 1 : -1);
-            if (b >= 0 && this.client != null && this.client.interactionManager != null) {
-                this.client.interactionManager.clickButton(this.handler.syncId,
+            if (b >= 0 && this.minecraft != null && this.minecraft.gameMode != null) {
+                this.minecraft.gameMode.clickButton(this.menu.containerId,
                         b == 0 ? SuperBenchScreenHandler.BTN_COMPRESS : SuperBenchScreenHandler.BTN_UNPACK);
                 return true;
             }
@@ -359,8 +359,8 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
                 int idx = view.get(vi); // m237 过滤视图→ALL 下标，填料协议 clickButton(原下标) 口径不变
                 selected = idx;
                 bomExpanded = false; bomScroll = 0; // m338 换台收卡清滚
-                if (this.client != null && this.client.interactionManager != null) {
-                    this.client.interactionManager.clickButton(this.handler.syncId, idx); // 填料
+                if (this.minecraft != null && this.minecraft.gameMode != null) {
+                    this.minecraft.gameMode.clickButton(this.menu.containerId, idx); // 填料
                 }
                 return true;
             }
@@ -387,6 +387,6 @@ public class SuperBenchScreen extends AbstractContainerScreen<SuperBenchScreenHa
     @Override
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        this.drawMouseoverTooltip(ctx, mouseX, mouseY);
+        this.renderTooltip(ctx, mouseX, mouseY);
     }
 }

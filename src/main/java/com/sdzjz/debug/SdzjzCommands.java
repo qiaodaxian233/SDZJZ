@@ -24,7 +24,7 @@ public final class SdzjzCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((disp, reg, env) -> disp.register(
-                literal("sdzjz").requires(s -> s.hasPermissionLevel(2))
+                literal("sdzjz").requires(s -> s.hasPermission(2))
                         .then(literal("profile")
                                 .then(literal("core").executes(c -> profileCore(c.getSource())))
                                 .then(literal("network").executes(c -> profileNetwork(c.getSource())))
@@ -32,28 +32,28 @@ public final class SdzjzCommands {
                                 .then(literal("phase") // m321 阶段账单：谁在吃时间
                                         .executes(c -> {
                                             for (String ln : CoreProfiler.phaseReport())
-                                                c.getSource().sendFeedback(() -> Component.literal("§7" + ln), false);
+                                                c.getSource().sendSuccess(() -> Component.literal("§7" + ln), false);
                                             return 1;
                                         })
                                         .then(literal("on").executes(c -> {
                                             CoreProfiler.PHASES = true;
-                                            c.getSource().sendFeedback(() -> Component.literal("§a[sdzjz] 细分计时已开（热路径逐调用计时，测完记得 off）"), false);
+                                            c.getSource().sendSuccess(() -> Component.literal("§a[sdzjz] 细分计时已开（热路径逐调用计时，测完记得 off）"), false);
                                             return 1;
                                         }))
                                         .then(literal("off").executes(c -> {
                                             CoreProfiler.PHASES = false;
-                                            c.getSource().sendFeedback(() -> Component.literal("§a[sdzjz] 细分计时已关"), false);
+                                            c.getSource().sendSuccess(() -> Component.literal("§a[sdzjz] 细分计时已关"), false);
                                             return 1;
                                         })))
                                 .then(literal("remover").executes(c -> { // m391 移除器七段账（性能小阶段仪表）
                                     for (String ln : CoreProfiler.removerReport())
-                                        c.getSource().sendFeedback(() -> Component.literal("§7" + ln), false);
+                                        c.getSource().sendSuccess(() -> Component.literal("§7" + ln), false);
                                     return 1;
                                 }))
                                 .then(literal("reset").executes(c -> {
                                     CoreProfiler.resetAll();
                                     com.sdzjz.machine.CoreScheduler.resetStats(); // m304 只清计数不动名单
-                                    c.getSource().sendFeedback(() -> Component.literal("§a[sdzjz] 剖析计数窗已清零"), false);
+                                    c.getSource().sendSuccess(() -> Component.literal("§a[sdzjz] 剖析计数窗已清零"), false);
                                     return 1;
                                 })))
                         .then(literal("dumpgraph").executes(c -> dumpGraph(c.getSource())))
@@ -95,7 +95,7 @@ public final class SdzjzCommands {
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "cap"))))))
                                 .then(literal("stop").executes(c -> {
                                     final String r = BenchRunner.stopNow();
-                                    c.getSource().sendFeedback(() -> Component.literal(r), false);
+                                    c.getSource().sendSuccess(() -> Component.literal(r), false);
                                     return 1;
                                 })))));
     }
@@ -105,12 +105,12 @@ public final class SdzjzCommands {
         BenchRunner.Workload w;
         try { w = BenchRunner.Workload.valueOf(wl.toUpperCase(java.util.Locale.ROOT)); }
         catch (IllegalArgumentException e) {
-            src.sendFeedback(() -> Component.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
+            src.sendSuccess(() -> Component.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
             return 0;
         }
-        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
-        final String r = BenchRunner.startMatrix(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, secs, cap, w);
-        src.sendFeedback(() -> Component.literal(r), false);
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUUID() : null;
+        final String r = BenchRunner.startMatrix(src.getLevel(), BlockPos.containing(src.getPosition()), by, secs, cap, w);
+        src.sendSuccess(() -> Component.literal(r), false);
         return 1;
     }
 
@@ -119,45 +119,45 @@ public final class SdzjzCommands {
         BenchRunner.Workload w;
         try { w = BenchRunner.Workload.valueOf(wl.toUpperCase(java.util.Locale.ROOT)); }
         catch (IllegalArgumentException e) {
-            src.sendFeedback(() -> Component.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
+            src.sendSuccess(() -> Component.literal("§c工况须为 idle|cobble|craft_fed|craft_chain|mixed"), false);
             return 0;
         }
-        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
-        final String r = BenchRunner.start(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, cores, nodes, secs, cap, w);
-        src.sendFeedback(() -> Component.literal(r), false);
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUUID() : null;
+        final String r = BenchRunner.start(src.getLevel(), BlockPos.containing(src.getPosition()), by, cores, nodes, secs, cap, w);
+        src.sendSuccess(() -> Component.literal(r), false);
         return 1;
     }
 
     /** m355 三档矩阵入口：100/300/500×64 自动串跑，默认每档 60s cap=100。 */
     private static int benchMatrix(CommandSourceStack src, int secs, int cap) {
-        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
-        final String r = BenchRunner.startMatrix(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, secs, cap);
-        src.sendFeedback(() -> Component.literal(r), false);
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUUID() : null;
+        final String r = BenchRunner.startMatrix(src.getLevel(), BlockPos.containing(src.getPosition()), by, secs, cap);
+        src.sendSuccess(() -> Component.literal(r), false);
         return 1;
     }
 
     /** m306 一键压测入口：四参齐给才算自定义，否则默认 20核×64节点×60s×cap100（评审矩阵最小档）。 */
     private static int benchStart(CommandSourceStack src, int cores, int nodes, int secs, int cap) {
-        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUuid() : null;
-        final String r = BenchRunner.start(src.getWorld(), BlockPos.ofFloored(src.getPosition()), by, cores, nodes, secs, cap);
-        src.sendFeedback(() -> Component.literal(r), false);
+        java.util.UUID by = src.getPlayer() != null ? src.getPlayer().getUUID() : null;
+        final String r = BenchRunner.start(src.getLevel(), BlockPos.containing(src.getPosition()), by, cores, nodes, secs, cap);
+        src.sendSuccess(() -> Component.literal(r), false);
         return 1;
     }
 
     private static int profileCore(CommandSourceStack src) {
-        String dim = src.getWorld().getRegistryKey().getValue().toString();
+        String dim = src.getLevel().dimension().location().toString();
         List<CoreProfiler.Stats> list = CoreProfiler.active(dim);
         if (list.isEmpty()) {
-            src.sendFeedback(() -> Component.literal("§7[sdzjz] 本维度最近 5 秒无活跃核心（核心需已加载）"), false);
+            src.sendSuccess(() -> Component.literal("§7[sdzjz] 本维度最近 5 秒无活跃核心（核心需已加载）"), false);
             return 0;
         }
-        src.sendFeedback(() -> Component.literal("§b[sdzjz] 活跃核心 ×" + list.size() + "（按均耗排序，窗口=最近100tick）"), false);
+        src.sendSuccess(() -> Component.literal("§b[sdzjz] 活跃核心 ×" + list.size() + "（按均耗排序，窗口=最近100tick）"), false);
         for (CoreProfiler.Stats s : list) {
             String line = String.format("§f%s §7| 节点%d 边%d %s §7| tick §e均%.0fµs §6峰%.0fµs §7| 路由 %.1f/s 供料 %.1f/s 链查 %.1f/s §7编译%d",
-                    BlockPos.fromLong(s.pos).toShortString(), s.nodes, s.edges, s.running ? "§a运行" : "§8停机",
+                    BlockPos.of(s.pos).toShortString(), s.nodes, s.edges, s.running ? "§a运行" : "§8停机",
                     s.avgMicros(), s.maxMicros(),
                     s.perSec(s.routes), s.perSec(s.storageResolves), s.perSec(s.chainChecks), s.planCompiles);
-            src.sendFeedback(() -> Component.literal(line), false);
+            src.sendSuccess(() -> Component.literal(line), false);
         }
         return list.size();
     }
@@ -167,12 +167,12 @@ public final class SdzjzCommands {
     private static int profileSched(CommandSourceStack src) {
         long cap = com.sdzjz.config.SdzjzConfig.get().maxRecipesPerNetworkTick;
         if (cap <= 0) {
-            src.sendFeedback(() -> Component.literal("§7[sdzjz] 全服预算闸关（maxRecipesPerNetworkTick≤0=无限），调度器整体旁路无账可读"), false);
+            src.sendSuccess(() -> Component.literal("§7[sdzjz] 全服预算闸关（maxRecipesPerNetworkTick≤0=无限），调度器整体旁路无账可读"), false);
             return 0;
         }
         java.util.List<com.sdzjz.machine.CoreScheduler.Row> rows = com.sdzjz.machine.CoreScheduler.statRows();
         if (rows.isEmpty()) {
-            src.sendFeedback(() -> Component.literal("§7[sdzjz] 自上次清零以来无核心申请过预算（核心需在跑且有节点结算）"), false);
+            src.sendSuccess(() -> Component.literal("§7[sdzjz] 自上次清零以来无核心申请过预算（核心需在跑且有节点结算）"), false);
             return 0;
         }
         rows.sort(java.util.Comparator.comparingLong(r -> r.granted));
@@ -183,22 +183,22 @@ public final class SdzjzCommands {
                 "§b[sdzjz] 调度器账单 §7cap=%d/tick 上拍消费=%d 待保底=%d 本拍新记名=%d 核数=%d",
                 cap, com.sdzjz.machine.CoreScheduler.prevTickSpent(),
                 com.sdzjz.machine.CoreScheduler.starvedPending(), com.sdzjz.machine.CoreScheduler.starvedNew(), rows.size());
-        src.sendFeedback(() -> Component.literal(head), false);
+        src.sendSuccess(() -> Component.literal(head), false);
         final String verdict = zeroCores > 0
                 ? "§c零吞吐核心 ×" + zeroCores + "（长期为 0 = 防饥饿失效，请贴报告）"
                 : (min > 0 ? String.format("§a最高/最低 = %.1f×（评审判据：几倍内且无恒 0 = 达标）", (double) max / min) : "§7样本尚少");
         final String stat = String.format("§f granted 最低=%d 中位=%d 最高=%d  %s", min, median, max, verdict);
-        src.sendFeedback(() -> Component.literal(stat), false);
+        src.sendSuccess(() -> Component.literal(stat), false);
         int show = Math.min(3, rows.size());
         for (int i = 0; i < show; i++) {
             com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
-            final String line = String.format("§7  低│%s %s granted=%d 记名=%d", r.dim, BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents);
-            src.sendFeedback(() -> Component.literal(line), false);
+            final String line = String.format("§7  低│%s %s granted=%d 记名=%d", r.dim, BlockPos.of(r.pos).toShortString(), r.granted, r.zeroEvents);
+            src.sendSuccess(() -> Component.literal(line), false);
         }
         for (int i = Math.max(show, rows.size() - 3); i < rows.size(); i++) {
             com.sdzjz.machine.CoreScheduler.Row r = rows.get(i);
-            final String line = String.format("§7  高│%s %s granted=%d 记名=%d", r.dim, BlockPos.fromLong(r.pos).toShortString(), r.granted, r.zeroEvents);
-            src.sendFeedback(() -> Component.literal(line), false);
+            final String line = String.format("§7  高│%s %s granted=%d 记名=%d", r.dim, BlockPos.of(r.pos).toShortString(), r.granted, r.zeroEvents);
+            src.sendSuccess(() -> Component.literal(line), false);
         }
         return rows.size();
     }
@@ -214,32 +214,32 @@ public final class SdzjzCommands {
                 "§b[sdzjz] 同步账单§7（窗口 %.0fs，活跃核心 %d）§f 核心NBT %d 包 / %.1f KB §7|§f 端点直发 %d 包 / 均 %.0f 条 §7|§f 合计 %.2f KB/s",
                 sec, list.size(), pk, by / 1024.0, ep, ep == 0 ? 0 : (double) ee / ep,
                 sec < 0.05 ? 0 : by / 1024.0 / sec);
-        src.sendFeedback(() -> Component.literal(line), false);
-        src.sendFeedback(() -> Component.literal("§7  （端点直发包按 payload 条目计，字节未计——增量同步改造后此处对表收益）"), false);
+        src.sendSuccess(() -> Component.literal(line), false);
+        src.sendSuccess(() -> Component.literal("§7  （端点直发包按 payload 条目计，字节未计——增量同步改造后此处对表收益）"), false);
         return 1;
     }
 
     private static int dumpGraph(CommandSourceStack src) {
-        BlockPos me = BlockPos.ofFloored(src.getPosition());
-        String dim = src.getWorld().getRegistryKey().getValue().toString();
+        BlockPos me = BlockPos.containing(src.getPosition());
+        String dim = src.getLevel().dimension().location().toString();
         CoreProfiler.Stats best = null; double bd = 64 * 64;
         for (CoreProfiler.Stats s : CoreProfiler.active(dim)) {
-            double d = BlockPos.fromLong(s.pos).getSquaredDistance(me);
+            double d = BlockPos.of(s.pos).getSquaredDistance(me);
             if (d < bd) { bd = d; best = s; }
         }
         if (best == null) {
-            src.sendFeedback(() -> Component.literal("§7[sdzjz] 64 格内无活跃核心"), false);
+            src.sendSuccess(() -> Component.literal("§7[sdzjz] 64 格内无活跃核心"), false);
             return 0;
         }
-        if (!(src.getWorld().getBlockEntity(BlockPos.fromLong(best.pos)) instanceof StructureCoreBlockEntity be)) {
-            src.sendFeedback(() -> Component.literal("§7[sdzjz] 核心方块实体未加载"), false);
+        if (!(src.getLevel().getBlockEntity(BlockPos.of(best.pos)) instanceof StructureCoreBlockEntity be)) {
+            src.sendSuccess(() -> Component.literal("§7[sdzjz] 核心方块实体未加载"), false);
             return 0;
         }
         String dump = be.debugDump();
-        Sdzjz.LOGGER.info("[sdzjz dumpgraph] {} @ {}\n{}", dim, BlockPos.fromLong(best.pos).toShortString(), dump);
+        Sdzjz.LOGGER.info("[sdzjz dumpgraph] {} @ {}\n{}", dim, BlockPos.of(best.pos).toShortString(), dump);
         final CoreProfiler.Stats fb = best;
-        src.sendFeedback(() -> Component.literal(String.format(
-                "§a[sdzjz] 已转储核心 %s：节点 %d / 边 %d → 服务器日志 logs/latest.log", BlockPos.fromLong(fb.pos).toShortString(), fb.nodes, fb.edges)), false);
+        src.sendSuccess(() -> Component.literal(String.format(
+                "§a[sdzjz] 已转储核心 %s：节点 %d / 边 %d → 服务器日志 logs/latest.log", BlockPos.of(fb.pos).toShortString(), fb.nodes, fb.edges)), false);
         return 1;
     }
 }

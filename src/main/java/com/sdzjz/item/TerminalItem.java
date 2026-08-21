@@ -28,22 +28,22 @@ public class TerminalItem extends Item {
     private static final String K_POS = "sdzjz_pos", K_DIM = "sdzjz_dim", K_RESTOCK = "sdzjz_rst";
     private static final String K_LAST = "sdzjz_last", K_FEED = "sdzjz_feed", K_FFOOD = "sdzjz_ffood";
 
-    public TerminalItem(Settings settings) {
+    public TerminalItem(Properties settings) {
         super(settings);
     }
 
     /** 右键数据面板：绑定；右键其它方块：转交 use() 打开。 */
     @Override
-    public InteractionResult useOnBlock(UseOnContext ctx) {
-        Level world = ctx.getWorld();
-        if (world.isClient) return InteractionResult.SUCCESS;
-        BlockPos pos = ctx.getBlockPos();
+    public InteractionResult useOn(UseOnContext ctx) {
+        Level world = ctx.getLevel();
+        if (world.isClientSide) return InteractionResult.SUCCESS;
+        BlockPos pos = ctx.getClickedPos();
         if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity) {
-            CustomData oc = ctx.getStack().get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyNbt() : new CompoundTag(); // 保留补货阈值等既有设置
+            CustomData oc = ctx.getItemInHand().get(DataComponents.CUSTOM_DATA);
+            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留补货阈值等既有设置
             nbt.putLong(K_POS, pos.asLong());
-            nbt.putString(K_DIM, world.getRegistryKey().getValue().toString());
-            ctx.getStack().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            nbt.putString(K_DIM, world.dimension().location().toString());
+            ctx.getItemInHand().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
             msg(ctx.getPlayer(), "终端已绑定面板 " + pos.toShortString());
             return InteractionResult.SUCCESS;
         }
@@ -53,12 +53,12 @@ public class TerminalItem extends Item {
     /** 右键空手/地面：远程打开绑定的面板。 */
     @Override
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-        ItemStack stack = player.getStackInHand(hand);
-        if (world.isClient) return InteractionResultHolder.success(stack);
+        ItemStack stack = player.getItemInHand(hand);
+        if (world.isClientSide) return InteractionResultHolder.success(stack);
 
-        if (player.isSneaking()) { // m80d：潜行右键循环自动补货阈值 关→16→32→64→关
+        if (player.isShiftKeyDown()) { // m80d：潜行右键循环自动补货阈值 关→16→32→64→关
             CustomData oc = stack.get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyNbt() : new CompoundTag();
+            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag();
             int th = nbt.getInt(K_RESTOCK);
             th = th == 0 ? 16 : th == 16 ? 32 : th == 32 ? 64 : 0;
             nbt.putInt(K_RESTOCK, th);
@@ -69,17 +69,17 @@ public class TerminalItem extends Item {
         }
 
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null || !c.copyNbt().contains(K_POS)) {
+        if (c == null || !c.copyTag().contains(K_POS)) {
             msg(player, "先右键一个数据面板绑定终端");
             return InteractionResultHolder.fail(stack);
         }
-        CompoundTag nbt = c.copyNbt();
-        BlockPos target = BlockPos.fromLong(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(nbt.getString(K_DIM)));
+        CompoundTag nbt = c.copyTag();
+        BlockPos target = BlockPos.of(nbt.getLong(K_POS));
+        ResourceKey<Level> dimKey = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
 
         Level tw = world;
-        if (!world.getRegistryKey().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw) {
-            tw = sw.getServer().getWorld(dimKey);
+        if (!world.dimension().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw) {
+            tw = sw.getServer().getLevel(dimKey);
         }
         if (tw == null || !(tw.getBlockEntity(target) instanceof DataPanelBlockEntity panel)) {
             msg(player, "面板不可达（区块未加载或已移除）");
@@ -87,8 +87,8 @@ public class TerminalItem extends Item {
         }
         // m303 AccessMode：远程开屏不再直走 openHandledScreen(panel)（那会进 BE.createMenu=方块模式），
         // 自带工厂把 remote=true 塞进 handler 构造链；开屏数据仍发 BlockPos，客户端工厂零改动。
-        player.openHandledScreen(new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos>() {
-            @Override public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer sp) { return panel.getPos(); }
+        player.openMenu(new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos>() {
+            @Override public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer sp) { return panel.getBlockPos(); }
             @Override public Component getDisplayName() { return panel.getDisplayName(); }
             @Override public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId, net.minecraft.world.entity.player.Inventory inv, Player p) {
                 return new com.sdzjz.screen.DataPanelScreenHandler(syncId, inv, panel, true);
@@ -100,12 +100,12 @@ public class TerminalItem extends Item {
     /** m82：补货(含"打空自动补一组") + 镶嵌喂食，终端在背包里即生效。 */
     @Override
     public void inventoryTick(ItemStack stack, Level world, net.minecraft.world.entity.Entity entity, int slot, boolean selected) {
-        if (world.isClient) return;
+        if (world.isClientSide) return;
         if (!(entity instanceof net.minecraft.server.level.ServerPlayer player)) return;
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return;
-        CompoundTag nbt = c.copyNbt();
-        long t = world.getTime();
+        CompoundTag nbt = c.copyTag();
+        long t = world.getGameTime();
         if (t % 20 == 0) restockTick(stack, world, player, nbt);
         if (t % 40 == 0 && nbt.getBoolean(K_FEED))
             AutoFeederItem.feedTick(world, player, nbt.getString(K_FFOOD), nbt); // 镶嵌喂食：用终端自己的绑定取食物
@@ -114,44 +114,44 @@ public class TerminalItem extends Item {
     private void restockTick(ItemStack stack, Level world, net.minecraft.server.level.ServerPlayer player, CompoundTag nbt) {
         int th = nbt.getInt(K_RESTOCK);
         if (th <= 0 || !nbt.contains(K_POS)) return;
-        ItemStack hand = player.getMainHandStack();
+        ItemStack hand = player.getMainHandItem();
         String last = nbt.getString(K_LAST);
         if (!hand.isEmpty()) {
-            if (hand.getMaxCount() <= 1) return;                              // 只补可堆叠物
-            if (!hand.getComponentChanges().isEmpty()) return;                 // 带组件的不按 id 补
+            if (hand.getMaxStackSize() <= 1) return;                              // 只补可堆叠物
+            if (!hand.getComponentsPatch().isEmpty()) return;                 // 带组件的不按 id 补
             if (hand.getItem() instanceof TerminalItem || hand.getItem() instanceof AutoFeederItem) return;
-            String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(hand.getItem()).toString();
+            String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(hand.getItem()).toString();
             if (!id.equals(last)) { nbt.putString(K_LAST, id); stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt)); }
-            int want = Math.min(th, hand.getMaxCount()) - hand.getCount();
+            int want = Math.min(th, hand.getMaxStackSize()) - hand.getCount();
             if (want <= 0) return;
             DataPanelBlockEntity panel = resolvePanel(world, nbt);
             if (panel == null) return;
             int got = panel.withdraw(id, want);
-            if (got > 0) hand.increment(got);
+            if (got > 0) hand.grow(got);
         } else if (!last.isEmpty()) {
             // 手里打空了 → 按上次手持记忆直接补一组到手（用户点名的行为）
             DataPanelBlockEntity panel = resolvePanel(world, nbt);
             if (panel == null) return;
             net.minecraft.world.item.Item it = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(last));
-            int got = panel.withdraw(last, Math.min(th, new ItemStack(it).getMaxCount()));
-            if (got > 0) player.getInventory().setStack(player.getInventory().selectedSlot, new ItemStack(it, got));
+            int got = panel.withdraw(last, Math.min(th, new ItemStack(it).getMaxStackSize()));
+            if (got > 0) player.getInventory().setItem(player.getInventory().selected, new ItemStack(it, got));
         }
     }
 
     /** m82：喂食器像镶嵌一样装进终端——背包里把喂食器「右键点到」终端上=安装；右键空手点终端=取出。 */
     @Override
-    public boolean onClicked(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
+    public boolean onPress(ItemStack stack, ItemStack otherStack, net.minecraft.world.inventory.Slot slot,
                              net.minecraft.world.inventory.ClickAction clickType, Player player,
                              net.minecraft.world.entity.SlotAccess cursorStackReference) {
-        if (clickType != net.minecraft.world.inventory.ClickAction.RIGHT) return false;
+        if (clickType != net.minecraft.world.inventory.ClickAction.SECONDARY) return false;
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        CompoundTag nbt = c != null ? c.copyNbt() : new CompoundTag();
+        CompoundTag nbt = c != null ? c.copyTag() : new CompoundTag();
         if (otherStack.getItem() instanceof AutoFeederItem && !nbt.getBoolean(K_FEED)) { // 安装
             CustomData fc = otherStack.get(DataComponents.CUSTOM_DATA);
             nbt.putBoolean(K_FEED, true);
-            nbt.putString(K_FFOOD, fc != null ? fc.copyNbt().getString(AutoFeederItem.K_FOOD) : "");
+            nbt.putString(K_FFOOD, fc != null ? fc.copyTag().getString(AutoFeederItem.K_FOOD) : "");
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
-            otherStack.decrement(1);
+            otherStack.shrink(1);
             return true;
         }
         if (otherStack.isEmpty() && nbt.getBoolean(K_FEED)) { // 取出（左键仍可正常拿终端）
@@ -177,45 +177,45 @@ public class TerminalItem extends Item {
         if (world == null || pos == null || !(stack.getItem() instanceof TerminalItem)) return false;
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return false;
-        CompoundTag nbt = c.copyNbt();
+        CompoundTag nbt = c.copyTag();
         return nbt.contains(K_POS)
-                && BlockPos.fromLong(nbt.getLong(K_POS)).equals(pos)
-                && world.getRegistryKey().getValue().toString().equals(nbt.getString(K_DIM));
+                && BlockPos.of(nbt.getLong(K_POS)).equals(pos)
+                && world.dimension().location().toString().equals(nbt.getString(K_DIM));
     }
 
     /** 解析绑定的面板（可跨维度，区块须已加载）。 */
     static DataPanelBlockEntity resolvePanel(Level world, CompoundTag nbt) {
-        BlockPos target = BlockPos.fromLong(nbt.getLong(K_POS));
-        ResourceKey<Level> dimKey = ResourceKey.of(Registries.WORLD, ResourceLocation.parse(nbt.getString(K_DIM)));
+        BlockPos target = BlockPos.of(nbt.getLong(K_POS));
+        ResourceKey<Level> dimKey = ResourceKey.of(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
         Level tw = world;
-        if (!world.getRegistryKey().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw)
-            tw = sw.getServer().getWorld(dimKey);
+        if (!world.dimension().equals(dimKey) && world instanceof net.minecraft.server.level.ServerLevel sw)
+            tw = sw.getServer().getLevel(dimKey);
         if (tw == null) return null;
         BlockPos p = target;
-        if (!tw.getChunkManager().isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return null;
+        if (!tw.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4)) return null;
         return tw.getBlockEntity(p) instanceof DataPanelBlockEntity dp ? dp : null;
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        int th = c != null ? c.copyNbt().getInt(K_RESTOCK) : 0;
+        int th = c != null ? c.copyTag().getInt(K_RESTOCK) : 0;
         tooltip.add(Component.literal(th > 0 ? "自动补货: 手持 < " + th + " 补齐，打空补一组（潜行右键调整）"
-                : "自动补货: 关（潜行右键开启）").formatted(net.minecraft.ChatFormatting.AQUA));
-        CompoundTag tn = c != null ? c.copyNbt() : new CompoundTag();
+                : "自动补货: 关（潜行右键开启）").withStyle(net.minecraft.ChatFormatting.AQUA));
+        CompoundTag tn = c != null ? c.copyTag() : new CompoundTag();
         if (tn.getBoolean(K_FEED)) {
             String fo = tn.getString(K_FFOOD);
             String fn2 = fo.isEmpty() ? "未选食物" : net.minecraft.core.registries.BuiltInRegistries.ITEM
-                    .get(ResourceLocation.parse(fo)).getName().getString();
+                    .get(ResourceLocation.parse(fo)).getDescription().getString();
             tooltip.add(Component.literal("已镶嵌: 自动喂食器（" + fn2 + "）· 右键空手取出")
-                    .formatted(net.minecraft.ChatFormatting.GREEN));
+                    .withStyle(net.minecraft.ChatFormatting.GREEN));
         } else {
-            tooltip.add(Component.literal("背包里把喂食器右键点到终端上=镶嵌").formatted(net.minecraft.ChatFormatting.DARK_GRAY));
+            tooltip.add(Component.literal("背包里把喂食器右键点到终端上=镶嵌").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
         }
     }
 
     private static void msg(Player player, String s) {
-        if (player != null) player.sendMessage(Component.literal(s), true);
+        if (player != null) player.displayClientMessage(Component.literal(s), true);
     }
 }

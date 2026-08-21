@@ -16,10 +16,10 @@ public record ChunkRemoverConfigPayload(int hand, int radius, int mode, int seal
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("sdzjz", "chunk_remover_config"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ChunkRemoverConfigPayload> CODEC = StreamCodec.composite(
-            ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::hand,
-            ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::radius,
-            ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::mode,
-            ByteBufCodecs.INTEGER, ChunkRemoverConfigPayload::seal,
+            ByteBufCodecs.INT, ChunkRemoverConfigPayload::hand,
+            ByteBufCodecs.INT, ChunkRemoverConfigPayload::radius,
+            ByteBufCodecs.INT, ChunkRemoverConfigPayload::mode,
+            ByteBufCodecs.INT, ChunkRemoverConfigPayload::seal,
             ChunkRemoverConfigPayload::new
     );
 

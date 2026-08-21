@@ -30,21 +30,21 @@ public class AutoFeederItem extends Item {
     private static final String K_POS = "sdzjz_pos", K_DIM = "sdzjz_dim";
     static final String K_FOOD = "sdzjz_food"; // 终端镶嵌时要读
 
-    public AutoFeederItem(Settings settings) {
+    public AutoFeederItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public InteractionResult useOnBlock(UseOnContext ctx) {
-        Level world = ctx.getWorld();
-        if (world.isClient) return InteractionResult.SUCCESS;
-        BlockPos pos = ctx.getBlockPos();
+    public InteractionResult useOn(UseOnContext ctx) {
+        Level world = ctx.getLevel();
+        if (world.isClientSide) return InteractionResult.SUCCESS;
+        BlockPos pos = ctx.getClickedPos();
         if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity) {
-            CustomData oc = ctx.getStack().get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyNbt() : new CompoundTag(); // 保留已选食物
+            CustomData oc = ctx.getItemInHand().get(DataComponents.CUSTOM_DATA);
+            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留已选食物
             nbt.putLong(K_POS, pos.asLong());
-            nbt.putString(K_DIM, world.getRegistryKey().getValue().toString());
-            ctx.getStack().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            nbt.putString(K_DIM, world.dimension().location().toString());
+            ctx.getItemInHand().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
             msg(ctx.getPlayer(), "喂食器已绑定面板 " + pos.toShortString());
             return InteractionResult.SUCCESS;
         }
@@ -53,36 +53,36 @@ public class AutoFeederItem extends Item {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
-        ItemStack stack = player.getStackInHand(hand);
-        if (world.isClient) return InteractionResultHolder.success(stack);
+        ItemStack stack = player.getItemInHand(hand);
+        if (world.isClientSide) return InteractionResultHolder.success(stack);
         CustomData oc = stack.get(DataComponents.CUSTOM_DATA);
-        CompoundTag nbt = oc != null ? oc.copyNbt() : new CompoundTag();
-        if (player.isSneaking()) {
+        CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag();
+        if (player.isShiftKeyDown()) {
             nbt.remove(K_FOOD);
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
             msg(player, "已清除选定食物");
             return InteractionResultHolder.success(stack);
         }
-        ItemStack off = player.getOffHandStack();
+        ItemStack off = player.getOffhandItem();
         if (!off.isEmpty() && off.get(DataComponents.FOOD) != null) {
-            nbt.putString(K_FOOD, BuiltInRegistries.ITEM.getId(off.getItem()).toString());
+            nbt.putString(K_FOOD, BuiltInRegistries.ITEM.getKey(off.getItem()).toString());
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
-            msg(player, "已设定食物: " + off.getName().getString());
+            msg(player, "已设定食物: " + off.getHoverName().getString());
             return InteractionResultHolder.success(stack);
         }
         String cur = nbt.getString(K_FOOD);
         msg(player, cur.isEmpty() ? "副手拿食物再右键=设定；潜行右键=清除"
-                : "当前食物: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getName().getString());
+                : "当前食物: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getDescription().getString());
         return InteractionResultHolder.success(stack);
     }
 
     @Override
     public void inventoryTick(ItemStack stack, Level world, net.minecraft.world.entity.Entity entity, int slot, boolean selected) {
-        if (world.isClient || world.getTime() % 40 != 0) return;
+        if (world.isClientSide || world.getGameTime() % 40 != 0) return;
         if (!(entity instanceof net.minecraft.server.level.ServerPlayer player)) return;
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
         if (c == null) return;
-        CompoundTag nbt = c.copyNbt();
+        CompoundTag nbt = c.copyTag();
         feedTick(world, player, nbt.getString(K_FOOD), nbt);
     }
 
@@ -92,40 +92,40 @@ public class AutoFeederItem extends Item {
         Item food = BuiltInRegistries.ITEM.get(ResourceLocation.parse(foodId));
         FoodProperties fc = new ItemStack(food).get(DataComponents.FOOD);
         if (fc == null) return;
-        int lvl = player.getHungerManager().getFoodLevel();
+        int lvl = player.getFoodData().getFoodLevel();
         boolean fit = lvl <= 20 - fc.nutrition(); // 吃一份不浪费
         if (!fit && lvl > 6) return;              // ≤6 强制吃防饿死
         boolean got = false;
         var inv = player.getInventory();
-        for (int i = 0; i < inv.size(); i++) {
-            ItemStack s = inv.getStack(i);
-            if (s.isOf(food) && s.getComponentChanges().isEmpty()) { s.decrement(1); got = true; break; }
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack s = inv.getItem(i);
+            if (s.is(food) && s.getComponentsPatch().isEmpty()) { s.shrink(1); got = true; break; }
         }
         if (!got && bindNbt.contains("sdzjz_pos")) {
             DataPanelBlockEntity panel = TerminalItem.resolvePanel(world, bindNbt);
             if (panel != null && panel.withdraw(foodId, 1) > 0) got = true;
         }
         if (!got) return;
-        player.getHungerManager().eat(fc); // 原版进食的饥饿+饱和路径（不含使用型效果）
+        player.getFoodData().eat(fc); // 原版进食的饥饿+饱和路径（不含使用型效果）
         world.playSound(null, player.getBlockPos(), net.minecraft.sounds.SoundEvents.ENTITY_PLAYER_BURP,
                 net.minecraft.sounds.SoundSource.PLAYERS, 0.5f, 1.0f);
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
         CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        String cur = c != null ? c.copyNbt().getString(K_FOOD) : "";
+        String cur = c != null ? c.copyTag().getString(K_FOOD) : "";
         if (cur.isEmpty()) {
-            tooltip.add(Component.literal("副手拿食物+右键=选定要吃的").formatted(net.minecraft.ChatFormatting.GRAY));
+            tooltip.add(Component.literal("副手拿食物+右键=选定要吃的").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {
-            tooltip.add(Component.literal("自动吃: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getName().getString())
-                    .formatted(net.minecraft.ChatFormatting.GREEN));
+            tooltip.add(Component.literal("自动吃: " + BuiltInRegistries.ITEM.get(ResourceLocation.parse(cur)).getDescription().getString())
+                    .withStyle(net.minecraft.ChatFormatting.GREEN));
         }
-        tooltip.add(Component.literal("饿了自动进食：背包优先，再从绑定面板取").formatted(net.minecraft.ChatFormatting.AQUA));
+        tooltip.add(Component.literal("饿了自动进食：背包优先，再从绑定面板取").withStyle(net.minecraft.ChatFormatting.AQUA));
     }
 
     private static void msg(Player player, String s) {
-        if (player != null) player.sendMessage(Component.literal(s), true);
+        if (player != null) player.displayClientMessage(Component.literal(s), true);
     }
 }

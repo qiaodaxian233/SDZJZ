@@ -29,14 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DataCableBlock extends Block implements EntityBlock {
 
-    public static final MapCodec<DataCableBlock> CODEC = createCodec(DataCableBlock::new);
+    public static final MapCodec<DataCableBlock> CODEC = simpleCodec(DataCableBlock::new);
 
-    public static final EnumProperty<CableEnd> NORTH = EnumProperty.of("north", CableEnd.class);
-    public static final EnumProperty<CableEnd> SOUTH = EnumProperty.of("south", CableEnd.class);
-    public static final EnumProperty<CableEnd> EAST  = EnumProperty.of("east", CableEnd.class);
-    public static final EnumProperty<CableEnd> WEST  = EnumProperty.of("west", CableEnd.class);
-    public static final EnumProperty<CableEnd> UP    = EnumProperty.of("up", CableEnd.class);
-    public static final EnumProperty<CableEnd> DOWN  = EnumProperty.of("down", CableEnd.class);
+    public static final EnumProperty<CableEnd> NORTH = EnumProperty.create("north", CableEnd.class);
+    public static final EnumProperty<CableEnd> SOUTH = EnumProperty.create("south", CableEnd.class);
+    public static final EnumProperty<CableEnd> EAST  = EnumProperty.create("east", CableEnd.class);
+    public static final EnumProperty<CableEnd> WEST  = EnumProperty.create("west", CableEnd.class);
+    public static final EnumProperty<CableEnd> UP    = EnumProperty.create("up", CableEnd.class);
+    public static final EnumProperty<CableEnd> DOWN  = EnumProperty.create("down", CableEnd.class);
 
     public static final Map<Direction, EnumProperty<CableEnd>> END_PROPS = new EnumMap<>(Direction.class);
     static {
@@ -49,74 +49,74 @@ public class DataCableBlock extends Block implements EntityBlock {
     }
 
     private static final Map<BlockState, VoxelShape> SHAPES = new ConcurrentHashMap<>();
-    private static final VoxelShape CORE = Block.createCuboidShape(6, 6, 6, 10, 10, 10);
+    private static final VoxelShape CORE = Block.box(6, 6, 6, 10, 10, 10);
     private static final Map<Direction, VoxelShape> ARMS = new EnumMap<>(Direction.class);
     static {
-        ARMS.put(Direction.NORTH, Block.createCuboidShape(6, 6, 0, 10, 10, 6));
-        ARMS.put(Direction.SOUTH, Block.createCuboidShape(6, 6, 10, 10, 10, 16));
-        ARMS.put(Direction.EAST,  Block.createCuboidShape(10, 6, 6, 16, 10, 10));
-        ARMS.put(Direction.WEST,  Block.createCuboidShape(0, 6, 6, 6, 10, 10));
-        ARMS.put(Direction.UP,    Block.createCuboidShape(6, 10, 6, 10, 16, 10));
-        ARMS.put(Direction.DOWN,  Block.createCuboidShape(6, 0, 6, 10, 6, 10));
+        ARMS.put(Direction.NORTH, Block.box(6, 6, 0, 10, 10, 6));
+        ARMS.put(Direction.SOUTH, Block.box(6, 6, 10, 10, 10, 16));
+        ARMS.put(Direction.EAST,  Block.box(10, 6, 6, 16, 10, 10));
+        ARMS.put(Direction.WEST,  Block.box(0, 6, 6, 6, 10, 10));
+        ARMS.put(Direction.UP,    Block.box(6, 10, 6, 10, 16, 10));
+        ARMS.put(Direction.DOWN,  Block.box(6, 0, 6, 10, 6, 10));
     }
 
     public DataCableBlock(Properties settings) {
         super(settings);
-        BlockState s = getStateManager().getDefaultState();
-        for (EnumProperty<CableEnd> p : END_PROPS.values()) s = s.with(p, CableEnd.NONE);
-        setDefaultState(s);
+        BlockState s = getStateDefinition().any();
+        for (EnumProperty<CableEnd> p : END_PROPS.values()) s = s.setValue(p, CableEnd.NONE);
+        registerDefaultState(s);
     }
 
     @Override
-    protected MapCodec<? extends Block> getCodec() {
+    protected MapCodec<? extends Block> codec() {
         return CODEC;
     }
 
     @Override
-    protected void appendProperties(StateDefinition.Builder<Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN);
     }
 
     @Override
-    public BlockState getPlacementState(BlockPlaceContext ctx) {
-        BlockState s = getDefaultState();
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        BlockState s = defaultBlockState();
         for (Direction d : Direction.values()) {
-            BlockPos np = ctx.getBlockPos().offset(d);
-            s = s.with(END_PROPS.get(d), endFor(ctx.getWorld(), ctx.getBlockPos(), d, np, ctx.getWorld().getBlockState(np)));
+            BlockPos np = ctx.getClickedPos().relative(d);
+            s = s.with(END_PROPS.get(d), endFor(ctx.getLevel(), ctx.getClickedPos(), d, np, ctx.getLevel().getBlockState(np)));
         }
         return s;
     }
 
     @Override
-    protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighborState,
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                                    LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
         // m233 端点判定含 BE 断开掩码，而掩码只在服务端（BE 数据不向客户端同步）——客户端本地重算会
         // 拿 0 掩码把断开面的手臂算回来造成鬼影，形状一律听服务端方块状态同步
-        if (world.isClient()) return state;
-        return state.with(END_PROPS.get(direction), endFor(world, pos, direction, neighborPos, neighborState));
+        if (world.isClientSide()) return state;
+        return state.setValue(END_PROPS.get(direction), endFor(world, pos, direction, neighborPos, neighborState));
     }
 
     /** m233 单面端点重算（链接器切断开掩码后调用；flags=3 触发邻居形状更新，对面缆管同步收放）。 */
     public static void refreshEnd(net.minecraft.world.level.Level world, BlockPos pos, Direction d) {
         BlockState st = world.getBlockState(pos);
         if (!(st.getBlock() instanceof DataCableBlock)) return;
-        BlockPos np = pos.offset(d);
-        world.setBlockState(pos, st.with(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
+        BlockPos np = pos.relative(d);
+        world.setBlockState(pos, st.setValue(END_PROPS.get(d), endFor(world, pos, d, np, world.getBlockState(np))), 3);
     }
 
     @Override
-    protected VoxelShape getOutlineShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
+    protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
         return SHAPES.computeIfAbsent(state, st -> {
             VoxelShape shape = CORE;
             for (Direction d : Direction.values()) {
-                if (st.get(END_PROPS.get(d)) != CableEnd.NONE) shape = Shapes.union(shape, ARMS.get(d));
+                if (st.getValue(END_PROPS.get(d)) != CableEnd.NONE) shape = Shapes.or(shape, ARMS.get(d));
             }
             return shape;
         });
     }
 
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new DataCableBlockEntity(pos, state);
     }
 
@@ -126,7 +126,7 @@ public class DataCableBlock extends Block implements EntityBlock {
     @Override
     public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
             net.minecraft.world.level.Level world, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
-        if (world.isClient || type != com.sdzjz.registry.ModBlockEntities.DATA_CABLE_BE) return null;
+        if (world.isClientSide || type != com.sdzjz.registry.ModBlockEntities.DATA_CABLE_BE) return null;
         return (net.minecraft.world.level.block.entity.BlockEntityTicker<T>)
                 (net.minecraft.world.level.block.entity.BlockEntityTicker<DataCableBlockEntity>) DataCableBlockEntity::tick;
     }
@@ -146,7 +146,7 @@ public class DataCableBlock extends Block implements EntityBlock {
         // m224 任意暴露 Fabric Transfer API 的存储也伸插头（Create 置物台/AE2 接口这类不实现 Container 的
         // 全吃）；只在服务端权威世界查（客户端注册表可能缺第三方登记，方块状态由服务端同步），
         // 世界生成期的 ChunkRegion 不是 World 直接跳过。
-        if (world instanceof net.minecraft.world.level.Level w && !w.isClient
+        if (world instanceof net.minecraft.world.level.Level w && !w.isClientSide
                 && com.sdzjz.storage.Xfer.find(w, pos, null) != null) return CableEnd.PLUG; // m404 平台口
         return CableEnd.NONE;
     }

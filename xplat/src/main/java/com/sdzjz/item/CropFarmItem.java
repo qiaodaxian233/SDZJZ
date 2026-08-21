@@ -12,15 +12,15 @@ import java.util.List;
 /** 全自动农场：放入画布后点节点徽章选作物（小麦/胡萝卜/土豆/甜菜/西瓜/南瓜/甘蔗/蘑菇/可可果），免费产出。 */
 public class CropFarmItem extends MachineItem {
 
-    public CropFarmItem(Settings settings, MachineDef def) {
+    public CropFarmItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("周期 2 秒（吃加速/数量/并列升级）").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("免费产出（对齐原版农场）").formatted(ChatFormatting.DARK_GREEN));
-        tooltip.add(Component.literal("可种: 小麦/胡萝卜/土豆/甜菜/西瓜/南瓜/甘蔗/蘑菇/可可果").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("放入画布后，点节点右上角徽章选择作物").formatted(ChatFormatting.GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("周期 2 秒（吃加速/数量/并列升级）").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("免费产出（对齐原版农场）").withStyle(ChatFormatting.DARK_GREEN));
+        tooltip.add(Component.literal("可种: 小麦/胡萝卜/土豆/甜菜/西瓜/南瓜/甘蔗/蘑菇/可可果").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("放入画布后，点节点右上角徽章选择作物").withStyle(ChatFormatting.GRAY));
     }
 }

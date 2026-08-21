@@ -28,7 +28,7 @@ public class ChunkFilterItem extends MachineItem {
     private static final int[] P_MIN = {-2032, -2032, -2032, -64, 63};
     private static final int[] P_MAX = {2031, 62, 0, 0, 2031};
 
-    public ChunkFilterItem(Settings settings, MachineDef def) {
+    public ChunkFilterItem(Properties settings, MachineDef def) {
         super(settings, def);
     }
 
@@ -80,11 +80,11 @@ public class ChunkFilterItem extends MachineItem {
     }
 
     @Override
-    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        tooltip.add(Component.literal("区块移除器的规则挂件：画布上与移除器连线即生效（方向随意）").formatted(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("方块名单：白名单=只挖名单内 · 黑名单=名单内不挖 · 空=不限").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("Y 挡位五挡循环：全高度/地表下/深层/深板岩/地上——\"只挖矿不拆建筑\"就靠它").formatted(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("多台过滤器规则叠加(AND)；本体不收不转发物品").formatted(ChatFormatting.DARK_GRAY));
-        tooltip.add(Component.literal("放入画布后右键节点配置").formatted(ChatFormatting.GRAY));
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
+        tooltip.add(Component.literal("区块移除器的规则挂件：画布上与移除器连线即生效（方向随意）").withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.literal("方块名单：白名单=只挖名单内 · 黑名单=名单内不挖 · 空=不限").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("Y 挡位五挡循环：全高度/地表下/深层/深板岩/地上——\"只挖矿不拆建筑\"就靠它").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.literal("多台过滤器规则叠加(AND)；本体不收不转发物品").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.literal("放入画布后右键节点配置").withStyle(ChatFormatting.GRAY));
     }
 }

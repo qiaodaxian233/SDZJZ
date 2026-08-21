@@ -15,7 +15,7 @@ public record NodeRemovePayload(BlockPos pos, int index) implements CustomPacket
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeRemovePayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeRemovePayload::pos,
-            ByteBufCodecs.INTEGER, NodeRemovePayload::index,
+            ByteBufCodecs.INT, NodeRemovePayload::index,
             NodeRemovePayload::new
     );
 

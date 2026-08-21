@@ -15,7 +15,7 @@ public record NodeSensorPayload(BlockPos pos, int index, String item, long thres
 
     public static final StreamCodec<RegistryFriendlyByteBuf, NodeSensorPayload> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, NodeSensorPayload::pos,
-            ByteBufCodecs.INTEGER, NodeSensorPayload::index,
+            ByteBufCodecs.INT, NodeSensorPayload::index,
             Bounded.string(128), NodeSensorPayload::item, // m291
             ByteBufCodecs.VAR_LONG, NodeSensorPayload::threshold,
             ByteBufCodecs.BOOL, NodeSensorPayload::less,

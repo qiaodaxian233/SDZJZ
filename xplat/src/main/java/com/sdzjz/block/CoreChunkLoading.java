@@ -60,7 +60,7 @@ public final class CoreChunkLoading {
     }
 
     private static String dimId(ServerLevel w) {
-        return w.getRegistryKey().getValue().toString();
+        return w.dimension().location().toString();
     }
 
     /** m296 声明表：本 MOD 钉住的区块集合，每维度一份 SavedData（NbtLongArray 落盘）。 */
@@ -87,7 +87,7 @@ public final class CoreChunkLoading {
     }
 
     private static Claims claims(ServerLevel w) {
-        return w.getPersistentStateManager().getOrCreate(Claims.TYPE, "sdzjz_chunk_claims");
+        return w.getDataStorage().getOrCreate(Claims.TYPE, "sdzjz_chunk_claims");
     }
 
     /** m296 开服/维度载入：逐声明重发无期票（ForcedChunkState 同款自举）。世界边界外坏声明拒发并剔除。 */
@@ -96,8 +96,8 @@ public final class CoreChunkLoading {
         java.util.Iterator<Long> it = c.chunks.iterator();
         while (it.hasNext()) {
             ChunkPos cp = new ChunkPos(it.next());
-            if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) { it.remove(); c.markDirty(); continue; }
-            w.getChunkManager().addTicket(CORE, cp, 2, cp);
+            if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) { it.remove(); c.setDirty(); continue; }
+            w.getChunkSource().addTicket(CORE, cp, 2, cp);
         }
     }
 
@@ -112,9 +112,9 @@ public final class CoreChunkLoading {
         boolean first = owners.isEmpty();
         owners.add(core.asLong());
         if (first) {
-            w.getChunkManager().addTicket(CORE, cp, 2, cp); // 重复 addTicket 幂等，first 只为少打点
+            w.getChunkSource().addTicket(CORE, cp, 2, cp); // 重复 addTicket 幂等，first 只为少打点
             Claims c = claims(w);
-            if (c.chunks.add(cp.toLong())) c.markDirty();
+            if (c.chunks.add(cp.toLong())) c.setDirty();
             if (priorOwned && w.getForcedChunks().contains(cp.toLong())) {
                 w.setChunkForced(cp.x, cp.z, false); // 旧通道换轨（一次性；管理员叠旗需重跑 /forceload，见类头）
                 com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] 强加载换轨：已撤下 {} 区块({}, {}) 的旧版 forced 旗"
@@ -136,9 +136,9 @@ public final class CoreChunkLoading {
             if (!owners.isEmpty()) return; // 同区块还有别的运行核心，保持钉住
             dimMap.remove(cp.toLong());
         }
-        w.getChunkManager().removeTicket(CORE, cp, 2, cp); // 无票时 remove 无害
+        w.getChunkSource().removeTicket(CORE, cp, 2, cp); // 无票时 remove 无害
         Claims c = claims(w);
-        if (c.chunks.remove(cp.toLong())) c.markDirty();
+        if (c.chunks.remove(cp.toLong())) c.setDirty();
     }
 
     // ===== m347 孤儿声明渐进核销（外部审计销账）=====
@@ -160,7 +160,7 @@ public final class CoreChunkLoading {
     public static void reconcileTick(ServerLevel w) {
         if (!com.sdzjz.config.SdzjzConfig.get().chunkClaimReconcile) return;
         String dim = dimId(w);
-        long now = w.getTime();
+        long now = w.getGameTime();
         Long first = FIRST_SEEN.get(dim);
         if (first == null) { FIRST_SEEN.put(dim, now); return; }
         if (now - first < GRACE_TICKS || Math.floorMod(now, SWEEP_PERIOD) != 0) return;
@@ -181,9 +181,9 @@ public final class CoreChunkLoading {
             int n = strikes.merge(cl, 1, Integer::sum);
             if (n < STRIKE_OUT) continue;
             ChunkPos cp = new ChunkPos(cl);
-            w.getChunkManager().removeTicket(CORE, cp, 2, cp);
+            w.getChunkSource().removeTicket(CORE, cp, 2, cp);
             it.remove();
-            c.markDirty();
+            c.setDirty();
             strikes.remove(cl);
             com.sdzjz.Sdzjz.LOGGER.warn("[生电终结者] 孤儿强加载声明核销：{} 区块({}, {}) 连续 {} 轮无核心登记，"
                     + "已撤票删声明（核心消失于区块未加载态的遗留；误销自愈=核心仍在则下次开机重新登记）。",
@@ -218,6 +218,6 @@ public final class CoreChunkLoading {
     public static void ticket(ServerLevel w, long chunkLong) {
         ChunkPos cp = new ChunkPos(chunkLong);
         if (Math.abs(cp.x) > 1_875_000 || Math.abs(cp.z) > 1_875_000) return;
-        w.getChunkManager().addTicket(ENDPOINT, cp, 1, cp);
+        w.getChunkSource().addTicket(ENDPOINT, cp, 1, cp);
     }
 }

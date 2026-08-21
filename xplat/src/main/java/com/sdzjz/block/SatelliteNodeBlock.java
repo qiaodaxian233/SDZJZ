@@ -19,25 +19,25 @@ import net.minecraft.world.level.BlockGetter;
  */
 public class SatelliteNodeBlock extends BaseEntityBlock {
     private static final VoxelShape SHAPE = Shapes.union(
-            Block.createCuboidShape(-1.5, 0, 1, 17.5, 10, 15),   // 阶梯底座
-            Block.createCuboidShape(4, 10, 5, 12, 16, 11));      // 塔体+桅杆段
+            Block.box(-1.5, 0, 1, 17.5, 10, 15),   // 阶梯底座
+            Block.box(4, 10, 5, 12, 16, 11));      // 塔体+桅杆段
     public SatelliteNodeBlock(Properties settings) {
         super(settings);
     }
     @Override
-    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> getCodec() {
-        return createCodec(SatelliteNodeBlock::new);
+    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return simpleCodec(SatelliteNodeBlock::new);
     }
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new SatelliteNodeBlockEntity(pos, state);
     }
     @Override
-    protected RenderShape getRenderType(BlockState state) {
+    protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL; // BER 之外仍走模型管线（模型已被插件替换为空壳，只留粒子）
     }
     @Override
-    protected VoxelShape getOutlineShape(BlockState state, BlockGetter world, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+    protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
         return SHAPE;
     }
 }

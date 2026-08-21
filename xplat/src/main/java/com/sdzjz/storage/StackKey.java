@@ -22,7 +22,7 @@ public final class StackKey {
 
     private StackKey(ItemStack tpl) {
         this.tpl = tpl;
-        this.hash = System.identityHashCode(tpl.getItem()) * 31 + tpl.getComponentChanges().hashCode();
+        this.hash = System.identityHashCode(tpl.getItem()) * 31 + tpl.getComponentsPatch().hashCode();
     }
 
     public static StackKey of(ItemStack stack) { return new StackKey(stack); }
@@ -32,7 +32,7 @@ public final class StackKey {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof StackKey k && ItemStack.areItemsAndComponentsEqual(tpl, k.tpl);
+        return o instanceof StackKey k && ItemStack.isSameItemSameComponents(tpl, k.tpl);
     }
 
     @Override

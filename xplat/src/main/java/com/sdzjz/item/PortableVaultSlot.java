@@ -40,21 +40,21 @@ public class PortableVaultSlot extends Slot {
     }
 
     @Override
-    public boolean canInsert(ItemStack s) {
+    public boolean mayPlace(ItemStack s) {
         return s.getItem() instanceof PortableVaultItem;
     }
 
     /** 恒 1（仓库本身 maxCount=1，此覆写是双保险且绕开 bigStacks 抬格）。 */
     @Override
-    public int getMaxItemCount() {
+    public int getMaxStackSize() {
         return 1;
     }
 
     /** 仓位栈统一读口（双端同源：都从 playerScreenHandler 追加格读；开关关/老版联机=空）。 */
     public static ItemStack stackOf(Player p) {
-        var h = p.playerScreenHandler;
+        var h = p.inventoryMenu;
         if (h == null || h.slots.size() <= SLOT_INDEX) return ItemStack.EMPTY;
-        ItemStack s = h.getSlot(SLOT_INDEX).getStack();
+        ItemStack s = h.getSlot(SLOT_INDEX).getItem();
         return s.getItem() instanceof PortableVaultItem ? s : ItemStack.EMPTY;
     }
 
@@ -68,7 +68,7 @@ public class PortableVaultSlot extends Slot {
         public static State read(CompoundTag nbt, HolderLookup.Provider lookup) {
             State s = new State();
             CompoundTag m = nbt.getCompound("slots");
-            for (String k : m.getKeys()) {
+            for (String k : m.getAllKeys()) {
                 try {
                     UUID u = UUID.fromString(k);
                     ItemStack.parse(lookup, m.getCompound(k)).ifPresent(st -> s.byPlayer.put(u, st));
@@ -88,7 +88,7 @@ public class PortableVaultSlot extends Slot {
         }
 
         public static State of(MinecraftServer server) {
-            return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_vault_slot");
+            return server.overworld().getPersistentStateManager().getOrCreate(TYPE, "sdzjz_vault_slot");
         }
 
         public ItemStack get(UUID u) {
@@ -97,7 +97,7 @@ public class PortableVaultSlot extends Slot {
 
         public void set(UUID u, ItemStack s) {
             if (s.isEmpty()) byPlayer.remove(u); else byPlayer.put(u, s);
-            markDirty();
+            setDirty();
         }
     }
 
@@ -119,54 +119,54 @@ public class PortableVaultSlot extends Slot {
             return owner instanceof ServerPlayer;
         }
 
-        @Override public int size() { return 1; }
+        @Override public int getContainerSize() { return 1; }
 
-        @Override public boolean isEmpty() { return getStack(0).isEmpty(); }
+        @Override public boolean isEmpty() { return getItem(0).isEmpty(); }
 
         @Override
-        public ItemStack getStack(int slot) {
+        public ItemStack getItem(int slot) {
             if (!serverSide()) return clientStack;
             State st = state();
             if (st == null) return ItemStack.EMPTY;
             // 账本组件（吸附/收纳/取物）原地写在这枚实例上、不经 setStack；存档期序列化的正是同一实例，
             // dirty 位只决定"要不要落盘"——读口置脏保证任一存档周期都带上组件改动（小表重写代价可忽略）。
-            st.markDirty();
-            return st.get(owner.getUuid());
+            st.setDirty();
+            return st.get(owner.getUUID());
         }
 
         @Override
-        public ItemStack removeStack(int slot, int amount) {
-            ItemStack cur = getStack(0);
+        public ItemStack removeItem(int slot, int amount) {
+            ItemStack cur = getItem(0);
             if (cur.isEmpty()) return ItemStack.EMPTY;
             ItemStack out = cur.split(amount);
-            setStack(0, cur); // split 后残量写回（清空即除账）
+            setItem(0, cur); // split 后残量写回（清空即除账）
             return out;
         }
 
         @Override
-        public ItemStack removeStack(int slot) {
-            ItemStack cur = getStack(0);
-            setStack(0, ItemStack.EMPTY);
+        public ItemStack removeItem(int slot) {
+            ItemStack cur = getItem(0);
+            setItem(0, ItemStack.EMPTY);
             return cur;
         }
 
         @Override
-        public void setStack(int slot, ItemStack stack) {
+        public void setItem(int slot, ItemStack stack) {
             if (!serverSide()) { clientStack = stack; return; }
             State st = state();
-            if (st != null) st.set(owner.getUuid(), stack);
+            if (st != null) st.set(owner.getUUID(), stack);
         }
 
         @Override
-        public void markDirty() {
+        public void setChanged() {
             if (serverSide()) {
                 State st = state();
-                if (st != null) st.markDirty();
+                if (st != null) st.setDirty();
             }
         }
 
-        @Override public boolean canPlayerUse(Player p) { return p == owner; }
+        @Override public boolean stillValid(Player p) { return p == owner; }
 
-        @Override public void clear() { setStack(0, ItemStack.EMPTY); }
+        @Override public void clearContent() { setItem(0, ItemStack.EMPTY); }
     }
 }
