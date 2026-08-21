@@ -7813,3 +7813,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   区块移除器开屏改参 → 结构核心封边跑一轮（验 setBlock 三参 flags 语义）。
 - **待作者拍板**：mojmap 分支已具备合并 main 的条件（六线全绿）。合并是架构级动作，未擅自执行。
 - 零新配置键；行为层零改动主张已由 GameTest 全量用例背书。
+
+## m422 mojmap 迁移并入主线：main 快进到迁移全绿点
+
+- **动作**：`main`（停在 m413 `fff6e52`）**快进合并** `mojmap`（m421 `48fed3c`）——
+  m413 是 mojmap 分支的直系祖先，无分叉、无冲突、零手工取舍，主线历史保持线性。
+  合并后 main 与 mojmap 同点，后续开发回到 main 单线推进。
+- **主线自此换映射**：根构建 `mappings` = `loom.officialMojangMappings()`，
+  全库类名/成员名/mixin 靶点/注解参数名均为 Mojmap 口径。**新代码一律按 Mojmap 写**，
+  查名走 `docs/MAPPING_MEMBERS.tsv`（3772 行，机器生成勿手改）而不是 Yarn 记忆。
+- **ci.yml 里三条迁移期通道随合并进主线，经评估**保留**（不是遗留垃圾）：
+  ① push 触发含 `mojmap` 分支——留着，下次做映射/大版本迁移可直接复用该分支名；
+  ② build 失败把 javac 错误逐条 +4 行上下文回推 `ci-mojmap-errors` 分支——
+     对 main 同样生效，是沙箱够不到 artifact blob 域名时的**唯一**取清单通道（m310b 同款），
+     本次六轮全靠它，主线保留纯赚；
+  ③ `mapping-members` job 代跑 `gradlew mojmapTable mojmapMembers` 回推 `ci-mojmap-members`——
+     只写文档不碰源码，成本是每次 push 多一个 job，收益是成员表永远新鲜。
+     若作者嫌费 CI 时间，把该 job 的 `on` 收成手动触发即可，一行的事。
+- **遗留待办（迁移相关，均非阻塞）**：
+  1. `docs/MAPPING_TODO.md` 与 `docs/映射迁移方案_m409.md` 是迁移期工作文档，
+     收官后可归档或标注"已完成于 m421"，本轮未动以免和作者的文档习惯冲突；
+  2. `docs/tools_bounded_codec_check.py` 的坏模式正则在 m414 并列了 Yarn/Mojmap 两套同义名
+     （迁移期两边都认），主线只剩 Mojmap 一套后可收窄回单套，收窄前留着不误报；
+  3. m416 起源码注释里仍有少量 Yarn 方法名的历史说明（如 Bounded.java 头注释的 `method_10800`
+     intermediary 号），属于**有考据价值的留痕**，不清理。
+- **验证**：合并为快进，树内容与 m421 逐字节相同——m421 的验证（CI 六线全绿含 GameTest、
+  本地冒烟真语法错 0 自家符号错 0、13 闸全绿）**整体继承**。本笔另跑 13 闸复检全绿。
+- **实机验证脚本**：作者本地"拉取并构建"取 main 最新 jar 进 1.21.1 实例，按 m421 末尾那条回路走一遍
+  （core profile → 画布加/取三类升级 → 面板搜索+合成 → 12×12 出货 → 交易所附魔书盯"不混堆不变裸"
+  → 随身仓库右键塞物 → 区块移除器开屏改参 → 结构核心封边一轮验 flags 语义）。
+- 零新配置键；零行为改动。
