@@ -2987,10 +2987,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             var es = reg.listElements().collect(java.util.stream.Collectors.toCollection(ArrayList::new));
             es.sort(java.util.Comparator.comparing(e -> net.minecraft.world.item.enchantment.Enchantment.getFullname(e, 1).getString()));
             for (var e : es) {
-                String id = e.registryKey().getValue().toString();
+                String id = e.key().getValue().toString();
                 for (int lv = e.value().getMaxLevel(); lv >= 1; lv--) {
                     enchAllIds.add(id + "|" + lv);
-                    enchAllNames.add(net.minecraft.world.item.enchantment.Enchantment.getName(e, lv));
+                    enchAllNames.add(net.minecraft.world.item.enchantment.Enchantment.getFullname(e, lv));
                 }
             }
         }

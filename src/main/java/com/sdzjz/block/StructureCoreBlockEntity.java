@@ -3733,7 +3733,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private void cleanupEjected(net.minecraft.server.level.ServerLevel sw) {
         var box = net.minecraft.world.phys.AABB.ofSize(worldPosition.getCenter(), 64, 32, 64);
         for (net.minecraft.world.entity.item.ItemEntity e : sw.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, box,
-                en -> en.getCommandTags().contains("sdzjz_ejected"))) e.discard();
+                en -> en.getTags().contains("sdzjz_ejected"))) e.discard();
     }
 
     /** 从核心出发，直连相邻存储；遇数据线则继续路由，返回最近的数据面板/箱子。 */
