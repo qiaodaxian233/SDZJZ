@@ -7773,3 +7773,43 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ② **两边都能编译但语义有别的选名**：`Slot.setStack→setByPlayer`（mojmap 侧 `set()` 同样可编译）；
   ③ **反射/字符串形 id**。GameTest 红了要按**用例名**逐条回读现场，别再当成"又一轮改名"机械查表。
 - 零新配置键；行为层零改动主张，交由 GameTest 全量用例判定。
+
+## m421 mojmap 迁移收官：CI 六线全绿，GameTest 用例集一次通过
+
+- **第七轮 CI（run 32488955053）六 job 全绿**——Gradle 编译出包 ✓ / **GameTest 用例集 ✓** /
+  NeoForge 1.21.1 编译出包 ✓ / 26.2 新世代编译+GameTest ✓ / 配方校验+资源审计 ✓ / 成员对照表代产 ✓。
+  失败报告回推步骤 **skipped**（没东西可报），"跑 GameTest"步骤 success，是真跑真过不是跳过。
+- **GameTest 全过意味着什么**（这一条比编译绿重要得多）：编译器管不到的三类死角**全部验过**——
+  ① **mixin 六枚方法靶点字符串**（m414 手核）确实应用成功：Slot#getMaxItemCount→getMaxStackSize、
+  ItemStack#getMaxCount→getMaxStackSize、Codecs#rangedInt→ExtraCodecs#intRange、
+  GuiGraphics#drawItemInSlot→renderItemDecorations、InventoryScreen#drawBackground→renderBg、
+  InventoryMenu 构造靶免改——mixin 应用失败本会是运行期静默失效，用例过了就是靶点对了；
+  ② **两边都能编译但语义有别的选名**验过：`Slot.setStack→setByPlayer`（m416 挂的"待编译验证"第一条）
+  没有出现取物/放物语义偏差；同族的 `Slot.getStack→getItem`、`Container.removeStack` 双路
+  （1 参 removeItemNoUpdate / 2 参 removeItem）也过了各自用例；
+  ③ 随身仓库/画布升级/存储网络/交易所几条主回路的用例都在集里，没有触发行为回归。
+- **迁移全程收敛曲线（终版存档）**：
+  m413 工装补强（简名层 + 成员表桥）→ m414 类名层换装 3787 + 内部类 219 + mixin 六枚，首轮红 **71**
+  → m415 裸内部类死角清零 + 受体锚定批 372，轮红 **2765**（成员级总爆发）
+  → m416 字典化修复器（受体祖先链 + 脱字符列号锚点）落刀 2466 + 声明改名 158 + 反扫 372，轮红 **238**
+  → m417 落刀 221 + 补刀 11，轮红 **24**
+  → m418 补刀 22（arity 分流 setBlock/setBlockAndUpdate），轮红 **3**
+  → m419 三刀（级联新受体现形），轮红 **1**
+  → m420 一刀（级联最后一环 ResourceKey.getValue→location），轮红 **0** ✅
+- **方法论定档（下次跨映射迁移直接照抄）**：
+  1. **类名层先做，方法名一律不动**——让编译器列清单，比人肉找靠谱；但要先补内部类与 mixin 字符串靶点，
+     否则首轮清单会被这两类死角污染。
+  2. **成员表必须机器生成**（三段桥 Yarn→intermediary→Mojmap 按描述符对接），
+     人工表迟早出错——本轮 8 处自纠误映射全部出自"目标名看着像"的人工判断。
+  3. **落刀锚点用 javac 的脱字符列号**，配三重校验（行内容逐字符相等 / 列上标识符相等 / 目标非空）
+     + 同行多刀从右往左——六轮约 3400 处落刀、**0 次误落刀**。
+  4. **受体三要素**：宿主类 → 祖先链 → **arity/签名**。"受体定了就唯一"是错的（setBlockState 实锤）。
+  5. **CI 错误清单本身不全**（javac 因前序解析失败不会走到某些类），改完声明必须做残留 Yarn 名反扫。
+  6. **级联错误不硬修**：泛型/流元素的 Object 转型错，修上游取值方法即可，一轮一环自会走完。
+- **验证**：CI 六线全绿为准；本地全库 javac 冒烟真语法错 0、自家类符号错 0；13 道离线闸全绿。
+- **实机验证脚本**（作者本地"拉取并构建"后按此走一遍即可收官）：
+  `/sdzjz profile core` 看核心 tick 正常 → 画布加/取三类升级各一次 → 数据面板搜索 + 合成一轮 →
+  超级工作台 12×12 出货 → 交易所买附魔书（盯"不混堆不变裸"）→ 随身仓库右键塞物 →
+  区块移除器开屏改参 → 结构核心封边跑一轮（验 setBlock 三参 flags 语义）。
+- **待作者拍板**：mojmap 分支已具备合并 main 的条件（六线全绿）。合并是架构级动作，未擅自执行。
+- 零新配置键；行为层零改动主张已由 GameTest 全量用例背书。

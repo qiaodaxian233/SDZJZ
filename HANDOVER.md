@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m420[mojmap分支]：第六轮最后 1 条清零，编译器清单见底——收敛全曲线 m414:71→m415:2765→m416:238→m417:24→m418:3→m419:1→本轮预期 0，六轮累计落刀约 3400 处、列号三重校验 0 次误落刀、自纠误映射 8 处全部由下一轮 CI 当场点名无一逃到运行期；本条 ResourceKey.getValue→location 是 streamEntries→listElements→registryKey→key 那条级联的最后一环，一条链上三个受体编译器一次只肯露一个；受体锚定的代价就是锚点外必然漏网，由下一轮 CI 兜底换全程零误伤。冒烟真语法错 0 自家符号错 0，13 闸全绿，版本 0.1.420。**下一阶段**：build 转绿后判官从编译器交棒 GameTest，现形的将是 mixin 方法靶点字符串（m414 手核六枚）、两边可编译但语义有别的选名（Slot.setStack→setByPlayer）、反射字符串 id 三类死角——GameTest 红了按用例名逐条回读现场，别当成又一轮机械查表）
+## 当前状态（m421[mojmap分支]：**mojmap 迁移收官——第七轮 CI 六线全绿，GameTest 用例集一次通过**。GameTest 绿意味着编译器管不到的三类死角全部验过：mixin 六枚方法靶点字符串确实应用成功（失败本会是运行期静默失效）、两边可编译但语义有别的选名 Slot.setStack→setByPlayer 无语义偏差、Container.removeStack 双路（1参 removeItemNoUpdate/2参 removeItem）各过各用例。收敛曲线终版：m414:71→m415:2765→m416:238→m417:24→m418:3→m419:1→m420:0。六轮累计落刀约 3400 处、列号三重校验 0 次误落刀、8 处自纠误映射全部被下一轮 CI 当场点名。方法论已定档进 DEVLOG m421（类名层先做让编译器列清单/成员表必须机器生成/脱字符列号锚点+三重校验/受体三要素=宿主+祖先链+arity/CI 清单本身不全须反扫/级联错误不硬修）。**下一步待作者拍板：mojmap 已具备合并 main 条件，合并是架构级动作未擅自执行；说一声即合。**作者本地实机验证脚本见 DEVLOG m421 末尾）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
