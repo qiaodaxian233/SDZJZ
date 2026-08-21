@@ -21,16 +21,27 @@ ROOTS = srcroots.ROOTS  # m369 双根 → m406 多源集统一走解析器
 
 # API 族 → 正则（FQN 内联用法极多，必须扫全文而非只扫 import）
 FAMILIES = {
-    "nbt/component":  r"NbtCompound|NbtList|NbtElement|NbtComponent|DataComponentTypes",
-    "item":           r"\bItemStack\b|net\.minecraft\.item|Registries\.ITEM",
-    "recipe":         r"RecipeEntry|RecipeManager|getRecipeManager|RecipeType|CraftingRecipe",
-    "network":        r"CustomPayload|PayloadTypeRegistry|ServerPlayNetworking|ClientPlayNetworking|PacketByteBuf",
-    "registry":       r"\bRegistries\.|RegistryKeys|RegistryKey|Identifier\.of",
-    "world/block":    r"\bServerWorld\b|\bWorld\b|BlockPos|BlockEntity|BlockState",
-    "screen":         r"ScreenHandler|\bSlot\b|SyncedGuiData|PropertyDelegate",
-    "gametest":       r"GameTest|TestContext",
-    "text/i18n":      r"Text\.literal|Text\.translatable",
-    "client-render":  r"DrawContext|MinecraftClient|net\.minecraft\.client",
+    # m423 迁移后口径修正：mojmap 名为准（旧 Yarn 名全部命中归零 → 尺子曾静默失真，
+    # nbt/component 只剩 1 用点、text/i18n 整族消失、network 4 用点，全是假数）。
+    # 两边名都留着：Yarn 名保作**残留告警**（新代码若冒出 Yarn 名，会被 tools_yarn_residue_check 拦下，
+    # 这里留名只为老分支/老存档文档回读时仍能量得出来）。
+    "nbt/component":  r"CompoundTag|ListTag|IntArrayTag|StringTag|net\.minecraft\.nbt|CustomData|DataComponents"
+                      r"|NbtCompound|NbtList|NbtElement|NbtComponent|DataComponentTypes",
+    "item":           r"\bItemStack\b|net\.minecraft\.world\.item|BuiltInRegistries\.ITEM"
+                      r"|net\.minecraft\.item|Registries\.ITEM",
+    "recipe":         r"RecipeHolder|RecipeManager|getRecipeManager|RecipeType|CraftingRecipe|CraftingInput"
+                      r"|RecipeEntry",
+    "network":        r"CustomPacketPayload|PayloadTypeRegistry|ServerPlayNetworking|ClientPlayNetworking"
+                      r"|FriendlyByteBuf|StreamCodec|CustomPayload|PacketByteBuf",
+    "registry":       r"\bBuiltInRegistries\.|\bRegistries\.|\bResourceKey\b|ResourceLocation\.of"
+                      r"|RegistryKeys|RegistryKey|Identifier\.of",
+    "world/block":    r"\bServerLevel\b|\bLevel\b|BlockPos|BlockEntity|BlockState"
+                      r"|\bServerWorld\b|\bWorld\b",
+    "screen":         r"AbstractContainerMenu|\bSlot\b|ContainerData|\bMenuType\b"
+                      r"|ScreenHandler|SyncedGuiData|PropertyDelegate",
+    "gametest":       r"GameTest|GameTestHelper|TestContext",
+    "text/i18n":      r"Component\.literal|Component\.translatable|Text\.literal|Text\.translatable",
+    "client-render":  r"GuiGraphics|\bMinecraft\b|net\.minecraft\.client|DrawContext|MinecraftClient",
     "fabric-api":     r"net\.fabricmc\.fabric|FabricLoader",
 }
 MC_ANY = re.compile(r"net\.minecraft|net\.fabricmc|com\.mojang")

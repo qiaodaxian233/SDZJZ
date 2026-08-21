@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m422：**mojmap 迁移已并入主线**——main 由 m413 快进到 m421 迁移全绿点，无分叉无冲突，主线历史线性；后续开发回到 main 单线推进，mojmap 分支与 main 同点可留作下次迁移复用。**主线自此换映射：新代码一律按 Mojmap 写，查名走 docs/MAPPING_MEMBERS.tsv（3772 行机器生成勿手改），不要凭 Yarn 记忆写方法名。** 迁移战果：七轮 CI 收敛 71→2765→238→24→3→1→0，末轮六线全绿含 GameTest 一次通过，累计落刀约 3400 处、列号三重校验 0 次误落刀、8 处自纠误映射全被下一轮 CI 当场点名；方法论六条定档 DEVLOG m421。ci.yml 三条迁移期通道经评估保留（错误清单回推是沙箱取清单的唯一通道，成员表 job 保成员表新鲜，嫌费 CI 就把它收成手动触发）。遗留非阻塞待办见 DEVLOG m422）
+## 当前状态（m423：迁移后校验器复检——**抓出 tools_platform_scan.py 整族静默失真**：它是 m361 多版本架构的地雷图数据源，11 个 API 族正则全是 Yarn 名，迁移后 nbt/component 只剩 1 用点（实为 581）、text/i18n 整族消失（实为 218）、network 4（实为 265）——按错数排期会把 NbtAdapter/MsgPlatform/NetPlatform 三个 SPI 判成「没人用最后抽」，实际是第 3/5/4 重耦合面；已换 Mojmap 口径并保留Yarn 名双认，重生成 docs/PLATFORM_MAP.md。**新增第 14 道闸 tools_yarn_residue_check.py**：防主线倒退回 Yarn（编译器管不到 mixin 靶点字符串/反射字符串/注释照抄三类，而全仓 420 个里程碑都写在 Yarn 时代，肌肉记忆倒退是必然），双段黑名单 docs/YARN_BLACKLIST.txt=164 FQN+123 简名，机器生成只留零命中项故零误伤，剥注释后扫但字符串字面量不豁免；已做反向自检=注入 Yarn import 能红、还原能绿。新增报告尺 tools_gauge_audit.py 坏尺子普查（恒退 0 挂 CI 留日志）。14 闸全绿，版本 0.1.423，本笔零源码改动）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

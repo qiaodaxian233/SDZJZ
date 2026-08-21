@@ -20,7 +20,7 @@ FAMILIES = [
     ('events 生命周期/事件', ['fabricmc.fabric.api.event', 'ServerTickEvents', 'ServerLifecycleEvents',
                           'UseBlockCallback', 'ClientTickEvents']),
     ('rendering 渲染', ['fabricmc.fabric.api.client.rendering', 'WorldRenderEvents', 'BuiltinItemRendererRegistry',
-                       'HudRenderCallback', 'BlockEntityRendererFactories']),
+                       'HudRenderCallback', 'BlockEntityRendererFactories', 'BlockEntityRenderers']),
     ('keybinding 键位', ['KeyBindingHelper', 'fabricmc.fabric.api.client.keybinding']),
     ('transfer 传输API', ['fabricmc.fabric.api.transfer', 'ItemVariant', 'StorageUtil', 'ItemStorage']),
     ('screenhandler 屏', ['fabricmc.fabric.api.screenhandler', 'ExtendedScreenHandlerType']),

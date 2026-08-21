@@ -39,6 +39,10 @@ jobs:
         run: python3 docs/tools_tx_scope_audit.py
       - name: 分层硬闸(m406 多源集,xplat 零加载器引用+待接口化清单)
         run: python3 docs/tools_layer_gate.py
+      - name: Yarn 名残留闸(m423,主线自 m422 换 Mojmap 口径,防肌肉记忆倒退;mixin 靶点字符串编译器管不到)
+        run: python3 docs/tools_yarn_residue_check.py
+      - name: 坏尺子普查(m423 报告尺,恒退 0,只在日志里留供人工判的清单)
+        run: python3 docs/tools_gauge_audit.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；
