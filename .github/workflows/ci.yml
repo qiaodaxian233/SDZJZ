@@ -149,6 +149,43 @@ jobs:
           path: versions/26.2/build/libs/*.jar
           retention-days: 30
 
+  modern-261:
+    # m432 立（镜像 26.2 作业）：26.1 新世代闸=真编译+装载+GameTest 三段（作者拍板：错误归 Modern
+    # 不污染 Legacy）。GameTest 跑 ModernRecipeDomainTests（Common 共享判官喂 ModernRecipeAccess，
+    # 与 Legacy 卅四号同套断言）——服务器能起=ModernBootstrap 装载验证，用例绿=行为绿。
+    name: 26.1 新世代：编译+GameTest
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - name: 编译出包
+        working-directory: versions/26.1
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace --no-daemon
+      - name: 跑 26.1 GameTest（装载+行为判官）
+        working-directory: versions/26.1
+        run: ./gradlew runGametest --stacktrace --no-daemon
+      - name: 上传 26.1 测试报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: modern-261-gametest-junit
+          path: versions/26.1/build/junit.xml
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: 上传 26.1 产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdzjz-26.1-jar
+          path: versions/26.1/build/libs/*.jar
+          retention-days: 30
+
   build:
     name: Gradle 编译出包
     runs-on: ubuntu-latest

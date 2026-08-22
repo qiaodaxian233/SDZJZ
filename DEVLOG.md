@@ -8107,3 +8107,32 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   从红到定位 5 分钟，m414 错误清单回推机制首次实战立功）。
 - **验证**：离线冒烟总错 2886 不增不减、真语法错 0、cannot be dereferenced=0（盲区所限仅作
   回归护栏）；判官=推送后 CI 转绿（Fabric 编译+GameTest 两线）。热修不抬版本（m317：字母尾号）。
+## m432 版本矩阵第三格开工：26.1 子构建落地（Modern 单源双靶）+ 1.20.1 格顺位答复
+
+- **背景（作者问"1.20.1 和 26.1 呢"）**：m402 已拍板四锚点 1.20.1/1.21.1/26.1/26.2，路线七步
+  1.20.1 回迁垫底。现格局：1.21.1 主格全绿、26.2 骨架绿(m370/m372)、NeoForge 1.21.1 骨架绿(m408)
+  ——26.1 是下一格可动的，本笔落地。
+- **26.1 坐标（web 实查非记忆，出处入 gradle.properties 头注释）**：MC 26.1=2026-03-14 官方发布、
+  Gradle JVM 最低 JDK 25 自 26.1 起（官方 26.1 公告）；fabric-api 取基线 26.1 格 Latest release
+  0.145.1+26.1（26.1.x 补丁线的 0.155.x 只标 26.1.2，按 m402"小版本不做"锚死基线不取）；
+  loader 0.19.3/loom 1.17.19 与 26.2 同款沿用。
+- **结构决策：Modern 单源双靶**——versions/26.1 不带自己的 java 源，srcDir 指 ../26.2/src/main/java
+  （m361 代际结构里 Modern=26.x 一代只写一份适配器；两个真编译+GameTest 靶互为**分叉探测器**，
+  哪天 26.1/26.2 API 真分叉再立 versions/modern/ 归中，路标注释已埋 build.gradle 头）。
+  资源各自带：fabric.mod.json depends.minecraft 各锚 ~26.1/~26.2，JSON 过 json.load。
+- **CI 第五条流水线**：「26.1 新世代：编译+GameTest」镜像 26.2 作业（working-directory 换、
+  工件名 modern-261-gametest-junit/sdzjz-26.1-jar），YAML 解析过。**PAT workflow 权限先探后用**：
+  侧枝推工作流改动探针成功→有权限→直挂（m175 当年缺权限暂存 docs/ci 的补丁路径就此翻篇），
+  探针分支即推即删。
+- **1.20.1 格答复（不动工，按拍板顺位）**：m401 已算清那格是**物品数据模型代际差**不是换加载器
+  （1.20.5 才有 DataComponent，本仓全部节点状态建在 CUSTOM_DATA 上），成本≈其余三格之和；
+  好消息=读写只有 NodeTags 一个口（m180 红利，m426~m431 绞杀者线把口子进一步收拢到
+  NodeTags/NodeUpgrades/CanvasGraphState 三件）。开工前置=①m402~m405 六漏斗接口化收口
+  （tools_layer_gate 待接口化清单清零）②ItemDataAccess 双实现方案稿（m429 同规先稿后刀）。
+  矩阵稿 docs/平台支持矩阵_m401.md 补「现状更新（m432）」章。
+- **验证**：判官=CI 五线（新 26.1 作业首跑：绿=单源双靶成立；红=26.1/26.2 API 分叉实锤，
+  错误归 Modern 按 m370 口径修）；离线 15 闸全绿；沙箱到不了 fabricmc maven，26.1 依赖解析
+  只能 CI 判——【待编译验证】仅此一项。
+- **实机验证脚本**：CI 绿后取 sdzjz-26.1-jar 工件装 26.1 实例：启动日志应见 bootstrap 在岗行；
+  /gametest 全过；无玩法属预期（Phase 2 逐刀跟进，与 26.2 同进度）。
+- 零 Legacy 侧 Java 改动；零新配置键。

@@ -1,0 +1,56 @@
+// m432 Modern 第二靶（26.1）。与 26.2 构建的唯一结构差异：**java 源不自带**——
+// srcDir 指向 ../26.2/src/main/java（Modern 代际单源双靶：m361 代际结构里 Modern=26.x 一代，
+// 适配器只写一份，两个 MC 版本各自真编译+GameTest 当分叉探测器；若哪天 26.1/26.2 API 真分叉，
+// 再立 versions/modern/ 归中拆版本差异，本注释即迁移路标）。资源各自带：fabric.mod.json
+// 的 depends.minecraft 必须锚本版本。其余口径与 26.2 逐字同（见该文件头注释）。
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+// 版本号唯一数据源=根仓 gradle.properties 的 mod_version（m317 一笔一跳），
+// jar 尾缀带 MC 版本：sdzjz-0.1.NNN+mc26.1.jar。
+def rootProps = new Properties()
+file("../../gradle.properties").withInputStream { rootProps.load(it) }
+version = rootProps.getProperty("mod_version") + "+mc26.1"
+group = "com.sdzjz"
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+// Common 层挂载（与根构建/26.2 同一份）+ Modern 单源（26.2 侧那份 java）。
+sourceSets {
+    main {
+        java {
+            srcDir '../../common/src/main/java'
+            srcDir '../26.2/src/main/java'
+        }
+    }
+}
+
+// GameTest 运行配置（照 26.2 逐字，m372 口径）。
+loom {
+    runs {
+        gametest {
+            server()
+            name = "GameTest"
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get().asFile}/junit.xml"
+            runDir "build/gametest"
+        }
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": project.version }
+}
+
+tasks.withType(JavaCompile).configureEach { it.options.release = 25 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}

@@ -1,0 +1,14 @@
+// m370 新世代（26.2）独立 Gradle 构建——与根 Legacy 构建（Gradle 8.10 + fabric-loom 1.7.4 + JDK 21）
+// 完全互不相干，各有各的 wrapper。结构照 FabricMC/fabric-example-mod 分支 26.2 原文。
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'sdzjz'

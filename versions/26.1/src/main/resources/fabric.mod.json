@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "sdzjz",
+  "version": "${version}",
+  "name": "生电终结者",
+  "description": "节点画布替代红石生电——26.1 新世代 bootstrap（Modern 单源双靶第二靶，与 26.2 共享适配器源，m432）。",
+  "authors": [
+    "qiaodaxian233"
+  ],
+  "contact": {
+    "sources": "https://github.com/qiaodaxian233/SDZJZ"
+  },
+  "license": "ARR",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.sdzjz.modern.ModernBootstrap"
+    ],
+    "fabric-gametest": [
+      "com.sdzjz.modern.ModernRecipeDomainTests"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.1",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

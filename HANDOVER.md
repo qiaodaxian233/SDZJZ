@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m431+m431b 热修：绞杀者 mA2 收官 GraphNbt 线——渲染编解码 writeRenderNbt/readRenderNbt 迁 CanvasGraphState 成员方法，g. 前缀反向剥除后方法体与 m428 原文逐字对拍一致（两注入点 mergedIds/onTopoChange 除外，m429 普查认定的仅有跨界触点），m275 单编码函数三处共用结构原样，调用点 5/5 切 g. 直调不留垫片；SCBE 4071→3965 行（GraphNbt 线累计 -162），渲染域自治于 xplat/node/CanvasGraphState 供 26.2 代际复用。15 闸全绿，版本 0.1.431，零行为改动。**m431b：CI 真编译抓获 mA1 漏网一处局部遮蔽（sweepGroups int g 撞字段 g，this.g. 限定修复；遮蔽问题 grep 不够格、真编译闸才是判官——当日第五把坏尺子+冒烟第五盲区记档 DEVLOG）**。mA3（存档段）按方案稿缓做。m430+m431 实机验证同单待跑（DEVLOG 两条末尾）。上笔 m430：mA1 字段搬家（当日第三、四把坏尺子记档）。上上笔 m429：方案稿拍板 A）
+## 当前状态（m432：版本矩阵第三格开工——26.1 子构建落地（Modern 单源双靶：java 共享 26.2 适配器源互为分叉探测器，资源各锚版本；坐标 web 实查 fabric-api 0.145.1+26.1 基线锚死），CI 第五条流水线「26.1 编译+GameTest」直挂（PAT workflow 权限侧枝探针实证有，m175 暂存路径翻篇）；1.20.1 格按 m402 拍板顺位垫底不动工，前置=六漏斗接口化收口+ItemDataAccess 方案稿，矩阵稿补现状章。版本 0.1.432，待编译验证=26.1 首跑（红即 26.1/26.2 API 分叉实锤按 m370 归 Modern 修）。上笔 m431+m431b：mA2 编解码迁移收官 GraphNbt 线+CI 抓获局部遮蔽热修（当日五把坏尺子全记档）。上上笔 m430：mA1 字段搬家 CanvasGraphState）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
