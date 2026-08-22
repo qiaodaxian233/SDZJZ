@@ -117,6 +117,8 @@ jobs:
     # Common 挂载真编译；GameTest 随 P-B 第二段业务域移植一起立——错误归 Retro 不污染 Legacy/Modern）。
     name: 1.20.1 旧世代：编译出包
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # m439b 编译错误清单回推 ci-retro-errors 分支（沙箱只可达 raw 域，m414 同款）
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -129,14 +131,24 @@ jobs:
         working-directory: versions/1.20.1
         run: |
           chmod +x gradlew
-          ./gradlew build --stacktrace --no-daemon
+          set -o pipefail
+          ./gradlew build --stacktrace --no-daemon 2>&1 | tee gradle-build.log
+      - name: 失败错误清单回推分支(m439b,m414同款)
+        if: failure()
+        run: |
+          git config user.name ci-bot
+          git config user.email ci@local
+          git checkout -B ci-retro-errors
+          grep -B1 -A4 -E "\.java:[0-9]+: (error|错误)|FAILURE|Could not" versions/1.20.1/gradle-build.log > ci-retro-errors.log || tail -c 200000 versions/1.20.1/gradle-build.log > ci-retro-errors.log
+          git add -f ci-retro-errors.log
+          git commit -m "retro 编译错误清单 $GITHUB_SHA" || true
+          git push -f origin ci-retro-errors
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sdzjz-1.20.1
           path: versions/1.20.1/build/libs/*.jar
           if-no-files-found: warn
-
   modern-bootstrap:
     # m370 立/m372 升级：26.2 新世代闸=真编译+装载+GameTest 三段（作者拍板：错误归 Modern
     # 不污染 Legacy）。GameTest 跑 ModernRecipeDomainTests（Common 共享判官喂 ModernRecipeAccess，

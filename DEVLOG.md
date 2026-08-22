@@ -8301,3 +8301,13 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证脚本**：CI 绿后取 sdzjz-1.20.1 工件装 1.20.1+Fabric 实例：启动日志见
   "1.20.1 旧世代 bootstrap 在岗"一行；无玩法属预期。
 - 零 Legacy/Modern 侧改动；零新配置键。
+## m439b 热修：RetroBootstrap 在岗行包名写错 node→machine（CI 抓获）+ retro 作业补错误回推
+
+- **现象**：八线独 1.20.1 编译红。日志 blob 域拿不到、retro 作业当时没有 m414 式回推——
+  本地排雷：release17 的库 API 雷零命中（Math.clamp/reversed/getFirst 等全扫）、三触达类
+  存在性核过，**真凶=我把 CoreScheduler 写成 com.sdzjz.node（真身 com.sdzjz.machine）**，
+  照抄 Modern 在岗行时凭印象补包名——又一例"不核名就写"（开工三步③的反面教材，自己犯）。
+- **补基建**：retro 作业加 m414 同款失败错误清单回推（ci-retro-errors 分支，raw 域可读）——
+  每条新版本流水线**开格即配回推**，别等红了才发现瞎子（本笔教训固化：镜像作业块时回推段
+  不是可选件）。
+- **验证**：YAML 过、15 闸全绿；判官=CI 重跑。热修不抬版本（m317）。

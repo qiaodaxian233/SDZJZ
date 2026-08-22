@@ -18,7 +18,7 @@ public final class RetroBootstrap implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；业务域随 P-B 第二段移植",
                 com.sdzjz.machine.CraftPlanner.class.getSimpleName(),
-                com.sdzjz.node.CoreScheduler.class.getSimpleName(),
+                com.sdzjz.machine.CoreScheduler.class.getSimpleName(),
                 com.sdzjz.machine.MobDrops.class.getSimpleName());
     }
 }
