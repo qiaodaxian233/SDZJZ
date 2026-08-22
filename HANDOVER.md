@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m438：P-A 收口刀全段收官——残余 26 触点逐点语义改写（只读走 view/外逸走 copyOf/判空走 has 三原则），ItemData 记分牌 0 触点/0 文件，gametest 原生 poke 加注保留（测组件身份本体，m404 同理）；物品数据版本差钉死 ComponentItemData 一文件，1.20.1 届时 TagItemData 对位即可。m436 路线：P-A ✅，**下一件=P-B：versions/1.20.1 bootstrap+存储网络移植+Create 传送带互通（作者承诺首兑点）**。15 闸全绿，版本 0.1.438，零行为改动。实机单 m437/m438 并跑。上笔 m437：ItemData 门面+81 触点机械切）
+## 当前状态（m438+m438b 热修：P-A 收口刀全段收官——残余 26 触点逐点语义改写（只读走 view/外逸走 copyOf/判空走 has 三原则），ItemData 记分牌 0 触点/0 文件，gametest 原生 poke 加注保留（测组件身份本体，m404 同理）；物品数据版本差钉死 ComponentItemData 一文件，1.20.1 届时 TagItemData 对位即可。m436 路线：P-A ✅，**下一件=P-B：versions/1.20.1 bootstrap+存储网络移植+Create 传送带互通（作者承诺首兑点）**。15 闸全绿，版本 0.1.438，零行为改动。**m438b：CI 抓获两处半吊子改写（判头换了后续 c.copyTag 没跟上，view 一行对位修复；尺子名单不全+离线冒烟第六盲区记档——删谁查谁、名单机器提取不许手抄）**。实机单 m437/m438 并跑。上笔 m437：ItemData 门面+81 触点机械切）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

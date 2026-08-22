@@ -70,7 +70,7 @@ public class TerminalItem extends Item {
             msg(player, "先右键一个数据面板绑定终端");
             return InteractionResultHolder.fail(stack);
         }
-        CompoundTag nbt = c.copyTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.view(stack); // 只读取坐标/维度
         BlockPos target = BlockPos.of(nbt.getLong(K_POS));
         ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(nbt.getString(K_DIM)));
 

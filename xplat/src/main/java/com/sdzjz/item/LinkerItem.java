@@ -89,7 +89,7 @@ public class LinkerItem extends Item {
                 msg(player, "先右键一个数据面板记录目标");
                 return InteractionResult.FAIL;
             }
-            CompoundTag nbt = c.copyTag();
+            CompoundTag nbt = com.sdzjz.item.ItemData.view(stack); // 只读取坐标/维度
             BlockPos target = BlockPos.of(nbt.getLong(K_POS));
             core.setBound(target, nbt.getString(K_DIM));
             msg(player, "核心已绑定到面板 " + target.toShortString());
