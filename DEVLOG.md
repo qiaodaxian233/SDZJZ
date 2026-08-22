@@ -8560,3 +8560,13 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   顺手项=起服日志无 payload/菜单注册报错。
 - 零 Legacy/Modern 侧改动；零新配置键。下一刀 m448（P-C1 收官）=RetroClientBootstrap 客户端
   入口+ClientNet120+DataPanelScreen120 精简屏（列表/搜索/滚动/取物，S2C 接收+C2S 发送）。
+## m447b 热修（CI 抓获）：1.20.1 的 quickMove 叫 quickMoveStack
+
+- **错误清单回推定性（m414 机制第四次闭环）**：仅 2 条同源——AbstractContainerMenu 在 1.20.1
+  mojmap 的抽象方法是 quickMoveStack(Player,int)，quickMove 是 1.20.5 起的改名；离线冒烟第六
+  盲区标准形态（超类 MC 类型不可解析→javac 跳过 @Override 校验，m438b 已立"离线只算半票"）。
+  stillValid 同文过编译=该名 1.20.1 原位，顺带核实。
+- **修法**：声明与测试调用点两处改名，方法注释补版本差指认。逐点 grep：quickMoveStack 定义 1
+  +调用 1，quickMove 残留 0。
+- **教训追加**：m440 清单当年只核了 BE/注册/transfer 三族签名差，ScreenHandler 族漏核——
+  P-C1 刀③动客户端屏前把 Screen/MenuScreens 族名先过一遍 Forge 1.20.x 原文再落笔。

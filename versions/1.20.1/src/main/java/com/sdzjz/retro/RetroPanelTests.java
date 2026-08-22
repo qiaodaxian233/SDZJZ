@@ -94,7 +94,7 @@ public final class RetroPanelTests implements FabricGameTest {
         Player p = ctx.makeMockPlayer();
         p.getInventory().setItem(9, tagged(3, 8)); // 背包第一格（菜单槽 0=inv 下标 9）
         var menu = new DataPanel120.PanelMenu120(1, p.getInventory(), ctx.absolutePos(panelRel));
-        ItemStack ret = menu.quickMove(p, 0);
+        ItemStack ret = menu.quickMoveStack(p, 0);
         ctx.assertTrue(ret.isEmpty(), "quickMove 应返 EMPTY 终止续移");
         ctx.assertTrue(p.getInventory().getItem(9).isEmpty(), "槽应清空");
         ctx.assertTrue(c.exactTemplates().size() == 1 && c.exactCount(0) == 8,

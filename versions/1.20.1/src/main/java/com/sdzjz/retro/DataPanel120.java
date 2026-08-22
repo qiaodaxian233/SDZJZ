@@ -74,10 +74,10 @@ final class DataPanel120 extends BlockEntity implements ExtendedScreenHandlerFac
                     && player.distanceToSqr(panelPos.getX() + 0.5, panelPos.getY() + 0.5, panelPos.getZ() + 0.5) <= 64.0;
         }
 
-        /** shift 点背包槽=整栈入仓（网络无此类型且类型闸满=原样留在槽里）。返回 EMPTY 终止
+        /** shift 点背包槽=整栈入仓（1.20.1 mojmap 名 quickMoveStack——quickMove 是 1.20.5 起改名，m447b CI 抓获）。返回 EMPTY 终止
          *  原版续移循环——虚拟列表制没有"下一个槽"可续。客户端支路空转（触库红线，类注）。 */
         @Override
-        public ItemStack quickMove(Player player, int slotIndex) {
+        public ItemStack quickMoveStack(Player player, int slotIndex) {
             if (player.level().isClientSide) return ItemStack.EMPTY;
             Slot slot = slots.get(slotIndex);
             if (!slot.hasItem()) return ItemStack.EMPTY;
