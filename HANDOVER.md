@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m427：绞杀者第三刀——m180 路线图首位候选"升级折算族"销账：upgradeItem/upgradeKey/refundUpgrades 三方法外迁 xplat/node/NodeUpgrades（方法体一字未改，private→public static），本刀搬迁+调用点切换一笔做完不留垫片（m426 双身教训；三名调用点仅 SCBE 一文件 8 处逐点可数）；断言组 3 名全过（定义清零/裸调清零/新家唯一定义/限定词 8/8/m128 注释指纹随迁）；javac 冒烟（-Xmaxerrs 抬满，默认 100 截断是坏尺子已记档）委托链三验全 0；SCBE 4126→4096 行。14 闸全绿，版本 0.1.427，零新配置键零行为改动。下一刀候选=rollDrops。上笔 m426：绞杀者第二刀 26 垫片全拆调用点 244 处归位。上上笔 m425：酿造全图一次 BFS 前驱树缓存双侧同刀）
+## 当前状态（m428：绞杀者第四刀——m180 路线图第二位候选"掉落结算 rollDrops"销账：外迁 xplat/machine/DropRolls（方法体一字未改，instance→public static，零 BE 状态触点普查过；选家记档：近亲 MachineDef/MobDrops 在 common 但 rollDrops 摸 MC 的 RandomSource，进 common 必破硬闸①，绞杀者选家先问"摸没摸 MC 类"）；调用点 4/4 逐对计数切换不留垫片，m99 javadoc 随迁；javac 冒烟委托链三验全 0；SCBE 4096→4084 行。14 闸全绿，版本 0.1.428，零新配置键零行为改动。下一刀候选=NBT 读写段拆 GraphNbt（体量大，须单独普查立方案）。上笔 m427：第三刀升级折算族迁 NodeUpgrades（一跑 str.count 子串坏尺子+javac 默认 -Xmaxerrs 100 截断坏尺子双记档）。上上笔 m426：第二刀 26 垫片全拆 244 调用点归位）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades，下一刀 rollDrops，长期最大工程项）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，下一刀 GraphNbt 须先立方案，长期最大工程项）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测

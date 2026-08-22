@@ -7999,3 +7999,27 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ④归还节点（潜行右键弹出）升级退背包、GM 阶位前缀仍在（m128F2）。
 - 零新配置键；零行为改动（方法体一字未动，纯搬家+调用点归位）。下一刀候选照 m180 路线：
   掉落结算 rollDrops（instance 形态但零 BE 状态触点，动手前再普查）。
+## m428 绞杀者第四刀：掉落结算 rollDrops 外迁 machine/DropRolls（m180 路线图第二位候选销账）
+
+- **动机**：m180 路线图第二位候选。rollDrops 虽是 instance 形态，动手前普查证零 BE 状态触点
+  （入参齐全：随机源/掉落表项/周期数/数量升级等级，方法体只读四参）——纯函数改 public static。
+- **选家记档（差点踩 Common 硬闸）**：掉落域近亲 MachineDef/MobDrops 都住 common（零 MC 层），
+  但 rollDrops 入参含 MC 的 RandomSource——进 common 必破 Phase 1.5 硬闸①（零 MC 字面）。
+  家安 xplat/machine/DropRolls（见 MC 不见加载器），与 NodeTags/NodeUpgrades 同层。
+  教训：**绞杀者选家先过一问"入参/返回摸没摸 MC 类"，摸了就止步 xplat，别看域名亲缘**。
+- **刀法**：同 m427——搬迁+调用点切换一笔、不留垫片。全库触点=定义 1+调用 4（全部 SCBE 内
+  `be.rollDrops(`，静态 tick 方法经实例引用调），`be.rollDrops(` → `com.sdzjz.machine.DropRolls.rollDrops(`
+  逐对计数 4/4；m99 javadoc 随迁（唯一改动：签名里 RandomSource 由内联 FQN 改 import 拼写，语义等价）。
+- **SCBE 4096→4084 行（-12）**；diff 4 insertions / 16 deletions（4 切换行+12 行定义体）。
+- **断言组全过**：SCBE 定义清零 / 剥注释裸调清零 / 新家 public static 唯一定义 / 限定词 4/4 /
+  m99 注释指纹在新家。
+- **验证**：javac 冒烟（-Xmaxerrs 抬满，m427 坏尺子教训沿用）真语法错 0；委托链三验全 0
+  （SCBE 文件内含 DropRolls 报错=0 / symbol: class DropRolls=0 / symbol: method rollDrops=0）；
+  总错 2880→2881，+1=新家自身缺 MC 包噪音与 NodeTags 同款，方向自洽；14 道闸本地全绿。
+  行为判官=CI GameTest（农场/抓物笼/掉落表机产量结算全在用例路径；RNG 序不变：调用序与
+  world.getRandom() 消费点零改动）。
+- **实机验证脚本**：①任一掉落表机器（抓物笼/农场/深掘平台）挂机一分钟，产量与 m427 版本同座
+  （m86 每分钟产量同步直读）；②数量升级 +8/级 加成照旧（塞 cnt 升级看产量阶跃）；③概率掉落
+  （深掘钻石 0.15/远古残骸 0.05）长跑比率不漂。
+- 零新配置键；零行为改动。下一刀候选照 m180 路线：NBT 读写段（writeNbt/readNbt 拆 GraphNbt）
+  ——体量与状态触点远大于前四刀，动手前须单独普查立方案，不顺手带。

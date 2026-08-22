@@ -729,7 +729,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long cropUnit = st.getItem() instanceof MachineItem miCf
                         ? com.sdzjz.machine.Machines.cropUnit(miCf.def().id()) : 1L; // m173 农业塔×32
                 for (MachineDef.Drop d : allDrops) {
-                    long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
+                    long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, cycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum * cropUnit;
                     if (cappedCf) total = Math.min(total, 64L * OUTPUT_SLOTS);
@@ -1508,7 +1508,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean cappedSk = !hasOut[i] && depositSk == null;
                 for (MachineDef.Drop d : def.outputs()) {
                     if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
-                    long sum = be.rollDrops(world.getRandom(), d, (int) Math.min(attempts, Integer.MAX_VALUE), countLv);
+                    long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, (int) Math.min(attempts, Integer.MAX_VALUE), countLv);
                     if (sum <= 0) continue;
                     if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
                     be.prodTally(sum);
@@ -1554,7 +1554,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean cappedMi = !hasOut[i] && depositMi == null; // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : def.outputs()) {
                     if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
-                    long sum = be.rollDrops(world.getRandom(), d, doCycles, countLv);
+                    long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, doCycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
                     if ("minecraft:goat_horn".equals(d.item())) {
@@ -1590,7 +1590,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 boolean cappedCg = !hasOut[i] && depositCg == null;  // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : drops) {
                     if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149
-                    long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
+                    long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, cycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
                     if (cappedCg) total = Math.min(total, 64L * OUTPUT_SLOTS);
@@ -1785,18 +1785,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         bufWithdrawFor(i, id, fromBuf);
         if (want > fromBuf && exp != null)
             exp.withdraw(id, (int) Math.min(Integer.MAX_VALUE, want - fromBuf));
-    }
-
-    /** m99 随机掉落表按周期数结算：每周期独立掷概率/数量，命中加数量升级奖励(+8/级)。 */
-    private long rollDrops(net.minecraft.util.RandomSource rand, MachineDef.Drop d, int cycles, int countLv) {
-        long sum = 0;
-        for (int c = 0; c < cycles; c++) {
-            if (d.chance() < 1f && rand.nextFloat() >= d.chance()) continue;
-            int amt = d.min() + (d.max() > d.min() ? rand.nextInt(d.max() - d.min() + 1) : 0);
-            if (amt <= 0) continue;
-            sum += amt + (long) countLv * 8;
-        }
-        return sum;
     }
 
     /** m137 山羊角入库：8 变体 instrument 组件（原版 GOAT_HORNS 标签枚举，模组扩展自动跟随），
