@@ -8502,3 +8502,15 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - 零 Legacy/Modern 侧改动；零新配置键（复用 m225 两键）。P-B②三刀全收：1.20.1 格=可玩精简版
   （存储网络+跨模组物流）。下一步按 m436 路线=P-C（画布/机器/19 payload 按 FabricPacket 对位）
   或按队列回 26.x/NeoForge 玩法格，听拍板。
+## m445 P-C 排刀稿：1.20.1 画布与机器移植方案（零代码笔）
+
+- **拍板记档**：作者 m444 后全权委托（"按照你想的来"）——选 P-C 继续 1.20.1，理由=m436 路线下一格
+  +Create 承诺所在格+26.x 无上游 Create/NeoForge 无点名诉求。选择本身与理由一并入档备回溯。
+- **交付物**：docs/画布机器移植1201_m445.md——xplat 不可挂载定性复核（25 文件 1.20.5 网络类型）、
+  移植面盘点（payload 23 个=m436 的 19+画布线新增 4，普查修正口径同 m437；面板 831+694、画布屏
+  3435、SCBE 3965）、P-C1 面板三刀排死（m446 Net120 地基/m447 服务端半/m448 客户端屏）、
+  P-C2 画布+机器到序单独普查立方案不顺手带（m429 同规）、红线随迁清单。
+- **核名前置**：fabric-api 1.20.1 分支 FabricPacket/PacketType.create/ServerPlayNetworking.
+  registerGlobalReceiver(PacketType,…) 原文已核（Yarn 名 PacketByteBuf/Identifier 对位 mojmap
+  FriendlyByteBuf/ResourceLocation，Fabric 自家名不随映射变）。
+- 15 闸全绿（版本闸 0.1.445 对表）。零代码面风险。
