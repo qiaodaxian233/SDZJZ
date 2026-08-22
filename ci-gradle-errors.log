@@ -1,0 +1,6 @@
+/home/runner/work/SDZJZ/SDZJZ/src/main/java/com/sdzjz/item/TerminalItem.java:73: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/item/LinkerItem.java:92: error: cannot find symbol
+> Task :compileJava FAILED
+> Compilation failed; see the compiler error output for details.
+Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler error output for details.
+BUILD FAILED in 28s
