@@ -8514,3 +8514,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   registerGlobalReceiver(PacketType,…) 原文已核（Yarn 名 PacketByteBuf/Identifier 对位 mojmap
   FriendlyByteBuf/ResourceLocation，Fabric 自家名不随映射变）。
 - 15 闸全绿（版本闸 0.1.445 对表）。零代码面风险。
+## m446 P-C1 刀①：Net120 网络地基（FabricPacket 收发样板+有界解码红线）
+
+- **落地物**：①Net120——蓝本 xplat Net（m402/m433）四口的本世代对位，实际两口 onServer/toPlayer
+  （口数差行内指认：FabricPacket 编解码随包类自带无独立注册步；客户端两口随刀③ ClientNet120，
+  本类绝不摸客户端类型=m180 加载期版本）。onServer 把 registerGlobalReceiver 的"重复注册返 false
+  不抛"抬成 IllegalStateException 带修法指引（m99/m433 口径）。②m291 有界解码红线对位两口：
+  readBoundedUtf（readUtf(max) 解码期自抛，独立成口=可 grep 的红线锚点，裸 readUtf() 禁用于 C2S）
+  +readBoundedCount（**分配前**验声明条数，超限抛 DecoderException）。③RetroNetTests 三用例
+  （判官累计十三）：恶意百万条声明分配前拒收+合法放行/超长串解码期拒收/重复注册硬失败——
+  第一条口径=Legacy oversized_panel_view_payload_rejected 同款"解码期拒收不分配"。
+- **核名（上游原文实证四条）**：PacketType.create(Identifier,Function<PacketByteBuf,P>)、
+  registerGlobalReceiver(PacketType,PlayPacketHandler) 且 PlayPacketHandler.receive(T packet,
+  ServerPlayerEntity player, PacketSender responseSender)、send(ServerPlayerEntity, T packet)、
+  PacketByteBufs.create()——全部 fabric-api 1.20.1 分支逐行核到；服务端接收器"called on the
+  server thread"原文在案，不额外调度与蓝本行为口径一致。
+- **验证**：15 闸全绿（0.1.446 对表）；冒烟真语法错 0、自家符号 symbol 行定向 0（607 条全为缺
+  依赖噪音）。判官=CI retro 编译+GameTest 十三用例。
+- **实机验证脚本**：本刀纯地基无玩家可见面——CI 绿即销；顺手项：起服日志无 payload 相关报错。
+- 零 Legacy/Modern 侧改动；零新配置键。下一刀 m447（P-C1 刀②）=DataPanel120 方块/BE/
+  ScreenHandler 服务端半+view 同步 S2C+取物 C2S 服务端权威+注册六件套资产。

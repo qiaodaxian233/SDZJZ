@@ -17,7 +17,8 @@
       "com.sdzjz.retro.RetroBootstrap"
     ],
     "fabric-gametest": [
-      "com.sdzjz.retro.RetroStorageTests"
+      "com.sdzjz.retro.RetroStorageTests",
+      "com.sdzjz.retro.RetroNetTests"
     ]
   },
   "depends": {

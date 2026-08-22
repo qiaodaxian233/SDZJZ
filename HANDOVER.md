@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m444：P-B② 刀③数据线双向拍落地——**1.20.1 存储网络精简版收官**：DataCable120（m225 主拍/m228 六面视图/m231 送出+回收，transfer API 内联不设 Xfer 门面）+DataCableBlock120 三态连接（资产自根仓同源拷贝）+StorageCore120 补 BFS4096/loadedCoreAt；空手右键循环 关→送出→回收（m226 配置屏随 P-C）；本世代裁剪记档=m229/m230/m233；GameTest 判官累计十用例（送出穿链/回收双账分流/箱满余量回账）。StorageUtil.move 五参签名与 absolutePos 均上游原文实证。15 闸全绿，版本 0.1.444。**Create 传送带↔数据线实机验收单在 DEVLOG m444 条末（CI 只能判到 GameTest，那一眼要作者装 Create 1.20.1 点验）**。下一步听拍板：P-C（1.20.1 画布/机器/19 payload 按 FabricPacket 对位）或回 26.x/NeoForge 玩法格。上笔 m443：账本核心）
+## 当前状态（m446：P-C 开线——m445 排刀稿（作者全权委托选 P-C 记档：payload 现 23 个、面板 831+694、画布屏 3435、SCBE 3965；P-C1 面板三刀=Net120 地基/服务端半/客户端屏，P-C2 画布+机器到序单独普查）+m446 刀① Net120 落地（onServer/toPlayer 两口、重复注册硬失败、m291 有界解码两口readBoundedUtf/readBoundedCount，fabric-api 1.20.1 分支原文核名四条），GameTest 判官累计十三。15 闸全绿，版本 0.1.446。**下一刀 m447（P-C1 刀②）**：DataPanel120 服务端半（方块/BE/Handler+view S2C+取物 C2S 服务端权威+六件套资产）。Create 传送带实机验收单仍挂 DEVLOG m444 条末待作者点验。上笔 m444：数据线双向拍）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
