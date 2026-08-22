@@ -43,7 +43,7 @@ public class TerminalItem extends Item {
             CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留补货阈值等既有设置
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.dimension().location().toString());
-            ctx.getItemInHand().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(ctx.getItemInHand(), nbt);
             msg(ctx.getPlayer(), "终端已绑定面板 " + pos.toShortString());
             return InteractionResult.SUCCESS;
         }
@@ -63,7 +63,7 @@ public class TerminalItem extends Item {
             th = th == 0 ? 16 : th == 16 ? 32 : th == 32 ? 64 : 0;
             nbt.putInt(K_RESTOCK, th);
             if (th == 0) nbt.remove(K_LAST); // 关闭即清手持记忆
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             msg(player, th == 0 ? "自动补货：关" : "自动补货：手持 < " + th + " 补齐；打空自动补一组");
             return InteractionResultHolder.success(stack);
         }
@@ -121,7 +121,7 @@ public class TerminalItem extends Item {
             if (!hand.getComponentsPatch().isEmpty()) return;                 // 带组件的不按 id 补
             if (hand.getItem() instanceof TerminalItem || hand.getItem() instanceof AutoFeederItem) return;
             String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(hand.getItem()).toString();
-            if (!id.equals(last)) { nbt.putString(K_LAST, id); stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt)); }
+            if (!id.equals(last)) { nbt.putString(K_LAST, id); com.sdzjz.item.ItemData.write(stack, nbt); }
             int want = Math.min(th, hand.getMaxStackSize()) - hand.getCount();
             if (want <= 0) return;
             DataPanelBlockEntity panel = resolvePanel(world, nbt);
@@ -150,7 +150,7 @@ public class TerminalItem extends Item {
             CustomData fc = otherStack.get(DataComponents.CUSTOM_DATA);
             nbt.putBoolean(K_FEED, true);
             nbt.putString(K_FFOOD, fc != null ? fc.copyTag().getString(AutoFeederItem.K_FOOD) : "");
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             otherStack.shrink(1);
             return true;
         }
@@ -160,11 +160,11 @@ public class TerminalItem extends Item {
             if (!food.isEmpty()) {
                 CompoundTag fn = new CompoundTag();
                 fn.putString(AutoFeederItem.K_FOOD, food);
-                feeder.set(DataComponents.CUSTOM_DATA, CustomData.of(fn));
+                com.sdzjz.item.ItemData.write(feeder, fn);
             }
             nbt.remove(K_FEED);
             nbt.remove(K_FFOOD);
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             cursorStackReference.set(feeder);
             return true;
         }

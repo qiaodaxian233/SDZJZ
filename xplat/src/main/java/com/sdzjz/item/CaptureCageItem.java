@@ -58,7 +58,7 @@ public class CaptureCageItem extends Item {
         ItemStack caged = new ItemStack(cageItem, 1);
         CompoundTag nbt = new CompoundTag();
         nbt.putString(KEY, id.toString());
-        caged.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+        com.sdzjz.item.ItemData.write(caged, nbt);
         caged.set(DataComponents.CUSTOM_NAME,
                 Component.literal("抓物笼子 · ").append(entity.getType().getDescription()));
 

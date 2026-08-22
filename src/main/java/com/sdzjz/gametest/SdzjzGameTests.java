@@ -41,7 +41,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ItemStack st = new ItemStack(Items.COBBLESTONE, count);
         CompoundTag t = new CompoundTag();
         t.putInt("k", k);
-        st.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
+        com.sdzjz.item.ItemData.write(st, t);
         return st;
     }
 

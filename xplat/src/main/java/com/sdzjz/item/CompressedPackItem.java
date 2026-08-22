@@ -38,7 +38,7 @@ public class CompressedPackItem extends Item {
         ItemStack s = new ItemStack(packItem, count);
         CompoundTag nbt = new CompoundTag();
         nbt.putString(KEY, innerId);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+        com.sdzjz.item.ItemData.write(s, nbt);
         return s;
     }
 

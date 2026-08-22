@@ -35,13 +35,13 @@ public class ChunkDataCoreItem extends Item {
         n.putString("dim", dim);
         n.putLong("tt", total);
         n.putInt("ty", types);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         return s;
     }
 
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         if (n.contains("tid")) {
             tooltip.add(Component.literal("源区块 (" + n.getInt("ox") + ", " + n.getInt("oz") + ") · " + n.getString("dim")).withStyle(ChatFormatting.AQUA));
             tooltip.add(Component.literal("可重建方块 " + n.getLong("tt") + " · 材料 " + n.getInt("ty") + " 种").withStyle(ChatFormatting.GRAY));

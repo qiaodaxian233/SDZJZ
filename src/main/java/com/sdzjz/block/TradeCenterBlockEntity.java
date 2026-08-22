@@ -148,17 +148,17 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     private static void setLevel(ItemStack s, int lv, int xp) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("lv", lv);
         n.putInt("xp", xp);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** m333 记交易经验并按门槛升级，返回升了几级（0=没升）。纯函数口（廿二号用例直测）：
      *  旧合同（无 lv 键）视同满级零写入；满级封顶（到顶再投入=界面明示"满级"，不静默——m99 之问）。 */
     public static int grantTradeXp(ItemStack c, int gain) {
         if (contractProf(c) == null) return 0;
-        CompoundTag n = c.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(c);
         int lv = n.contains("lv") ? Math.max(1, Math.min(5, n.getInt("lv"))) : 5;
         if (lv >= 5) return 0;
         int xp = Math.max(0, n.getInt("xp")) + Math.max(0, gain);
@@ -166,15 +166,15 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
         while (lv < 5 && xp >= VillagerTrades.LEVEL_XP[lv]) { lv++; up++; }
         n.putInt("lv", lv);
         n.putInt("xp", xp);
-        c.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(c, n);
         return up;
     }
 
     private static void setContract(ItemStack s, String prof, int disc) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putString("prof", prof);
         n.putInt("disc", disc);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     // ---- 三个服务端动作（由 Handler.onButtonClick 调） ----

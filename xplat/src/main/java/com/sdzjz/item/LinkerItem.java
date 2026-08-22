@@ -74,7 +74,7 @@ public class LinkerItem extends Item {
             CompoundTag nbt = new CompoundTag();
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.dimension().location().toString());
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             msg(player, "已记录数据面板 " + pos.toShortString());
             return InteractionResult.SUCCESS;
         }

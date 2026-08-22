@@ -57,6 +57,20 @@ def main():
         return 1
     print('分层硬闸 ✓ xplat %d 文件零加载器符号' % total)
     print('    待接口化（引用加载器层漏斗类，报告不红）：%d 文件' % len(pending))
+    # m437 记分牌：ItemData 收口进度（P-A 刀，报告不红）——直摸组件 API 的残余触点，改一处销一处
+    import glob
+    left = []
+    for r in ['src/main/java', 'xplat/src/main/java']:
+        for p in glob.glob(os.path.join(root, r, '**', '*.java'), recursive=True):
+            if p.endswith('ComponentItemData.java'):
+                continue
+            n = len(re.findall(r'DataComponents\.CUSTOM_DATA', strip_comments(open(p, encoding='utf-8').read())))
+            if n:
+                left.append((os.path.basename(p), n))
+    print('    ItemData 收口残余（直摸 CUSTOM_DATA，报告不红）：%d 触点 / %d 文件' % (sum(n for _, n in left), len(left)))
+    for f, n in sorted(left, key=lambda x: -x[1])[:8]:
+        print('      %-40s %d' % (f, n))
+
     for r, hits in sorted(pending)[:20]:
         print('      %-52s %s' % (r, '/'.join(hits)))
     return 0

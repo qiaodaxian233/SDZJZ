@@ -43,24 +43,24 @@ public final class NodeTags {
         return n.contains("cr") ? n.getString("cr") : "";
     }
 
-    /** 写路起手口：返回**拷贝**——改完必须 s.set(CUSTOM_DATA, CustomData.of(n)) 回写，否则丢写
+    /** 写路起手口：返回**拷贝**——改完必须 ItemData.write(s, n) 回写，否则丢写（m437 起三式统一走 com.sdzjz.item.ItemData 门面）
      *  （m353 垃圾桶 tc 就栽在这：改了拷贝没回写，"已吞"自组件化起是死数）。只读请走 viewOf 零拷贝。 */
     public static CompoundTag nbtOf(ItemStack s) { // m159 客户端卡面读xc改包内可见
-        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return com.sdzjz.item.ItemData.copyOf(s);
     }
 
     /** m353 免拷贝只读视图（yarn getNbt=组件内部实包，mojmap getUnsafe 同口，1.21.1 核名 method_57463）。
      *  铁律：**绝对只读**——改它=篡改组件内部状态，且 DEFAULT 空件全局共享一份，写它=全服中毒。
      *  要写走 nbtOf 拷贝→改→set 三段。读路全面换本口是压测 447MB/s 分配火源的主刀（m353）。 */
     public static CompoundTag viewOf(ItemStack s) {
-        return s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getUnsafe();
+        return com.sdzjz.item.ItemData.view(s);
     }
 
     /** m353 垃圾桶已吞计数累加（修丢写 bug：拷贝→加→set 回三段全）。 */
     public static void addTrashCount(ItemStack s, long ate) {
         CompoundTag n = nbtOf(s);
         n.putLong("tc", n.getLong("tc") + ate);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     public static boolean isFilter(ItemStack s) { return s.is(ModItems.FILTER_NODE); }

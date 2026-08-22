@@ -30,11 +30,11 @@ public class VoidProcessorItem extends MachineItem {
 
     /** tick 侧结算写器（三键一笔：va 累计吞 / vc 汇率余数 / vn 累计炼得经验）。 */
     public static void settle(ItemStack s, long eatenDelta, long carryLeft, long xpDelta) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putLong("va", n.getLong("va") + eatenDelta);
         n.putLong("vc", carryLeft);
         if (xpDelta > 0) n.putLong("vn", n.getLong("vn") + xpDelta);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** 画布卡面第二行唯一口径。 */

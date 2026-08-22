@@ -44,7 +44,7 @@ public class AutoFeederItem extends Item {
             CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留已选食物
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.dimension().location().toString());
-            ctx.getItemInHand().set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(ctx.getItemInHand(), nbt);
             msg(ctx.getPlayer(), "喂食器已绑定面板 " + pos.toShortString());
             return InteractionResult.SUCCESS;
         }
@@ -59,14 +59,14 @@ public class AutoFeederItem extends Item {
         CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag();
         if (player.isShiftKeyDown()) {
             nbt.remove(K_FOOD);
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             msg(player, "已清除选定食物");
             return InteractionResultHolder.success(stack);
         }
         ItemStack off = player.getOffhandItem();
         if (!off.isEmpty() && off.get(DataComponents.FOOD) != null) {
             nbt.putString(K_FOOD, BuiltInRegistries.ITEM.getKey(off.getItem()).toString());
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+            com.sdzjz.item.ItemData.write(stack, nbt);
             msg(player, "已设定食物: " + off.getHoverName().getString());
             return InteractionResultHolder.success(stack);
         }

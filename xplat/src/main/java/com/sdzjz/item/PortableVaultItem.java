@@ -49,7 +49,7 @@ public class PortableVaultItem extends Item {
     }
 
     static void writeRoot(ItemStack s, CompoundTag root) {
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+        com.sdzjz.item.ItemData.write(s, root);
     }
 
     /** 入账 n 个 id（饱和加法防翻负，m273 satAdd 同口径）。返回 false=类型已满拒收新类型。 */

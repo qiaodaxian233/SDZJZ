@@ -39,7 +39,7 @@ public class ChunkRemoverItem extends MachineItem {
         BlockPos pos = ctx.getClickedPos();
         ItemStack stack = ctx.getItemInHand();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         n.putInt("zx", cx);
         n.putInt("zz", cz);
         n.putString("zd", world.dimension().location().toString());
@@ -49,7 +49,7 @@ public class ChunkRemoverItem extends MachineItem {
         n.remove("zf"); // 重绑=清完成位+清累计（重新开扫）
         n.remove("zn");
         n.remove("zq"); // m390 湿账随新工程归零
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(stack, n);
         if (ctx.getPlayer() != null)
             ctx.getPlayer().displayClientMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开挖"), true);
         return InteractionResult.SUCCESS;
@@ -63,10 +63,10 @@ public class ChunkRemoverItem extends MachineItem {
         ItemStack s = player.getItemInHand(hand);
         if (!player.isShiftKeyDown()) return net.minecraft.world.InteractionResultHolder.pass(s);
         if (!world.isClientSide) { // m386 区域自由调后循环换挡退役（cap=64 时循环 65 挡=灾难 UX），潜行右键空处改=快切掉落模式（野外随手切"这块不要掉落快拆"）
-            CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
             int nm = nextMode(n.getInt("zm"), com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode); // m397 三挡循环
             n.putInt("zm", nm);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            com.sdzjz.item.ItemData.write(s, n);
             player.displayClientMessage(Component.literal("模式：" + modeLabel(nm) + (nm == 2 ? "（基岩也拆，坑底会通虚空）" : "")), true);
         }
         return net.minecraft.world.InteractionResultHolder.sidedSuccess(s, world.isClientSide);
@@ -141,7 +141,7 @@ public class ChunkRemoverItem extends MachineItem {
      *  wetReset=真则清 zq（复检环开新一遍 / 真完成收尾），reset 优先于 delta（旧遍的账不带进新遍）。 */
     public static void advance(ItemStack s, int y, int ord, int idx, long removedDelta, boolean done,
                                long wetDelta, boolean wetReset, int limited) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("zy", y);
         n.putInt("zc", ord); // m382 层主序分块序号
         n.putInt("zi", idx);
@@ -150,7 +150,7 @@ public class ChunkRemoverItem extends MachineItem {
         else if (wetDelta > 0) n.putLong("zq", n.getLong("zq") + wetDelta); // m390
         if (done) n.putBoolean("zf", true);
         if (limited > 0) n.putInt("zl", limited); else n.remove("zl"); // m398 上限位（0=不写键，老档缺键=没撞）
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     @Override

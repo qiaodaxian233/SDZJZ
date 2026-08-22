@@ -22,7 +22,7 @@ public class VillagerContractItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag type) {
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         String prof = n.getString("prof");
         int disc = n.getInt("disc");
         if (!prof.isEmpty()) {

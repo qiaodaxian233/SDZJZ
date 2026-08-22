@@ -50,14 +50,14 @@ public class ChunkScannerItem extends MachineItem {
         BlockPos pos = ctx.getClickedPos();
         ItemStack stack = ctx.getItemInHand();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         n.putInt("zx", cx);
         n.putInt("zz", cz);
         n.putString("zd", world.dimension().location().toString());
         n.putInt("zy", world.getMaxBuildHeight() - 1);
         n.putInt("zi", 0);
         clearReport(n); // 重绑=清报告重扫
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(stack, n);
         if (ctx.getPlayer() != null)
             ctx.getPlayer().displayClientMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开扫"), true);
         return InteractionResult.SUCCESS;
@@ -70,17 +70,17 @@ public class ChunkScannerItem extends MachineItem {
     /** #zs 重新扫描（服务端收包口调用）：报告清空、游标回顶；未绑定=无事发生。 */
     public static void resetScan(ItemStack s, int topY) {
         if (!NodeTags.chunkBound(s)) return;
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("zy", topY);
         n.putInt("zi", 0);
         clearReport(n);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** tick 侧每拍累计落盘（游标+四计数+类型榜合并，榜满归"#其他"桶）。 */
     public static void accumulate(ItemStack s, int y, int idx, long total, long ore, long containers,
                                   Map<String, Long> typeDelta) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("zy", y);
         n.putInt("zi", idx);
         if (total > 0) n.putLong("sa", n.getLong("sa") + total);
@@ -94,15 +94,15 @@ public class ChunkScannerItem extends MachineItem {
             }
             n.put("sm", m);
         }
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** 扫描收官：生物数一次性入账+就绪位。 */
     public static void finish(ItemStack s, long entities) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putLong("se", entities);
         n.putBoolean("sf", true);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     @Override

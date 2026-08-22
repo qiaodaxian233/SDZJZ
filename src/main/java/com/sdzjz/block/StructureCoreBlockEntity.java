@@ -1620,12 +1620,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return false;
         }
         ItemStack node = held.copyWithCount(1); // m78：一次只放 1 台（原来整叠塞进一个节点，"一右键就是一组"）
-        CompoundTag n = node.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(node);
         if (!n.contains("nx")) {
             int i = g.machineNodes.size(), cols = 6;
             n.putInt("nx", 20 + (i % cols) * 112);
             n.putInt("ny", 20 + (i / cols) * 88);
-            node.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            com.sdzjz.item.ItemData.write(node, n);
         }
         g.machineNodes.add(node);
         bumpTopo(); // m179
@@ -1913,13 +1913,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
             CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
             n.putInt("mt", mt + 1);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            com.sdzjz.item.ItemData.write(s, n);
             s.setCount(keep);
         } else {
             if (mt <= 0) return;
             CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
             n.putInt("mt", mt - 1);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            com.sdzjz.item.ItemData.write(s, n);
             long c = (long) s.getCount() * 4;
             int nc = (int) Math.min(c, s.getMaxStackSize());
             s.setCount(nc);
@@ -2031,7 +2031,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (s.isEmpty()) return;
         CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         n.putBoolean("np", !com.sdzjz.node.NodeTags.nodePaused(s));
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2044,7 +2044,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (com.sdzjz.node.NodeTags.isSwitch(s)) n.putBoolean("so", !com.sdzjz.node.NodeTags.switchOn(s));
         else if (com.sdzjz.node.NodeTags.isExtractor(s)) n.putBoolean("xo", !com.sdzjz.node.NodeTags.extractorOn(s)); // m154 抽取启停走同一收包口
         else return;
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2063,7 +2063,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             for (int k = 0; k < ps.size(); k++) if (ps.get(k).recipeId().equals(cur)) { at = k; break; }
             int nxt = at + 1;
             if (nxt >= ps.size()) nc.remove("cr"); else nc.putString("cr", ps.get(nxt).recipeId());
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nc));
+            com.sdzjz.item.ItemData.write(s, nc);
             setChanged();
             syncToClient();
             return;
@@ -2072,7 +2072,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             CompoundTag nx = com.sdzjz.node.NodeTags.nbtOf(s);
             long cur = com.sdzjz.node.NodeTags.extractorRate(s);
             nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : cur == 4096 ? 32768 : cur == 32768 ? 262144 : 64);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nx));
+            com.sdzjz.item.ItemData.write(s, nx);
             setChanged();
             syncToClient();
             return;
@@ -2080,7 +2080,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if ("#zy".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 Y 挡循环复用此收包口（#xr 同款哨兵工艺）：全高度→地表下→深层→深板岩→地上→回全高度
             CompoundTag nz = com.sdzjz.node.NodeTags.nbtOf(s);
             nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nz));
+            com.sdzjz.item.ItemData.write(s, nz);
             setChanged();
             syncToClient();
             return;
@@ -2099,7 +2099,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 nr.putInt("zc", 0);
                 nr.remove("zf");
                 nr.remove("zq"); // m390 湿账随新工程归零
-                s.set(DataComponents.CUSTOM_DATA, CustomData.of(nr));
+                com.sdzjz.item.ItemData.write(s, nr);
                 setChanged();
                 syncToClient();
             }
@@ -2109,7 +2109,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             CompoundTag nbf = com.sdzjz.node.NodeTags.nbtOf(s);
             if ("#bfx".equals(id)) nbf.putInt("bfx", com.sdzjz.item.InfiniteBeaconItem.nextEffect(nbf.getInt("bfx")));
             else nbf.putInt("bfl", nbf.getInt("bfl") >= 1 ? 0 : 1);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nbf));
+            com.sdzjz.item.ItemData.write(s, nbf);
             setChanged();
             syncToClient();
             return;
@@ -2117,7 +2117,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
             CompoundTag nb = com.sdzjz.node.NodeTags.nbtOf(s);
             nb.remove("zsb");
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nb));
+            com.sdzjz.item.ItemData.write(s, nb);
             setChanged();
             syncToClient();
             return;
@@ -2126,7 +2126,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             CompoundTag nm = com.sdzjz.node.NodeTags.nbtOf(s);
             nm.putInt("zm", com.sdzjz.item.ChunkRemoverItem.nextMode(nm.getInt("zm"),
                     com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode)); // m397 三挡循环
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nm));
+            com.sdzjz.item.ItemData.write(s, nm);
             setChanged();
             syncToClient();
             return;
@@ -2142,7 +2142,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 nw.remove("zf");
                 nw.remove("zq"); // m390
             }
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(nw));
+            com.sdzjz.item.ItemData.write(s, nw);
             setChanged();
             syncToClient();
             return;
@@ -2172,7 +2172,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
             n.put("fl", l);
         }
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2187,7 +2187,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         else if (id != null && !id.isEmpty()) n.putString("si", id);
         n.putLong("sv", Math.max(0, Math.min(1_000_000_000_000L, threshold)));
         n.putBoolean("sl", less);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2293,7 +2293,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         boolean sealOk = s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem
                 && com.sdzjz.item.ChunkRemoverItem.validSealBlock(id); // m396 封边材料（移除器的 setNodeTarget 槽 m376 起本就空着=复用零新协议；服务端校验"必须有方块形态"）
         if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk && !dupOk && !sealOk) return;
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         if (sealOk) { // m396 封边材料：单选写 zsb（清回默认走菜单 #zsbd 哨兵）
             n.putString("zsb", id);
         } else if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
@@ -2308,7 +2308,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             n.putString("ct", id);
             n.remove("cr"); // m235 换目标即回"自动"（旧手选配方不属于新目标）
         }
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2327,9 +2327,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null || !consumeFromInv(player, item)) return false;
         ItemStack s = g.machineNodes.get(index);
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt(key, n.getInt(key) + 1);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         return true;
     }
 
@@ -2347,11 +2347,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null) return false;
         ItemStack s = g.machineNodes.get(index);
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         int lv = n.getInt(key);
         if (lv <= 0) return false;
         n.putInt(key, lv - 1);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         if (!player.getInventory().add(new ItemStack(item))) player.drop(new ItemStack(item), false);
         return true;
     }
@@ -2386,10 +2386,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void setNodePos(int index, int nx, int ny) {
         if (index < 0 || index >= g.machineNodes.size()) return;
         ItemStack s = g.machineNodes.get(index);
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("nx", clampCanvas(nx)); // m269 与存储节点(m265)同幅钳制——审计点名"单节点移动直接接受任意32位整数写入NBT"
         n.putInt("ny", clampCanvas(ny));
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
         setChanged();
         syncToClient();
     }
@@ -2455,15 +2455,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 归还节点：先把嵌在 NBT 里的升级折成升级物品还给玩家，再清掉画布数据返还机器本体。 */
     private void returnNodeClean(Player player, ItemStack s) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         int mt = n.getInt("mt"); // m128(F2)：先读后抹——阶位是机器本体属性不是画布数据
         com.sdzjz.node.NodeUpgrades.refundUpgrades(player, n);
-        s.remove(DataComponents.CUSTOM_DATA);
+        com.sdzjz.item.ItemData.clear(s);
         if (mt > 0) { // m128(F2)：重挂纯 {"mt"}——取出 GM 仍是 GM，再放回经 insertMachine copy 自然携带；
             // 同阶同物品可堆叠、异阶 CUSTOM_DATA 不同天然不混栈（原版机制白拿）。此前一刀抹全=511 台凭空蒸发。
             CompoundTag keep = new CompoundTag();
             keep.putInt("mt", mt);
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(keep));
+            com.sdzjz.item.ItemData.write(s, keep);
         }
         if (!player.getInventory().add(s)) player.drop(s, false);
     }
@@ -2531,11 +2531,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         boolean any = false;
         for (ItemStack s : g.machineNodes) {
             if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
-            CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
             // m269 long 加法+终值钳幅：单次 dx 虽已钳 ±1e5，但反复发包每次+1e5 累加 int 会溢出（审计点名）
             n.putInt("nx", clampCanvas((n.contains("nx") ? (long) n.getInt("nx") : 0L) + dx));
             n.putInt("ny", clampCanvas((n.contains("ny") ? (long) n.getInt("ny") : 0L) + dy));
-            s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+            com.sdzjz.item.ItemData.write(s, n);
             any = true;
         }
         if (!any) return;
@@ -2545,9 +2545,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 写/清节点栈上的组标记（gid<0=清除）。 */
     private void setNodeGroupTag(ItemStack s, int gid) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         if (gid < 0) n.remove("gp"); else n.putInt("gp", gid);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** 组一致性清扫：成员<2 的组解散（1 台不成组）+ 无元数据的孤儿 gp 标记剥除。detachNode 与组操作后调用。 */
@@ -3350,14 +3350,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void dropAll(Level world, BlockPos pos) {
         Containers.dropContents(world, pos, this);
         for (ItemStack s : g.machineNodes) {
-            CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
             for (int type = 0; type < 3; type++) {
                 int lv = n.getInt(com.sdzjz.node.NodeUpgrades.upgradeKey(type));
                 Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
                 if (item != null && lv > 0)
                     Containers.dropItemStack(world, pos.getX(), pos.getY(), pos.getZ(), new ItemStack(item, lv));
             }
-            s.remove(DataComponents.CUSTOM_DATA);
+            com.sdzjz.item.ItemData.clear(s);
             Containers.dropItemStack(world, pos.getX(), pos.getY(), pos.getZ(), s);
         }
         g.machineNodes.clear();

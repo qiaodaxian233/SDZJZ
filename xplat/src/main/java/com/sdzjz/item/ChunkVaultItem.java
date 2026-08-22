@@ -70,14 +70,14 @@ public class ChunkVaultItem extends MachineItem {
         BlockPos pos = ctx.getClickedPos();
         ItemStack stack = ctx.getItemInHand();
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        CompoundTag n = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         n.putInt("zx", cx);
         n.putInt("zz", cz);
         n.putString("zd", world.dimension().location().toString());
         n.putInt("zy", world.getMaxBuildHeight() - 1);
         n.putInt("zi", 0);
         n.remove("tf"); n.remove("tu"); n.remove("tt"); // 重绑=新扫新模板（旧模板留库不动）
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(stack, n);
         if (ctx.getPlayer() != null)
             ctx.getPlayer().displayClientMessage(Component.literal("已绑定区块 (" + cx + ", " + cz + ")，放入同维度核心画布即开始存档"), true);
         return InteractionResult.SUCCESS;
@@ -85,19 +85,19 @@ public class ChunkVaultItem extends MachineItem {
 
     /** 扫描中游标落盘（zy/zi 复用移除器 z 族）。 */
     public static void cursor(ItemStack s, int y, int idx) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putInt("zy", y);
         n.putInt("zi", idx);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     /** 存档收官：就绪位+模板 UUID+可重建总数落节点（卡面读数）。 */
     public static void finish(ItemStack s, String uuid, long total) {
-        CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
         n.putBoolean("tf", true);
         n.putString("tu", uuid);
         n.putLong("tt", total);
-        s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
+        com.sdzjz.item.ItemData.write(s, n);
     }
 
     @Override
