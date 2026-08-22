@@ -8041,3 +8041,30 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （含 GameTest 用例集+NeoForge 1.21.1+26.2 四线）——两刀行为判官正式过闸，销"待编译验证"。
   另：api.github.com 匿名轮询在跑批机 IP 上会 403 限频，轮询带 PAT Bearer 头即通（记档防下次白排查）。
 - **验证**：纯文档笔——15 道离线闸全绿（版本闸 0.1.429 对表）；无实机验证项。
+## m430 绞杀者 mA1（GraphNbt 方案 A 第一刀，作者拍板 A）：渲染子集 12+1 字段搬家 CanvasGraphState
+
+- **拍板与范围**：作者一字拍板"A"（docs/GraphNbt拆分方案_m429.md）；mA3 按方案稿默认缓做届时再议。
+  本刀=方案 A 第一刀：立 xplat/node/CanvasGraphState 纯状态容器（零方法零逻辑），m275 清单的
+  渲染子集 12+1 字段（machineNodes/connections/groupNames/nodeStatus/nodeReason/存储端点五件/
+  busTop 两件/prodPerMin）自 SCBE 搬家，声明一字未改仅 private→public，依附 javadoc/行注释随迁；
+  SCBE 持唯一实例 `final CanvasGraphState g`。编解码方法留原位，mA2 迁。
+- **机械前缀（词法机口径）**：五态 lexer（代码/串/字符/行注释/块注释）全文切分、重组保真断言，
+  只对代码段替换：裸名 227 处→`g.名`、`be.名` 14 处→`be.g.名`（静态 tick 经实例引用形态）；
+  方法调用形态（connections()/nodeStatus(i)/nodeReason(i) 访问器，普查§3 同名雷）以 `名(` 负前视
+  排除零触碰；串（NBT 键"machineNodes"等）与注释段逐字节对拍零漂移。prodPerMin 从三合一声明
+  `prodWin, prodPerMin, prodWinStart` 拆出（计量窗口两兄弟留 SCBE，快照值进 g）。
+- **遮蔽终检**：SCBE 全文无任何局部/参数名 `g` 声明形态（含 var/lambda/for），字段 `g` 无遮蔽风险；
+  外部（Screen/Handler/Sdzjz）g. 触点 0——外界仍走访问器，封装面不变。
+- **本笔坏尺子双记档（m109 谱系，同一天第三、四把）**：①基线断言把 `(?<![\w.$])` 后视已排除的
+  `be.名` 又减了一遍——双重扣除报 62≠72，两把外置尺对拍+token 解剖定位；②后置断言期望
+  `g.名`=裸+be. 合计——同一后视会排除 `be.g.名` 里的 g，应恰=裸数。教训成对出现：**正则语义与
+  算术期望要分开审，"后视排没排掉"每笔画一遍再定期望值**。三跑均断言先炸零写盘（写盘置尾铁律兜住）。
+- **SCBE 4084→4071 行**；diff 217 insertions / 230 deletions（13 声明删改+241 前缀行）。
+- **验证**：javac 冒烟（-Xmaxerrs 抬满）真语法错 0；定向 grep：symbol: class CanvasGraphState=0 /
+  symbol: variable g=0 / 13 名 variable 符号错逐名全 0（m123 盲区口径：删自家字段漏切引用的
+  cannot find symbol 会淹没在 MC 噪音里，逐名定向是唯一解）；总错 2881→2882（+1=新家缺 MC 包
+  噪音，方向自洽）；15 道闸全绿。行为判官=CI GameTest（渲染同步/画布读数/状态灯全在高频路径）。
+- **实机验证脚本**：①开画布：节点/连线/分组名/状态灯/阻塞原因/端点停靠栏/总线卡/每分钟产量
+  全部读数照旧；②增删节点连线+分组改名+存档重进：数据不丢不错位；③观众快照（两人同看一画布）
+  与路过玩家初始同步（getUpdateTag 路径）照常；④/sdzjz dumpgraph 输出对表。
+- 零新配置键；零行为改动（纯字段归属变化，键名/顺序/语义零改动）。下一刀 mA2=编解码迁成员方法。

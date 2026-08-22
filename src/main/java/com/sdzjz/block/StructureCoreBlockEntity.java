@@ -59,9 +59,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public static final int SIZE = MACHINE_SLOTS + UPGRADE_SLOTS + OUTPUT_SLOTS; // 19
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
-    private final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
-    private final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
-    private final java.util.LinkedHashMap<Integer, String> groupNames = new java.util.LinkedHashMap<>(); // m191 画布分组 id→名（成员归属存各节点栈 NBT "gp"，随栈走免下标重映射）
+    /** m430 mA1：渲染子集 12+1 字段搬家进状态对象（清单与语义见 CanvasGraphState），编解码 mA2 迁。 */
+    final com.sdzjz.node.CanvasGraphState g = new com.sdzjz.node.CanvasGraphState();
     public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
     // m179 编译执行计划：拓扑派生结构(hasOut/hasIn/outT)只在图变更时重建，普通 tick 直接复用缓存
     // ——修订号失配才编译；长度兜底防漏 bump；派生列表运行期只读(已核)所以可跨 tick 共享。
@@ -74,14 +73,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private final java.util.List<java.util.Map<String, Long>> nodeBufs = new java.util.ArrayList<>(); // 每节点输入缓存：连线按边精确路由
     private static final long BUF_CAP = 200000L;
 
-    // ===== 存储/终端接口节点（画布右侧显示，连了几个显示几个） =====
-    /** 已扫描到的接口端点：{posLong, kind}，kind 0=绑定 1=有线 2=无线 3=卫星 4=离线(仅被连线引用) 5=数据终端。 */
-    private final java.util.List<long[]> storageEndpoints = new java.util.ArrayList<>();
-    private final java.util.List<String> storageEndpointDims = new java.util.ArrayList<>(); // 与上表同序的维度 id
-    private final java.util.Map<Long, int[]> storageNodePos = new java.util.HashMap<>();    // posLong → 画布坐标
-    /** 机器↔存储 定向连线：{machineIndex, posLong, dir}，dir 0=机器→存储(产出) 1=存储→机器(供料)。 */
-    private final java.util.List<long[]> storageEdges = new java.util.ArrayList<>();
-    private final java.util.List<String> storageEdgeDims = new java.util.ArrayList<>();
     // m90【根因修复】原为 Long.MIN_VALUE：getTime()-MIN_VALUE 长整型溢出为负 → ">=40" 永假 →
     // 端点扫描自诞生起一次都没执行过——这就是"总线/停靠栏在所有截图里都不出现"的唯一真凶。
     private long lastEndpointScan = -1000;
@@ -136,7 +127,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private int machineCount() {
         int n = 0;
-        for (ItemStack st : machineNodes) n += st.getCount();
+        for (ItemStack st : g.machineNodes) n += st.getCount();
         return n;
     }
 
@@ -157,7 +148,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         try {
             tickInner(world, pos, state, be);
         } finally {
-            com.sdzjz.debug.CoreProfiler.record(be.prof, be.machineNodes.size(), be.connections.size(), be.running, System.nanoTime() - t0);
+            com.sdzjz.debug.CoreProfiler.record(be.prof, be.g.machineNodes.size(), be.g.connections.size(), be.running, System.nanoTime() - t0);
         }
     }
 
@@ -168,7 +159,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         // 第二台永远等不到 ≥单价 的余额=饿死。m302 饥饿名单管核心之间，这里下沉到**同核节点之间**，
         // 同款方案①：饿着的记名，下一拍全池礼让给名单，直到它吃上为止；先到先得只在无人挨饿时成立）。
         if (SdzjzConfig.get().xpFairShare) {
-            be.xpStarved.removeIf(ix -> ix >= be.machineNodes.size() || !be.xpConsumerReady(ix)); // 名单保洁：拆机/暂停/丢目标的不许占坑堵池
+            be.xpStarved.removeIf(ix -> ix >= be.g.machineNodes.size() || !be.xpConsumerReady(ix)); // 名单保洁：拆机/暂停/丢目标的不许占坑堵池
             be.xpReserveActive = !be.xpStarved.isEmpty();
         } else {
             be.xpStarved.clear();
@@ -247,13 +238,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         SdzjzConfig cfg = SdzjzConfig.get();
         be.ticks++;
         if (be.ticks - be.prodWinStart >= 1200) { // m86 实测产量：每分钟滚动
-            be.prodPerMin = be.prodWin;
+            be.g.prodPerMin = be.prodWin;
             be.prodWin = 0;
             be.prodWinStart = be.ticks;
             be.setChanged();
             be.syncToClient();
         }
-        int nSize = be.machineNodes.size();
+        int nSize = be.g.machineNodes.size();
         if (nSize == 0) return;
 
         // 连线拓扑（按边精确路由）：产物只流向出线指向的目标节点缓存；有入线的消耗机吃自己的缓存
@@ -290,7 +281,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             be.crafterNeedsScratch.clear(); // m350 外层表复用（值集来自 planner 缓存/常量，本就不逐拍配）
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = be.crafterNeedsScratch;
             for (int i = 0; i < nSize; i++) {
-                ItemStack stL = be.machineNodes.get(i);
+                ItemStack stL = be.g.machineNodes.get(i);
                 if (!(com.sdzjz.node.NodeTags.isFilter(stL) || com.sdzjz.node.NodeTags.isSwitch(stL) || com.sdzjz.node.NodeTags.isSensor(stL) || com.sdzjz.node.NodeTags.isDistributor(stL) || com.sdzjz.node.NodeTags.isExtractor(stL))) continue;
                 boolean pump = com.sdzjz.node.NodeTags.isExtractor(stL); // m154 抽取节点=主动泵
                 if (pump && !be.extractorLive(world, i, stL)) continue; // m160 手动关或感应未放行=不抽
@@ -369,7 +360,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
         int __tb = -1; long __tn = 0; // m354 机器类型桶：循环体 continue 众多，改在下一节点头部结上一笔账
         for (int i = 0; i < nSize; i++) {
-            ItemStack st = be.machineNodes.get(i);
+            ItemStack st = be.g.machineNodes.get(i);
             if (com.sdzjz.debug.CoreProfiler.PHASES) {
                 long __n2 = System.nanoTime();
                 if (__tb >= 0) com.sdzjz.debug.CoreProfiler.sub(__tb, __n2 - __tn);
@@ -493,9 +484,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         for (int pass = 0; pass < 2 && left > 0; pass++) {
                             for (int t : tgX) {
                                 if (left <= 0) break;
-                                if (t < 0 || t >= be.machineNodes.size()) continue;
-                                if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(be.machineNodes.get(t))
-                                        || be.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
+                                if (t < 0 || t >= be.g.machineNodes.size()) continue;
+                                if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(be.g.machineNodes.get(t))
+                                        || be.g.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                                 if (!be.accepts(world, t, id)) continue;
                                 java.util.Map<String, Long> mX = be.nodeBuf(t);
                                 if (!be.bufTypeOk(mX, id)) continue; // m270 类型上限：跳过满型目标，残量留源头/走下面搬仓
@@ -1140,8 +1131,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // SCAN 段实测打脸再回头做拓扑期编译。
                 int fTopZ = world.getMaxBuildHeight() - 1, fBotZ = world.getMinBuildHeight();
                 if (cfg.chunkFilterEnabled) {
-                    for (int j = 0; j < be.machineNodes.size(); j++) {
-                        ItemStack fz = be.machineNodes.get(j);
+                    for (int j = 0; j < be.g.machineNodes.size(); j++) {
+                        ItemStack fz = be.g.machineNodes.get(j);
                         if (!(fz.getItem() instanceof com.sdzjz.item.ChunkFilterItem) || com.sdzjz.node.NodeTags.nodePaused(fz)) continue;
                         boolean linkedZ = false;
                         if (outT[i] != null) for (int t : outT[i]) if (t == j) { linkedZ = true; break; }
@@ -1153,7 +1144,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         fBotZ = Math.max(fBotZ, com.sdzjz.item.ChunkFilterItem.presetMinY(fz));
                     }
                 }
-                int prevStZ = (i < be.nodeStatus.size()) ? be.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
+                int prevStZ = (i < be.g.nodeStatus.size()) ? be.g.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
                 int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 boolean voidOkZ = cfg.chunkRemoverVoidMode;
@@ -1624,21 +1615,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public boolean insertMachine(net.minecraft.world.entity.player.Player byPlayer, ItemStack held) {
         if (held.isEmpty()) return false;
         int capN = SdzjzConfig.get().maxNodesPerCore; // m270 硬上限（审计"无限节点"条）：拓扑重编译/tick遍历/NBT同步成本全随节点数涨
-        if (capN > 0 && machineNodes.size() >= capN) {
+        if (capN > 0 && g.machineNodes.size() >= capN) {
             capMsg(byPlayer, "画布节点已达上限 " + capN + "（config maxNodesPerCore 可调，0=无限）");
             return false;
         }
         ItemStack node = held.copyWithCount(1); // m78：一次只放 1 台（原来整叠塞进一个节点，"一右键就是一组"）
         CompoundTag n = node.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         if (!n.contains("nx")) {
-            int i = machineNodes.size(), cols = 6;
+            int i = g.machineNodes.size(), cols = 6;
             n.putInt("nx", 20 + (i % cols) * 112);
             n.putInt("ny", 20 + (i / cols) * 88);
             node.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         }
-        machineNodes.add(node);
+        g.machineNodes.add(node);
         bumpTopo(); // m179
-        nodeBuf(machineNodes.size() - 1); // 懒补齐：新节点空输入缓存
+        nodeBuf(g.machineNodes.size() - 1); // 懒补齐：新节点空输入缓存
         held.shrink(1);
         setChanged();
         syncToClient();
@@ -1648,10 +1639,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m306 压测收场专用：清空画布节点**不散落**（BenchRunner 自建自清；与 dropAll 同清单
      *  去掉 Containers——一键压测 5 万节点若走 dropAll = 物品雨。绝不用于任何玩家路径）。 */
     public void benchClearNodes() {
-        machineNodes.clear();
+        g.machineNodes.clear();
         bumpTopo(); // m179
-        nodeStatus.clear();
-        nodeReason.clear(); // m178
+        g.nodeStatus.clear();
+        g.nodeReason.clear(); // m178
         setChanged();
     }
 
@@ -1741,7 +1732,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m339 名单保洁口：仍是"就绪的吃经验机器"才配占保底坑（拆机/换机/暂停/丢目标=出名单）。 */
     boolean xpConsumerReady(int ix) {
-        ItemStack st = machineNodes.get(ix);
+        ItemStack st = g.machineNodes.get(ix);
         if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
         String ct = com.sdzjz.node.NodeTags.craftTarget(st);
         if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem)
@@ -1854,7 +1845,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private int totalNodeUpgrade(String key) {
         int n = 0;
-        for (ItemStack s : machineNodes) n += nodeInt(s, key);
+        for (ItemStack s : g.machineNodes) n += nodeInt(s, key);
         return n;
     }
 
@@ -1897,8 +1888,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m123 融合升阶（up=true：4台同阶→1台高阶，余数还玩家）/ 拆解降阶（1台→4台低阶，超堆叠上限的还玩家）。 */
     public void fuseNode(Player player, int index, boolean up) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         if (s.isEmpty() || !(s.getItem() instanceof MachineItem)) return;
         int mt = com.sdzjz.node.NodeTags.machineTier(s);
         if (up) {
@@ -1906,7 +1897,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (s.getCount() < 4) { // m128(F1)：m78 后 insertMachine 恒为 ×1 节点——不聚敛则单节点永远
                 // 凑不满 4，融合出厂即死（m125 审计实锤，本条为丢失代码重建）。跨节点抽调同物品同阶机器。
                 index = gatherSame(player, index, 4);
-                s = machineNodes.get(index);
+                s = g.machineNodes.get(index);
             }
             if (s.getCount() < 4) { // 全画布凑不齐：聚敛可能已部分发生（同类并栈），照样落盘同步
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal(
@@ -1947,12 +1938,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  全套簿记；聚敛无视暂停/升级差异（机器可互换，升级留原节点或退还，m125 设计留痕）。
      *  返回聚敛后 index 的新下标（摘除低位节点会使下标前移）。倒序遍历：detach 只影响更高下标，安全。 */
     private int gatherSame(Player player, int index, int need) {
-        ItemStack target = machineNodes.get(index);
+        ItemStack target = g.machineNodes.get(index);
         int mt = com.sdzjz.node.NodeTags.machineTier(target);
         int idx = index;
-        for (int j = machineNodes.size() - 1; j >= 0 && target.getCount() < need; j--) {
+        for (int j = g.machineNodes.size() - 1; j >= 0 && target.getCount() < need; j--) {
             if (j == idx) continue;
-            ItemStack o = machineNodes.get(j);
+            ItemStack o = g.machineNodes.get(j);
             if (o.isEmpty() || o.getItem() != target.getItem() || com.sdzjz.node.NodeTags.machineTier(o) != mt) continue;
             int take = Math.min(need - target.getCount(), o.getCount());
             if (take >= o.getCount()) { // 将被抽空：先读后抽——升级退还，再摘节点
@@ -2035,8 +2026,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 切换节点 暂停/运行（m110b）。 */
     public void togglePause(int index) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         if (s.isEmpty()) return;
         CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         n.putBoolean("np", !com.sdzjz.node.NodeTags.nodePaused(s));
@@ -2047,8 +2038,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 切换开关节点 开/关。 */
     public void toggleSwitch(int index) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         if (com.sdzjz.node.NodeTags.isSwitch(s)) n.putBoolean("so", !com.sdzjz.node.NodeTags.switchOn(s));
         else if (com.sdzjz.node.NodeTags.isExtractor(s)) n.putBoolean("xo", !com.sdzjz.node.NodeTags.extractorOn(s)); // m154 抽取启停走同一收包口
@@ -2060,8 +2051,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单。 */
     public void toggleFilterEntry(int index, String id) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         if ("#cr".equals(id) && s.getItem() instanceof AutoCrafterItem) { // m235 配方换挡复用此收包口（#xr 同款哨兵工艺）：
             // 自动(-1)→候选0→候选1→…→回自动；候选序=CraftPlanner.plans 原版排前+id字典序，双端同源循环稳定
             String tgt = com.sdzjz.node.NodeTags.craftTarget(s);
@@ -2188,8 +2179,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 设置传感器：监测物品 + 阈值 + 方向（低于/高于放行）。 */
     public void setSensorConfig(int index, String id, long threshold, boolean less) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         if (!com.sdzjz.node.NodeTags.isSensor(s) && !com.sdzjz.node.NodeTags.isExtractor(s)) return; // m160 抽取节点内置自动启停同走此口
         CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         if ("§clear".equals(id)) n.remove("si"); // m160 清除感应（传感/抽取通用）
@@ -2204,7 +2195,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 传感器闸门是否放行：未配置=直通；否则按监测库存量与阈值比较。
      *  监测目标：连了 存储→传感器 供料线=监测那个库；否则=默认主存储（绑定>有线>无线>卫星）。 */
     boolean sensorOpen(Level world, int i) {
-        ItemStack st = machineNodes.get(i);
+        ItemStack st = g.machineNodes.get(i);
         String id = com.sdzjz.node.NodeTags.sensorItem(st);
         if (id.isEmpty()) return true;
         com.sdzjz.machine.StorageAccess sc = supplyFor(world, i);
@@ -2218,8 +2209,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private boolean allGatesClosed(Level world, int[] targets) { // m355 数组化
         if (targets == null || targets.length == 0) return false;
         for (int t : targets) {
-            if (t < 0 || t >= machineNodes.size()) return false;
-            ItemStack ts = machineNodes.get(t);
+            if (t < 0 || t >= g.machineNodes.size()) return false;
+            ItemStack ts = g.machineNodes.get(t);
             boolean closedGate = (com.sdzjz.node.NodeTags.isSensor(ts) && !sensorOpen(world, t)) || (com.sdzjz.node.NodeTags.isSwitch(ts) && !com.sdzjz.node.NodeTags.switchOn(ts))
                     || (com.sdzjz.node.NodeTags.isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
                     || com.sdzjz.node.NodeTags.nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
@@ -2228,29 +2219,27 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return true;
     }
 
-    // ===== 节点状态灯：0=待机 1=正常(绿) 2=阻塞/关闸(黄) 3=缺料(红)。每 20t 有变化才同步 =====
-    private final java.util.List<Integer> nodeStatus = new java.util.ArrayList<>();
+    // ===== 节点状态灯：0=待机 1=正常(绿) 2=阻塞/关闸(黄) 3=缺料(红)。每 20t 有变化才同步（字段在 g） =====
     private boolean statusDirty = false;
 
     void stat(int i, int v) {
-        while (nodeStatus.size() < machineNodes.size()) nodeStatus.add(0);
-        while (nodeReason.size() < machineNodes.size()) nodeReason.add(""); // m178
-        if (v == 1 && i >= 0 && i < nodeReason.size() && !nodeReason.get(i).isEmpty()) { nodeReason.set(i, ""); statusDirty = true; } // m178 转绿清因
-        if (i < 0 || i >= nodeStatus.size() || nodeStatus.get(i) == v) return;
-        nodeStatus.set(i, v);
+        while (g.nodeStatus.size() < g.machineNodes.size()) g.nodeStatus.add(0);
+        while (g.nodeReason.size() < g.machineNodes.size()) g.nodeReason.add(""); // m178
+        if (v == 1 && i >= 0 && i < g.nodeReason.size() && !g.nodeReason.get(i).isEmpty()) { g.nodeReason.set(i, ""); statusDirty = true; } // m178 转绿清因
+        if (i < 0 || i >= g.nodeStatus.size() || g.nodeStatus.get(i) == v) return;
+        g.nodeStatus.set(i, v);
         statusDirty = true;
     }
 
-    // ===== m178 阻塞原因（错误解释）：与 nodeStatus 平行同步，卡面黄/红灯常显人话原因 =====
-    private final java.util.List<String> nodeReason = new java.util.ArrayList<>();
+    // ===== m178 阻塞原因（错误解释）：与 nodeStatus 平行同步，卡面黄/红灯常显人话原因（字段在 g） =====
     /** 设状态并附原因（原因变化也触发同步）。 */
     void statR(int i, int v, String why) {
-        while (nodeReason.size() < machineNodes.size()) nodeReason.add("");
-        if (i >= 0 && i < nodeReason.size() && !nodeReason.get(i).equals(why)) { nodeReason.set(i, why); statusDirty = true; }
+        while (g.nodeReason.size() < g.machineNodes.size()) g.nodeReason.add("");
+        if (i >= 0 && i < g.nodeReason.size() && !g.nodeReason.get(i).equals(why)) { g.nodeReason.set(i, why); statusDirty = true; }
         stat(i, v);
     }
     /** 画布读取阻塞原因（客户端）。 */
-    public String nodeReason(int i) { return i >= 0 && i < nodeReason.size() ? nodeReason.get(i) : ""; }
+    public String nodeReason(int i) { return i >= 0 && i < g.nodeReason.size() ? g.nodeReason.get(i) : ""; }
     private static String itemName(String id) {
         try { return new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id))).getHoverName().getString(); } catch (Exception e) { return id; }
     }
@@ -2285,13 +2274,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 画布读取节点状态（客户端）。 */
     public int nodeStatus(int i) {
-        return i >= 0 && i < nodeStatus.size() ? nodeStatus.get(i) : 0;
+        return i >= 0 && i < g.nodeStatus.size() ? g.nodeStatus.get(i) : 0;
     }
 
     /** 设置自动合成机节点的目标产物（画布徽章点选，走 NodeTargetPayload）。 */
     public void setNodeTarget(int index, String id) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
         boolean brewOk = s.getItem() instanceof com.sdzjz.item.BrewingTowerItem
                 && com.sdzjz.machine.BrewPlanner.targetStack(id) != null; // m131b 目标串服务端校验
@@ -2333,11 +2322,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m128(F3)：无同步内核——批量接收器循环用（此前 Shift 批量 64 连发=一 tick 64 次全量 BE 同步瞬卡），
      *  循环结束由调用方 syncNow() 一次。 */
     public boolean addNodeUpgradeRaw(Player player, int index, int type) {
-        if (index < 0 || index >= machineNodes.size()) return false;
+        if (index < 0 || index >= g.machineNodes.size()) return false;
         Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
         String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null || !consumeFromInv(player, item)) return false;
-        ItemStack s = machineNodes.get(index);
+        ItemStack s = g.machineNodes.get(index);
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt(key, n.getInt(key) + 1);
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
@@ -2353,11 +2342,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m128(F3)：无同步内核（同 addNodeUpgradeRaw）。 */
     public boolean removeNodeUpgradeRaw(Player player, int index, int type) {
-        if (index < 0 || index >= machineNodes.size()) return false;
+        if (index < 0 || index >= g.machineNodes.size()) return false;
         Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
         String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null) return false;
-        ItemStack s = machineNodes.get(index);
+        ItemStack s = g.machineNodes.get(index);
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         int lv = n.getInt(key);
         if (lv <= 0) return false;
@@ -2395,8 +2384,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 设置某节点画布坐标（服务端会同步客户端；客户端调用仅本地视觉）。 */
     public void setNodePos(int index, int nx, int ny) {
-        if (index < 0 || index >= machineNodes.size()) return;
-        ItemStack s = machineNodes.get(index);
+        if (index < 0 || index >= g.machineNodes.size()) return;
+        ItemStack s = g.machineNodes.get(index);
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         n.putInt("nx", clampCanvas(nx)); // m269 与存储节点(m265)同幅钳制——审计点名"单节点移动直接接受任意32位整数写入NBT"
         n.putInt("ny", clampCanvas(ny));
@@ -2429,7 +2418,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 右键取出指定节点：内嵌升级折成物品归还，机器本体清掉画布 NBT（可正常堆叠）。 */
     public void removeNodeAt(Player player, int index) {
-        if (index < 0 || index >= machineNodes.size()) return;
+        if (index < 0 || index >= g.machineNodes.size()) return;
         ItemStack s = detachNode(index);
         returnNodeClean(player, s);
         setChanged();
@@ -2440,24 +2429,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  存储线剪/移位+在途缓存并遗留池+状态位；返回被摘的节点栈。不含归还与同步，调用方自理。
      *  removeNodeAt / ejectOne / 融合聚敛三处共用，双写漂移归零。 */
     private ItemStack detachNode(int index) {
-        nodeBuf(machineNodes.size() - 1); // 先补齐对齐
-        ItemStack s = machineNodes.remove(index);
+        nodeBuf(g.machineNodes.size() - 1); // 先补齐对齐
+        ItemStack s = g.machineNodes.remove(index);
         bumpTopo(); // m179（本方法随后还重写 connections，一次 bump 覆盖）
         if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
-        if (index < nodeStatus.size()) nodeStatus.remove(index);
-        if (index < nodeReason.size()) nodeReason.remove(index); // m178
+        if (index < g.nodeStatus.size()) g.nodeStatus.remove(index);
+        if (index < g.nodeReason.size()) g.nodeReason.remove(index); // m178
         java.util.List<int[]> kept = new java.util.ArrayList<>();
-        for (int[] c : connections) {
+        for (int[] c : g.connections) {
             if (c[0] == index || c[1] == index) continue; // 触及被删节点→断
             int a = c[0] > index ? c[0] - 1 : c[0];
             int b = c[1] > index ? c[1] - 1 : c[1];
             kept.add(new int[]{a, b});
         }
-        connections.clear();
-        connections.addAll(kept);
-        for (int i = storageEdges.size() - 1; i >= 0; i--) { // 存储连线同样剪/移位
-            long[] e = storageEdges.get(i);
-            if (e[0] == index) { storageEdges.remove(i); storageEdgeDims.remove(i); }
+        g.connections.clear();
+        g.connections.addAll(kept);
+        for (int i = g.storageEdges.size() - 1; i >= 0; i--) { // 存储连线同样剪/移位
+            long[] e = g.storageEdges.get(i);
+            if (e[0] == index) { g.storageEdges.remove(i); g.storageEdgeDims.remove(i); }
             else if (e[0] > index) e[0]--;
         }
         sweepGroups(); // m191 组标记随被摘的栈自然离场（returnNodeClean 会剥画布 NBT）；这里只清剩<2台的组
@@ -2481,9 +2470,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
     public void ejectOne(Player player) {
-        if (!machineNodes.isEmpty()) {
+        if (!g.machineNodes.isEmpty()) {
             // m128：改共用 detachNode（末位节点无更高下标需要移位，与原 removeIf 写法等价，三写归一）
-            ItemStack s = detachNode(machineNodes.size() - 1);
+            ItemStack s = detachNode(g.machineNodes.size() - 1);
             returnNodeClean(player, s);
             setChanged();
             syncToClient();
@@ -2493,24 +2482,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 画布连线读取（客户端渲染）。 */
-    public java.util.List<int[]> connections() { return connections; }
+    public java.util.List<int[]> connections() { return g.connections; }
 
     // ===== m191 画布分组：成员归属在节点栈 NBT "gp"（随栈走，detachNode 的下标移位天然无关），
     // 这里只管 id→名元数据 + 组操作；配置 canvasGroupsEnabled 总开关在接收器侧把门。 =====
     /** 分组元数据读取（客户端渲染组框标题用）。 */
-    public java.util.Map<Integer, String> groupsView() { return groupNames; }
+    public java.util.Map<Integer, String> groupsView() { return g.groupNames; }
 
     /** 建组：≥2 个合法下标才成组；成员先脱旧组再入新组（一台机器只能在一个组）。name 空=自动"组N"。 */
     public void createGroup(java.util.List<Integer> members, String name) {
         java.util.LinkedHashSet<Integer> ms = new java.util.LinkedHashSet<>();
-        for (int i : members) if (i >= 0 && i < machineNodes.size()) ms.add(i);
+        for (int i : members) if (i >= 0 && i < g.machineNodes.size()) ms.add(i);
         if (ms.size() < 2) return;
         int gid = 1;
-        for (int k : groupNames.keySet()) gid = Math.max(gid, k + 1);
+        for (int k : g.groupNames.keySet()) gid = Math.max(gid, k + 1);
         String nm = name == null ? "" : name.trim();
         if (nm.length() > 24) nm = nm.substring(0, 24);
-        groupNames.put(gid, nm.isEmpty() ? "组" + gid : nm);
-        for (int i : ms) setNodeGroupTag(machineNodes.get(i), gid);
+        g.groupNames.put(gid, nm.isEmpty() ? "组" + gid : nm);
+        for (int i : ms) setNodeGroupTag(g.machineNodes.get(i), gid);
         sweepGroups(); // 成员被挖走的旧组可能只剩0/1台，顺手清
         setChanged();
         syncToClient();
@@ -2518,8 +2507,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 解散组：成员脱组标记 + 元数据删除。机器/连线原样不动（分组纯视觉，不碰拓扑）。 */
     public void dissolveGroup(int gid) {
-        if (groupNames.remove(gid) == null) return;
-        for (ItemStack s : machineNodes) if (com.sdzjz.node.NodeTags.nodeGroup(s) == gid) setNodeGroupTag(s, -1);
+        if (g.groupNames.remove(gid) == null) return;
+        for (ItemStack s : g.machineNodes) if (com.sdzjz.node.NodeTags.nodeGroup(s) == gid) setNodeGroupTag(s, -1);
         setChanged();
         syncToClient();
     }
@@ -2527,20 +2516,20 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 重命名组（长度钳 24，空名不接受）。 */
     public void renameGroup(int gid, String name) {
         String nm = name == null ? "" : name.trim();
-        if (nm.isEmpty() || !groupNames.containsKey(gid)) return;
+        if (nm.isEmpty() || !g.groupNames.containsKey(gid)) return;
         if (nm.length() > 24) nm = nm.substring(0, 24);
-        groupNames.put(gid, nm);
+        g.groupNames.put(gid, nm);
         setChanged();
         syncToClient();
     }
 
     /** 组整体位移：全成员坐标加同一增量，改完只同步一次（防 m128F3 式 N 连发全量同步）。 */
     public void moveGroup(int gid, int dx, int dy) {
-        if (!groupNames.containsKey(gid)) return;
+        if (!g.groupNames.containsKey(gid)) return;
         dx = Math.max(-100000, Math.min(100000, dx)); // 防伪造包把整组甩进天文坐标
         dy = Math.max(-100000, Math.min(100000, dy));
         boolean any = false;
-        for (ItemStack s : machineNodes) {
+        for (ItemStack s : g.machineNodes) {
             if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
             CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             // m269 long 加法+终值钳幅：单次 dx 虽已钳 ±1e5，但反复发包每次+1e5 累加 int 会溢出（审计点名）
@@ -2564,14 +2553,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 组一致性清扫：成员<2 的组解散（1 台不成组）+ 无元数据的孤儿 gp 标记剥除。detachNode 与组操作后调用。 */
     private void sweepGroups() {
         java.util.HashMap<Integer, Integer> cnt = new java.util.HashMap<>();
-        for (ItemStack s : machineNodes) {
+        for (ItemStack s : g.machineNodes) {
             int g = com.sdzjz.node.NodeTags.nodeGroup(s);
             if (g >= 0) cnt.merge(g, 1, Integer::sum);
         }
-        groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
-        for (ItemStack s : machineNodes) {
+        g.groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
+        for (ItemStack s : g.machineNodes) {
             int g = com.sdzjz.node.NodeTags.nodeGroup(s);
-            if (g >= 0 && !groupNames.containsKey(g)) setNodeGroupTag(s, -1);
+            if (g >= 0 && !g.groupNames.containsKey(g)) setNodeGroupTag(s, -1);
         }
     }
 
@@ -2661,8 +2650,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             }
         }
         // 被连线引用但没扫到的端点：显示为离线（不丢用户的接线）；本维度已加载但方块没了→剪掉连线
-        java.util.Iterator<long[]> it = storageEdges.iterator();
-        java.util.Iterator<String> itd = storageEdgeDims.iterator();
+        java.util.Iterator<long[]> it = g.storageEdges.iterator();
+        java.util.Iterator<String> itd = g.storageEdgeDims.iterator();
         boolean edgesPruned = false;
         while (it.hasNext()) {
             long[] e = it.next();
@@ -2680,25 +2669,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             dims.putIfAbsent(e[1], edim);
         }
         // 变化才写回+同步（省网络）
-        boolean changed = edgesPruned || found.size() != storageEndpoints.size();
+        boolean changed = edgesPruned || found.size() != g.storageEndpoints.size();
         if (!changed) {
-            for (int i = 0; i < storageEndpoints.size(); i++) {
-                long[] old = storageEndpoints.get(i);
+            for (int i = 0; i < g.storageEndpoints.size(); i++) {
+                long[] old = g.storageEndpoints.get(i);
                 long[] neu = found.get(old[0]);
                 if (neu == null || neu[1] != old[1]) { changed = true; break; }
             }
         }
         if (changed) {
-            storageEndpoints.clear();
-            storageEndpointDims.clear();
+            g.storageEndpoints.clear();
+            g.storageEndpointDims.clear();
             java.util.List<long[]> ordered = new java.util.ArrayList<>(found.values());
             // m80：分组排序（输出接口→存储核心→数据面板），客户端按组编号"存储1/2…、数据面板1/2…"
             ordered.sort(java.util.Comparator.comparingInt(v -> v[1] == 6 ? 0 : v[1] == 5 ? 2 : 1));
             for (long[] v : ordered) {
-                storageEndpoints.add(v);
-                storageEndpointDims.add(dims.get(v[0]));
+                g.storageEndpoints.add(v);
+                g.storageEndpointDims.add(dims.get(v[0]));
             }
-            storageNodePos.keySet().retainAll(found.keySet()); // 修剪已消失端点的画布坐标
+            g.storageNodePos.keySet().retainAll(found.keySet()); // 修剪已消失端点的画布坐标
         }
         // ===== m85：总线库存聚合（只数存储核心；面板聚合的是同一批核心，数它会重复计）=====
         long __sa = 0;
@@ -2729,10 +2718,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         java.util.List<String> nIds = new java.util.ArrayList<>();
         java.util.List<Long> nCts = new java.util.ArrayList<>();
         for (var en : top) { nIds.add(en.getKey()); nCts.add(en.getValue()); }
-        boolean busChanged = !nIds.equals(busTopIds) || !nCts.equals(busTopCounts);
+        boolean busChanged = !nIds.equals(g.busTopIds) || !nCts.equals(g.busTopCounts);
         if (busChanged) {
-            busTopIds.clear(); busTopIds.addAll(nIds);
-            busTopCounts.clear(); busTopCounts.addAll(nCts);
+            g.busTopIds.clear(); g.busTopIds.addAll(nIds);
+            g.busTopCounts.clear(); g.busTopCounts.addAll(nCts);
         }
         if (changed || busChanged) {
             setChanged();
@@ -2761,8 +2750,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  精确账本物品抽取的授权判定：只有"终点是销毁"才允许抹组件抽走。 */
     private boolean chainEndsInTrash(Level world, int i, String id, int depth, java.util.Set<Integer> visited,
                                      int[][] outT) { // m355 数组化
-        if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
-        ItemStack st = machineNodes.get(i);
+        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = g.machineNodes.get(i);
         if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
         if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 炼掉=销毁终点同格（磨石回收附魔经验的工业版）
@@ -2830,8 +2819,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                int[][] outT, // m355 数组化
                                java.util.Map<Integer, java.util.Set<String>> crafterNeeds) {
         if (prof != null) prof.chainChecks++; // m177
-        if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
-        ItemStack st = machineNodes.get(i);
+        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = g.machineNodes.get(i);
         if (com.sdzjz.node.NodeTags.nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
         if (com.sdzjz.node.NodeTags.isFilter(st)) {
             if (!com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
@@ -2899,21 +2888,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         String selfDim = world.dimension().location().toString();
         long ownChunk = new net.minecraft.world.level.ChunkPos(worldPosition).toLong();
         java.util.Set<String> cur = new java.util.HashSet<>();
-        for (int i = 0; i < storageEndpoints.size(); i++) {
-            long pl = storageEndpoints.get(i)[0];
+        for (int i = 0; i < g.storageEndpoints.size(); i++) {
+            long pl = g.storageEndpoints.get(i)[0];
             if (pl == OUTPUT_IFACE) continue; // m142：哨兵不是真实方块——解成天边区块发票=崩服根因（m140/本轮两连崩）
             BlockPos ep = BlockPos.of(pl);
-            String d = storageEndpointDims.get(i);
+            String d = g.storageEndpointDims.get(i);
             long c = net.minecraft.world.level.ChunkPos.asLong(ep.getX() >> 4, ep.getZ() >> 4);
             if (!plausibleChunkLong(c)) continue; // m142：任何坏数据解出的边界外区块一律拒收
             if (d.equals(selfDim) && c == ownChunk) continue;
             cur.add(d + "|" + c);
         }
-        for (int i = 0; i < storageEdges.size(); i++) {
-            long pl = storageEdges.get(i)[1];
+        for (int i = 0; i < g.storageEdges.size(); i++) {
+            long pl = g.storageEdges.get(i)[1];
             if (pl == OUTPUT_IFACE) continue; // m142：连到输出接口节点的边同病，一并跳过
             BlockPos ep = BlockPos.of(pl);
-            String d = i < storageEdgeDims.size() ? storageEdgeDims.get(i) : selfDim;
+            String d = i < g.storageEdgeDims.size() ? g.storageEdgeDims.get(i) : selfDim;
             long c = net.minecraft.world.level.ChunkPos.asLong(ep.getX() >> 4, ep.getZ() >> 4);
             if (!plausibleChunkLong(c)) continue;
             if (d.equals(selfDim) && c == ownChunk) continue;
@@ -2975,10 +2964,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private com.sdzjz.machine.StorageAccess edgeStorage(Level world, int machineIndex, int dir) {
-        for (int i = 0; i < storageEdges.size(); i++) {
-            long[] e = storageEdges.get(i);
+        for (int i = 0; i < g.storageEdges.size(); i++) {
+            long[] e = g.storageEdges.get(i);
             if (e[0] != machineIndex || e[2] != dir) continue;
-            com.sdzjz.machine.StorageAccess sc = resolveStorageAt(world, storageEdgeDims.get(i), e[1]);
+            com.sdzjz.machine.StorageAccess sc = resolveStorageAt(world, g.storageEdgeDims.get(i), e[1]);
             if (sc != null) return sc;
         }
         return null;
@@ -3015,26 +3004,26 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** 连/断一条 机器↔存储 定向连线（已存在则断开）。dir 0=产出到该存储 1=从该存储供料。 */
     public void toggleStorageEdge(net.minecraft.world.entity.player.Player byPlayer, int machineIndex, long storagePos, int dir, String dim) {
-        if (machineIndex < 0 || machineIndex >= machineNodes.size() || dir < 0 || dir > 1) return;
+        if (machineIndex < 0 || machineIndex >= g.machineNodes.size() || dir < 0 || dir > 1) return;
         boolean known = false; // 只允许连到画布上确实显示的端点，防伪造包连任意坐标
         String epDim = null;
-        for (int k = 0; k < storageEndpoints.size(); k++) {
-            long[] ep = storageEndpoints.get(k);
-            if (ep[0] == storagePos) { known = true; epDim = storageEndpointDims.get(k); break; }
+        for (int k = 0; k < g.storageEndpoints.size(); k++) {
+            long[] ep = g.storageEndpoints.get(k);
+            if (ep[0] == storagePos) { known = true; epDim = g.storageEndpointDims.get(k); break; }
         }
         if (!known) return;
-        for (int i = 0; i < storageEdges.size(); i++) {
-            long[] e = storageEdges.get(i);
+        for (int i = 0; i < g.storageEdges.size(); i++) {
+            long[] e = g.storageEdges.get(i);
             if (e[0] == machineIndex && e[1] == storagePos && e[2] == dir) {
-                storageEdges.remove(i);
-                storageEdgeDims.remove(i);
+                g.storageEdges.remove(i);
+                g.storageEdgeDims.remove(i);
                 setChanged();
                 syncToClient();
                 return;
             }
         }
         int capSE = SdzjzConfig.get().maxEdgesPerCore; // m270 存储连线单独同额封顶（断开在上面永远放行，只闸新增）
-        if (capSE > 0 && storageEdges.size() >= capSE) {
+        if (capSE > 0 && g.storageEdges.size() >= capSE) {
             capMsg(byPlayer, "存储连线总数已达上限 " + capSE + "（config maxEdgesPerCore 可调，0=无限）");
             return;
         }
@@ -3042,8 +3031,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         String useDim = (epDim != null && !epDim.isEmpty()) ? epDim
                 : (dim != null && !dim.isEmpty()) ? dim
                 : (level != null ? level.dimension().location().toString() : "minecraft:overworld");
-        storageEdges.add(new long[]{machineIndex, storagePos, dir});
-        storageEdgeDims.add(useDim);
+        g.storageEdges.add(new long[]{machineIndex, storagePos, dir});
+        g.storageEdgeDims.add(useDim);
         setChanged();
         syncToClient();
     }
@@ -3056,21 +3045,21 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m265 语义升级：写入即"放置到画布"——值升三元 {x, y, 1}，第三位=放置标记。
      *  历史二元值（m80 前遗留 + 旧整理布局写入的死数据）没有标记位=仍视为停靠，老档不惊动。 */
     public void setStorageNodePos(long storagePos, int nx, int ny) {
-        storageNodePos.put(storagePos, new int[]{clampCanvas(nx), clampCanvas(ny), 1});
+        g.storageNodePos.put(storagePos, new int[]{clampCanvas(nx), clampCanvas(ny), 1});
         setChanged();
         syncToClient();
     }
 
     /** m265 收回总线：删除画布落位（回停靠栏）。 */
     public void dockStorageNode(long storagePos) {
-        if (storageNodePos.remove(storagePos) == null) return;
+        if (g.storageNodePos.remove(storagePos) == null) return;
         setChanged();
         syncToClient();
     }
 
     /** m265 该端点是否已放置到画布（三元且标记位=1；二元遗留=否）。 */
     public boolean storageNodePlaced(long pl) {
-        int[] v = storageNodePos.get(pl);
+        int[] v = g.storageNodePos.get(pl);
         return v != null && v.length >= 3 && v[2] == 1;
     }
 
@@ -3079,39 +3068,37 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         java.util.List<Long> ep = new java.util.ArrayList<>();
         java.util.List<Integer> hx = new java.util.ArrayList<>();
         java.util.List<Integer> hy = new java.util.ArrayList<>();
-        for (long[] e : storageEndpoints) {
-            int[] v = storageNodePos.get(e[0]);
+        for (long[] e : g.storageEndpoints) {
+            int[] v = g.storageNodePos.get(e[0]);
             if (v != null && v.length >= 3 && v[2] == 1) { ep.add(e[0]); hx.add(v[0]); hy.add(v[1]); }
         }
         return new com.sdzjz.net.StorageNodeHomePayload(pos, ep, hx, hy);
     }
 
-    public java.util.List<long[]> storageEndpointsView() { return storageEndpoints; }
+    public java.util.List<long[]> storageEndpointsView() { return g.storageEndpoints; }
 
     /** m89：打包端点+总线库存（并行列表）。 */
     public com.sdzjz.net.CanvasEndsPayload buildEndsPayload(BlockPos pos) {
         java.util.List<Long> ep = new java.util.ArrayList<>();
         java.util.List<Integer> ek = new java.util.ArrayList<>();
         java.util.List<String> ed = new java.util.ArrayList<>();
-        for (int i = 0; i < storageEndpoints.size(); i++) {
-            ep.add(storageEndpoints.get(i)[0]);
-            ek.add((int) storageEndpoints.get(i)[1]);
-            ed.add(i < storageEndpointDims.size() ? storageEndpointDims.get(i) : "");
+        for (int i = 0; i < g.storageEndpoints.size(); i++) {
+            ep.add(g.storageEndpoints.get(i)[0]);
+            ek.add((int) g.storageEndpoints.get(i)[1]);
+            ed.add(i < g.storageEndpointDims.size() ? g.storageEndpointDims.get(i) : "");
         }
         return new com.sdzjz.net.CanvasEndsPayload(pos, ep, ek, ed,
-                new java.util.ArrayList<>(busTopIds), new java.util.ArrayList<>(busTopCounts));
+                new java.util.ArrayList<>(g.busTopIds), new java.util.ArrayList<>(g.busTopCounts));
     }
 
-    // m85：总线库存（网络前10物品，画布顶栏「存储总线（网络库存）」展示）
-    private final java.util.List<String> busTopIds = new java.util.ArrayList<>();
-    private final java.util.List<Long> busTopCounts = new java.util.ArrayList<>();
-    public java.util.List<String> busTopIdsView() { return busTopIds; }
-    public java.util.List<Long> busTopCountsView() { return busTopCounts; }
+    // m85：总线库存（网络前10物品，画布顶栏「存储总线（网络库存）」展示；字段在 g）
+    public java.util.List<String> busTopIdsView() { return g.busTopIds; }
+    public java.util.List<Long> busTopCountsView() { return g.busTopCounts; }
 
     // m86：实测产量（分钟滚动窗口；生成点计数，不在 deposit 链上数防重复）
-    private long prodWin = 0, prodPerMin = 0, prodWinStart = 0;
+    private long prodWin = 0, prodWinStart = 0; // prodPerMin 快照在 g
     void prodTally(long n) { if (n > 0) prodWin += n; }
-    public long prodPerMinView() { return prodPerMin; }
+    public long prodPerMinView() { return g.prodPerMin; }
 
     private Level resolveDimWorld(Level base, String dim) {
         if (dim == null || dim.isEmpty() || base.dimension().location().toString().equals(dim)) return base;
@@ -3119,16 +3106,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return sw.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dim)));
         return null;
     }
-    public java.util.List<String> storageEndpointDimsView() { return storageEndpointDims; }
-    public java.util.List<long[]> storageEdgesView() { return storageEdges; }
+    public java.util.List<String> storageEndpointDimsView() { return g.storageEndpointDims; }
+    public java.util.List<long[]> storageEdgesView() { return g.storageEdges; }
 
     public int storageNodeX(long pl, int def) {
-        int[] v = storageNodePos.get(pl);
+        int[] v = g.storageNodePos.get(pl);
         return v != null ? v[0] : def;
     }
 
     public int storageNodeY(long pl, int def) {
-        int[] v = storageNodePos.get(pl);
+        int[] v = g.storageNodePos.get(pl);
         return v != null ? v[1] : def;
     }
 
@@ -3138,7 +3125,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ===== 按边精确路由：每节点输入缓存 =====
     /** 取第 i 个节点的输入缓存（懒补齐对齐 machineNodes）。 */
     private java.util.Map<String, Long> nodeBuf(int i) {
-        while (nodeBufs.size() < machineNodes.size()) nodeBufs.add(new java.util.HashMap<>());
+        while (nodeBufs.size() < g.machineNodes.size()) nodeBufs.add(new java.util.HashMap<>());
         return nodeBufs.get(i);
     }
 
@@ -3181,7 +3168,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (targets != null && targets.length > 0) {
             int okN = 0; // m357 scratch 两遍法：收可吃目标进复用数组（不跨调用不可重入）
             for (int t : targets)
-                if (t >= 0 && t < machineNodes.size() && accepts(world, t, id)) {
+                if (t >= 0 && t < g.machineNodes.size() && accepts(world, t, id)) {
                     if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
                     evenOk[okN++] = t;
                 }
@@ -3222,9 +3209,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             for (int pass = 0; pass < 2; pass++) { // m150 两轮：第一轮跳过垃圾桶，第二轮只喂垃圾桶——
                 for (int t : targets) {            // 垃圾桶永远是最后去处，与连线先后无关（不然想要的会被吞）
                     if (amt <= 0) return;
-                    if (t < 0 || t >= machineNodes.size()) continue;
-                    if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(machineNodes.get(t))
-                            || machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
+                    if (t < 0 || t >= g.machineNodes.size()) continue;
+                    if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(g.machineNodes.get(t))
+                            || g.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                     if (!accepts(world, t, id)) continue;
                     java.util.Map<String, Long> m = nodeBuf(t);
                     if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面定向存储/默认路由
@@ -3251,7 +3238,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     private boolean accepts0(Level world, int target, String id) {
-        ItemStack st = machineNodes.get(target);
+        ItemStack st = g.machineNodes.get(target);
         if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;                // m110b 暂停不收（上游改走默认路由）
         if (com.sdzjz.node.NodeTags.isFilter(st)) return com.sdzjz.node.NodeTags.filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
         if (com.sdzjz.node.NodeTags.isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
@@ -3331,18 +3318,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m270 节点连线度数（进+出合计），配合 maxEdgesPerNode。 */
     private int nodeDegree(int n) {
         int d = 0;
-        for (int[] c : connections) if (c[0] == n || c[1] == n) d++;
+        for (int[] c : g.connections) if (c[0] == n || c[1] == n) d++;
         return d;
     }
 
     /** 连/断一条 from→to 连线（已存在则断开）。m270 签名升带玩家：上限拒绝要提示（m99 静默无效教训）。 */
-    public void toggleConnection(net.minecraft.world.entity.player.Player byPlayer, int from, int to) {        if (from == to || from < 0 || to < 0 || from >= machineNodes.size() || to >= machineNodes.size()) return;
-        for (int i = 0; i < connections.size(); i++) {
-            int[] c = connections.get(i);
-            if (c[0] == from && c[1] == to) { connections.remove(i); bumpTopo(); setChanged(); syncToClient(); return; } // m179
+    public void toggleConnection(net.minecraft.world.entity.player.Player byPlayer, int from, int to) {        if (from == to || from < 0 || to < 0 || from >= g.machineNodes.size() || to >= g.machineNodes.size()) return;
+        for (int i = 0; i < g.connections.size(); i++) {
+            int[] c = g.connections.get(i);
+            if (c[0] == from && c[1] == to) { g.connections.remove(i); bumpTopo(); setChanged(); syncToClient(); return; } // m179
         }
         SdzjzConfig cfgE = SdzjzConfig.get(); // m270 硬上限：断开永远放行，只闸新增
-        if (cfgE.maxEdgesPerCore > 0 && connections.size() >= cfgE.maxEdgesPerCore) {
+        if (cfgE.maxEdgesPerCore > 0 && g.connections.size() >= cfgE.maxEdgesPerCore) {
             capMsg(byPlayer, "连线总数已达上限 " + cfgE.maxEdgesPerCore + "（config maxEdgesPerCore 可调，0=无限）");
             return;
         }
@@ -3350,19 +3337,19 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             capMsg(byPlayer, "单节点连线已达上限 " + cfgE.maxEdgesPerNode + "（config maxEdgesPerNode 可调，0=无限）");
             return;
         }
-        connections.add(new int[]{from, to});
+        g.connections.add(new int[]{from, to});
         bumpTopo(); // m179
         setChanged();
         syncToClient();
     }
 
     /** 画布渲染读取（客户端）。 */
-    public java.util.List<ItemStack> nodes() { return machineNodes; }
+    public java.util.List<ItemStack> nodes() { return g.machineNodes; }
 
     /** 破坏时掉落全部（升级/产出 + 机器节点）。 */
     public void dropAll(Level world, BlockPos pos) {
         Containers.dropContents(world, pos, this);
-        for (ItemStack s : machineNodes) {
+        for (ItemStack s : g.machineNodes) {
             CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             for (int type = 0; type < 3; type++) {
                 int lv = n.getInt(com.sdzjz.node.NodeUpgrades.upgradeKey(type));
@@ -3373,10 +3360,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             s.remove(DataComponents.CUSTOM_DATA);
             Containers.dropItemStack(world, pos.getX(), pos.getY(), pos.getZ(), s);
         }
-        machineNodes.clear();
+        g.machineNodes.clear();
         bumpTopo(); // m179
-        nodeStatus.clear();
-        nodeReason.clear(); // m178
+        g.nodeStatus.clear();
+        g.nodeReason.clear(); // m178
     }
 
     // ===== m344 画布观众登记表（外部审计 P1 销账：此前每核心每 tick 扫一遍全服玩家表——
@@ -3458,15 +3445,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m177 /sdzjz dumpgraph：整图转储（节点+连线+运行态），进服务器日志用。 */
     public String debugDump() {
         StringBuilder sb = new StringBuilder();
-        sb.append("running=").append(running).append(" nodes=").append(machineNodes.size())
-          .append(" edges=").append(connections.size()).append(" prodPerMin=").append(prodPerMin).append('\n');
-        for (int i = 0; i < machineNodes.size(); i++) {
-            ItemStack st = machineNodes.get(i);
+        sb.append("running=").append(running).append(" nodes=").append(g.machineNodes.size())
+          .append(" edges=").append(g.connections.size()).append(" prodPerMin=").append(g.prodPerMin).append('\n');
+        for (int i = 0; i < g.machineNodes.size(); i++) {
+            ItemStack st = g.machineNodes.get(i);
             sb.append(String.format("  [%d] %s x%d%s%n", i,
                     net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(st.getItem()), st.getCount(),
                     com.sdzjz.node.NodeTags.nodePaused(st) ? " (暂停)" : ""));
         }
-        for (int[] c : connections) sb.append("  edge ").append(c[0]).append(" -> ").append(c[1]).append('\n');
+        for (int[] c : g.connections) sb.append("  edge ").append(c[0]).append(" -> ").append(c[1]).append('\n');
         return sb.toString();
     }
 
@@ -3838,7 +3825,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
         nbt.put("internalBuffer", buf);
         ListTag nbl = new ListTag(); // 每节点输入缓存（与 machineNodes 同序）
-        for (int i = 0; i < machineNodes.size(); i++) {
+        for (int i = 0; i < g.machineNodes.size(); i++) {
             CompoundTag c = new CompoundTag();
             for (java.util.Map.Entry<String, Long> e : nodeBuf(i).entrySet()) c.putLong(e.getKey(), e.getValue());
             nbl.add(c);
@@ -3869,51 +3856,51 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  存档 writeNbt 与 flushCanvasSnapshot 共用。 */
     private void writeRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
         ListTag mn = new ListTag();
-        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.save(lookup));
+        for (ItemStack s : g.machineNodes) if (!s.isEmpty()) mn.add(s.save(lookup));
         nbt.put("machineNodes", mn);
-        int[] flat = new int[connections.size() * 2];
-        for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
+        int[] flat = new int[g.connections.size() * 2];
+        for (int i = 0; i < g.connections.size(); i++) { flat[i * 2] = g.connections.get(i)[0]; flat[i * 2 + 1] = g.connections.get(i)[1]; }
         nbt.putIntArray("connections", flat);
         CompoundTag grp = new CompoundTag(); // m191 分组元数据 id→名（成员归属在各节点栈里随 machineNodes 落盘）
-        for (var ge : groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
+        for (var ge : g.groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
         nbt.put("groups", grp);
-        int[] nst = new int[machineNodes.size()];
-        for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
+        int[] nst = new int[g.machineNodes.size()];
+        for (int i = 0; i < nst.length; i++) nst[i] = i < g.nodeStatus.size() ? g.nodeStatus.get(i) : 0;
         nbt.putIntArray("nodeStat", nst);
         ListTag nwl = new ListTag(); // m178 阻塞原因（与 nodeStat 同序；转绿清空）
-        for (int i = 0; i < nst.length; i++) nwl.add(net.minecraft.nbt.StringTag.valueOf(i < nodeReason.size() ? nodeReason.get(i) : ""));
+        for (int i = 0; i < nst.length; i++) nwl.add(net.minecraft.nbt.StringTag.valueOf(i < g.nodeReason.size() ? g.nodeReason.get(i) : ""));
         nbt.put("nodeWhy", nwl);
         ListTag eps = new ListTag(); // 存储端点（同步给画布：连了几个显示几个）
-        for (int i = 0; i < storageEndpoints.size(); i++) {
+        for (int i = 0; i < g.storageEndpoints.size(); i++) {
             CompoundTag c = new CompoundTag();
-            c.putLong("p", storageEndpoints.get(i)[0]);
-            c.putInt("k", (int) storageEndpoints.get(i)[1]);
-            c.putString("d", storageEndpointDims.get(i));
+            c.putLong("p", g.storageEndpoints.get(i)[0]);
+            c.putInt("k", (int) g.storageEndpoints.get(i)[1]);
+            c.putString("d", g.storageEndpointDims.get(i));
             eps.add(c);
         }
         nbt.put("storEnds", eps);
         ListTag seg = new ListTag(); // 机器↔存储 定向连线
-        for (int i = 0; i < storageEdges.size(); i++) {
+        for (int i = 0; i < g.storageEdges.size(); i++) {
             CompoundTag c = new CompoundTag();
-            c.putInt("m", (int) storageEdges.get(i)[0]);
-            c.putLong("p", storageEdges.get(i)[1]);
-            c.putInt("r", (int) storageEdges.get(i)[2]);
-            c.putString("d", storageEdgeDims.get(i));
+            c.putInt("m", (int) g.storageEdges.get(i)[0]);
+            c.putLong("p", g.storageEdges.get(i)[1]);
+            c.putInt("r", (int) g.storageEdges.get(i)[2]);
+            c.putString("d", g.storageEdgeDims.get(i));
             seg.add(c);
         }
         nbt.put("storEdges", seg);
         CompoundTag spn = new CompoundTag(); // 存储节点画布坐标
-        for (var en : storageNodePos.entrySet()) spn.putIntArray(Long.toString(en.getKey()), en.getValue());
+        for (var en : g.storageNodePos.entrySet()) spn.putIntArray(Long.toString(en.getKey()), en.getValue());
         nbt.put("storNodePos", spn);
         ListTag bt = new ListTag(); // m85 总线库存
-        for (int i = 0; i < busTopIds.size(); i++) {
+        for (int i = 0; i < g.busTopIds.size(); i++) {
             CompoundTag c = new CompoundTag();
-            c.putString("i", busTopIds.get(i));
-            c.putLong("n", busTopCounts.get(i));
+            c.putString("i", g.busTopIds.get(i));
+            c.putLong("n", g.busTopCounts.get(i));
             bt.add(c);
         }
         nbt.put("busTop", bt);
-        nbt.putLong("prodPM", prodPerMin); // m86 实测产量
+        nbt.putLong("prodPM", g.prodPerMin); // m86 实测产量
     }
 
     @Override
@@ -3930,7 +3917,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         nodeBufs.clear();
         ListTag nbl = nbt.getList("nodeBufs", Tag.TAG_COMPOUND);
-        for (int i = 0; i < machineNodes.size(); i++) {
+        for (int i = 0; i < g.machineNodes.size(); i++) {
             java.util.Map<String, Long> m = new java.util.HashMap<>();
             if (i < nbl.size()) {
                 CompoundTag c = nbl.getCompound(i);
@@ -3965,58 +3952,58 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     /** m275：渲染子集读入（与 writeRenderNbt 严格对偶）——存档 readNbt 与客户端 applyRenderSnapshot 共用。 */
     private void readRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
-        machineNodes.clear();
+        g.machineNodes.clear();
         bumpTopo(); // m179
         ListTag mn = nbt.getList("machineNodes", Tag.TAG_COMPOUND);
         for (int i = 0; i < mn.size(); i++) {
             CompoundTag mc = mn.getCompound(i);
             String mid = MERGED_IDS.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
             if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
-            ItemStack.parse(lookup, mc).ifPresent(machineNodes::add);
+            ItemStack.parse(lookup, mc).ifPresent(g.machineNodes::add);
         }
-        connections.clear();
+        g.connections.clear();
         int[] flat = nbt.getIntArray("connections");
-        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
-        groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
+        for (int i = 0; i + 1 < flat.length; i += 2) g.connections.add(new int[]{flat[i], flat[i + 1]});
+        g.groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
         CompoundTag grp = nbt.getCompound("groups");
         for (String k : grp.getAllKeys()) {
-            try { groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
+            try { g.groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
         }
-        nodeStatus.clear();
-        for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
-        nodeReason.clear(); // m178
+        g.nodeStatus.clear();
+        for (int v : nbt.getIntArray("nodeStat")) g.nodeStatus.add(v);
+        g.nodeReason.clear(); // m178
         ListTag nwl178 = nbt.getList("nodeWhy", Tag.TAG_STRING);
-        for (int i = 0; i < nwl178.size(); i++) nodeReason.add(nwl178.getString(i));
-        storageEndpoints.clear();
-        storageEndpointDims.clear();
+        for (int i = 0; i < nwl178.size(); i++) g.nodeReason.add(nwl178.getString(i));
+        g.storageEndpoints.clear();
+        g.storageEndpointDims.clear();
         ListTag eps = nbt.getList("storEnds", Tag.TAG_COMPOUND);
         for (int i = 0; i < eps.size(); i++) {
             CompoundTag c = eps.getCompound(i);
-            storageEndpoints.add(new long[]{c.getLong("p"), c.getInt("k")});
-            storageEndpointDims.add(c.getString("d"));
+            g.storageEndpoints.add(new long[]{c.getLong("p"), c.getInt("k")});
+            g.storageEndpointDims.add(c.getString("d"));
         }
-        storageEdges.clear();
-        storageEdgeDims.clear();
+        g.storageEdges.clear();
+        g.storageEdgeDims.clear();
         ListTag seg = nbt.getList("storEdges", Tag.TAG_COMPOUND);
         for (int i = 0; i < seg.size(); i++) {
             CompoundTag c = seg.getCompound(i);
-            storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
-            storageEdgeDims.add(c.getString("d"));
+            g.storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
+            g.storageEdgeDims.add(c.getString("d"));
         }
-        storageNodePos.clear();
+        g.storageNodePos.clear();
         CompoundTag spn = nbt.getCompound("storNodePos");
         for (String k : spn.getAllKeys()) {
             int[] v = spn.getIntArray(k);
-            if (v.length == 2 || v.length == 3) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
+            if (v.length == 2 || v.length == 3) try { g.storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
         }
-        busTopIds.clear();
-        busTopCounts.clear();
+        g.busTopIds.clear();
+        g.busTopCounts.clear();
         ListTag btr = nbt.getList("busTop", Tag.TAG_COMPOUND); // m85
         for (int i = 0; i < btr.size(); i++) {
-            busTopIds.add(btr.getCompound(i).getString("i"));
-            busTopCounts.add(btr.getCompound(i).getLong("n"));
+            g.busTopIds.add(btr.getCompound(i).getString("i"));
+            g.busTopCounts.add(btr.getCompound(i).getLong("n"));
         }
-        prodPerMin = nbt.getLong("prodPM"); // m86
+        g.prodPerMin = nbt.getLong("prodPM"); // m86
     }
 
     /** m275：客户端收到观众定向渲染快照时调用（SdzjzClient 收端）——只写渲染字段，
