@@ -21,6 +21,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -109,9 +110,13 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
     // ===== m364 酿造/附魔解析层（BrewPlanner/EnchantPlanner 原文平移，m180 刀法） =====
 
     private static volatile List<ItemStack> INGREDIENTS; // 有效酿造材料缓存（各 count=1，随解析层迁入）
+    /** m425 酿造全图前驱树缓存：一次无目标 BFS 探满整图（key → {prevKey, 材料id}，起点值=null），
+     *  之后任意目标只做 O(路径) 回溯、不可达=O(1) 查表落空（旧=逐目标早停 BFS，不可达必扫全图）。
+     *  BFS 首达定链：早停版的 prev 是本树的前缀（同 FIFO 纪律+同材料迭代序），逐目标结果逐位不变。 */
+    private static volatile Map<String, String[]> BREW_TREE;
 
     /** m364 datapack reload 失效口（代际引导端 Sdzjz 的 reload 钩调用，与四 planner clearCache 同拍）。 */
-    public static void clearCaches() { INGREDIENTS = null; }
+    public static void clearCaches() { INGREDIENTS = null; BREW_TREE = null; }
 
     @Override
     public com.sdzjz.machine.BrewPlanner.Plan brewingPlan(Object level, String target) { return brewResolve((Level) level, target); }
@@ -163,10 +168,11 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         return list;
     }
 
-    private static com.sdzjz.machine.BrewPlanner.Plan brewResolve(Level world, String target) {
-        ItemStack goal = brewTargetStack0(target);
-        if (goal == null) return null;
-        String goalKey = key(goal);
+    /** m425 全图前驱树：起点=水瓶，无目标跑满整图（BFS 循环体与旧 brewResolve 一字未改，
+     *  仅去掉 `!prev.containsKey(goalKey)` 早停条件）。值先建满再发布，读者见到即完整。 */
+    private static Map<String, String[]> brewTree(Level world) {
+        Map<String, String[]> tree = BREW_TREE;
+        if (tree != null) return tree;
         var reg = world.potionBrewing();
         List<ItemStack> ings = ingredients(world);
 
@@ -178,7 +184,7 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
         prev.put(startKey, null);
         stacks.put(startKey, start);
         queue.add(startKey);
-        while (!queue.isEmpty() && !prev.containsKey(goalKey)) {
+        while (!queue.isEmpty()) {
             String curKey = queue.poll();
             ItemStack cur = stacks.get(curKey);
             for (ItemStack ing : ings) {
@@ -191,6 +197,16 @@ public final class LegacyRecipeAccess implements com.sdzjz.platform.RecipeAccess
                 queue.add(ok);
             }
         }
+        tree = Collections.unmodifiableMap(prev); // 起点值=null，Map.copyOf 拒 null 值会 NPE
+        BREW_TREE = tree;
+        return tree;
+    }
+
+    private static com.sdzjz.machine.BrewPlanner.Plan brewResolve(Level world, String target) {
+        ItemStack goal = brewTargetStack0(target);
+        if (goal == null) return null;
+        String goalKey = key(goal);
+        Map<String, String[]> prev = brewTree(world); // m425 全图一次 BFS：查树替代逐目标重扫
         if (!prev.containsKey(goalKey)) return null; // 不可达（如平凡药水串错/模组卸载）
 
         Map<String, Integer> needs = new HashMap<>();

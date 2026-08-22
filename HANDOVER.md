@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m424：迁移遗留清账——m422 登记的三条遗留全部处置：①`映射迁移方案_m409.md` 已加归档标注（姊妹文档 MAPPING_TODO.md 判定为**活文档不标注**：gradlew mojmapTable 机器生成 + CI mapping-members job 代产回推，手写标注会被覆盖）；②`tools_bounded_codec_check.py` 坏模式正则收窄回 Mojmap 单套，Yarn 侧（PacketCodecs.*）倒退由第 14 道闸兜底——注入实测：本尺绿 + 14 闸红并点名文件行号，兜底转移成立不是纸面推论；③注释 Yarn 留痕照 m422 定调不清理。反向自检三段全过（能量出红才算尺子）。14 闸全绿，版本 0.1.424，本笔零源码改动。上笔 m423：tools_platform_scan.py 整族静默失真已修（Yarn 名正则致 nbt/component 失真 581×、text/i18n 整族消失，按错数排期会把 NbtAdapter/MsgPlatform/NetPlatform 三个 SPI 误判「最后抽」，实为第 3/5/4 重耦合面；已换 Mojmap 口径双认重生成 PLATFORM_MAP.md）+ 新增第 14 道闸 tools_yarn_residue_check.py（双段黑名单 164 FQN+123 简名，剥注释扫、字符串不豁免）+ 报告尺 tools_gauge_audit.py 坏尺子普查）
+## 当前状态（m425：酿造全图一次 BFS——外部审计②待办⑤销账。真现场对表：BrewPlanner 已是薄门面（m364），BFS 在 Legacy/Modern 两适配器同构，plan 结果本就长期缓存（m357 勘误在案），客户端选择器不跑 BFS（审计"首开选择器偏重"归因不准）；属实的账=每个新目标首查从头跑早停 BFS 且**不可达目标必扫全图**。修法两侧同刀：BFS 抽成无目标全图版建前驱树缓存（循环体一字未改仅去早停），逐目标改查树+O(路径)回溯、不可达=O(1) 落空；Legacy=volatile+clearCaches 同拍清，Modern=实例身份键值先行键后置照 ingredients 同款序。等价性=BFS 首达定链（早停版 prev 是全图版前缀），py 模拟对拍 500 图×16608 组逐位相等先行；自埋雷当场抓获：Map.copyOf 拒 null 值（起点值=null 运行期必 NPE，模拟抓不到的 Java 值域陷阱）改 unmodifiableMap。行为判官=GameTest 卅四号 recipe_domain_contract（酿造域全路径双侧同断言）。14 闸全绿，javac 冒烟真语法错 0 自家符号错 0，版本 0.1.425，零新配置键。上笔 m424：m422 迁移遗留清账（方案稿归档/MAPPING_TODO 判活文档/codec 尺收窄回 Mojmap 单套由 14 闸兜底）。上上笔 m423：platform_scan 整族失真已修+第 14 道 Yarn 残留闸+坏尺子普查）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -157,8 +157,8 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
 ## 待办池（按优先级）
 
 0. **外部审计②余账对表（m345 登记；P0 CraftPlanner=m343 已销、P1 玩家扫描=m344 已销，均逐行对源核实后才动的手）**：
-   - **属实待做**：①SmeltPlanner 稳定选序=m346 已销，余"按库存挑输出"升级项待作者拍板；②tick 头维护段=m348 已销（扫描分档+看门狗冻结坑，区块票 20t 管停机转变沿属必要留驻）；③孤儿 claim 渐进核销=m347 已销；④DataPanel"重复解析"=已有等效实现（cores() 自 m108c 40t 缓存+幽灵重建，m290 升 public 共链路），不另做快照层；⑤BrewPlanner 全图一次 BFS
-     （现=逐目标 BFS 有缓存，首开选择器偏重）；⑥bigStacks 兼容分档（OFF/VANILLA_ONLY/FULL，
+   - **属实待做**：①SmeltPlanner 稳定选序=m346 已销，余"按库存挑输出"升级项待作者拍板；②tick 头维护段=m348 已销（扫描分档+看门狗冻结坑，区块票 20t 管停机转变沿属必要留驻）；③孤儿 claim 渐进核销=m347 已销；④DataPanel"重复解析"=已有等效实现（cores() 自 m108c 40t 缓存+幽灵重建，m290 升 public 共链路），不另做快照层；⑤BrewPlanner 全图一次 BFS=m425 已销
+     （前驱树缓存双侧同刀，"首开选择器偏重"归因经对表不准——真账是不可达目标必扫全图）；⑥bigStacks 兼容分档（OFF/VANILLA_ONLY/FULL，
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据

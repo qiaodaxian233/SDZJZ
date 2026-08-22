@@ -7912,3 +7912,37 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   零源码改动，不涉及编译与实机行为。
 - **实机验证脚本**：本笔不改行为，无需实机。
 - 零新配置键；零行为改动。
+
+## m425 酿造全图一次 BFS：前驱树缓存替代逐目标重扫（外部审计②待办⑤销账，Legacy/Modern 双侧）
+
+- **对表核实后动手（m345 登记原文="BrewPlanner 全图一次 BFS（现=逐目标 BFS 有缓存，首开选择器偏重）"）**：
+  架构自审计后已变——BrewPlanner 是薄门面（m364 解析层下沉代际适配器），真 BFS 在
+  LegacyRecipeAccess.brewResolve / ModernBrewAccess.resolve 两处同构；plan 结果本就长期
+  CHM 缓存（m357 勘误在案）；客户端药水选择器只查注册表**不跑 BFS**（refilterPotions 只调
+  targetStack），审计"首开选择器偏重"的归因不准。**属实的账**：每个新目标首查都从头跑一次
+  早停 BFS；**不可达目标（模组药水无配方/串对但链断）没有早停可言，必然扫满全图**，且这类
+  查询会经 SCBE 的 accepts/chainWants 路（2970/3378 行）在配置期反复触到不同目标。
+- **修法（两侧同刀）**：BFS 抽成无目标全图版（`brewTree`/`tree`，循环体一字未改，仅去
+  `!prev.containsKey(goalKey)` 早停条件），跑满整图后前驱树缓存（key→{prevKey,材料id}，
+  起点值=null）；brewResolve/resolve 改为查树+O(路径) 回溯，不可达=O(1) 查表落空。
+  缓存口径各随各家既有习惯：Legacy=volatile 字段+clearCaches 同拍清（Sdzjz reload 钩既有接线）；
+  Modern=PotionBrewing 实例身份键独立一对 treeReg/cachedTree，写序照 ingredients 缓存同款
+  「值先行键后置」（guard 命中即值已就位）。
+- **等价性论证（BFS 首达定链）**：早停版跑出的 prev 是全图版的**前缀**（同 FIFO 队列纪律+
+  同材料迭代序），目标回溯只走"不晚于目标被发现"的条目——每个可达目标 needs/steps 逐位不变；
+  不可达目标两版同 null（旧=O(全图) 新=O(1)）。**模拟对拍先行**（m137 口径断言先审）：
+  python 镜像 Java 循环结构，500 随机图 × 全目标（含不可达/起点/成环）= 16608 组逐位相等。
+- **自埋雷当场抓获**：树缓存首版用 `Map.copyOf(prev)`——prev 里**起点值=null，Map.copyOf
+  拒 null 值运行期必 NPE**（模拟里 dict+None 天然合法所以模拟抓不到，属 Java 值域陷阱）。
+  改 `Collections.unmodifiableMap`，两侧同修+残留 grep=0。教训：**py 模拟证算法不证 Java
+  值域约束**，容器换装时 copyOf/of 族的"拒 null"要单独过一遍。
+- **验证**：全库 javac 冒烟（160 文件，-Xmaxerrs 10000）3589 条全为缺 MC 依赖噪音
+  （逐条抽核脱字符全指向 ItemStack/Level 等 MC 类型），真语法错 0、自家符号错 0
+  （brewTree/BREW_TREE/cachedTree/treeReg/Collections 定向 grep 报错=0）；14 道闸全绿。
+  **行为判官=CI GameTest 卅四号 recipe_domain_contract**（⑥酿造域全路径：迅捷浅链/强化喷溅
+  深链最短步数与材料多重集全对、水瓶=null、非法串=null）Legacy/Modern 两侧跑同一套断言，
+  正好逐条覆盖本改动的等价性主张。
+- **实机验证脚本**：酿造塔选 强化迅捷·喷溅 挂网络出货应与 m131b 验证单逐条一致（3瓶/批、
+  材料账不变）；换选多个不同目标（含一个模组无配方药水）观察首选不再各自卡一拍；
+  /sdzjz profile core 细分表 SUB_P_BREW（m357 桶）冷启后应趋零增长。
+- 零新配置键（语义逐位不变纯提速，m356 同口径）。

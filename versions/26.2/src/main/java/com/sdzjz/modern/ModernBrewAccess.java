@@ -16,6 +16,7 @@ import net.minecraft.world.level.Level;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,10 @@ final class ModernBrewAccess {
     /** 材料缓存：随 PotionBrewing 实例身份失效（reload=新实例）；弱引用防持服务端对象。 */
     private static volatile WeakReference<PotionBrewing> cachedReg = new WeakReference<>(null);
     private static volatile List<ItemStack> cachedIngredients = null;
+    /** m425 全图前驱树缓存（Legacy BREW_TREE 对位）：键=实例身份独立一对（treeReg/cachedTree），
+     *  写序照 ingredients 同款「值先行键后置」——guard 命中即值已就位。 */
+    private static volatile WeakReference<PotionBrewing> treeReg = new WeakReference<>(null);
+    private static volatile Map<String, String[]> cachedTree = null;
 
     /** 目标串（"药水id|p/s/l"）→ 样板栈；非法=null。与 level 无关（静态注册表），Legacy 同规矩。 */
     static ItemStack targetStack(String target) {
@@ -97,12 +102,13 @@ final class ModernBrewAccess {
         return list;
     }
 
-    /** 酿造计划 BFS（Legacy brewResolve 原文平移：起点=水瓶，边=一步 mix，首达=最短链）。 */
-    static com.sdzjz.machine.BrewPlanner.Plan resolve(Level world, String target) {
-        ItemStack goal = targetStack(target);
-        if (goal == null) return null;
-        String goalKey = key(goal);
-        PotionBrewing reg = world.potionBrewing();
+    /** m425 全图前驱树（Legacy brewTree 对位）：起点=水瓶，无目标跑满整图
+     *  （BFS 循环体与旧 resolve 一字未改，仅去掉 goalKey 早停条件）。 */
+    private static Map<String, String[]> tree(PotionBrewing reg) {
+        if (treeReg.get() == reg) {
+            Map<String, String[]> hit = cachedTree;
+            if (hit != null) return hit;
+        }
         List<ItemStack> ings = ingredients(reg);
 
         ItemStack start = PotionContents.createItemStack(Items.POTION, Potions.WATER);
@@ -113,7 +119,7 @@ final class ModernBrewAccess {
         prev.put(startKey, null);
         stacks.put(startKey, start);
         queue.add(startKey);
-        while (!queue.isEmpty() && !prev.containsKey(goalKey)) {
+        while (!queue.isEmpty()) {
             String curKey = queue.poll();
             ItemStack cur = stacks.get(curKey);
             for (ItemStack ing : ings) {
@@ -126,6 +132,19 @@ final class ModernBrewAccess {
                 queue.add(ok);
             }
         }
+        Map<String, String[]> t = Collections.unmodifiableMap(prev); // 起点值=null，Map.copyOf 拒 null 值会 NPE
+        cachedTree = t;                      // 值先行
+        treeReg = new WeakReference<>(reg);  // 键后置
+        return t;
+    }
+
+    /** 酿造计划（m425 起：查全图树+回溯；旧=逐目标早停 BFS。Legacy brewResolve 对位）。 */
+    static com.sdzjz.machine.BrewPlanner.Plan resolve(Level world, String target) {
+        ItemStack goal = targetStack(target);
+        if (goal == null) return null;
+        String goalKey = key(goal);
+        PotionBrewing reg = world.potionBrewing();
+        Map<String, String[]> prev = tree(reg);
         if (!prev.containsKey(goalKey)) return null; // 不可达（如平凡药水串错/模组卸载）
 
         Map<String, Integer> needs = new HashMap<>();
