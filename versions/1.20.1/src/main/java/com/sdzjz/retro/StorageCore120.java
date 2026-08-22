@@ -53,6 +53,37 @@ public final class StorageCore120 extends BlockEntity {
         super(RetroBlocks.STORAGE_CORE_BE, pos, state);
     }
 
+    // ===== m444 网络连通（蓝本 connectedCores/loadedCoreAt 的本世代裁剪版：CORES 登记表/桶索引
+    // 属机器消费面随 P-C，loadedCoreAt 去掉幽灵剔除支路——没有登记表就没有幽灵；m233 linkBlocked
+    // 按面断开随 P-C 链接器，BFS 暂无断边闸，到期在 seen 之前插同位）=====
+
+    /** BFS：从某位置经数据线/相邻找到所有存储核心（4096 上限同蓝本）。 */
+    public static List<StorageCore120> connectedCores(net.minecraft.world.level.Level world, BlockPos from) {
+        List<StorageCore120> out = new ArrayList<>();
+        if (world == null) return out;
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(from); seen.add(from);
+        int limit = 4096;
+        while (!queue.isEmpty() && limit-- > 0) {
+            BlockPos p = queue.poll();
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                BlockPos np = p.relative(d);
+                if (!seen.add(np)) continue;
+                BlockEntity be = world.getBlockEntity(np);
+                if (be instanceof StorageCore120 core) { out.add(core); queue.add(np); }
+                else if (world.getBlockState(np).getBlock() instanceof DataCableBlock120) queue.add(np);
+            }
+        }
+        return out;
+    }
+
+    /** 安全查找：只查已加载区块（getBlockEntity 在服务端会强制加载区块，缓存位置解引用时绝不能裸用）。 */
+    public static StorageCore120 loadedCoreAt(net.minecraft.world.level.Level world, BlockPos p) {
+        if (!world.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4)) return null;
+        return world.getBlockEntity(p) instanceof StorageCore120 core ? core : null;
+    }
+
     public int tier() { return tier; }
     public int maxTypes() { int p = typesPerTier(); return p <= 0 ? Integer.MAX_VALUE : p * tier; }
 

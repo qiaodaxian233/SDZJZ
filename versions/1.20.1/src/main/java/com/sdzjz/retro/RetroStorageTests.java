@@ -10,11 +10,14 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 
 /**
  * m443 刀②行为判官：1.20.1 账本核心 GameTest——语义蓝本=Legacy {@code SdzjzGameTests} 同名用例
  * （无复制无蒸发/事务回滚/嵌套回滚/类型硬顶/索引平移/NBT 往返），外加 tag 世代专属一条：
- * "不混堆不变裸"在 tag 身份模型上的重证（m440 排刀稿点名的主战场）。
+ * "不混堆不变裸"在 tag 身份模型上的重证（m440 排刀稿点名的主战场）。m444 起追加数据线三用例
+ * （送出穿链/回收含 tag 件/余量回账不落地）——Create 传送带互通的 CI 侧上界，实机那一眼归作者。
  *
  * <p>注解形态照 mojmap 1.20.x 官方名（Forge 1.20.x 原文实证 template 属性）+ fabric-api 1.20.1 分支
  * EMPTY_STRUCTURE；注册走 fabric.mod.json 的 fabric-gametest 入口（与 Legacy/Modern 同键）。
@@ -179,6 +182,75 @@ public final class RetroStorageTests implements FabricGameTest {
             ctx.assertTrue(c.exactCount(i) == c2.exactCount(i),
                     "精确计数第 " + i + " 条不符：写 " + c.exactCount(i) + " 读 " + c2.exactCount(i));
         }
+        ctx.succeed();
+    }
+
+    /** m444 刀③：送出拍穿越线缆链——核心(0)—线(1)—线(2)—箱(3)，脉冲贴箱那根线：BFS 隔两根线
+     *  仍找到核心，账本物品进箱子（能给）。pulse 直调免等相位闸（同包可见，确定性）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_push_reaches_chest_through_chain(GameTestHelper ctx) {
+        StorageCore120 c = core(ctx);
+        c.deposit(new ItemStack(Items.COBBLESTONE, 64));
+        ctx.setBlock(new BlockPos(1, 1, 0), RetroBlocks.DATA_CABLE.defaultBlockState());
+        BlockPos cableRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        BlockPos chestRel = new BlockPos(3, 1, 0);
+        ctx.setBlock(chestRel, Blocks.CHEST.defaultBlockState());
+        if (!(ctx.getBlockEntity(cableRel) instanceof DataCable120 cable)) { ctx.fail("数据线方块实体未生成"); return; }
+        cable.setExtractOn(true); // 送出模式（pullMode 默认 false）
+        cable.pulse(ctx.getLevel(), ctx.absolutePos(cableRel));
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "送出后账本应清零，实得 " + c.count("minecraft:cobblestone"));
+        if (!(ctx.getBlockEntity(chestRel) instanceof ChestBlockEntity chest)) { ctx.fail("箱子方块实体未生成"); return; }
+        int inChest = 0;
+        for (int i = 0; i < chest.getContainerSize(); i++)
+            if (chest.getItem(i).is(Items.COBBLESTONE)) inChest += chest.getItem(i).getCount();
+        ctx.assertTrue(inChest == 64, "箱内应收 64，实得 " + inChest);
+        ctx.succeed();
+    }
+
+    /** m444 刀③：回收拍——箱里裸件+带 tag 件一拍收进网络，裸件进普通账本、tag 件进精确账本
+     *  （FTA 出口 m161c 双账本分流在 move 路径上重证），箱子被收空（能收）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_pull_collects_chest_including_tagged(GameTestHelper ctx) {
+        StorageCore120 c = core(ctx);
+        BlockPos cableRel = new BlockPos(1, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        BlockPos chestRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(chestRel, Blocks.CHEST.defaultBlockState());
+        if (!(ctx.getBlockEntity(chestRel) instanceof ChestBlockEntity chest)) { ctx.fail("箱子方块实体未生成"); return; }
+        chest.setItem(0, new ItemStack(Items.COBBLESTONE, 32));
+        chest.setItem(1, exactSample(9, 7));
+        if (!(ctx.getBlockEntity(cableRel) instanceof DataCable120 cable)) { ctx.fail("数据线方块实体未生成"); return; }
+        cable.setExtractOn(true);
+        cable.setPullMode(true); // m231 回收
+        cable.pulse(ctx.getLevel(), ctx.absolutePos(cableRel));
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 32, "裸件应进普通账本 32，实得 " + c.count("minecraft:cobblestone"));
+        ctx.assertTrue(c.exactTemplates().size() == 1 && c.exactCount(0) == 7,
+                "tag 件应进精确账本 1 条 ×7，实得 " + c.exactTemplates().size() + " 条 ×" + c.exactCount(0));
+        ctx.assertTrue(chest.getItem(0).isEmpty() && chest.getItem(1).isEmpty(), "箱子应被收空");
+        ctx.succeed();
+    }
+
+    /** m444 刀③：目标满余量回账本绝不落地——单箱只装得下 27×64=1728，账本 1729 块，送出一拍后
+     *  账本恰余 1（extractSpec 回账支路+opTargetsFull 收工口径）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_push_returns_overflow_to_ledger(GameTestHelper ctx) {
+        StorageCore120 c = core(ctx);
+        c.storeView().put("minecraft:cobblestone", 1729L); // 直灌绕开 int 形参（口径同 roundtrip 用例）
+        BlockPos cableRel = new BlockPos(1, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        ctx.setBlock(new BlockPos(2, 1, 0), Blocks.CHEST.defaultBlockState());
+        if (!(ctx.getBlockEntity(cableRel) instanceof DataCable120 cable)) { ctx.fail("数据线方块实体未生成"); return; }
+        cable.setExtractOn(true);
+        SdzjzConfig cfg = SdzjzConfig.get();
+        int oldBatch = cfg.extractPortBatch;
+        cfg.extractPortBatch = 4096; // 批量抬过箱容，让"目标满"路径必然触发（测试自还原）
+        try {
+            cable.pulse(ctx.getLevel(), ctx.absolutePos(cableRel));
+        } finally {
+            cfg.extractPortBatch = oldBatch;
+        }
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 1, "箱满后余量应回账本=1，实得 " + c.count("minecraft:cobblestone"));
         ctx.succeed();
     }
 }

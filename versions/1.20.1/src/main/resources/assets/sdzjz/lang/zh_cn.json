@@ -1,4 +1,7 @@
 {
   "block.sdzjz.storage_core": "存储核心",
-  "block.sdzjz.data_cable": "数据线"
+  "block.sdzjz.data_cable": "数据线",
+  "sdzjz.cable.mode.off": "数据线：已关闭",
+  "sdzjz.cable.mode.push": "数据线：送出模式（仓 → 机器）",
+  "sdzjz.cable.mode.pull": "数据线：回收模式（机器 → 仓）"
 }

@@ -1,1 +1,115 @@
-{"variants":{"":{"model":"sdzjz:block/data_cable"}}}
+{
+ "multipart": [
+  {
+   "apply": {
+    "model": "sdzjz:block/data_cable_core"
+   }
+  },
+  {
+   "when": {
+    "north": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain"
+   }
+  },
+  {
+   "when": {
+    "north": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm"
+   }
+  },
+  {
+   "when": {
+    "east": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 90
+   }
+  },
+  {
+   "when": {
+    "east": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 90
+   }
+  },
+  {
+   "when": {
+    "south": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 180
+   }
+  },
+  {
+   "when": {
+    "south": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 180
+   }
+  },
+  {
+   "when": {
+    "west": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "y": 270
+   }
+  },
+  {
+   "when": {
+    "west": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "y": 270
+   }
+  },
+  {
+   "when": {
+    "up": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "x": 270
+   }
+  },
+  {
+   "when": {
+    "up": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "x": 270
+   }
+  },
+  {
+   "when": {
+    "down": "cable"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm_plain",
+    "x": 90
+   }
+  },
+  {
+   "when": {
+    "down": "plug"
+   },
+   "apply": {
+    "model": "sdzjz:block/data_cable_arm",
+    "x": 90
+   }
+  }
+ ]
+}

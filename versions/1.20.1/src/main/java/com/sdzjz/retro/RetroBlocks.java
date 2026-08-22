@@ -29,6 +29,7 @@ public final class RetroBlocks {
     public static Block STORAGE_CORE;
     public static Block DATA_CABLE;
     public static BlockEntityType<StorageCore120> STORAGE_CORE_BE;
+    public static BlockEntityType<DataCable120> DATA_CABLE_BE; // m444
 
     /** 1.20.1 无 codec 的最小 EntityBlock 壳（渲染置回 MODEL，BaseEntityBlock 默认 INVISIBLE）。 */
     private static final class StorageCoreBlock120 extends BaseEntityBlock {
@@ -43,9 +44,11 @@ public final class RetroBlocks {
 
     public static void register() {
         STORAGE_CORE = reg("storage_core", new StorageCoreBlock120(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
-        DATA_CABLE = reg("data_cable", new Block(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
+        DATA_CABLE = reg("data_cable", new DataCableBlock120(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion())); // m444 三态连接
         STORAGE_CORE_BE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("storage_core"),
                 FabricBlockEntityTypeBuilder.create(StorageCore120::new, STORAGE_CORE).build());
+        DATA_CABLE_BE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("data_cable"), // m444（BE id 与 Legacy 同名同源）
+                FabricBlockEntityTypeBuilder.create(DataCable120::new, DATA_CABLE).build());
         ItemGroupEvents.modifyEntriesEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS).register(e -> {
             e.accept(STORAGE_CORE);
             e.accept(DATA_CABLE);

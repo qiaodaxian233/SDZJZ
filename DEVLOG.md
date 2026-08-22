@@ -8458,3 +8458,47 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   应在首次起服生成（configDir 注册生效证据）。
 - 零 Legacy/Modern 侧改动；零新配置键。刀③（m444）=DataCable120 双向拍 + **Create 传送带↔数据线
   互通实机验收**（作者承诺项收官点）。
+## m444 P-B② 刀③：1.20.1 数据线双向拍落地（m231）——存储网络精简版收官，Create 验收线交实机
+
+- **落地物**：①DataCable120 BE（蓝本=Legacy DataCableBlockEntity 逐段对照新写）——m225 主拍
+  pos 哈希移相/m228 六面视图邻接探测（贴线面→其余五面→无侧，身份去重，自家方块排除）/m231 双向：
+  送出=账本→邻接 FTA 存储（空过滤=全抽游标轮转，塞不下余量回账本绝不落地+opTargetsFull 收工），
+  回收=StorageUtil.move 进核心 fabricStorage（FTA 出口双账本分流，带 tag 件正确入精确账本）；
+  周期/批量走 common 配置同源键 extractPortPeriodTicks/extractPortBatch。②DataCableBlock120
+  三态连接（蓝本=xplat DataCableBlock m67：缆对缆细管/对设备插头臂/无连接不伸臂，形状缓存同款）
+  +CableEnd120（序列化名 none/cable/plug 与资产键同源）。③StorageCore120 补 connectedCores
+  BFS4096+loadedCoreAt 安全解引用（登记表/桶索引属机器消费面随 P-C，loadedCoreAt 去幽灵剔除
+  支路——没有登记表就没有幽灵）。④资产自根仓同源拷贝：blockstate 多部件 13 条+core/arm/arm_plain
+  三模型+物品平面图标，旧平方块模型下岗，全过 json.load。⑤GameTest 追加三用例（判官累计十条）：
+  送出穿两根线缆链到箱/回收裸件+tag 件双账分流+箱满余量回账本恰余 1（pulse 拆出相位闸之后的
+  单拍主体，测试同包直调免等相位，确定性）。
+- **本世代交互（无配置屏的最小可用面）**：空手右键数据线服务端循环 关→送出→回收，actionbar
+  反馈（lang 新增 sdzjz.cable.mode.off/push/pull 中英四文件六键）；m226 配置屏随 P-C 到位后
+  此交互保留为快捷开关。**本世代裁剪记档（非漏抄）**：m229 所有者/EMC（ProjectEF 属 Legacy）、
+  m230 升级槽（effPeriod/effBudget 退基础配置值）、m233 按面断开（链接器随 P-C——BFS 断边闸
+  到期在 seen 之前插同位，蓝本注释红线原样留存）；filter 字段+NBT 键 extractOn/pullMode/filter
+  与蓝本同名同布局保留，本世代恒空=送出全抽/回收全收。
+- **1.20.1 签名差行内指认**：Block 无 MapCodec（1.20.3 起）；updateShape/getShape/
+  getStateForPlacement 可见性 public（1.20.5 起才收 protected，蓝本的 protected 这版编不过）；
+  交互单一 use()（1.20.5 起才拆 useItemOn/useWithoutItem）；updateShape 无需服务端限定（m233
+  掩码不存在，双端重算同果——蓝本该限定的存在理由随掩码一起记档）。
+- **核名（上游原文实证）**：StorageUtil.move(Storage,Storage,Predicate<T>,long,TransactionContext)
+  五参签名从 fabric-api 1.20.1 分支原文核到（谓词是 ItemVariant 不是 ItemStack——FabricXfer 内脏
+  的 toStack 适配照抄）；GameTestHelper.absolutePos 从 Forge 1.20.x CriterionTest 原文核到；
+  数据线 BE 注册 id "data_cable" 与 Legacy ModBlockEntities 同名核实。
+- **当日两把坏尺子（m109 谱系）**：①str_replace 追加用例时 new_str 忘带锚原文头部，吞掉 roundtrip
+  用例的 succeed+闭括号——真语法错 7 条冒烟即抓（**替换锚含收尾结构时 new_str 必须逐字带回原文
+  头部再接新料**，m438b"删谁查谁"的写入版）；②自家符号定向 grep 首跑 403 命中全是**文件路径行**
+  （路径里含类名），symbol: 明细行口径才是真值 0——m443 已立此口径，本轮又踩一次，写死：
+  **定向 grep 一律先限定 symbol: 前缀再匹配类名**。
+- **验证**：15 道离线闸全绿（版本闸 0.1.444 对表）；资产 JSON 全过；冒烟满额报错真语法错 0、
+  自家符号（含新方法名 pulse/connectedCores/loadedCoreAt）symbol 行定向 0（551 条全为缺依赖
+  噪音）。判官=CI retro 编译+GameTest（十用例）。
+- **实机验证脚本（P-B 收官验收，Create 那眼只能你点）**：CI 绿取 sdzjz-1.20.1 jar 装 1.20.1
+  Fabric 实例+Create（Fabric 版）：①摆 核心—数据线 链，线旁放箱子，空手右键线看 actionbar 三态
+  循环；②送出模式：核心里存物（FTA 管道灌或箱子回收拍先收进去），箱子应按拍进货、拆箱余量留
+  账本；③**Create 验收**：传送带/漏斗（Create funnel）怼数据线任意面——回收模式从带上收货进
+  网络、送出模式往带上放货，能收能给=P-B 承诺项收官；④存档退出重进：线的模式与三态外观保持。
+- 零 Legacy/Modern 侧改动；零新配置键（复用 m225 两键）。P-B②三刀全收：1.20.1 格=可玩精简版
+  （存储网络+跨模组物流）。下一步按 m436 路线=P-C（画布/机器/19 payload 按 FabricPacket 对位）
+  或按队列回 26.x/NeoForge 玩法格，听拍板。

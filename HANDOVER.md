@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m443：P-B② 刀②账本核心落地——1.20.1 存储核心能存能取：StorageCore120 双账本（普通 id→long+精确 tag 模板，TagStackKey 身份键=isSameItemSameTags 对位 xplat StackKey）+m278 增量事务日志+m293 类型闸（common 配置同源）+FabricLedger120 挂 ItemStorage.SIDED（Create 管道怼核心即存取的物理基础）；NBT 键 tier/store/exact/xpBank 与 Legacy 同名同布局（m436 DFU 升档红利）；RetroBootstrap 补 configDir 第一行；RetroStorageTests 七用例 GameTest（含 tag 世代"不混堆不变裸"重证）+CI retro 作业升级「编译+GameTest」带回推扩容。核名走 Forge 1.20.x 与 fabric-api 1.20.1 分支原文实证。15 闸全绿，版本 0.1.443。**下一刀 m444（刀③）**：DataCable120 双向拍+Create 传送带↔数据线互通实机验收（作者承诺项收官点）。上笔 m442：本机构建插件多版本适配至 1.2.1）
+## 当前状态（m444：P-B② 刀③数据线双向拍落地——**1.20.1 存储网络精简版收官**：DataCable120（m225 主拍/m228 六面视图/m231 送出+回收，transfer API 内联不设 Xfer 门面）+DataCableBlock120 三态连接（资产自根仓同源拷贝）+StorageCore120 补 BFS4096/loadedCoreAt；空手右键循环 关→送出→回收（m226 配置屏随 P-C）；本世代裁剪记档=m229/m230/m233；GameTest 判官累计十用例（送出穿链/回收双账分流/箱满余量回账）。StorageUtil.move 五参签名与 absolutePos 均上游原文实证。15 闸全绿，版本 0.1.444。**Create 传送带↔数据线实机验收单在 DEVLOG m444 条末（CI 只能判到 GameTest，那一眼要作者装 Create 1.20.1 点验）**。下一步听拍板：P-C（1.20.1 画布/机器/19 payload 按 FabricPacket 对位）或回 26.x/NeoForge 玩法格。上笔 m443：账本核心）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

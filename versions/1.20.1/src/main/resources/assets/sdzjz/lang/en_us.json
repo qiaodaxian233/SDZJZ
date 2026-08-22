@@ -1,4 +1,7 @@
 {
   "block.sdzjz.storage_core": "Storage Core",
-  "block.sdzjz.data_cable": "Data Cable"
+  "block.sdzjz.data_cable": "Data Cable",
+  "sdzjz.cable.mode.off": "Data Cable: off",
+  "sdzjz.cable.mode.push": "Data Cable: push mode (vault → machine)",
+  "sdzjz.cable.mode.pull": "Data Cable: pull mode (machine → vault)"
 }
