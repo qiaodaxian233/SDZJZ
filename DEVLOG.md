@@ -8280,3 +8280,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   结论再强化：**机械/半机械改写后，离线冒烟只算半票，CI 真编译闸才是判官**（m431b 同族第六例，
   错误清单回推 5 分钟定位闭环再立功）。
 - **验证**：复烟 2977 持平/真语法错 0/四局部名残留 0；判官=推送后 CI 转绿。热修不抬版本（m317）。
+## m439 P-B 第一段：1.20.1 旧世代 bootstrap 落地（第四锚点开格，CI 第六条版本流水线）
+
+- **范围（m370 同规）**：versions/1.20.1 独立子构建=工具链骨架+Common 真编译+在岗日志入口
+  （RetroBootstrap，Modern 同款三类触达 CraftPlanner/CoreScheduler/MobDrops 证挂载），
+  无玩法；业务域按 P-B 第二段起逐域移植（存储网络→Xfer120/TagItemData/Net120 对位→
+  **Create 传送带↔数据线互通=本格验收线**）。错误归 Retro 不污染 Legacy/Modern（m370 口径）。
+- **工具链（经典线，与新世代三差异对照注释写进 build.gradle 头）**：Gradle 8.10 wrapper+
+  fabric-loom 1.7.4 沿根仓原版；mappings=officialMojangMappings（1.20.1 的 loom 官方支持，
+  m422 迁移红利直接吃，代码不回 Yarn）；modImplementation 口径；**release 17**（1.20.1 生态
+  惯例；common 先扫过零 Java 21 独有语法——case null/record 模式/未命名变量全 0）。
+- **坐标（web 实查非记忆，出处入 gradle.properties 头注释）**：fabric-api **0.92.11+1.20.1**
+  （CurseForge 该格最新 release，2026-07-16，0.92.x 末线仍在维护）；loader 0.19.3 版本无关沿用。
+- **CI 第六条版本流水线**：「1.20.1 旧世代：编译出包」镜像 NeoForge 作业形状（build only，
+  GameTest 随第二段业务域一起立），工件 sdzjz-1.20.1。矩阵现状：四锚点全部有活闸——
+  1.21.1 全量六线 / 26.1+26.2 编译+GameTest / NeoForge Core / 1.20.1 Core（本笔）。
+- **验证**：mod.json 过 json.load、YAML 解析过、15 离线闸全绿；判官=CI 新作业首跑
+  （沙箱到不了 fabricmc/mojang maven，1.20.1 依赖解析与 mojmap 拉取只能跑批机判——
+  【待编译验证】仅此一项，红了按错误清单修）。
+- **实机验证脚本**：CI 绿后取 sdzjz-1.20.1 工件装 1.20.1+Fabric 实例：启动日志见
+  "1.20.1 旧世代 bootstrap 在岗"一行；无玩法属预期。
+- 零 Legacy/Modern 侧改动；零新配置键。

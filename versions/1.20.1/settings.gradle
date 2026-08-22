@@ -1,0 +1,14 @@
+// m439 旧世代（1.20.1）独立 Gradle 构建——工具链沿根 Legacy 经典线（Gradle 8.10 + fabric-loom 1.7.4 +
+// mojmap），与根构建/26.x 新世代互不相干，各有各的 wrapper。
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'sdzjz'

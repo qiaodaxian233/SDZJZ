@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "sdzjz",
+  "version": "${version}",
+  "name": "生电终结者",
+  "description": "节点画布替代红石生电——1.20.1 旧世代 bootstrap（Common 层挂载验证；存储网络+机械动力对接随 P-B 第二段跟进）。",
+  "authors": [
+    "qiaodaxian233"
+  ],
+  "contact": {
+    "sources": "https://github.com/qiaodaxian233/SDZJZ"
+  },
+  "license": "ARR",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.sdzjz.retro.RetroBootstrap"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,42 @@
+// m439 旧世代 bootstrap（1.20.1 锚点，m436 方案 P-B 第一段）。与新世代（26.x）三个关键差异
+// （对照 versions/26.2/build.gradle 头注释）：①插件走经典 'fabric-loom'（有混淆，mappings 行
+// 必须有——用 officialMojangMappings，代码仍写 Mojang 官方名）；②loader/fabric-api 用
+// modImplementation（经典线口径）；③Java release 17（1.20.1 生态惯例）。
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+// 版本号唯一数据源=根仓 gradle.properties 的 mod_version（m317 一笔一跳），
+// jar 尾缀带 MC 版本：sdzjz-0.1.NNN+mc1.20.1.jar。
+def rootProps = new Properties()
+file("../../gradle.properties").withInputStream { rootProps.load(it) }
+version = rootProps.getProperty("mod_version") + "+mc1.20.1"
+group = "com.sdzjz"
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+// Common 层挂载：与根构建/26.x 同一份 common/src/main/java（零 MC 依赖，tools_common_gate
+// 硬闸保证在此可编译，且已核零 Java 21 独有语法）。本构建自己的版本侧代码在 ./src/main/java
+// （retro 包）。业务域（存储网络等）按 P-B 第二段起逐域移植，不在本 bootstrap。
+sourceSets {
+    main {
+        java { srcDir '../../common/src/main/java' }
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": project.version }
+}
+
+tasks.withType(JavaCompile).configureEach { it.options.release = 17 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
