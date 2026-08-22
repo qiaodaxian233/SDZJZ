@@ -8136,3 +8136,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证脚本**：CI 绿后取 sdzjz-26.1-jar 工件装 26.1 实例：启动日志应见 bootstrap 在岗行；
   /gametest 全过；无玩法属预期（Phase 2 逐刀跟进，与 26.2 同进度）。
 - 零 Legacy 侧 Java 改动；零新配置键。
+## m433 漏斗接口化第一刀：networking 族销账（Net/ClientNet 门面迁 xplat + Fabric 给 Impl）
+
+- **背景**：1.20.1 格与 NeoForge 玩法格的共同前置=六静态漏斗接口化（m432 矩阵稿现状章点名）。
+  按 m402 尺子读数 networking 最大先动，本刀销两名。
+- **刀法（"xplat 定接口+加载器给实现+入口安装"，m406 原案机制首次落地）**：
+  ①门面 Net/ClientNet **原包名整体迁 xplat**（com.sdzjz.net / com.sdzjz.client 不变→全部业务
+  调用点与 import **零改动**，四个屏/JEI/SCBE/DataPanelScreenHandler 一行没碰）；
+  ②Fabric 内脏抽成嵌套 `Impl` 接口（Net 四口/ClientNet 两口），原 Fabric 调用**一行未改**搬进
+  src 侧 `loader/FabricNet` 与 `client/FabricClientNet`；
+  ③入口首行安装：Sdzjz.onInitialize 第一行 `Net.install(new FabricNet())`（**早于一切 payload
+  注册**——m365 configDir 那行让位到第二，其"早于任何 SdzjzConfig.get()"约束不受影响，安装行
+  不碰配置）；SdzjzClient.onInitializeClient 第一行装 ClientNet；
+  ④未安装即用/重复安装→显式硬失败带修法指引（m99 静默无效教训的加载期版本）。
+- **闸门销账**：tools_layer_gate FUNNELS 摘除两名，待接口化 9 文件→3 文件
+  （剩 Xfer×1/Env×1/Hooks×1），xplat 116 文件零加载器符号仍绿——新门面自证无 Fabric 字面。
+- **换加载器账本更新**：NeoForge 玩法格的 networking 面从"重写两个类"降为"写一个 FabricNet
+  对位物（NeoForge payload API 四口对四口）+入口一行安装"，业务零改动承诺兑现。
+- **验证**：javac 冒烟真语法错 0 / duplicate class 0 / 四类名+七方法名定向符号错全 0 /
+  cannot be dereferenced 0（m431b 回归护栏）；15 道闸全绿。行为判官=CI（GameTest 用例集全程
+  走 payload 收发，安装序错误会当场炸硬失败；接收器线程语义 Fabric 实现逐位未动）。
+- **实机验证脚本**：①进服开画布连线/拉料/交易所任一 C2S 操作照常（onServer 链路）；②状态灯/
+  产量/端点同步照常（s2c+onClient 链路，含 client.execute 主线程语义——UI 无并发花屏即证）；
+  ③故意注释掉安装行起服→应见"Net 平台实现未安装"硬失败信息（负向验证，验完还原）。
+- 零新配置键；零行为改动。下一刀顺位：Xfer（transfer 族，NeoForge 对位 Capability/IItemHandler，
+  接口面最异构，动手前按 m429 规矩先小普查）。

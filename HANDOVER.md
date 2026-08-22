@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m432：版本矩阵第三格开工——26.1 子构建落地（Modern 单源双靶：java 共享 26.2 适配器源互为分叉探测器，资源各锚版本；坐标 web 实查 fabric-api 0.145.1+26.1 基线锚死），CI 第五条流水线「26.1 编译+GameTest」直挂（PAT workflow 权限侧枝探针实证有，m175 暂存路径翻篇）；1.20.1 格按 m402 拍板顺位垫底不动工，前置=六漏斗接口化收口+ItemDataAccess 方案稿，矩阵稿补现状章。版本 0.1.432，待编译验证=26.1 首跑（红即 26.1/26.2 API 分叉实锤按 m370 归 Modern 修）。上笔 m431+m431b：mA2 编解码迁移收官 GraphNbt 线+CI 抓获局部遮蔽热修（当日五把坏尺子全记档）。上上笔 m430：mA1 字段搬家 CanvasGraphState）
+## 当前状态（m433：漏斗接口化第一刀 networking 族销账——Net/ClientNet 门面原包名迁 xplat（业务调用点零改动），Fabric 内脏一行未改抽进 loader/FabricNet 与 client/FabricClientNet，两入口首行安装+未装即用显式硬失败；分层闸待接口化 9→3 文件（剩 Xfer/Env/Hooks），xplat 116 文件零加载器符号；NeoForge 玩法格 networking 面降为"一个对位 Impl+一行安装"。15 闸全绿，版本 0.1.433，零行为改动。下一刀 Xfer（transfer 族，先小普查再动）。上笔 m432：26.1 子构建落地 CI 五线全绿。上上笔 m430~m431b：GraphNbt 方案 A 两刀+遮蔽热修）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
