@@ -15,6 +15,7 @@ public class SdzjzClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         com.sdzjz.client.ClientNet.install(new com.sdzjz.client.FabricClientNet()); // m433 平台口安装：必须早于下方一切客户端接收器挂接
+        com.sdzjz.client.ClientHooks.install(new com.sdzjz.client.FabricClientHooks()); // m435 平台口安装
         com.sdzjz.client.SatelliteNodeModel.register(); // m151 卫星节点bbmodel自定义烘焙
         MenuScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
         MenuScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);

@@ -8180,3 +8180,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   把传送带怼数据线邻面：能收能给（对接面首次实机点验，此条=作者 Create 要求的最小验收）；
   ③仓容打满时余量留在机器不落地（move 语义回归）。
 - 零新配置键；零行为改动。
+## m435 漏斗接口化收官：Env/Hooks/ClientHooks 三名并销，六漏斗清单清零（1.20.1 前置①完成）
+
+- **刀法（m433/m434 同范式三连）**：三门面原包名迁 xplat（业务调用点零改动），Fabric 内脏一行
+  未改进 loader/FabricEnv、loader/FabricHooks、client/FabricClientHooks（含 m405"player 公开
+  字段"接线、UseEntity 五参收三参、m393 渲染钩判空守卫，知识注释全随迁）；两入口首段补装：
+  Sdzjz=Env（**必须早于 Platform.initConfigDir 那行**，安装序注释双侧互指）+Hooks，
+  SdzjzClient=ClientHooks；未装即用/重复安装显式硬失败带修法指引。
+- **闸门收官**：tools_layer_gate 待接口化 2→**0 文件**，FUNNELS 清单清零但机制保留（将来再立
+  静态漏斗填回来，改一个销一个）；xplat 120 文件零加载器符号。**m401 路线第一步"SPI 补齐"
+  就此收口**：六漏斗（Net/ClientNet/Xfer/Env/Hooks/ClientHooks）全部=xplat 定接口+Fabric 给
+  实现+入口安装，换加载器=六个对位 Impl+入口六行，业务层零改动。
+- **对四格矩阵的意义**：NeoForge 玩法格与 1.20.1 格的加载器面全部就位；1.20.1 剩余前置只剩
+  ②ItemDataAccess 双实现方案稿（数据组件 vs getNbt 代际差，m429 规矩先稿后刀）。
+- **验证**：冒烟真语法错/dup/deref 全 0，六类名+十一门面方法名定向符号错全 0；15 闸全绿。
+  判官=CI（GameTest 覆盖 onServerTickEnd 随身仓吸附拍/onUseEntity 抓物笼/onWorldLoad 票据
+  自举/onPlayerDisconnect 清态全链路）。
+- **实机验证脚本**：①ProjectE 装/不装两态下 EMC 兼容层开关正确（Env.isModLoaded）；②抓物笼
+  右键村民先于交易界面（onUseEntity 抢占）；③随身仓库邻格吸附照常（onServerTickEnd）；
+  ④区块票据重启自举照常（onWorldLoad）；⑤画布快照键位/水印 tooltip/区块高亮渲染照常
+  （ClientHooks 四口）；⑥负向：注释任一安装行起服/起客户端应见对应硬失败信息，验完还原。
+- 零新配置键；零行为改动。
