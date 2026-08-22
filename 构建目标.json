@@ -1,0 +1,11 @@
+{
+  "_doc": "m442：本机构建插件（git-auto-update ≥1.1.0）的目标清单——加版本格改这里，插件零发版自动多出选项。javaRelease=构建所需最低 Gradle JVM 大版本（26.x=25 必填 JDK 路径）；jarTag=产物文件名须含的标记；dir 相对仓库根。",
+  "schemaVersion": 1,
+  "targets": [
+    { "id": "legacy-1211",   "name": "1.21.1 Fabric（主线）",   "dir": ".",                        "javaRelease": 21, "jarTag": "" },
+    { "id": "retro-1201",    "name": "1.20.1 Fabric（旧世代）", "dir": "versions/1.20.1",          "javaRelease": 17, "jarTag": "+mc1.20.1" },
+    { "id": "modern-261",    "name": "26.1 Fabric（新世代）",   "dir": "versions/26.1",            "javaRelease": 25, "jarTag": "+mc26.1" },
+    { "id": "modern-262",    "name": "26.2 Fabric（新世代）",   "dir": "versions/26.2",            "javaRelease": 25, "jarTag": "+mc26.2" },
+    { "id": "neoforge-1211", "name": "1.21.1 NeoForge",         "dir": "versions/1.21.1/neoforge", "javaRelease": 21, "jarTag": "" }
+  ]
+}
