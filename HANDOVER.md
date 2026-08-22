@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m439：P-B 第一段——1.20.1 旧世代 bootstrap 落地（第四锚点开格）：versions/1.20.1 独立子构建（经典 loom1.7.4+Gradle8.10+mojmap+release17，common 已核零 21 语法），RetroBootstrap 在岗行 Modern 同款三类触达；坐标 web 实查 fabric-api 0.92.11+1.20.1；CI 第六条版本流水线「1.20.1 编译出包」直挂，四锚点全部有活闸。待编译验证=该作业首跑。**m439b：首跑红=在岗行包名笔误 node→machine（CI 抓获，凭印象补包名反面教材记档）；retro 作业补 m414 式错误回推——新流水线开格即配回推固化为规矩**。**m439c：回推首战抓获 common 踩 Java19+ API（threadId→getId 零行为对位）；1.20.1 作业自此兼职 common 库 API 楼层闸（release17 真编译器把守，手抄名单退役）**。下一段 P-B②=存储网络域移植+Xfer120/TagItemData/Net120 对位+Create 互通验收线。15 闸全绿，版本 0.1.439。上笔 m437/m438+438b：P-A 收口刀全段收官记分牌清零）
+## 当前状态（m440：P-B② 排刀稿交付——docs/存储网络移植1201_m440.md：移植面 1084 行盘点、API 差异五条清单（【核】点落刀前翻上游源码）、三刀排布 m441 注册骨架→m442 账本核心+retro GameTest→m443 数据线双向拍+Create 实机验收线；关键定性=本段零自定义网络包（互通走 transfer API 0.92 同包同形，payload 拦路虎切给 P-C）；工艺红线=逐类新写不留翻译腔+常量同源。15 闸全绿，版本 0.1.440。上笔 m439+b+c：1.20.1 开格八线全绿（回推基建+楼层闸两资产）。下一刀 m441=注册骨架）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；P-A 收官、P-B① 1.20.1 bootstrap m439 落地（四锚点全有活闸），P-B②=存储网络移植+Create 互通验收线进行中，长期工程项继续）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；P-A 收官、P-B① bootstrap 落地、P-B② 排刀稿 m440 已交（三刀 m441~m443，Create 实机验收线在刀③），长期工程项继续）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测
