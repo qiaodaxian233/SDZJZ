@@ -1,0 +1,11 @@
+/home/runner/work/SDZJZ/SDZJZ/src/main/java/com/sdzjz/item/TerminalItem.java:73: error: cannot find symbol
+        CompoundTag nbt = c.copyTag();
+                          ^
+  symbol:   variable c
+  location: class TerminalItem
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/item/LinkerItem.java:92: error: cannot find symbol
+            CompoundTag nbt = c.copyTag();
+                              ^
+  symbol:   variable c
+  location: class LinkerItem
+错误条数: 2
