@@ -8417,3 +8417,44 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   构建全部勾选目标）；②hintForGradleJvmMismatch 扩为通用翻车识别：命中 Failed to connect/
   Could not connect/timed out 时失败日志自动附三条修法（开代理/给 git 按域挂代理命令/改点仅构建）。
 - **判官**=作者本机：通网后"拉取并构建"，或断网直接"仅构建"看五目标出包。
+## m443 P-B② 刀②：1.20.1 账本核心落地（存储核心能存能取，"不混堆不变裸"在 tag 模型重证）
+
+- **落地物**：①StorageCore120 占坑壳→完整账本（389 行）——双账本（普通 id→long + 精确 tag 模板两表
+  下标对齐）、m295 索引懒重建、m293 类型闸（common 配置同源不抄数字）、m273 饱和加法、m278 增量
+  事务 undo 日志、m218/m322 双修订号、m80c 经验库随迁；FabricLedger120 对外视图 insert/extract/
+  iterator/View 与蓝本逐位对齐。②TagStackKey 精确身份键（对位 xplat StackKey，等价性证明同 m404
+  论证：equals=isSameItemSameTags，hash=物品身份+tag 内容哈希，契约成立；"空 tag 在场"与"无 tag"
+  是两个身份，分流与键同口径故不混堆闭合）。③RetroBootstrap 补 Platform.initConfigDir 第一行
+  （m365 规矩，缺它 typeGate 首调即硬失败）+ ItemStorage.SIDED 提供侧注册（m161c 同位，m404 定性：
+  提供侧天生属加载器层不抽口）——Create 管道怼核心即存取的物理基础就位。④RetroStorageTests 七用例
+  GameTest + fabric-gametest 入口 + build.gradle runGametest 运行配置（照根构建 m297 逐字，loom
+  同为 1.7.4）。⑤CI retro 作业升级「编译+GameTest」：junit 上传 + 失败回推并卷 build/gametest
+  两份日志与服务器尾日志（m439b 回推基建扩容）。
+- **1.20.1 签名差全按 m440 清单落笔并行内指认**：精确分流 hasTag 对位组件增量非空（m436"组件哈希
+  退 tag 哈希"）；saveAdditional(CompoundTag)/load(CompoundTag) 无 Lookup 参；stack.save(new
+  CompoundTag())/ItemStack.of(tag) 对位 save(lookup)/parse().orElse；ResourceLocation.tryParse+判空
+  对位静态 parse（id 出自 getKey 恒合法，防御读档脏串）。NBT 键 tier/store/exact/xpBank 与 Legacy
+  同名同布局——1.20.5 DFU 升档自动把物品 tag 收进 custom_data（m436 红利），存档升 1.21.1 零迁移。
+- **范围切割记档**：CORES 登记表/桶索引/coresNear/BFS 属机器与线缆消费面，随刀③（m444）与 P-C，
+  本刀不带（蓝本对应段=范围外非漏抄）；xplat 未挂本世代→不实现 StorageAccess 薄口、不消费 ItemData
+  门面（两件建在 1.20.5+ 类型上），读写直用 hasTag/getTag，m353"读 view 写 copy"铁律的 tag 版=模板
+  tag 只读绝不改。storeRev/exactRev 变更点先随账本迁齐（面板 P-C 才消费）——缺挂钩将来回头补最易漏。
+- **核名（上游原文实证，不凭记忆）**：mojmap 1.20.x 的 @GameTest(template=…) 属性名从 Forge 1.20.x
+  src/test_old GameTestTest.java 原文核到（GameTestHelper.setBlock/getBlockEntity/fail 同文实证）；
+  EMPTY_STRUCTURE 与 fabric-gametest 入口从 fabric-api 1.20.1 分支 FabricGameTest.java/
+  ExampleTestSuite.java 核到（api.github.com 匿名 403 限频，带 PAT Bearer 即通——m427 教训复用）。
+- **GameTest 七用例**：无复制无蒸发/事务外层回滚/嵌套内提交外回滚（索引置脏路径）/类型硬顶只闸
+  新类型/索引中删平移/NBT 4096 条+30 亿 FTA 长插往返对账（saveWithoutMetadata 无参+public load），
+  外加 tag 世代专属 tag_split_keeps_exact_and_plain_apart——同物品带 tag 与不带 tag 两条账、模板
+  tag 原样（不变裸）、提净互不串账。
+- **验证**：15 道离线闸全绿（版本闸 0.1.443 对表）；JSON 过 json.load；冒烟满额报错（-Xmaxerrs
+  100000，m427 教训）真语法错 0、自家类定向按 symbol 明细行口径=0（256 条 error 全为缺 MC/Fabric
+  依赖噪音）。按 m438b 教训离线冒烟只算半票——**CI retro 编译+GameTest 才是判官**，红了按
+  ci-retro-errors 回推清单修。
+- **实机验证脚本**（CI 绿取 sdzjz-1.20.1 jar 装 1.20.1 实例）：①摆存储核心，漏斗不通属预期（漏斗
+  不走 FTA，蓝本同注）；②装任一 FTA 管道模组（Create 传送带验收正式归 m444，本刀可用其管道/烟囱
+  先探）怼核心任意面：无 tag 物品灌入后 F3 无报错、拆核心账目不落地属预期（掉落语义随 P-C 机器域）；
+  ③附魔书/改名件灌入→退出重进存档→再抽出，附魔/改名原样=tag 往返实机闭环；④config/sdzjz.json
+  应在首次起服生成（configDir 注册生效证据）。
+- 零 Legacy/Modern 侧改动；零新配置键。刀③（m444）=DataCable120 双向拍 + **Create 传送带↔数据线
+  互通实机验收**（作者承诺项收官点）。

@@ -29,6 +29,20 @@ sourceSets {
     }
 }
 
+// m443：GameTest 运行配置（照根构建 m297 逐字——loom 同为 1.7.4，经典线可用；
+// gradlew runGametest 起临时服务器跑完即退，报告出 build/junit.xml）。
+loom {
+    runs {
+        gametest {
+            server()
+            name = "GameTest"
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.buildDir}/junit.xml"
+            runDir "build/gametest"
+        }
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") { expand "version": project.version }

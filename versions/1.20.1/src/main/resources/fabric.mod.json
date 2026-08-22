@@ -3,7 +3,7 @@
   "id": "sdzjz",
   "version": "${version}",
   "name": "生电终结者",
-  "description": "节点画布替代红石生电——1.20.1 旧世代 bootstrap（Common 层挂载验证；存储网络+机械动力对接随 P-B 第二段跟进）。",
+  "description": "节点画布替代红石生电——1.20.1 旧世代（存储核心账本+跨模组直连已上线；数据线与机械动力传送带互通随 m444）。",
   "authors": [
     "qiaodaxian233"
   ],
@@ -15,6 +15,9 @@
   "entrypoints": {
     "main": [
       "com.sdzjz.retro.RetroBootstrap"
+    ],
+    "fabric-gametest": [
+      "com.sdzjz.retro.RetroStorageTests"
     ]
   },
   "depends": {

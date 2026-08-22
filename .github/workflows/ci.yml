@@ -113,9 +113,9 @@ jobs:
           if-no-files-found: warn
 
   retro-1201:
-    # m439 立（m436 方案 P-B 第一段）：1.20.1 旧世代闸=真编译出包（经典 loom+mojmap+release17，
-    # Common 挂载真编译；GameTest 随 P-B 第二段业务域移植一起立——错误归 Retro 不污染 Legacy/Modern）。
-    name: 1.20.1 旧世代：编译出包
+    # m439 立/m443 升级（m440 排刀稿）：1.20.1 旧世代闸=真编译+GameTest 两段（账本核心行为判官
+    # RetroStorageTests 七用例——事务回滚/不混堆/类型硬顶/NBT 往返；错误归 Retro 不污染 Legacy/Modern）。
+    name: 1.20.1 旧世代：编译+GameTest
     runs-on: ubuntu-latest
     permissions:
       contents: write # m439b 编译错误清单回推 ci-retro-errors 分支（沙箱只可达 raw 域，m414 同款）
@@ -133,15 +133,31 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew build --stacktrace --no-daemon 2>&1 | tee gradle-build.log
-      - name: 失败错误清单回推分支(m439b,m414同款)
+      - name: 跑 1.20.1 GameTest（账本行为判官，m443）
+        working-directory: versions/1.20.1
+        run: |
+          set -o pipefail
+          ./gradlew runGametest --stacktrace --no-daemon 2>&1 | tee gradle-gametest.log
+      - name: 上传 1.20.1 测试报告
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: retro-gametest-junit
+          path: versions/1.20.1/build/junit.xml
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: 失败错误清单回推分支(m439b,m414同款；m443 并卷 gametest 日志与服务器尾日志)
         if: failure()
         run: |
           git config user.name ci-bot
           git config user.email ci@local
           git checkout -B ci-retro-errors
-          grep -B1 -A4 -E "\.java:[0-9]+: (error|错误)|FAILURE|Could not" versions/1.20.1/gradle-build.log > ci-retro-errors.log || tail -c 200000 versions/1.20.1/gradle-build.log > ci-retro-errors.log
-          git add -f ci-retro-errors.log
-          git commit -m "retro 编译错误清单 $GITHUB_SHA" || true
+          cat versions/1.20.1/gradle-build.log versions/1.20.1/gradle-gametest.log > retro-all.log 2>/dev/null || true
+          grep -B1 -A4 -E "\.java:[0-9]+: (error|错误)|FAILURE|FAILED|Could not" retro-all.log > ci-retro-errors.log || tail -c 200000 retro-all.log > ci-retro-errors.log
+          SRVLOG=$(ls versions/1.20.1/build/gametest/logs/latest.log 2>/dev/null || true)
+          if [ -n "$SRVLOG" ]; then tail -c 400000 "$SRVLOG" > ci-retro-server-tail.log; else echo "无服务器日志" > ci-retro-server-tail.log; fi
+          git add -f ci-retro-errors.log ci-retro-server-tail.log
+          git commit -m "retro 编译/GameTest 错误清单 $GITHUB_SHA" || true
           git push -f origin ci-retro-errors
       - uses: actions/upload-artifact@v7
         if: always()
