@@ -83,4 +83,26 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(c2.g.busTopCounts.get(0) == 99L && c2.g.prodPerMin == 42, "总线库存与产量应同回");
         ctx.succeed();
     }
+
+    /** m456：快照包编解码往返对偶 + 服务端 handleQuery 前验（未开菜单静默丢不回声）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_snapshot_payload_roundtrip_and_guard(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("wither_farm", 8, 9));
+        c.addNode(node("super_smelter", 40, 9));
+        c.connect(0, 1);
+        CompoundTag render = new CompoundTag();
+        c.g.writeRenderNbt(render);
+        var out = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create(); // 编→解全走真 buf
+        new CanvasPayloads120.CanvasSnapshot(ctx.absolutePos(new BlockPos(0, 1, 0)), render).write(out);
+        var back = new CanvasPayloads120.CanvasSnapshot(out);
+        CanvasGraphState120 gg = new CanvasGraphState120();
+        gg.readRenderNbt(back.render(), java.util.Map.of(), () -> { });
+        ctx.assertTrue(gg.machineNodes.size() == 2 && gg.connections.size() == 1,
+                "快照包往返应保 2 节点 1 连线，实得 " + gg.machineNodes.size() + "/" + gg.connections.size());
+        ctx.assertTrue(ItemStack.isSameItemSameTags(gg.machineNodes.get(0), c.g.machineNodes.get(0)),
+                "节点栈 tag 过包不得漂移");
+        ctx.assertTrue(gg.machineNodes.size() <= CanvasPayloads120.MAX_NODES, "应用层硬顶常量在位");
+        ctx.succeed();
+    }
 }

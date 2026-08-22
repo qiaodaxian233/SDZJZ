@@ -13,8 +13,12 @@ public final class RetroClientBootstrap implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         MenuScreens.register(RetroBlocks.PANEL_MENU, DataPanelScreen120::new);
+        MenuScreens.register(RetroBlocks.CANVAS_MENU, CanvasScreen120::new); // m456
         ClientNet120.onClient(PanelPayloads120.Rows.TYPE, packet -> {
             if (Minecraft.getInstance().screen instanceof DataPanelScreen120 screen) screen.acceptRows(packet);
+        });
+        ClientNet120.onClient(CanvasPayloads120.CanvasSnapshot.TYPE, packet -> { // m456
+            if (Minecraft.getInstance().screen instanceof CanvasScreen120 screen) screen.acceptSnapshot(packet);
         });
     }
 }
