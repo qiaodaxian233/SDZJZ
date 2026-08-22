@@ -36,7 +36,7 @@ import java.util.List;
  * <p>本世代裁剪（P-C 到期补，非漏抄）：m226 配置屏与开屏工厂、m229 所有者/EMC 出售通道
  * （ProjectEF 兼容属 Legacy 专属）、m230 升级槽（effPeriod/effBudget 退基础配置值，键同源 common）、
  * m233 按面断开（链接器随 P-C）。filter 字段与 NBT 键（extractOn/pullMode/filter）与蓝本同名
- * 同布局保留——本世代无编辑界面恒为空（空过滤=送出全抽/回收全收），P-C 界面到位即接上。
+ * 同布局保留——m449 起持物右键线即可增删白名单（配置屏 P-C 到位后共存）。
  */
 public final class DataCable120 extends BlockEntity {
 
@@ -60,6 +60,34 @@ public final class DataCable120 extends BlockEntity {
 
     /** 过滤模板视图（P-C 配置界面到位后读写；写入方自行 setChanged）。 */
     public List<ItemStack> filterView() { return filter; }
+
+    // ===== m449 过滤器交互（配置屏 P-C 到位前的最小可用面；语义与 m225 一致：模板 count 恒 1，
+    // 无 tag 模板=只对裸物品、带 tag=连 tag 精确匹配，空表=全抽/全收）=====
+    public static final int FILTER_ADDED = 0, FILTER_REMOVED = 1, FILTER_FULL = 2;
+
+    /** 加入/移出白名单（同款判定=isSameItemSameTags，与 pullWants/extractSpec 同口径）；
+     *  上限 9 条（m226 蓝本容量同源）。改动即拓扑无关，无需作废核心缓存。 */
+    public int filterToggle(ItemStack held) {
+        if (held.isEmpty()) return FILTER_FULL; // 不可达（调用方已判），防御
+        for (int i = 0; i < filter.size(); i++) {
+            if (ItemStack.isSameItemSameTags(filter.get(i), held)) {
+                filter.remove(i);
+                setChanged();
+                return FILTER_REMOVED;
+            }
+        }
+        if (filter.size() >= 9) return FILTER_FULL;
+        filter.add(held.copyWithCount(1));
+        setChanged();
+        return FILTER_ADDED;
+    }
+
+    /** 清空白名单（回全抽/全收态）。 */
+    public void filterClear() {
+        if (filter.isEmpty()) return;
+        filter.clear();
+        setChanged();
+    }
 
     /** m228 六面视图邻接探测（蓝本 scanAdjacent 裁剪 EMC/断开面）：贴线面只是查询视角之一——
      *  侧向机器往往只在某一面暴露输入槽，按 贴线面→其余五面 逐视角收集，单实例注册的按身份去重

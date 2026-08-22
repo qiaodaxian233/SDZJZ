@@ -8,6 +8,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -113,14 +114,30 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
         });
     }
 
-    /** m444 本世代交互：空手右键循环 关→送出→回收（服务端权威改状态，actionbar 反馈；
-     *  m226 配置屏随 P-C 到位后此交互保留为快捷开关不冲突）。 */
+    /** m444/m449 本世代交互（服务端权威改状态，actionbar 反馈；m226 配置屏随 P-C 到位后保留为
+     *  快捷开关不冲突）：空手右键循环 关→送出→回收；潜行空手=清空过滤器；**持物非潜行右键=
+     *  把手中物加入/移出过滤白名单**（原版口径：潜行+持物根本到不了 use——isSecondaryUseActive
+     *  且手非空时方块交互被跳过直接走物品使用，所以贴线放方块=潜行放，行内记死防回头误改）。 */
     @Override
     public InteractionResult use(BlockState state, Level world, BlockPos pos, Player player,
                                  InteractionHand hand, BlockHitResult hit) {
-        if (!player.getItemInHand(hand).isEmpty()) return InteractionResult.PASS; // 只吃空手，持物照常摆方块
         if (world.isClientSide) return InteractionResult.SUCCESS;
         if (!(world.getBlockEntity(pos) instanceof DataCable120 cable)) return InteractionResult.PASS;
+        ItemStack held = player.getItemInHand(hand);
+        if (!held.isEmpty()) { // m449 持物（必非潜行，见方法注）：白名单开关
+            int result = cable.filterToggle(held);
+            String key = result == DataCable120.FILTER_ADDED ? "sdzjz.cable.filter.added"
+                    : result == DataCable120.FILTER_REMOVED ? "sdzjz.cable.filter.removed"
+                    : "sdzjz.cable.filter.full";
+            player.displayClientMessage(Component.translatable(key, held.getHoverName(),
+                    cable.filterView().size()), true);
+            return InteractionResult.CONSUME;
+        }
+        if (player.isShiftKeyDown()) { // m449 潜行空手：清空过滤器（回"全抽/全收"态）
+            cable.filterClear();
+            player.displayClientMessage(Component.translatable("sdzjz.cable.filter.cleared"), true);
+            return InteractionResult.CONSUME;
+        }
         String modeKey;
         if (!cable.extractOn()) { // 关 → 送出
             cable.setExtractOn(true); cable.setPullMode(false); modeKey = "sdzjz.cable.mode.push";

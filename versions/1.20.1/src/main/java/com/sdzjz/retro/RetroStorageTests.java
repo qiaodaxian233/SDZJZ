@@ -253,4 +253,40 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.assertTrue(c.count("minecraft:cobblestone") == 1, "箱满后余量应回账本=1，实得 " + c.count("minecraft:cobblestone"));
         ctx.succeed();
     }
+
+    /** m449：过滤器限定双向拍——送出只搬白名单内条目；回收带 tag 模板只收连 tag 匹配件；
+     *  toggle 同件再点=移出（与 pullWants/extractSpec 同口径 isSameItemSameTags）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_filter_restricts_push_and_pull(GameTestHelper ctx) {
+        StorageCore120 c = core(ctx);
+        c.deposit(new ItemStack(Items.STONE, 8));
+        c.deposit(new ItemStack(Items.COBBLESTONE, 8));
+        BlockPos cableRel = new BlockPos(1, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        BlockPos chestRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(chestRel, Blocks.CHEST.defaultBlockState());
+        if (!(ctx.getBlockEntity(cableRel) instanceof DataCable120 cable)) { ctx.fail("数据线方块实体未生成"); return; }
+        if (!(ctx.getBlockEntity(chestRel) instanceof ChestBlockEntity chest)) { ctx.fail("箱子方块实体未生成"); return; }
+        cable.setExtractOn(true); // 送出 + 白名单只圆石
+        ctx.assertTrue(cable.filterToggle(new ItemStack(Items.COBBLESTONE)) == DataCable120.FILTER_ADDED, "首次加入应=ADDED");
+        cable.pulse(ctx.getLevel(), ctx.absolutePos(cableRel));
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "白名单内应送空，实得 " + c.count("minecraft:cobblestone"));
+        ctx.assertTrue(c.count("minecraft:stone") == 8, "白名单外不得动，实得 " + c.count("minecraft:stone"));
+        int inChest = 0;
+        for (int i = 0; i < chest.getContainerSize(); i++)
+            if (chest.getItem(i).is(Items.COBBLESTONE)) inChest += chest.getItem(i).getCount();
+        ctx.assertTrue(inChest == 8, "箱内应只收 8 圆石，实得 " + inChest);
+        // 回收段：白名单换成 tag 模板，箱里混放 tag 件与裸石头，只收 tag 件
+        ctx.assertTrue(cable.filterToggle(new ItemStack(Items.COBBLESTONE)) == DataCable120.FILTER_REMOVED, "同件再点应=REMOVED");
+        ctx.assertTrue(cable.filterToggle(exactSample(5, 1)) == DataCable120.FILTER_ADDED, "tag 模板加入应=ADDED");
+        chest.setItem(10, exactSample(5, 4));
+        chest.setItem(11, new ItemStack(Items.STONE, 3));
+        cable.setPullMode(true);
+        cable.pulse(ctx.getLevel(), ctx.absolutePos(cableRel));
+        ctx.assertTrue(c.exactTemplates().size() == 1 && c.exactCount(0) == 4,
+                "只应收进 tag 件 1 条 ×4，实得 " + c.exactTemplates().size() + " 条 ×" + c.exactCount(0));
+        ctx.assertTrue(!chest.getItem(11).isEmpty() && chest.getItem(11).getCount() == 3, "裸石头应留在箱里=3");
+        ctx.assertTrue(c.count("minecraft:stone") == 8, "普通账目不得被回收段污染，实得 " + c.count("minecraft:stone"));
+        ctx.succeed();
+    }
 }

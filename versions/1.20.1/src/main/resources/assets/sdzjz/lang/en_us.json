@@ -7,5 +7,9 @@
   "block.sdzjz.data_panel": "Data Panel",
   "container.sdzjz.data_panel": "Data Panel",
   "sdzjz.panel.search_hint": "Search (item id)",
-  "sdzjz.panel.exact": "exact"
+  "sdzjz.panel.exact": "exact",
+  "sdzjz.cable.filter.added": "Filter + %s (%s total)",
+  "sdzjz.cable.filter.removed": "Filter - %s (%s left)",
+  "sdzjz.cable.filter.full": "Filter full (9), remove one first",
+  "sdzjz.cable.filter.cleared": "Filter cleared: move everything"
 }

@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m447：P-C1 刀②数据面板服务端半落地——三包请求-响应精简协议（协议偏差记档：服务端按窗下发≤54 条/包，搜索按物品 id 串）；DataPanel120 BE+PanelMenu120（quickMove 双端红线/snapshot 聚合钳位/serverTake 余量回账/openMenuAt 前验静默丢）+注册六件套与菜单同名 data_panel；GameTest 判官累计十七。15 闸全绿，版本 0.1.447。**下一刀 m448（P-C1 收官）**：客户端入口+ClientNet120+DataPanelScreen120 精简屏。Create 传送带实机验收单仍挂 DEVLOG m444 条末待作者点验。上笔 m446：Net120 地基）
+## 当前状态（m449：**P-C1 全线收官+过滤器**——1.20.1 现为完整精简可玩版：存储核心双账本+数据线双向拍（m449 起持物右键配白名单/潜行空手清空/空手三态循环）+数据面板全套（m447 服务端半三包协议+m448 客户端屏：9×6 网格/搜索 id 串/滚轮区域化/左键一组右键一件/悬停全数/20t 自刷/比例滚动条，客户端签名差=EditBox 手动 tick/mouseScrolled 三参/renderBackground 单参均行内指认）。GameTest 判官十八条。15 闸全绿，版本 0.1.449。**队列**：P-C2 画布+机器（到序单独普查立方案，m445 稿）；Create 传送带实机验收单在 DEVLOG m444 条末、面板实机单在 m448 条末，作者构建后合跑一轮即销。上笔 m448：面板客户端屏）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

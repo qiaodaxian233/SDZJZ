@@ -7,5 +7,9 @@
   "block.sdzjz.data_panel": "数据面板",
   "container.sdzjz.data_panel": "数据面板",
   "sdzjz.panel.search_hint": "搜索(按物品id)",
-  "sdzjz.panel.exact": "精确"
+  "sdzjz.panel.exact": "精确",
+  "sdzjz.cable.filter.added": "过滤器 + %s（共 %s 条）",
+  "sdzjz.cable.filter.removed": "过滤器 - %s（余 %s 条）",
+  "sdzjz.cable.filter.full": "过滤器已满（9 条），先移出一条",
+  "sdzjz.cable.filter.cleared": "过滤器已清空：全抽/全收"
 }
