@@ -20,6 +20,9 @@
       "com.sdzjz.retro.RetroStorageTests",
       "com.sdzjz.retro.RetroNetTests",
       "com.sdzjz.retro.RetroPanelTests"
+    ],
+    "client": [
+      "com.sdzjz.retro.RetroClientBootstrap"
     ]
   },
   "depends": {

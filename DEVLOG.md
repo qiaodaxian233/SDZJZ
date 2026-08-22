@@ -8570,3 +8570,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   +调用 1，quickMove 残留 0。
 - **教训追加**：m440 清单当年只核了 BE/注册/transfer 三族签名差，ScreenHandler 族漏核——
   P-C1 刀③动客户端屏前把 Screen/MenuScreens 族名先过一遍 Forge 1.20.x 原文再落笔。
+## m448 P-C1 收官：数据面板 1.20.1 客户端屏（三件：ClientNet120/客户端入口/精简屏）
+
+- **落地物**：①ClientNet120 两口（onClient 重复注册硬失败同 Net120 口径/toServer）——FabricPacket
+  版客户端接收器 0.92 原文明示 "called on the render thread"，不再包 client.execute（蓝本包裹
+  的存在理由=裸 buf 版在网络线程，版本差记档）；②RetroClientBootstrap（fabric.mod.json 新增
+  "client" 入口）：MenuScreens.register 面板屏 + Rows 接收路由给在开的屏；客户端类同包 retro
+  不分包——入口隔离才是 m180 边界，分包只是 Legacy 的组织习惯（记档）；③DataPanelScreen120
+  精简屏：纯填充绘制零贴图，色值集中屏内色区一处（SciSkin 属 P-C2，本地版同精神）；9×6 网格显
+  服务端窗、搜索框（id 串提示语注明协议限定）、滚轮区域化翻行（m103/m107 教训随迁）、左键一组
+  /右键一件、悬停详情（完整千分位数+精确标记）、每 20t 自动重查刷账（线缆在搬货）、右缘比例滚
+  动条、renderLabels 覆写取色区（原版深灰在暗底不可读）。
+- **1.20.1 客户端签名差行内指认**：EditBox 手动 tick()（1.20.2 起移除）、mouseScrolled 三参
+  （1.20.2 起四参）、renderBackground 单参（1.20.2 起带坐标）。族名按 m447b 教训**先核后写**：
+  renderLabels/renderTooltip/leftPos/topPos/imageWidth 经 Forge 1.20.x AbstractContainerScreen
+  补丁原文实证，客户端 PlayPacketHandler.receive(T,player,sender) 与 send(T) 经 fabric-api
+  1.20.1 分支原文实证。
+- **验证**：15 闸全绿（0.1.448 对表）；冒烟真语法错 0、自家符号 symbol 行定向 0（902 条全为缺
+  依赖噪音——客户端屏类离线全靠 CI 真编译判，第六盲区口径）。GameTest 无新用例（屏是显示层，
+  业务判官已在 m447 十七条里）。
+- **实机验证脚本（P-C1 全线一张单）**：装新 jar 进 1.20.1 实例——①右键数据面板开屏：见 9×6
+  网格+搜索框+背包槽；②核心里存料（管道灌或面板 shift 点背包入仓）后网格现条目、账面数短格式、
+  悬停见全数；③搜索 "cobble" 只剩圆石族；④滚轮翻行（超 6 行时右缘滚动条动）；⑤左键取一组进
+  背包、右键取一件；⑥附魔书入仓显精确标记、取回附魔原样；⑦开着屏让线缆送出/回收，账面每秒自刷。
+- 零 Legacy/Modern 侧改动；零新配置键。**P-C1 三刀全收**：1.20.1=存储网络+双向线缆+完整存储
+  终端。下一件 m449=数据线过滤器交互（本轮连打）。

@@ -5,5 +5,7 @@
   "sdzjz.cable.mode.push": "Data Cable: push mode (vault → machine)",
   "sdzjz.cable.mode.pull": "Data Cable: pull mode (machine → vault)",
   "block.sdzjz.data_panel": "Data Panel",
-  "container.sdzjz.data_panel": "Data Panel"
+  "container.sdzjz.data_panel": "Data Panel",
+  "sdzjz.panel.search_hint": "Search (item id)",
+  "sdzjz.panel.exact": "exact"
 }
