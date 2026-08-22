@@ -8653,3 +8653,14 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   全不透明主线皮肤、标题栏、槽框、悬停高亮；③若面板开了仍空无一物（透明报告的另一种可能），
   把 logs/latest.log 贴回，按报告修。
 - 零 Legacy/Modern 侧改动；零新配置键。
+## m452b 热修（CI 抓获）：SciSkin 不可挂——"零导入判纯"是把坏尺子，主线拆 SciSkinPalette
+
+- **回推清单定性**：SciSkin 内联全限定名摸 1.21 独有 API（ResourceLocation.fromNamespaceAndPath
+  静态工厂、VertexConsumer.addVertex 链式——皆 1.21 命名），零 import 却非零触点。**坏尺子入册
+  （m109 谱系第 N+1 把）**：判"可挂旧世代"的纯度尺必须同抓 import 与内联 FQN（common 硬闸①
+  本来就是这口径，m452 图省事用了 import 计数——现成的好尺子放着不用去发明坏的，这条也记）。
+- **修法（主线手术，四线 CI 共判）**：色值 40 常量下沉新类 SciSkinPalette（零 MC 触点，纯 int，
+  换肤=只改它——m117 铁律落点随迁）；SciSkin 原位改同名别名转发（`= SciSkinPalette.X`），主线
+  全部消费点零改零重编译语义差（常量折叠同值）；白名单换挂 Palette；retro 屏引用机械切换 15 处
+  残留 grep 0。HANDOVER 架构速查行同步改写。
+- 判官=CI 全线（Legacy/26.x/NeoForge 验别名转发无破坏，retro 验挂载成立）。

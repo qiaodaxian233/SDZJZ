@@ -29,7 +29,7 @@ dependencies {
 def xplatSubset = tasks.register('syncXplatSubset', Sync) {
     from('../../xplat/src/main/java') {
         include 'com/sdzjz/item/ItemData.java'
-        include 'com/sdzjz/client/SciSkin.java' // m452 全 MOD 配色唯一出口（零导入纯常量，m117 铁律归位）
+        include 'com/sdzjz/client/SciSkinPalette.java' // m452b 配色数值唯一出口（SciSkin 因内联 1.21 API 不可挂，见 DEVLOG）
     }
     into layout.buildDirectory.dir('xplat-subset-src')
 }

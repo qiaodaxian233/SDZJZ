@@ -2,53 +2,53 @@ package com.sdzjz.client;
 
 /**
  * m117 全 MOD 界面皮肤中心：所有屏幕的颜色/样式唯一出口。
- * 换肤 = 只改这个文件。语义命名，别按色相命名（"CYAN"是历史遗留，走 ACCENT）。
+ * 色值 m452b 起下沉 SciSkinPalette（换肤改那边，别名转发消费点零改）；贴图/渐变等 1.21 API 助手仍归本类。语义命名，别按色相命名（"CYAN"是历史遗留，走 ACCENT）。
  * 用户若提供 slot.png / button.png（见 GUI素材.md），贴图接入点也放这里。
  */
 public final class SciSkin {
     private SciSkin() {}
 
     // ===== 基底 =====
-    public static final int BACKDROP  = 0xFF0B0D18; // 全屏底色（m207 靛紫系）（四屏统一，先铺再贴背景图）
-    public static final int CELL      = 0xFF14182A; // 面板/格子底（m207）
-    public static final int CELL_FRM  = 0xFF2A2F4E; // 格子细边（m207）
-    public static final int FRAME     = 0xFF474C74; // 面板/节点主边框（m207 灰紫）
-    public static final int HOVER     = 0xFF232849; // 行/格悬停底（m207；原蓝系变体并入史见m117）
+    public static final int BACKDROP  = SciSkinPalette.BACKDROP; // m452b 数值下沉 Palette，换肤改那边
+    public static final int CELL      = SciSkinPalette.CELL; // m452b 数值下沉 Palette，换肤改那边
+    public static final int CELL_FRM  = SciSkinPalette.CELL_FRM; // m452b 数值下沉 Palette，换肤改那边
+    public static final int FRAME     = SciSkinPalette.FRAME; // m452b 数值下沉 Palette，换肤改那边
+    public static final int HOVER     = SciSkinPalette.HOVER; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== 强调 =====
-    public static final int ACCENT    = 0xFFA8A0F0; // 主强调薰衣草紫（m207 照新截图；=出线默认色，青系退役）
-    public static final int ON        = 0xFF33D07A; // 运行绿
-    public static final int ON_DARK   = 0xFF10321E; // 运行绿的暗底
-    public static final int RED       = 0xFFE85050; // 报警红
-    public static final int RED_SOFT  = 0xFFE07070; // 柔和红（文字）
-    public static final int GOLD      = 0xFFE8C43C; // 金（经验/货币）
-    public static final int OFF_GRAY  = 0xFF5A6470; // 离线灰
+    public static final int ACCENT    = SciSkinPalette.ACCENT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int ON        = SciSkinPalette.ON; // m452b 数值下沉 Palette，换肤改那边
+    public static final int ON_DARK   = SciSkinPalette.ON_DARK; // m452b 数值下沉 Palette，换肤改那边
+    public static final int RED       = SciSkinPalette.RED; // m452b 数值下沉 Palette，换肤改那边
+    public static final int RED_SOFT  = SciSkinPalette.RED_SOFT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int GOLD      = SciSkinPalette.GOLD; // m452b 数值下沉 Palette，换肤改那边
+    public static final int OFF_GRAY  = SciSkinPalette.OFF_GRAY; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== 文字 =====
-    public static final int TXT       = 0xFFC9CCE2; // 正文（m207）
-    public static final int TXT_HI    = 0xFFC7C0FB; // 高亮读数（m207）
-    public static final int TXT_SOFT  = 0xFFB9BDD8; // 次级读数（m207）
-    public static final int TXT_MAX   = 0xFFF1F1FC; // 最亮（悬停按钮字，m207）
-    public static final int SUB       = 0xFF8A8FAE; // 辅助说明（m207）
+    public static final int TXT       = SciSkinPalette.TXT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TXT_HI    = SciSkinPalette.TXT_HI; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TXT_SOFT  = SciSkinPalette.TXT_SOFT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TXT_MAX   = SciSkinPalette.TXT_MAX; // m452b 数值下沉 Palette，换肤改那边
+    public static final int SUB       = SciSkinPalette.SUB; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== 按钮（四屏统一为画布 SciButton 配色；终端旧的 1E4258/3FA9D0/0D1B2C 一族并入） =====
-    public static final int BTN_FRM      = 0xFF474C74; // 常态边（m207）
-    public static final int BTN_FRM_HOV  = 0xFFA8A0F0; // 悬停边（m207）
-    public static final int BTN_FACE     = 0xFF1B1F35; // 常态面（m207）
-    public static final int BTN_FACE_HOV = 0xFF272C4D; // 悬停面（m207）
+    public static final int BTN_FRM      = SciSkinPalette.BTN_FRM; // m452b 数值下沉 Palette，换肤改那边
+    public static final int BTN_FRM_HOV  = SciSkinPalette.BTN_FRM_HOV; // m452b 数值下沉 Palette，换肤改那边
+    public static final int BTN_FACE     = SciSkinPalette.BTN_FACE; // m452b 数值下沉 Palette，换肤改那边
+    public static final int BTN_FACE_HOV = SciSkinPalette.BTN_FACE_HOV; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== m187 质感层（渐变端点/网格/暗角——各屏一律经由下方方法用，不许屏内散抄字面量）=====
-    public static final int CARD_TOP   = 0xE0282D45; // 卡面渐变·上（m207 靛蓝卡面照截图24293E）（受光；保留 0xE0 网格微透传统）
-    public static final int CARD_BOT   = 0xE00F1222; // 卡面渐变·下（m207）（沉底）
-    public static final int SHEEN      = 0x22B3ABFA; // 卡顶冷光泽（m207 薰衣草）（向下渐隐到透明）
-    public static final int EDGE_LIGHT = 0x2EFFFFFF; // 内顶受光棱线（全局光照自上而下）
-    public static final int EDGE_DARK  = 0x8C000000; // 外圈分离暗环 + 内底压边
-    public static final int BAND_TOP   = 0xF21B1F33; // 顶/底栏渐变·亮端（m207）
-    public static final int BAND_BOT   = 0xF20C0F1D; // 顶/底栏渐变·暗端（m207）
-    public static final int GRID_MINOR = 0x1A26456A; // 画布细网格线
-    public static final int GRID_MAJOR = 0x2E3A6E96; // 画布主网格线（每4格一根）
-    public static final int VIGNETTE   = 0x55000000; // 画布四缘暗角强度
-    public static final int GROUP_FRM  = 0xC88C85DC; // m207 分组框边转薰衣草（原半透青蓝退役）
+    public static final int CARD_TOP   = SciSkinPalette.CARD_TOP; // m452b 数值下沉 Palette，换肤改那边
+    public static final int CARD_BOT   = SciSkinPalette.CARD_BOT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int SHEEN      = SciSkinPalette.SHEEN; // m452b 数值下沉 Palette，换肤改那边
+    public static final int EDGE_LIGHT = SciSkinPalette.EDGE_LIGHT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int EDGE_DARK  = SciSkinPalette.EDGE_DARK; // m452b 数值下沉 Palette，换肤改那边
+    public static final int BAND_TOP   = SciSkinPalette.BAND_TOP; // m452b 数值下沉 Palette，换肤改那边
+    public static final int BAND_BOT   = SciSkinPalette.BAND_BOT; // m452b 数值下沉 Palette，换肤改那边
+    public static final int GRID_MINOR = SciSkinPalette.GRID_MINOR; // m452b 数值下沉 Palette，换肤改那边
+    public static final int GRID_MAJOR = SciSkinPalette.GRID_MAJOR; // m452b 数值下沉 Palette，换肤改那边
+    public static final int VIGNETTE   = SciSkinPalette.VIGNETTE; // m452b 数值下沉 Palette，换肤改那边
+    public static final int GROUP_FRM  = SciSkinPalette.GROUP_FRM; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== m198 画布连线进/出分色（配置可调，本类为唯一出口——屏内不许硬编码） =====
     private static String wireOutSrc, wireInSrc;           // 解析缓存：配置串没变就不重解析
@@ -72,13 +72,13 @@ public final class SciSkin {
     } // m192 画布分组框边/标题带基色（半透青蓝，垫在连线卡片之下）
 
     // ===== m200 存储终端浅色主题（配置 7 色可调，本类唯一出口；默认=作者设计稿配色方案）=====
-    public static final int TERM_BASE_DEF        = 0xFFE6E8EF;
-    public static final int TERM_BASE_DEEP_DEF   = 0xFFAEB4C7;
-    public static final int TERM_ACCENT_DEF      = 0xFF8B7CF6;
-    public static final int TERM_ACCENT_DEEP_DEF = 0xFF6D5CE0;
-    public static final int TERM_INK_DEF         = 0xFF181C2B; // m207 墨色转藏蓝（照新截图工作区底）
-    public static final int TERM_FRAME_DEF       = 0xFF3A3F4B;
-    public static final int TERM_HI_DEF          = 0xFFFFFFFF;
+    public static final int TERM_BASE_DEF        = SciSkinPalette.TERM_BASE_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_BASE_DEEP_DEF   = SciSkinPalette.TERM_BASE_DEEP_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_ACCENT_DEF      = SciSkinPalette.TERM_ACCENT_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_ACCENT_DEEP_DEF = SciSkinPalette.TERM_ACCENT_DEEP_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_INK_DEF         = SciSkinPalette.TERM_INK_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_FRAME_DEF       = SciSkinPalette.TERM_FRAME_DEF; // m452b 数值下沉 Palette，换肤改那边
+    public static final int TERM_HI_DEF          = SciSkinPalette.TERM_HI_DEF; // m452b 数值下沉 Palette，换肤改那边
 
     /** 配置色缓存件（m198 wireOut 同款串比：配置串不变不重解析，逐帧调用零开销）。 */
     private static final class CfgColor {
@@ -156,7 +156,7 @@ public final class SciSkin {
         vGrad(ctx, x + 1, y + 1, x + w - 1, y + h / 2f, withAlpha(termHi(), primary ? 0.25f : 0.10f), withAlpha(termHi(), 0f));
         ctx.drawString(tr, label, x + (w - tr.width(label)) / 2, y + (h - 8) / 2, termHi(), false);
     }
-    public static final int GROUP_FILL = 0x142B2E56; // 画布分组框面（m192 立、m207 转靛）（极淡，透出网格不压内容）
+    public static final int GROUP_FILL = SciSkinPalette.GROUP_FILL; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
     public static final net.minecraft.resources.ResourceLocation SLOT_TEX =

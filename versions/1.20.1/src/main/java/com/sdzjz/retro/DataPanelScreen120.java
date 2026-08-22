@@ -1,6 +1,6 @@
 package com.sdzjz.retro;
 
-import com.sdzjz.client.SciSkin;
+import com.sdzjz.client.SciSkinPalette;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -45,7 +45,7 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
         search = new EditBox(font, leftPos + 98, topPos + 4, 87, 10, Component.translatable("sdzjz.panel.search_hint"));
         search.setMaxLength(PanelPayloads120.Query.MAX_QUERY);
         search.setBordered(false); // 框自绘贴皮肤（renderBg 搜索区）
-        search.setTextColor(SciSkin.TXT);
+        search.setTextColor(SciSkinPalette.TXT);
         search.setResponder(text -> { scrollRow = 0; sendQuery(); });
         addRenderableWidget(search);
         sendQuery(); // 开屏首查
@@ -109,7 +109,7 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
         renderBackground(g); // 1.20.1 单参（1.20.2 起带坐标）
         super.render(g, mouseX, mouseY, partialTick);
         if (search != null && search.getValue().isEmpty() && !search.isFocused())
-            g.drawString(font, Component.translatable("sdzjz.panel.search_hint"), search.getX(), search.getY() + 1, SciSkin.SUB, false);
+            g.drawString(font, Component.translatable("sdzjz.panel.search_hint"), search.getX(), search.getY() + 1, SciSkinPalette.SUB, false);
         renderTooltip(g, mouseX, mouseY); // 背包槽悬停
         PanelPayloads120.Row row = rowAt(mouseX, mouseY); // 网格悬停详情
         if (row != null) {
@@ -123,13 +123,13 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
         int x0 = leftPos, y0 = topPos, x1 = leftPos + imageWidth, y1 = topPos + imageHeight;
-        g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, SciSkin.FRAME);    // 外框 1px
-        g.fill(x0, y0, x1, y1, SciSkin.BACKDROP);                  // 全不透明底（m452 透明观感主修）
-        g.fill(x0, y0, x1, y0 + 16, SciSkin.BTN_FACE);             // 标题栏条
-        g.fill(x0, y0 + 16, x1, y0 + 17, SciSkin.FRAME);           // 标题栏底缘线
-        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 14, SciSkin.CELL);  // 搜索区底
-        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 3, SciSkin.CELL_FRM); // 搜索区细边（上/下两线足够，主线搜索框 m161b 去黑壳同风）
-        g.fill(x0 + 96, y0 + 13, x0 + 187, y0 + 14, search != null && search.isFocused() ? SciSkin.ACCENT : SciSkin.CELL_FRM);
+        g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, SciSkinPalette.FRAME);    // 外框 1px
+        g.fill(x0, y0, x1, y1, SciSkinPalette.BACKDROP);                  // 全不透明底（m452 透明观感主修）
+        g.fill(x0, y0, x1, y0 + 16, SciSkinPalette.BTN_FACE);             // 标题栏条
+        g.fill(x0, y0 + 16, x1, y0 + 17, SciSkinPalette.FRAME);           // 标题栏底缘线
+        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 14, SciSkinPalette.CELL);  // 搜索区底
+        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 3, SciSkinPalette.CELL_FRM); // 搜索区细边（上/下两线足够，主线搜索框 m161b 去黑壳同风）
+        g.fill(x0 + 96, y0 + 13, x0 + 187, y0 + 14, search != null && search.isFocused() ? SciSkinPalette.ACCENT : SciSkinPalette.CELL_FRM);
         for (int r = 0; r < ROWS; r++)
             for (int c = 0; c < COLS; c++) {
                 int x = x0 + GRID_X + c * CELL_PX, y = y0 + GRID_Y + r * CELL_PX;
@@ -146,23 +146,23 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
             cell(g, x0 + slot.x - 1, y0 + slot.y - 1, false);
         if (data.totalRows() > ROWS) { // 滚动条：轨道 CELL、滑块 FRAME
             int trackX = x1 - 6, trackY0 = y0 + GRID_Y, track = ROWS * CELL_PX;
-            g.fill(trackX, trackY0, trackX + 3, trackY0 + track, SciSkin.CELL);
+            g.fill(trackX, trackY0, trackX + 3, trackY0 + track, SciSkinPalette.CELL);
             int thumb = Math.max(8, track * ROWS / data.totalRows());
             int off = (track - thumb) * scrollRow / Math.max(1, data.totalRows() - ROWS);
-            g.fill(trackX, trackY0 + off, trackX + 3, trackY0 + off + thumb, SciSkin.FRAME);
+            g.fill(trackX, trackY0 + off, trackX + 3, trackY0 + off + thumb, SciSkinPalette.FRAME);
         }
     }
 
     /** 18px 槽框：CELL_FRM 边 + CELL 底，悬停=ACCENT 边 + HOVER 底（主线格子形制）。 */
     private static void cell(GuiGraphics g, int x, int y, boolean hover) {
-        g.fill(x, y, x + 18, y + 18, hover ? SciSkin.ACCENT : SciSkin.CELL_FRM);
-        g.fill(x + 1, y + 1, x + 17, y + 17, hover ? SciSkin.HOVER : SciSkin.CELL);
+        g.fill(x, y, x + 18, y + 18, hover ? SciSkinPalette.ACCENT : SciSkinPalette.CELL_FRM);
+        g.fill(x + 1, y + 1, x + 17, y + 17, hover ? SciSkinPalette.HOVER : SciSkinPalette.CELL);
     }
 
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
-        g.drawString(font, title, titleLabelX, 5, SciSkin.TXT_HI, false); // 标题进标题栏条
-        g.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, SciSkin.SUB, false);
+        g.drawString(font, title, titleLabelX, 5, SciSkinPalette.TXT_HI, false); // 标题进标题栏条
+        g.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, SciSkinPalette.SUB, false);
     }
 
     private boolean overGrid(double mx, double my) {
