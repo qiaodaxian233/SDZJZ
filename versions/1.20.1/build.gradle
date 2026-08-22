@@ -23,9 +23,22 @@ dependencies {
 // Common 层挂载：与根构建/26.x 同一份 common/src/main/java（零 MC 依赖，tools_common_gate
 // 硬闸保证在此可编译，且已核零 Java 21 独有语法）。本构建自己的版本侧代码在 ./src/main/java
 // （retro 包）。业务域（存储网络等）按 P-B 第二段起逐域移植，不在本 bootstrap。
+// m451（C2-①）：xplat 白名单子集挂载——Sync 任务构建期从唯一源头拷贝进 build 目录，仓库零副本
+// （m450 稿机制）；白名单显式列举，加一件=加一行，依赖不闭包=本作业编译红当场暴露（ModItems 雷区
+// 见 m450 普查表）。首批只有 ItemData 门面（57 行零 1.20.5 触点）。
+def xplatSubset = tasks.register('syncXplatSubset', Sync) {
+    from('../../xplat/src/main/java') {
+        include 'com/sdzjz/item/ItemData.java'
+    }
+    into layout.buildDirectory.dir('xplat-subset-src')
+}
+
 sourceSets {
     main {
-        java { srcDir '../../common/src/main/java' }
+        java {
+            srcDir '../../common/src/main/java'
+            srcDir xplatSubset // 任务输出当源目录，Gradle 自动接依赖
+        }
     }
 }
 

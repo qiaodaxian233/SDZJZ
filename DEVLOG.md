@@ -8622,3 +8622,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （Gradle Sync 构建期从唯一源头拷贝，仓库零副本，白名单显式列举依赖不闭包 CI 红当场暴露）、
   分段 C2-①~④（TagItemData 兑现/机器物品批量/画布 BE 骨架/屏分片与 tick 五分支到序小普查）。
 - 15 闸全绿（0.1.450 对表）。
+## m451 C2-①：ItemDataAccess 双实现兑现（TagItemData）+ xplat 白名单子集挂载机制落地
+
+- **落地物**：①TagItemData 五口——m436 稿对位表逐字落地（copyOf=hasTag?copy:new / view=
+  hasTag?tag:全局共享空表 / write=setTag / has=hasTag / clear=setTag(null)）；共享空表红线
+  （m353 谱系，Legacy NbtComponent.DEFAULT 同款语义）与"write(空表)=清除归一推迟"记档随迁。
+  物品附加数据版本差自此钉死在 ComponentItemData/TagItemData 两文件（m437 承诺闭环）。
+  ②白名单子集挂载：build.gradle 加 Sync 任务构建期从 xplat 唯一源头拷贝进 build/xplat-subset-src
+  挂 srcDir（仓库零副本；srcDir 吃任务引用 Gradle 自动接依赖）；首批白名单=ItemData.java 一件。
+  ③Bootstrap 首段 install（早于一切消费方，m365 同位）。④xplat 主线卫生一行：NodeTags 死导入
+  DataComponents 清除（m437 切门面遗留，Legacy/26.x/NeoForge 四线 CI 判）。
+- **判官一用例（累计十九）**：五口契约——裸件视图身份相等（共享空表）/拷贝独立/写持久读回/
+  带数据件与裸件不混堆（m443 tag 身份口径）/清除变裸与裸件同身份（m128 语义）。
+- **验证**：15 闸全绿（0.1.451 对表）；冒烟真语法错 0、自家符号 symbol 行定向 0（模拟子集挂载
+  把 ItemData 一并入编）。判官=CI retro 编译+GameTest 十九用例，xplat 改动由其余各线共判。
+- **实机验证脚本**：纯地基 CI 绿即销；顺手项=起服日志无 ItemData 安装报错。
+- 下一刀 m452（C2-②）=Machines.java 驱动机器物品批量注册+资产机械化搬运（六件套计数断言）。

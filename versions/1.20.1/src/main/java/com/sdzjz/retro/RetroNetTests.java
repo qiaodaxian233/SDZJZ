@@ -76,4 +76,29 @@ public final class RetroNetTests implements FabricGameTest {
         ctx.assertTrue(failedHard, "重复注册必须硬失败（m99 静默无效教训的注册期版本）");
         ctx.succeed();
     }
+
+    /** m451：TagItemData 五口语义（m436 对位表行为判官）——拷贝独立/视图共享身份且裸件恒同一
+     *  空表/写持久且与裸件不混堆（tag 在场=另一身份，m443 口径）/清除变裸。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void tag_item_data_five_port_contract(GameTestHelper ctx) {
+        net.minecraft.world.item.ItemStack bare = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE);
+        net.minecraft.world.item.ItemStack bare2 = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE);
+        ctx.assertTrue(com.sdzjz.item.ItemData.view(bare) == com.sdzjz.item.ItemData.view(bare2),
+                "裸件视图必须是同一共享空表（身份相等）");
+        ctx.assertTrue(!com.sdzjz.item.ItemData.has(bare), "裸件 has 应=false");
+        net.minecraft.nbt.CompoundTag n = com.sdzjz.item.ItemData.copyOf(bare);
+        n.putInt("x", 7);
+        ctx.assertTrue(!bare.hasTag(), "改拷贝不得影响原件（拷贝独立）");
+        com.sdzjz.item.ItemData.write(bare, n);
+        ctx.assertTrue(com.sdzjz.item.ItemData.has(bare) && com.sdzjz.item.ItemData.view(bare).getInt("x") == 7,
+                "写后应可读回 x=7");
+        ctx.assertTrue(!net.minecraft.world.item.ItemStack.isSameItemSameTags(bare,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE)),
+                "带数据件与裸件必须不混堆（tag 身份，m443 口径）");
+        com.sdzjz.item.ItemData.clear(bare);
+        ctx.assertTrue(!bare.hasTag() && net.minecraft.world.item.ItemStack.isSameItemSameTags(bare,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE)),
+                "清除后应变裸并与裸件同身份（m128 变裸语义）");
+        ctx.succeed();
+    }
 }

@@ -2,7 +2,6 @@ package com.sdzjz.node;
 
 import com.sdzjz.item.MachineItem;
 import com.sdzjz.registry.ModItems;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
