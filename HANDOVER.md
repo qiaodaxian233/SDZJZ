@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m439：P-B 第一段——1.20.1 旧世代 bootstrap 落地（第四锚点开格）：versions/1.20.1 独立子构建（经典 loom1.7.4+Gradle8.10+mojmap+release17，common 已核零 21 语法），RetroBootstrap 在岗行 Modern 同款三类触达；坐标 web 实查 fabric-api 0.92.11+1.20.1；CI 第六条版本流水线「1.20.1 编译出包」直挂，四锚点全部有活闸。待编译验证=该作业首跑。**m439b：首跑红=在岗行包名笔误 node→machine（CI 抓获，凭印象补包名反面教材记档）；retro 作业补 m414 式错误回推——新流水线开格即配回推固化为规矩**。下一段 P-B②=存储网络域移植+Xfer120/TagItemData/Net120 对位+Create 互通验收线。15 闸全绿，版本 0.1.439。上笔 m437/m438+438b：P-A 收口刀全段收官记分牌清零）
+## 当前状态（m439：P-B 第一段——1.20.1 旧世代 bootstrap 落地（第四锚点开格）：versions/1.20.1 独立子构建（经典 loom1.7.4+Gradle8.10+mojmap+release17，common 已核零 21 语法），RetroBootstrap 在岗行 Modern 同款三类触达；坐标 web 实查 fabric-api 0.92.11+1.20.1；CI 第六条版本流水线「1.20.1 编译出包」直挂，四锚点全部有活闸。待编译验证=该作业首跑。**m439b：首跑红=在岗行包名笔误 node→machine（CI 抓获，凭印象补包名反面教材记档）；retro 作业补 m414 式错误回推——新流水线开格即配回推固化为规矩**。**m439c：回推首战抓获 common 踩 Java19+ API（threadId→getId 零行为对位）；1.20.1 作业自此兼职 common 库 API 楼层闸（release17 真编译器把守，手抄名单退役）**。下一段 P-B②=存储网络域移植+Xfer120/TagItemData/Net120 对位+Create 互通验收线。15 闸全绿，版本 0.1.439。上笔 m437/m438+438b：P-A 收口刀全段收官记分牌清零）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

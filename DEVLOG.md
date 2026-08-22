@@ -8311,3 +8311,14 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   每条新版本流水线**开格即配回推**，别等红了才发现瞎子（本笔教训固化：镜像作业块时回推段
   不是可选件）。
 - **验证**：YAML 过、15 闸全绿；判官=CI 重跑。热修不抬版本（m317）。
+## m439c 热修：common 踩 Java19+ API（Thread.threadId()）——1.20.1 楼层闸首战 + 回推基建立功
+
+- **现象**：m439b 后独 1.20.1 仍红；**ci-retro-errors 回推首战即中**：GcAccount:43
+  `cannot find symbol: method threadId()`——Java 19 新增 API，release 17 拒收。m439 开格前
+  我扫过 21 独有**语法**与一小把库 API（clamp/reversed/getFirst），名单没含 threadId——
+  名单尺天然挂一漏万（当日又一例），**真正的楼层闸=1.20.1 作业的 release17 真编译器**，
+  从此 common 的库 API 楼层由它兼职把守，手抄名单退役。
+- **修法（零行为）**：`Thread.currentThread().getId()` 对位——自古就有、与 threadId() 同值，
+  21 上仅弃用警告（构建 -nowarn 不碍事）；注释记楼层缘由。沙箱 javac --release 17 全量
+  编 common 过（这次能本地验：common 零 MC 依赖，楼层问题不吃依赖噪音）。
+- **验证**：本地 release17 编译过；判官=CI 八线全绿。热修不抬版本（m317）。

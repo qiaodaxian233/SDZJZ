@@ -40,7 +40,7 @@ public final class GcAccount {
         if (tm instanceof com.sun.management.ThreadMXBean stm && stm.isThreadAllocatedMemorySupported()) {
             try {
                 if (!stm.isThreadAllocatedMemoryEnabled()) stm.setThreadAllocatedMemoryEnabled(true);
-                a = stm.getThreadAllocatedBytes(Thread.currentThread().threadId());
+                a = stm.getThreadAllocatedBytes(Thread.currentThread().getId()); // m439c：threadId() 是 Java19+，common 楼层=release17（1.20.1 格），getId() 同值自古有，21 上仅弃用警告
                 ok = a >= 0;
             } catch (UnsupportedOperationException | SecurityException e) {
                 ok = false; // 精简 JVM/安全管理器拒绝：降级只留 GC 账
