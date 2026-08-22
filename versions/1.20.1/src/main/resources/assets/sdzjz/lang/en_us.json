@@ -11,5 +11,6 @@
   "sdzjz.cable.filter.added": "Filter + %s (%s total)",
   "sdzjz.cable.filter.removed": "Filter - %s (%s left)",
   "sdzjz.cable.filter.full": "Filter full (9), remove one first",
-  "sdzjz.cable.filter.cleared": "Filter cleared: move everything"
+  "sdzjz.cable.filter.cleared": "Filter cleared: move everything",
+  "itemGroup.sdzjz.main": "Redstone Terminator"
 }

@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m451：P-C2 开线——m450 普查稿（Machines+MachineDef 在 common 白捡 446 行；NodeTags/NodeUpgrades 摸 ModItems 不可挂=分层皱褶记档候选主线刀；分段 C2-①~④）+m451 C2-① 落地（TagItemData 五口=m436 双实现承诺闭环，物品数据版本差钉死两文件；xplat 白名单 Sync 挂载机制仓库零副本首批 ItemData 一件；NodeTags 死导入清除主线卫生）。1.20.1 现状=完整精简可玩版（存储网络+双向线缆带白名单+数据面板全套），GameTest 判官十九条。15 闸全绿，版本 0.1.451。**下一刀 m452（C2-②）**：机器物品批量注册+资产机械化搬运。三张实机单（m444 Create/m448 面板/m449 过滤器）待作者构建合跑。上笔 m450：P-C2 普查稿）
+## 当前状态（m452：作者实机三连反馈修（插队）——专属创造栏页 sdzjz:main 与 Legacy 同名同源（撤功能方块页挂载）；SciSkin 进白名单（m117 换肤铁律本世代归位，屏内色区废除）面板按主线四屏形制重绘；透明观感主修=全不透明 BACKDROP+外框。1.20.1=完整精简可玩版+主线皮肤。GameTest 十九条。15 闸全绿，版本 0.1.452。**下一刀 m453（C2-②顺延）**：Machines 驱动机器物品批量注册+资产机械化搬运。待作者复验：创造页/新界面/透明是否消失（仍异常贴 latest.log）+三张实机单（m444/m448/m449）。上笔 m451：TagItemData 兑现）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

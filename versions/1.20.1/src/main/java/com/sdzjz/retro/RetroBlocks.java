@@ -7,7 +7,6 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -78,10 +77,19 @@ public final class RetroBlocks {
         PANEL_MENU = Registry.register(BuiltInRegistries.MENU, id("data_panel"), // m447 菜单 id 与方块同名
                 new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType<>(
                         (syncId, inv, buf) -> new DataPanel120.PanelMenu120(syncId, inv, buf.readBlockPos())));
-        ItemGroupEvents.modifyEntriesEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS).register(e -> {
+        // m452 专属创造栏页（作者实机反馈：原挂功能方块页得靠搜索才找得到）——tab id "sdzjz:main"
+        // 与 Legacy 同名同源（lang 键 itemGroup.sdzjz.main 共用），图标=存储核心。
+        net.minecraft.resources.ResourceKey<net.minecraft.world.item.CreativeModeTab> groupKey =
+                net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.CREATIVE_MODE_TAB, id("main"));
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, groupKey,
+                net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup.builder()
+                        .icon(() -> new net.minecraft.world.item.ItemStack(STORAGE_CORE))
+                        .title(net.minecraft.network.chat.Component.translatable("itemGroup.sdzjz.main"))
+                        .build());
+        ItemGroupEvents.modifyEntriesEvent(groupKey).register(e -> {
             e.accept(STORAGE_CORE);
             e.accept(DATA_CABLE);
-            e.accept(DATA_PANEL); // m447
+            e.accept(DATA_PANEL);
         });
     }
 

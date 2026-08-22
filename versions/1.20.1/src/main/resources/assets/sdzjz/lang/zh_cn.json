@@ -11,5 +11,6 @@
   "sdzjz.cable.filter.added": "过滤器 + %s（共 %s 条）",
   "sdzjz.cable.filter.removed": "过滤器 - %s（余 %s 条）",
   "sdzjz.cable.filter.full": "过滤器已满（9 条），先移出一条",
-  "sdzjz.cable.filter.cleared": "过滤器已清空：全抽/全收"
+  "sdzjz.cable.filter.cleared": "过滤器已清空：全抽/全收",
+  "itemGroup.sdzjz.main": "生电终结者"
 }
