@@ -16,10 +16,11 @@ for name in c2s:
     s = open(p, encoding='utf-8').read()
     s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)  # 剥块注释（含 javadoc）——注释提旧 API 不算罪
     s = re.sub(r'//[^\n]*', '', s)                 # 剥行注释
-    # m414：Mojmap 同义名并列（PacketCodecs→ByteBufCodecs / STRING→STRING_UTF8 / toList→list），
-    # 迁移期两套名都认，防改名后尺子失明（m402 教训：尺子失明比报错危险）。
-    if re.search(r'PacketCodecs\.STRING|PacketCodecs\.collection|collect\(PacketCodecs\.toList'
-                 r'|ByteBufCodecs\.STRING(_UTF8)?|ByteBufCodecs\.collection'
+    # m414 曾并列 Yarn/Mojmap 两套同义名防迁移期尺子失明；m424 收窄回 Mojmap 单套——
+    # 主线已换 Mojmap（m422），Yarn 名（PacketCodecs.*）若倒退回来由第 14 道闸
+    # tools_yarn_residue_check.py 兜底拦截（黑名单含 PacketCodecs FQN+简名，字符串不豁免），
+    # 本尺不再双列，两把尺子各管各的坏模式。
+    if re.search(r'ByteBufCodecs\.STRING(_UTF8)?|ByteBufCodecs\.collection'
                  r'|collect\(ByteBufCodecs\.toList|apply\(ByteBufCodecs\.list', s):
         bad.append(name)
 if bad:

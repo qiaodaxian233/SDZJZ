@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m423：迁移后校验器复检——**抓出 tools_platform_scan.py 整族静默失真**：它是 m361 多版本架构的地雷图数据源，11 个 API 族正则全是 Yarn 名，迁移后 nbt/component 只剩 1 用点（实为 581）、text/i18n 整族消失（实为 218）、network 4（实为 265）——按错数排期会把 NbtAdapter/MsgPlatform/NetPlatform 三个 SPI 判成「没人用最后抽」，实际是第 3/5/4 重耦合面；已换 Mojmap 口径并保留Yarn 名双认，重生成 docs/PLATFORM_MAP.md。**新增第 14 道闸 tools_yarn_residue_check.py**：防主线倒退回 Yarn（编译器管不到 mixin 靶点字符串/反射字符串/注释照抄三类，而全仓 420 个里程碑都写在 Yarn 时代，肌肉记忆倒退是必然），双段黑名单 docs/YARN_BLACKLIST.txt=164 FQN+123 简名，机器生成只留零命中项故零误伤，剥注释后扫但字符串字面量不豁免；已做反向自检=注入 Yarn import 能红、还原能绿。新增报告尺 tools_gauge_audit.py 坏尺子普查（恒退 0 挂 CI 留日志）。14 闸全绿，版本 0.1.423，本笔零源码改动）
+## 当前状态（m424：迁移遗留清账——m422 登记的三条遗留全部处置：①`映射迁移方案_m409.md` 已加归档标注（姊妹文档 MAPPING_TODO.md 判定为**活文档不标注**：gradlew mojmapTable 机器生成 + CI mapping-members job 代产回推，手写标注会被覆盖）；②`tools_bounded_codec_check.py` 坏模式正则收窄回 Mojmap 单套，Yarn 侧（PacketCodecs.*）倒退由第 14 道闸兜底——注入实测：本尺绿 + 14 闸红并点名文件行号，兜底转移成立不是纸面推论；③注释 Yarn 留痕照 m422 定调不清理。反向自检三段全过（能量出红才算尺子）。14 闸全绿，版本 0.1.424，本笔零源码改动。上笔 m423：tools_platform_scan.py 整族静默失真已修（Yarn 名正则致 nbt/component 失真 581×、text/i18n 整族消失，按错数排期会把 NbtAdapter/MsgPlatform/NetPlatform 三个 SPI 误判「最后抽」，实为第 3/5/4 重耦合面；已换 Mojmap 口径双认重生成 PLATFORM_MAP.md）+ 新增第 14 道闸 tools_yarn_residue_check.py（双段黑名单 164 FQN+123 简名，剥注释扫、字符串不豁免）+ 报告尺 tools_gauge_audit.py 坏尺子普查）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
