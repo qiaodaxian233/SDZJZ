@@ -1,0 +1,65 @@
+> Task :compileJava
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:163: error: cannot find symbol
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/slot.png");
+                                                    ^
+  symbol:   method fromNamespaceAndPath(String,String)
+  location: class ResourceLocation
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:165: error: cannot find symbol
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/button.png");
+                                                    ^
+  symbol:   method fromNamespaceAndPath(String,String)
+  location: class ResourceLocation
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:232: error: cannot find symbol
+        vc.addVertex(mat, x1, y1, 0).setColor(top);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:233: error: cannot find symbol
+        vc.addVertex(mat, x1, y2, 0).setColor(bottom);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:234: error: cannot find symbol
+        vc.addVertex(mat, x2, y2, 0).setColor(bottom);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:235: error: cannot find symbol
+        vc.addVertex(mat, x2, y1, 0).setColor(top);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:244: error: cannot find symbol
+        vc.addVertex(mat, x1, y1, 0).setColor(left);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:245: error: cannot find symbol
+        vc.addVertex(mat, x1, y2, 0).setColor(left);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:246: error: cannot find symbol
+        vc.addVertex(mat, x2, y2, 0).setColor(right);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+/home/runner/work/SDZJZ/SDZJZ/versions/1.20.1/build/xplat-subset-src/com/sdzjz/client/SciSkin.java:247: error: cannot find symbol
+        vc.addVertex(mat, x2, y1, 0).setColor(right);
+          ^
+  symbol:   method addVertex(Matrix4f,float,float,int)
+  location: variable vc of type VertexConsumer
+--
+
+> Task :compileJava FAILED
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1787406593875.json
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+--
+
+BUILD FAILED in 27s
+2 actionable tasks: 2 executed
