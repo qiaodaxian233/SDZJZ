@@ -3,5 +3,7 @@
   "block.sdzjz.data_cable": "数据线",
   "sdzjz.cable.mode.off": "数据线：已关闭",
   "sdzjz.cable.mode.push": "数据线：送出模式（仓 → 机器）",
-  "sdzjz.cable.mode.pull": "数据线：回收模式（机器 → 仓）"
+  "sdzjz.cable.mode.pull": "数据线：回收模式（机器 → 仓）",
+  "block.sdzjz.data_panel": "数据面板",
+  "container.sdzjz.data_panel": "数据面板"
 }

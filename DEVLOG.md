@@ -8534,3 +8534,29 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **实机验证脚本**：本刀纯地基无玩家可见面——CI 绿即销；顺手项：起服日志无 payload 相关报错。
 - 零 Legacy/Modern 侧改动；零新配置键。下一刀 m447（P-C1 刀②）=DataPanel120 方块/BE/
   ScreenHandler 服务端半+view 同步 S2C+取物 C2S 服务端权威+注册六件套资产。
+## m447 P-C1 刀②：数据面板 1.20.1 服务端半（方块/BE/菜单/三 payload/取存双路）
+
+- **协议定性记档（与蓝本的最大偏差，非漏抄）**：Legacy 面板协议建在客户端本地化名静态索引上
+  （m107，要求全量快照下发，Handler 831 行）；1.20.1 精简版**从新设计三包请求-响应制**——
+  客户端上报（查询串+滚动行），服务端按窗下发（≤54 条/包），写包预算天然有界。代价=搜索按
+  物品 id 串（服务端无本地化名），m448 屏内注明，P-C2 再议索引下放。
+- **落地物**：①PanelPayloads120 三包（Query C2S/Rows S2C/Take C2S）——C2S 两包全过 Net120
+  两锚点口（readBoundedUtf/readBoundedCount），Rows 写侧声明数与实写数恒一致（m106 哨兵成对审
+  精神）、S2C 解码同过红线双向不豁免；②DataPanel120 BE（0.92 ExtendedScreenHandlerFactory
+  三方法原文核名 writeScreenOpeningData）+PanelMenu120（背包 36 槽；quickMove 客户端支路
+  EMPTY 空转=触库双端红线，服务端整栈入仓拒收原样留槽返 EMPTY 终止续移）；③三块可测逻辑全拆
+  纯/半纯方法：snapshot（跨核心聚合 m273 饱和求和/id 过滤大小写不敏/账面降序 id 升序稳定排/
+  滚动行服务端钳位回传）、serverTake（申报钳位 1..九栈/Inventory.add 余量回账绝不落地）、
+  openMenuAt（C2S 共同前验=菜单确实开在该面板且 stillValid，验不过静默丢不回声）；④注册：
+  面板方块/BE/ExtendedScreenHandlerType 菜单（id 三者同名 data_panel 与 Legacy 同源）+创造栏
+  +资产六件套自根仓同源拷贝（含 mcmeta 动画帧）+lang 双语 block/container 两键；⑤Bootstrap
+  挂两 C2S 接收器（Net120 重复注册硬失败护注册序）。
+- **判官四用例（累计十七）**：快照过滤排序开窗钳位/取物普通+精确双路进背包（makeMockPlayer
+  1.20.1 无参版，1.21 起才带 GameType 参——版本差行内指认）/背包全满到手 0 余量全回账/
+  quickMove tag 件入精确账本槽清空。
+- **验证**：15 闸全绿（0.1.447 对表）；资产 JSON 全过；冒烟真语法错 0、自家符号 symbol 行
+  定向 0（800 条全为缺依赖噪音）。判官=CI retro 编译+GameTest 十七用例。
+- **实机验证脚本**：本刀服务端半——面板能摆能看、右键暂无屏属预期（m448 来）；CI 绿即销，
+  顺手项=起服日志无 payload/菜单注册报错。
+- 零 Legacy/Modern 侧改动；零新配置键。下一刀 m448（P-C1 收官）=RetroClientBootstrap 客户端
+  入口+ClientNet120+DataPanelScreen120 精简屏（列表/搜索/滚动/取物，S2C 接收+C2S 发送）。

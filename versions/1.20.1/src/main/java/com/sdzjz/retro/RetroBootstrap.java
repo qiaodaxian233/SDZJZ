@@ -27,7 +27,12 @@ public final class RetroBootstrap implements ModInitializer {
         // 传送带↔数据线互通随刀③（m444）。提供侧天生属加载器层，不抽口（m404 定性同款）。
         ItemStorage.SIDED.registerForBlockEntity((be, direction) -> be.fabricStorage(), RetroBlocks.STORAGE_CORE_BE);
 
-        LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；存储核心账本+FTA 直连已上线（m443），数据线双向拍与 Create 验收随 m444",
+        // m447（P-C1 刀②）：面板两 C2S 接收器（Net120 重复注册硬失败护着注册序）——
+        // 处理体在 DataPanel120（前验"菜单开在该面板"→执行→回窗，服务端权威）。
+        Net120.onServer(PanelPayloads120.Query.TYPE, DataPanel120::handleQuery);
+        Net120.onServer(PanelPayloads120.Take.TYPE, DataPanel120::handleTake);
+
+        LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；存储网络+数据面板服务端半已上线（m443/m444/m447），面板客户端屏随 m448",
                 com.sdzjz.machine.CraftPlanner.class.getSimpleName(),
                 com.sdzjz.machine.CoreScheduler.class.getSimpleName(),
                 com.sdzjz.machine.MobDrops.class.getSimpleName());

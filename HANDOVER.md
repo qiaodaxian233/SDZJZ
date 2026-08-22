@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m446：P-C 开线——m445 排刀稿（作者全权委托选 P-C 记档：payload 现 23 个、面板 831+694、画布屏 3435、SCBE 3965；P-C1 面板三刀=Net120 地基/服务端半/客户端屏，P-C2 画布+机器到序单独普查）+m446 刀① Net120 落地（onServer/toPlayer 两口、重复注册硬失败、m291 有界解码两口readBoundedUtf/readBoundedCount，fabric-api 1.20.1 分支原文核名四条），GameTest 判官累计十三。15 闸全绿，版本 0.1.446。**下一刀 m447（P-C1 刀②）**：DataPanel120 服务端半（方块/BE/Handler+view S2C+取物 C2S 服务端权威+六件套资产）。Create 传送带实机验收单仍挂 DEVLOG m444 条末待作者点验。上笔 m444：数据线双向拍）
+## 当前状态（m447：P-C1 刀②数据面板服务端半落地——三包请求-响应精简协议（协议偏差记档：服务端按窗下发≤54 条/包，搜索按物品 id 串）；DataPanel120 BE+PanelMenu120（quickMove 双端红线/snapshot 聚合钳位/serverTake 余量回账/openMenuAt 前验静默丢）+注册六件套与菜单同名 data_panel；GameTest 判官累计十七。15 闸全绿，版本 0.1.447。**下一刀 m448（P-C1 收官）**：客户端入口+ClientNet120+DataPanelScreen120 精简屏。Create 传送带实机验收单仍挂 DEVLOG m444 条末待作者点验。上笔 m446：Net120 地基）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
