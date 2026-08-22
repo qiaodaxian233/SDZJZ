@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m452：作者实机三连反馈修（插队）——专属创造栏页 sdzjz:main 与 Legacy 同名同源（撤功能方块页挂载）；SciSkin 进白名单（m117 换肤铁律本世代归位，屏内色区废除）面板按主线四屏形制重绘；透明观感主修=全不透明 BACKDROP+外框。1.20.1=完整精简可玩版+主线皮肤。GameTest 十九条。15 闸全绿，版本 0.1.452。**下一刀 m453（C2-②顺延）**：Machines 驱动机器物品批量注册+资产机械化搬运。待作者复验：创造页/新界面/透明是否消失（仍异常贴 latest.log）+三张实机单（m444/m448/m449）。上笔 m451：TagItemData 兑现）
+## 当前状态（m453：C2-② 机器物品批量落地——RetroMachineItems 反射枚举 Machines（common 唯一数据源零名单零双写，id 序定序），101 机+6 节点=107 物品全链路（创造页/入仓/面板搜索）可见可流转，占位收藏品 tooltip 注明画布移植中；资产机械化搬运计数硬断言全闭合（模型107/贴图107/mcmeta61/双语键107）；解析正则漏 defConsume 被离线硬断言当场拦下换判官原句正则（好尺子现成的直接用，m452b 教训复用）。GameTest 二十条。15 闸全绿，版本 0.1.453。**下一刀 m454（C2-③）**：画布 BE 骨架。待作者复验单：m452 三条（创造页/新皮肤/透明）+机器页 107 物品。上笔 m452b：SciSkinPalette 拆分）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

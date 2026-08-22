@@ -86,10 +86,12 @@ public final class RetroBlocks {
                         .icon(() -> new net.minecraft.world.item.ItemStack(STORAGE_CORE))
                         .title(net.minecraft.network.chat.Component.translatable("itemGroup.sdzjz.main"))
                         .build());
+        RetroMachineItems.registerAll(); // m453：101 台机器物品（Machines 唯一数据源反射枚举，id 序）
         ItemGroupEvents.modifyEntriesEvent(groupKey).register(e -> {
             e.accept(STORAGE_CORE);
             e.accept(DATA_CABLE);
             e.accept(DATA_PANEL);
+            for (net.minecraft.world.item.Item machine : RetroMachineItems.items()) e.accept(machine); // m453
         });
     }
 

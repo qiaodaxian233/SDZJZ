@@ -289,4 +289,23 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.assertTrue(c.count("minecraft:stone") == 8, "普通账目不得被回收段污染，实得 " + c.count("minecraft:stone"));
         ctx.succeed();
     }
+
+    /** m453：机器物品批量注册全链路——注册数=数据源枚举数且 ≥107（0.1.453 时点 101 机+6 节点，
+     *  主线加机器只增不减）；抽查凋灵农场 id 注册在位；机器物品可入仓可被面板搜索命中。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void machine_items_registered_and_flow_through_network(GameTestHelper ctx) {
+        int n = RetroMachineItems.items().size();
+        ctx.assertTrue(n == RetroMachineItems.allDefs().size() && n >= 107,
+                "注册数应=数据源枚举数且≥107，实得 " + n + "/" + RetroMachineItems.allDefs().size());
+        net.minecraft.world.item.Item wf = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("sdzjz", "wither_farm"));
+        ctx.assertTrue("sdzjz:wither_farm".equals(
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(wf).toString()), "凋灵农场物品应注册在位");
+        StorageCore120 c = core(ctx);
+        c.deposit(new ItemStack(wf, 3));
+        ctx.assertTrue(c.count("sdzjz:wither_farm") == 3, "机器物品应可入仓=3，实得 " + c.count("sdzjz:wither_farm"));
+        var hit = DataPanel120.snapshot(java.util.List.of(c), "wither", 0);
+        ctx.assertTrue(hit.rows().size() == 1 && hit.rows().get(0).n() == 3, "面板按 id 搜索应命中机器物品 ×3");
+        ctx.succeed();
+    }
 }
