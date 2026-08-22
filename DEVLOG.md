@@ -8161,3 +8161,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ③故意注释掉安装行起服→应见"Net 平台实现未安装"硬失败信息（负向验证，验完还原）。
 - 零新配置键；零行为改动。下一刀顺位：Xfer（transfer 族，NeoForge 对位 Capability/IItemHandler，
   接口面最异构，动手前按 m429 规矩先小普查）。
+## m434 漏斗接口化第二刀：Xfer 销账（transfer 族，机械动力对接面就位）
+
+- **作者追加要求记档：1.20.1 格必须兼容机械动力（Create）**——与 m402 拍板"Create 能支持就支持"
+  合并读=1.20.1/1.21.1 两格 Create 物流对接是**承诺范围**不是可选项（26.x 上游无 Create，
+  m401 实测）。本刀正是那块地基：Create 的 Fabric 侧同走 fabric-transfer-api，我们的
+  find/insert/move 过 ItemStorage.SIDED 对 Create 传送带/漏斗/置物台开箱即通；1.20.1 的
+  fabric-api 同有此 API，届时 FabricXfer 原样复用（至多小版本签名差）。
+- **刀法（m433 同范式）**：门面原包名迁 xplat、Fabric 内脏进 loader/FabricXfer、Sdzjz 首段安装、
+  未装即用硬失败、tools_layer_gate 销账（待接口化 3→2 文件）。
+- **顺手修一处层次毛病**：原 moveToCore(src, StorageCoreBlockEntity core, …) 摸 loader 层核心
+  类型——泛化为双不透明句柄 move(from, to, filter, max)，唯一调用点（DataCableBlockEntity:256）
+  改传 core.fabricStorage()；FabricXfer.move=原体，dst 按 insert 同款姿势强转，"取得出且存得进"
+  语义逐位不变。其余四口一行未改。moveToCore 三处残留全为 javadoc 知识句（grep 核过）。
+- **验证**：冒烟真语法错/dup/deref 全 0，Xfer 族类名+六方法名定向符号错 0；15 闸全绿。
+  判官=CI（GameTest 覆盖数据线回收/送出拍=find/canExtract/move/insert 全链路）。
+- **实机验证脚本**：①数据线插邻箱：送出/回收照常（m231 拍）；②装 Create（1.21.1 Fabric 移植版）
+  把传送带怼数据线邻面：能收能给（对接面首次实机点验，此条=作者 Create 要求的最小验收）；
+  ③仓容打满时余量留在机器不落地（move 语义回归）。
+- 零新配置键；零行为改动。

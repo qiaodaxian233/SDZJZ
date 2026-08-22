@@ -20,8 +20,8 @@ import srcroots
 XPLAT = 'xplat/src/main/java'
 LOADER_SYMBOLS = re.compile(r'net\.fabricmc|FabricLoader|\bModInitializer\b|\bClientModInitializer\b')
 # m433：Net/ClientNet 已接口化销账（门面迁 xplat+Fabric 给 Impl+入口首行安装），从清单摘除。
-FUNNELS = ['com.sdzjz.storage.Xfer',
-           'com.sdzjz.loader.Hooks', 'com.sdzjz.loader.Env', 'com.sdzjz.client.ClientHooks']
+# m434：Xfer 接口化销账（同 m433 范式+move 双句柄泛化）。
+FUNNELS = ['com.sdzjz.loader.Hooks', 'com.sdzjz.loader.Env', 'com.sdzjz.client.ClientHooks']
 
 
 def strip_comments(src):

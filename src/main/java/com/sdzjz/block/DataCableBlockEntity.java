@@ -253,7 +253,7 @@ public class DataCableBlockEntity extends BlockEntity
             if (!com.sdzjz.storage.Xfer.canExtract(src)) continue;
             for (StorageCoreBlockEntity core : cores) {
                 if (budget <= 0) break;
-                budget -= com.sdzjz.storage.Xfer.moveToCore(src, core, pred, budget);
+                budget -= com.sdzjz.storage.Xfer.move(src, core.fabricStorage(), pred, budget); // m434 dst 泛化为句柄
             }
         }
     }
