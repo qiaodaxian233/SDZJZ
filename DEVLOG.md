@@ -8201,3 +8201,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ④区块票据重启自举照常（onWorldLoad）；⑤画布快照键位/水印 tooltip/区块高亮渲染照常
   （ClientHooks 四口）；⑥负向：注释任一安装行起服/起客户端应见对应硬失败信息，验完还原。
 - 零新配置键；零行为改动。
+## m436 ItemDataAccess 方案稿（1.20.1 格开工钥匙，零代码笔）——m401 一处口径据实修正
+
+- **交付物**：docs/ItemDataAccess方案_m436.md——普查+SPI 设计+四段路线+三条拍板问题。
+  拍板前不动刀（m429 同规）。
+- **普查修正 m401 记档**："读写只有 NodeTags 一个口"仅对节点状态成立——全仓 CUSTOM_DATA 实为
+  **109 触点/22 文件**（SCBE 33/TerminalItem 14/区块工具与契约长尾），各物品直摸组件 API 占大头。
+  好消息=惯用形态三式统一（copyTag/getUnsafe/set，CustomData.of×58+EMPTY×29 全落三式内，
+  NodeTags 三口即样板），SPI 面天然只有四个口（copyOf/view/write/has）。
+- **账算全（1.20.1 不止物品数据）**：xplat 25 文件用 CustomPacketPayload/StreamCodec/
+  RegistryFriendlyByteBuf——1.20.5 网络重写产物，1.20.1 上不存在，Net 门面签名本身版本耦合；
+  19 payload 须在 1.20.1 世代内按 FabricPacket 对位重写=该格最大单项。方案按四段拆：
+  P-A ItemData 收口刀（推荐立刻打，1.21.1 版本内零风险，绞杀者同套工艺）→ P-B 1.20.1
+  bootstrap+存储网络+**Create 对接=作者承诺最早兑现点**（loom 经典线官方支持 mojmap，
+  m422 迁移红利直接吃）→ P-C 画布/机器全量（网络对位大头）→ P-D JEI/Create 深度联动。
+- **写死进档的红利**：原版 DFU 1.20.5 升档自动把物品 tag 收进 minecraft:custom_data——
+  1.20.1 存档升 1.21.1 数据被原版搬运，键布局零改动零迁移代码。
+- **判空归一红线点**：write(空表)=清除（组件侧 remove、1.20.1 侧 setNbt(null)）——
+  "不混堆不变裸"在旧模型重证的第一个具体断言点，双实现必须同判。
+- **验证**：纯文档笔，15 闸全绿（版本闸 0.1.436 对表）；无实机项。
