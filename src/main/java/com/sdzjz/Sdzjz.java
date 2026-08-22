@@ -282,8 +282,8 @@ public class Sdzjz implements ModInitializer {
                     boolean ok = st.getItem() instanceof com.sdzjz.item.MachineItem
                             || st.getItem() instanceof com.sdzjz.item.CropFarmItem
                             || (st.getItem() instanceof com.sdzjz.item.CaptureCageItem && com.sdzjz.item.CaptureCageItem.isCaged(st))
-                            || StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
-                            || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st);
+                            || com.sdzjz.node.NodeTags.isFilter(st) || com.sdzjz.node.NodeTags.isSensor(st)
+                            || com.sdzjz.node.NodeTags.isSwitch(st) || com.sdzjz.node.NodeTags.isDistributor(st);
                     if (!ok) continue;
                     core.insertMachine(p, st); // 内部 decrement 1 + 同步；m270 带玩家
                     inv.setChanged();

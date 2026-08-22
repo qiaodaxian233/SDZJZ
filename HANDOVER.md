@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m425：酿造全图一次 BFS——外部审计②待办⑤销账。真现场对表：BrewPlanner 已是薄门面（m364），BFS 在 Legacy/Modern 两适配器同构，plan 结果本就长期缓存（m357 勘误在案），客户端选择器不跑 BFS（审计"首开选择器偏重"归因不准）；属实的账=每个新目标首查从头跑早停 BFS 且**不可达目标必扫全图**。修法两侧同刀：BFS 抽成无目标全图版建前驱树缓存（循环体一字未改仅去早停），逐目标改查树+O(路径)回溯、不可达=O(1) 落空；Legacy=volatile+clearCaches 同拍清，Modern=实例身份键值先行键后置照 ingredients 同款序。等价性=BFS 首达定链（早停版 prev 是全图版前缀），py 模拟对拍 500 图×16608 组逐位相等先行；自埋雷当场抓获：Map.copyOf 拒 null 值（起点值=null 运行期必 NPE，模拟抓不到的 Java 值域陷阱）改 unmodifiableMap。行为判官=GameTest 卅四号 recipe_domain_contract（酿造域全路径双侧同断言）。14 闸全绿，javac 冒烟真语法错 0 自家符号错 0，版本 0.1.425，零新配置键。上笔 m424：m422 迁移遗留清账（方案稿归档/MAPPING_TODO 判活文档/codec 尺收窄回 Mojmap 单套由 14 闸兜底）。上上笔 m423：platform_scan 整族失真已修+第 14 道 Yarn 残留闸+坏尺子普查）
+## 当前状态（m426：绞杀者第二刀——m180 留话"垫片待后续里程碑切换调用点后拆除"销账：26 个 NodeTags 纯委托垫片全拆，调用点 244 处切换归位（限定词 109=SCBE/Sdzjz/Screen 三文件+SCBE 内部裸调 135，替换器逐行跳注释防双前缀），13 条垫片独家 javadoc 先搬 NodeTags 知识不丢；断言组 26 名×5 项全过（定义清零/限定词清零/唯一定义/剥注释裸调清零/注释指纹全）；javac 冒烟 26 名逐个定向 symbol 报错全 0（m123/m180 冒烟盲区原型场景按教训走完）；SCBE 4186→4127 行。14 闸全绿，版本 0.1.426，零新配置键零行为改动。上笔 m425：酿造全图一次 BFS 前驱树缓存双侧同刀（审计②待办⑤销账，py 模拟 16608 组对拍+GameTest 卅四号契约背书，Map.copyOf 拒 null 雷当场抓获改 unmodifiableMap）。上上笔 m424：迁移遗留清账（方案稿归档/codec 尺收窄由 14 闸兜底））
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 已开线，长期最大工程项）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片调用点归位，长期最大工程项）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测

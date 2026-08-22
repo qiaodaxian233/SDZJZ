@@ -410,8 +410,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     /** m86 节点分类配色（概念图）：紫=逻辑 橙=加工(消耗输入) 绿=农场 青=生产(免费)。 */
     private int nodeAccent(ItemStack st) {
-        if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
-                || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st)) return 0xFFB06AE8;
+        if (com.sdzjz.node.NodeTags.isFilter(st) || com.sdzjz.node.NodeTags.isSensor(st)
+                || com.sdzjz.node.NodeTags.isSwitch(st) || com.sdzjz.node.NodeTags.isDistributor(st)) return 0xFFB06AE8;
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) return 0xFF63D06A;
         if (st.getItem() instanceof com.sdzjz.item.MachineItem mi && mi.def().consumesInputs()) return 0xFFE8963C;
         return CYAN;
@@ -436,8 +436,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         return st.getItem() instanceof com.sdzjz.item.MachineItem
                 || st.getItem() instanceof com.sdzjz.item.CropFarmItem
                 || (st.getItem() instanceof com.sdzjz.item.CaptureCageItem && com.sdzjz.item.CaptureCageItem.isCaged(st))
-                || StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isSensor(st)
-                || StructureCoreBlockEntity.isSwitch(st) || StructureCoreBlockEntity.isDistributor(st);
+                || com.sdzjz.node.NodeTags.isFilter(st) || com.sdzjz.node.NodeTags.isSensor(st)
+                || com.sdzjz.node.NodeTags.isSwitch(st) || com.sdzjz.node.NodeTags.isDistributor(st);
     }
 
     /** m87：文本按宽度截断，尾加省略号——底栏任何文字不越 JEI 界。 */
@@ -741,11 +741,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         for (int i = 0; i < nodes.size(); i++) {
             int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
             drawNode(ctx, be, i, nx, ny, nodes.get(i));
-            if (!StructureCoreBlockEntity.isFilter(nodes.get(i)) && !StructureCoreBlockEntity.isSensor(nodes.get(i))
-                    && !StructureCoreBlockEntity.isSwitch(nodes.get(i)) && !StructureCoreBlockEntity.isDistributor(nodes.get(i)))
+            if (!com.sdzjz.node.NodeTags.isFilter(nodes.get(i)) && !com.sdzjz.node.NodeTags.isSensor(nodes.get(i))
+                    && !com.sdzjz.node.NodeTags.isSwitch(nodes.get(i)) && !com.sdzjz.node.NodeTags.isDistributor(nodes.get(i)))
                 drawUpgradeSlots(ctx, be, nx, ny, nodes.get(i)); // 逻辑节点无升级格
             drawGear(ctx, nx + NW - 24, ny + 4); // m110b 齿轮=节点设置入口
-            if (StructureCoreBlockEntity.nodePaused(nodes.get(i))) { // m110b 暂停视觉：压暗+角标
+            if (com.sdzjz.node.NodeTags.nodePaused(nodes.get(i))) { // m110b 暂停视觉：压暗+角标
                 ctx.fill(nx, ny, nx + NW, ny + NH, 0x66000000);
                 ctx.fill(nx + NW - 43, ny + NH - 15, nx + NW - 3, ny + NH - 3, 0xE0121A28); // m164a 角标垫底，不再与目标行叠字
                 ctx.drawString(this.font, "已暂停", nx + NW - 40, ny + NH - 12, 0xFFFFC84A, false);
@@ -1033,7 +1033,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             ctx.drawString(this.font, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
             ctx.drawString(this.font, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
         }
-        int mt = StructureCoreBlockEntity.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
+        int mt = com.sdzjz.node.NodeTags.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
         float isc = 2f + 0.45f * mt;
         var msi = ctx.pose();
         msi.pushPose();
@@ -1052,55 +1052,55 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         ctx.drawString(this.font, name, x + 6 + preW, y + 6, TXT, false);
         drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
-        if (StructureCoreBlockEntity.isDistributor(st)) {
+        if (com.sdzjz.node.NodeTags.isDistributor(st)) {
             int outs = 0;
             for (int[] c : be.connections()) if (c[0] == i) outs++;
             ctx.drawString(this.font, "均分 → " + outs + " 路", x + 44, y + 26, CYAN, false);
             ctx.drawString(this.font, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
             return;
         }
-        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停显示 + m159 速率与已抽读数
-            boolean onX = StructureCoreBlockEntity.extractorOn(st);
+        if (com.sdzjz.node.NodeTags.isExtractor(st)) { // m154 启停显示 + m159 速率与已抽读数
+            boolean onX = com.sdzjz.node.NodeTags.extractorOn(st);
             int bfx = onX ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawString(this.font, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
-            String siX = StructureCoreBlockEntity.sensorItem(st);
+            String siX = com.sdzjz.node.NodeTags.sensorItem(st);
             if (!siX.isEmpty()) { // m160 自动启停行：图标 <阈值 [−][+]
                 try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(siX))), x + 4, y + 44); } catch (Exception ignored) {}
-                long thX = StructureCoreBlockEntity.sensorThreshold(st);
-                ctx.drawString(this.font, (StructureCoreBlockEntity.sensorLess(st) ? "<" : ">") + fmtNum(thX),
+                long thX = com.sdzjz.node.NodeTags.sensorThreshold(st);
+                ctx.drawString(this.font, (com.sdzjz.node.NodeTags.sensorLess(st) ? "<" : ">") + fmtNum(thX),
                         x + 22, y + 48, CYAN, false);
                 ctx.fill(x + 62, y + 46, x + 76, y + 59, SciSkin.BTN_FACE);
                 ctx.fill(x + 79, y + 46, x + 93, y + 59, SciSkin.BTN_FACE);
                 ctx.drawString(this.font, "-", x + 67, y + 49, TXT, false);
                 ctx.drawString(this.font, "+", x + 84, y + 49, TXT, false);
             } else {
-                long xr = StructureCoreBlockEntity.extractorRate(st);
-                long xc = StructureCoreBlockEntity.extractorCount(st);
+                long xr = com.sdzjz.node.NodeTags.extractorRate(st);
+                long xc = com.sdzjz.node.NodeTags.extractorCount(st);
                 // m164a：262144 挡原样拼"262144/轮×升级"必出框——速率走 fmtNum(262.1K)，整行 fitText 兜底
                 ctx.drawString(this.font, fitText(fmtNum(xr) + "/轮" + (xc > 0 ? " 抽" + fmtNum(xc) : "×升级"), NW - 48),
                         x + 44, y + 48, SUB, false);
             }
             return;
         }
-        if (StructureCoreBlockEntity.isSwitch(st)) {
-            boolean on = StructureCoreBlockEntity.switchOn(st);
+        if (com.sdzjz.node.NodeTags.isSwitch(st)) {
+            boolean on = com.sdzjz.node.NodeTags.switchOn(st);
             int bfr = on ? ON : SciSkin.OFF_GRAY;
             ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
             ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? SciSkin.ON_DARK : 0xFF141A24);
             ctx.drawString(this.font, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
             return;
         }
-        if (StructureCoreBlockEntity.isTrash(st)) { // m150 卡面 / 菜单入口见 openNodeMenu
-            long ate = StructureCoreBlockEntity.trashCount(st);
-            int tfN = StructureCoreBlockEntity.filterList(st).size();
+        if (com.sdzjz.node.NodeTags.isTrash(st)) { // m150 卡面 / 菜单入口见 openNodeMenu
+            long ate = com.sdzjz.node.NodeTags.trashCount(st);
+            int tfN = com.sdzjz.node.NodeTags.filterList(st).size();
             ctx.drawString(this.font, tfN > 0 ? "[白名单·" + tfN + "]" : "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
             ctx.drawString(this.font, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
             return;
         }
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 卡面：行1 名单摘要 / 行2 吞炼账
-            int vfN = StructureCoreBlockEntity.filterList(st).size();
+            int vfN = com.sdzjz.node.NodeTags.filterList(st).size();
             ctx.drawString(this.font, vfN > 0 ? "[白名单·" + vfN + "]" : "[全炼]", x + 44, y + 26, SciSkin.GOLD, false);
             ctx.drawString(this.font, fitText(com.sdzjz.item.VoidProcessorItem.canvasLine(st), NW - 50), x + 44, y + 38, SUB, false);
             return;
@@ -1135,18 +1135,18 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             return;
         }
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 区块过滤器卡面：行1 名单摘要 / 行2 Y 挡名
-            int cfN = StructureCoreBlockEntity.filterList(st).size();
-            boolean cfB = StructureCoreBlockEntity.filterBlacklist(st);
+            int cfN = com.sdzjz.node.NodeTags.filterList(st).size();
+            boolean cfB = com.sdzjz.node.NodeTags.filterBlacklist(st);
             ctx.drawString(this.font, cfN == 0 ? "[不限方块]" : (cfB ? "[黑名单·" : "[白名单·") + cfN + "]",
                     x + 44, y + 26, cfN == 0 ? SUB : cfB ? SciSkin.GOLD : ON, false);
             ctx.drawString(this.font, fitText("Y挡:" + com.sdzjz.item.ChunkFilterItem.presetName(st), NW - 50),
                     x + 44, y + 38, CYAN, false);
             return;
         }
-        if (StructureCoreBlockEntity.isFilter(st)) {
-            boolean black = StructureCoreBlockEntity.filterBlacklist(st);
+        if (com.sdzjz.node.NodeTags.isFilter(st)) {
+            boolean black = com.sdzjz.node.NodeTags.filterBlacklist(st);
             ctx.drawString(this.font, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
-            List<String> fl = StructureCoreBlockEntity.filterList(st);
+            List<String> fl = com.sdzjz.node.NodeTags.filterList(st);
             if (fl.isEmpty()) {
                 ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
             } else {
@@ -1158,15 +1158,15 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             }
             return;
         }
-        if (StructureCoreBlockEntity.isSensor(st)) {
-            String si = StructureCoreBlockEntity.sensorItem(st);
+        if (com.sdzjz.node.NodeTags.isSensor(st)) {
+            String si = com.sdzjz.node.NodeTags.sensorItem(st);
             if (si.isEmpty()) {
                 ctx.drawString(this.font, "直通(未配置)", x + 44, y + 26, SUB, false);
                 ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
             } else {
                 try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(si))), x + 40, y + 20); } catch (Exception ignored) {}
-                long th = StructureCoreBlockEntity.sensorThreshold(st);
-                boolean less = StructureCoreBlockEntity.sensorLess(st);
+                long th = com.sdzjz.node.NodeTags.sensorThreshold(st);
+                boolean less = com.sdzjz.node.NodeTags.sensorLess(st);
                 ctx.drawString(this.font, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
                 ctx.fill(x + 57, y + 36, x + 71, y + 49, SciSkin.BTN_FACE); // [−]
                 ctx.fill(x + 74, y + 36, x + 88, y + 49, SciSkin.BTN_FACE); // [+]
@@ -1188,8 +1188,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             int bx = x + NW - 30, by = y + 14;
             ctx.fill(bx - 1, by - 1, bx + 21, by + 21, NODEFRM);
             ctx.fill(bx, by, bx + 20, by + 20, SciSkin.BTN_FACE);
-            java.util.List<String> cropsSel = isCrop ? StructureCoreBlockEntity.cropList(st) : java.util.List.of();
-            String t = StructureCoreBlockEntity.craftTarget(st);
+            java.util.List<String> cropsSel = isCrop ? com.sdzjz.node.NodeTags.cropList(st) : java.util.List.of();
+            String t = com.sdzjz.node.NodeTags.craftTarget(st);
             if (isCrop && !cropsSel.isEmpty()) { // m93 多选作物：徽章=第一种，下行前3种mini图标+计数
                 ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(cropsSel.get(0)))), bx + 2, by + 2);
                 if (!showWhy) { // m178 阻塞时让位原因行
@@ -1672,9 +1672,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) { openEnchantPicker(idx); return; }
         if (st.getItem() instanceof com.sdzjz.item.VillagerTraderItem) { openTradePicker(idx); return; }
         if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) { openCropPicker(idx); return; }
-        if (StructureCoreBlockEntity.machineFilterable(st)) { openMachineFilterPicker(idx); return; }
-        if (StructureCoreBlockEntity.isFilter(st) || StructureCoreBlockEntity.isTrash(st)
-                || StructureCoreBlockEntity.isExtractor(st)
+        if (com.sdzjz.node.NodeTags.machineFilterable(st)) { openMachineFilterPicker(idx); return; }
+        if (com.sdzjz.node.NodeTags.isFilter(st) || com.sdzjz.node.NodeTags.isTrash(st)
+                || com.sdzjz.node.NodeTags.isExtractor(st)
                 || st.getItem() instanceof com.sdzjz.item.ChunkFilterItem
                 || st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) openFilterPicker(idx); // m377/m378
     }
@@ -2037,20 +2037,20 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         BlockPos p = this.menu.blockPos();
         clearMenu();
         menuTitle = st.getHoverName().getString(); // m148 标题带=机器名
-        if (StructureCoreBlockEntity.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
             addMenu("恢复运行", mi(net.minecraft.world.item.Items.LIME_DYE),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
         else
             addMenu("暂停节点", mt("pause_node"), 0,
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
         if (st.getItem() instanceof com.sdzjz.item.MachineItem) { // m123 融合升阶/拆解降阶（普通→超级→神级→GM，8×战力/阶）
-            int mt = StructureCoreBlockEntity.machineTier(st);
+            int mt = com.sdzjz.node.NodeTags.machineTier(st);
             String[] TN = {"普通", "超级", "神级", "GM"};
             // m128(F1)：条件改全画布同类同阶总数——m78 后单节点恒为 ×1，按本节点 count 判菜单永不出现；
             // 服务端融合会先跨节点聚敛(gatherSame)再合成，客户端只负责"够不够格显示入口"。
             int sameTotal = 0;
             for (ItemStack o : be.nodes())
-                if (o.getItem() == st.getItem() && StructureCoreBlockEntity.machineTier(o) == mt) sameTotal += o.getCount();
+                if (o.getItem() == st.getItem() && com.sdzjz.node.NodeTags.machineTier(o) == mt) sameTotal += o.getCount();
             if (mt < 3 && sameTotal >= 4)
                 addMenu("融合：4台→" + TN[mt + 1] + "×1", mi(net.minecraft.world.item.Items.ANVIL), 2,
                         () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeFusePayload(p, idx, true)); });
@@ -2061,12 +2061,12 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         addMenu("断开全部连线", mt("disconnect_all"), 2, () -> clearLinksOfMachine(idx)); // m313 用户图标
         if (st.getItem() instanceof AutoCrafterItem) {
             addMenu("选择合成目标", mi(net.minecraft.world.item.Items.CRAFTING_TABLE), 2, () -> openPicker(idx));
-            String tgtR = StructureCoreBlockEntity.craftTarget(st); // m235 多配方目标可手选配方（单配方不显示不添乱）
+            String tgtR = com.sdzjz.node.NodeTags.craftTarget(st); // m235 多配方目标可手选配方（单配方不显示不添乱）
             if (!tgtR.isEmpty() && this.minecraft != null && this.minecraft.level != null) {
                 java.util.List<com.sdzjz.machine.CraftPlanner.Plan> psR =
                         com.sdzjz.machine.CraftPlanner.plans(this.minecraft.level, tgtR);
                 if (psR.size() > 1) {
-                    String curR = StructureCoreBlockEntity.craftRecipe(st);
+                    String curR = com.sdzjz.node.NodeTags.craftRecipe(st);
                     String lbl = "配方: 自动(按库存)";
                     for (var pp : psR) if (pp.recipeId().equals(curR)) { lbl = "配方: " + planLabel(pp); break; }
                     addMenu(lbl + " → 换", mi(net.minecraft.world.item.Items.KNOWLEDGE_BOOK),
@@ -2133,60 +2133,60 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             }
         }
         if (st.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 名单+黑白全套复用过滤节点收包口，Y 挡走 #zy 哨兵
-            int cfM = StructureCoreBlockEntity.filterList(st).size();
+            int cfM = com.sdzjz.node.NodeTags.filterList(st).size();
             addMenu("方块名单" + (cfM > 0 ? "(" + cfM + ")" : "·不限") + "…", mi(net.minecraft.world.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
-            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.world.item.Items.PAPER),
+            addMenu(com.sdzjz.node.NodeTags.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.world.item.Items.PAPER),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "")); });
             addMenu("Y挡: " + com.sdzjz.item.ChunkFilterItem.presetName(st) + " → 换挡", mi(net.minecraft.world.item.Items.LADDER),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#zy")); });
         }
-        if (StructureCoreBlockEntity.isFilter(st)) {
+        if (com.sdzjz.node.NodeTags.isFilter(st)) {
             addMenu("配置过滤物品…", mi(net.minecraft.world.item.Items.COMPARATOR), 2, () -> openFilterPicker(idx));
-            addMenu(StructureCoreBlockEntity.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.world.item.Items.PAPER),
+            addMenu(com.sdzjz.node.NodeTags.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.world.item.Items.PAPER),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "")); });
         }
-        if (StructureCoreBlockEntity.isSwitch(st)) {
-            addMenu(StructureCoreBlockEntity.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.world.item.Items.LEVER), 2,
+        if (com.sdzjz.node.NodeTags.isSwitch(st)) {
+            addMenu(com.sdzjz.node.NodeTags.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.world.item.Items.LEVER), 2,
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, idx)); });
         }
-        if (StructureCoreBlockEntity.isExtractor(st)) { // m154 启停复用开关收包口
-            addMenu(StructureCoreBlockEntity.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.world.item.Items.PISTON), 2,
+        if (com.sdzjz.node.NodeTags.isExtractor(st)) { // m154 启停复用开关收包口
+            addMenu(com.sdzjz.node.NodeTags.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.world.item.Items.PISTON), 2,
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSwitchPayload(p, idx)); });
-            addMenu("抽取量: " + StructureCoreBlockEntity.extractorRate(st) + "/轮 → 换挡", // m163a 五挡循环 64→512→4096→32768→262144
+            addMenu("抽取量: " + com.sdzjz.node.NodeTags.extractorRate(st) + "/轮 → 换挡", // m163a 五挡循环 64→512→4096→32768→262144
                     mi(net.minecraft.world.item.Items.HOPPER),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeFilterPayload(p, idx, "#xr")); });
-            int flN = StructureCoreBlockEntity.filterList(st).size(); // m160 内置白名单
+            int flN = com.sdzjz.node.NodeTags.filterList(st).size(); // m160 内置白名单
             addMenu("抽取白名单" + (flN > 0 ? "(" + flN + ")" : "") + "…", mi(net.minecraft.world.item.Items.COMPARATOR),
                     () -> openFilterPicker(idx));
             addMenu("自动启停·监测物品…", mi(net.minecraft.world.item.Items.OBSERVER), 2, () -> openSensorPicker(idx)); // m160
-            if (!StructureCoreBlockEntity.sensorItem(st).isEmpty()) {
-                addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值才抽" : "改为:低于阈值才抽",
+            if (!com.sdzjz.node.NodeTags.sensorItem(st).isEmpty()) {
+                addMenu(com.sdzjz.node.NodeTags.sensorLess(st) ? "改为:高于阈值才抽" : "改为:低于阈值才抽",
                         mi(net.minecraft.world.item.Items.REPEATER),
                         () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "",
-                                StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
+                                com.sdzjz.node.NodeTags.sensorThreshold(st), !com.sdzjz.node.NodeTags.sensorLess(st))); });
                 addMenu("清除自动启停", mi(net.minecraft.world.item.Items.BARRIER),
                         () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "§clear",
-                                StructureCoreBlockEntity.sensorThreshold(st), StructureCoreBlockEntity.sensorLess(st))); });
+                                com.sdzjz.node.NodeTags.sensorThreshold(st), com.sdzjz.node.NodeTags.sensorLess(st))); });
             }
         }
-        if (StructureCoreBlockEntity.isSensor(st)) {
+        if (com.sdzjz.node.NodeTags.isSensor(st)) {
             addMenu("监测物品…", mi(net.minecraft.world.item.Items.OBSERVER), 2, () -> openSensorPicker(idx));
-            addMenu(StructureCoreBlockEntity.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行", mi(net.minecraft.world.item.Items.REPEATER),
+            addMenu(com.sdzjz.node.NodeTags.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行", mi(net.minecraft.world.item.Items.REPEATER),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, idx, "",
-                            StructureCoreBlockEntity.sensorThreshold(st), !StructureCoreBlockEntity.sensorLess(st))); });
+                            com.sdzjz.node.NodeTags.sensorThreshold(st), !com.sdzjz.node.NodeTags.sensorLess(st))); });
         }
-        if (StructureCoreBlockEntity.machineFilterable(st)) { // m149 二级界面：熔炉选烧什么/多产物机选产物（m313 双图标分家）
+        if (com.sdzjz.node.NodeTags.machineFilterable(st)) { // m149 二级界面：熔炉选烧什么/多产物机选产物（m313 双图标分家）
             boolean sm313 = st.getItem() instanceof com.sdzjz.item.MachineItem mif && com.sdzjz.machine.Machines.smelterFamily(mif.def().id());
             addMenu(sm313 ? "选择烧什么…" : "选择产物…", mt(sm313 ? "pick_smelt" : "pick_product"), 2, () -> openMachineFilterPicker(idx));
         }
-        if (StructureCoreBlockEntity.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
-            int tfN = StructureCoreBlockEntity.filterList(st).size();
+        if (com.sdzjz.node.NodeTags.isTrash(st)) { // m160 安全桶：白名单空=连啥吞啥
+            int tfN = com.sdzjz.node.NodeTags.filterList(st).size();
             addMenu("吞噬白名单" + (tfN > 0 ? "(" + tfN + ")" : "·全吞") + "…", mi(net.minecraft.world.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
         }
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 白名单复用（永远白名单，垃圾桶同律）
-            int vfN = StructureCoreBlockEntity.filterList(st).size();
+            int vfN = com.sdzjz.node.NodeTags.filterList(st).size();
             addMenu("吞炼白名单" + (vfN > 0 ? "(" + vfN + ")" : "·全炼") + "…", mi(net.minecraft.world.item.Items.COMPARATOR), 2,
                     () -> openFilterPicker(idx));
         }
@@ -2472,7 +2472,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                             StructureCoreBlockEntity be2 = be();
                             ItemStack ns = be2 != null && pickerNode < be2.nodes().size() ? be2.nodes().get(pickerNode) : ItemStack.EMPTY;
                             com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(bp, pickerNode, iid,
-                                    StructureCoreBlockEntity.sensorThreshold(ns), StructureCoreBlockEntity.sensorLess(ns)));
+                                    com.sdzjz.node.NodeTags.sensorThreshold(ns), com.sdzjz.node.NodeTags.sensorLess(ns)));
                             closePicker();
                             return true;
                         }
@@ -2502,9 +2502,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 double wx = wmx(mouseX), wy = wmy(mouseY);
                 // 升级格：左键加、右键取
                 for (int i = nodes.size() - 1; i >= 0; i--) {
-                    if (StructureCoreBlockEntity.isFilter(nodes.get(i)) || StructureCoreBlockEntity.isSensor(nodes.get(i))
-                            || StructureCoreBlockEntity.isSwitch(nodes.get(i))
-                            || StructureCoreBlockEntity.isDistributor(nodes.get(i))) continue;
+                    if (com.sdzjz.node.NodeTags.isFilter(nodes.get(i)) || com.sdzjz.node.NodeTags.isSensor(nodes.get(i))
+                            || com.sdzjz.node.NodeTags.isSwitch(nodes.get(i))
+                            || com.sdzjz.node.NodeTags.isDistributor(nodes.get(i))) continue;
                     int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                     for (int k = 0; k < 3; k++) {
                         int sx = nx + 4 + k * 32, sy = ny + NH + 4;
@@ -2610,7 +2610,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     }
                     // 开关节点：点按钮切换 开/关
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        if (!StructureCoreBlockEntity.isSwitch(nodes.get(i))) continue;
+                        if (!com.sdzjz.node.NodeTags.isSwitch(nodes.get(i))) continue;
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         if (wx >= nx + 43 && wx <= nx + 91 && wy >= ny + 23 && wy <= ny + 45) {
                             BlockPos p = this.menu.blockPos();
@@ -2620,10 +2620,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     }
                     // 传感器阈值 [−][+]：步进100，Shift=1000（m160 抽取节点感应行同用，几何各异）
                     for (int i = nodes.size() - 1; i >= 0; i--) {
-                        boolean senH = StructureCoreBlockEntity.isSensor(nodes.get(i));
-                        boolean extH = StructureCoreBlockEntity.isExtractor(nodes.get(i));
+                        boolean senH = com.sdzjz.node.NodeTags.isSensor(nodes.get(i));
+                        boolean extH = com.sdzjz.node.NodeTags.isExtractor(nodes.get(i));
                         if (!senH && !extH) continue;
-                        if (StructureCoreBlockEntity.sensorItem(nodes.get(i)).isEmpty()) continue;
+                        if (com.sdzjz.node.NodeTags.sensorItem(nodes.get(i)).isEmpty()) continue;
                         int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
                         int hit = 0;
                         if (senH && wx >= nx + 57 && wx <= nx + 71 && wy >= ny + 36 && wy <= ny + 49) hit = -1;
@@ -2632,10 +2632,10 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         else if (extH && wx >= nx + 79 && wx <= nx + 93 && wy >= ny + 46 && wy <= ny + 59) hit = 1;
                         if (hit != 0) {
                             long step = hasShiftDown() ? 1000 : 100;
-                            long th = Math.max(0, StructureCoreBlockEntity.sensorThreshold(nodes.get(i)) + hit * step);
+                            long th = Math.max(0, com.sdzjz.node.NodeTags.sensorThreshold(nodes.get(i)) + hit * step);
                             BlockPos p = this.menu.blockPos();
                             if (p != null) com.sdzjz.client.ClientNet.toServer(new NodeSensorPayload(p, i, "", th,
-                                    StructureCoreBlockEntity.sensorLess(nodes.get(i))));
+                                    com.sdzjz.node.NodeTags.sensorLess(nodes.get(i))));
                             return true;
                         }
                     }
@@ -2965,7 +2965,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         StructureCoreBlockEntity beP = be();
         if (beP != null && node >= 0 && node < beP.nodes().size()) { // 已有目标→回显形态
-            String t = StructureCoreBlockEntity.craftTarget(beP.nodes().get(node));
+            String t = com.sdzjz.node.NodeTags.craftTarget(beP.nodes().get(node));
             brewForm = t.endsWith("|s") ? 1 : t.endsWith("|l") ? 2 : 0;
         }
         pickerField.setValue("");
@@ -3129,7 +3129,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         // 独立解析，仓里已抽空的旧名单项照样置顶可移除。端点还没同步到（列表空）回退全物品表不堵人。
         StructureCoreBlockEntity beF = be();
         if (beF != null && node >= 0 && node < beF.nodes().size()
-                && StructureCoreBlockEntity.isExtractor(beF.nodes().get(node))) {
+                && com.sdzjz.node.NodeTags.isExtractor(beF.nodes().get(node))) {
             List<Item> src = new ArrayList<>();
             for (String id : busIdsOf(beF)) {
                 Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
@@ -3231,8 +3231,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             StructureCoreBlockEntity beS = be();
             if (beS != null && pickerNode >= 0 && pickerNode < beS.nodes().size()) {
                 List<String> sel = pickerMode == 1
-                        ? StructureCoreBlockEntity.filterList(beS.nodes().get(pickerNode))
-                        : StructureCoreBlockEntity.cropList(beS.nodes().get(pickerNode));
+                        ? com.sdzjz.node.NodeTags.filterList(beS.nodes().get(pickerNode))
+                        : com.sdzjz.node.NodeTags.cropList(beS.nodes().get(pickerNode));
                 for (String sid : sel) {
                     Item it = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(sid));
                     if (pickerHit(it, q)) { // m335 统一命中口
@@ -3293,8 +3293,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             StructureCoreBlockEntity be3 = be();
             if (be3 != null && pickerNode >= 0 && pickerNode < be3.nodes().size())
                 selIds = pickerMode == 1
-                        ? StructureCoreBlockEntity.filterList(be3.nodes().get(pickerNode))
-                        : StructureCoreBlockEntity.cropList(be3.nodes().get(pickerNode));
+                        ? com.sdzjz.node.NodeTags.filterList(be3.nodes().get(pickerNode))
+                        : com.sdzjz.node.NodeTags.cropList(be3.nodes().get(pickerNode));
         }
         pickerField.setX(px + 8);
         pickerField.setY(py + 22);
@@ -3307,7 +3307,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             String curT = "";
             StructureCoreBlockEntity beT = be();
             if (beT != null && pickerNode >= 0 && pickerNode < beT.nodes().size())
-                curT = StructureCoreBlockEntity.craftTarget(beT.nodes().get(pickerNode));
+                curT = com.sdzjz.node.NodeTags.craftTarget(beT.nodes().get(pickerNode));
             for (int k = 0; k < tradeFiltered.size(); k++) {
                 int ry = gy + k * ENCH_ROW_H;
                 boolean hov = mouseX >= gx && mouseX < gx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2;
@@ -3324,7 +3324,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             String curT = "";
             StructureCoreBlockEntity beE = be();
             if (beE != null && pickerNode >= 0 && pickerNode < beE.nodes().size())
-                curT = StructureCoreBlockEntity.craftTarget(beE.nodes().get(pickerNode));
+                curT = com.sdzjz.node.NodeTags.craftTarget(beE.nodes().get(pickerNode));
             for (int k = 0; k < enchFiltered.size(); k++) {
                 int ry = gy + k * ENCH_ROW_H;
                 boolean hov = mouseX >= gx && mouseX < gx + PICK_W - 16 && mouseY >= ry && mouseY < ry + ENCH_ROW_H - 2;
@@ -3341,7 +3341,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             String curT = "";
             StructureCoreBlockEntity beC = be();
             if (beC != null && pickerNode >= 0 && pickerNode < beC.nodes().size())
-                curT = StructureCoreBlockEntity.craftTarget(beC.nodes().get(pickerNode));
+                curT = com.sdzjz.node.NodeTags.craftTarget(beC.nodes().get(pickerNode));
             for (int k = 0; k < potionFiltered.size(); k++) {
                 int cx = gx + (k % PICK_COLS) * 21, cy = gy + (k / PICK_COLS) * 21;
                 boolean hov = mouseX >= cx && mouseX < cx + 20 && mouseY >= cy && mouseY < cy + 20;

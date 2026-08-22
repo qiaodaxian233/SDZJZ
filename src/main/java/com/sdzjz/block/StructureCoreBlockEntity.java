@@ -291,8 +291,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             java.util.Map<Integer, java.util.Set<String>> crafterNeeds = be.crafterNeedsScratch;
             for (int i = 0; i < nSize; i++) {
                 ItemStack stL = be.machineNodes.get(i);
-                if (!(isFilter(stL) || isSwitch(stL) || isSensor(stL) || isDistributor(stL) || isExtractor(stL))) continue;
-                boolean pump = isExtractor(stL); // m154 抽取节点=主动泵
+                if (!(com.sdzjz.node.NodeTags.isFilter(stL) || com.sdzjz.node.NodeTags.isSwitch(stL) || com.sdzjz.node.NodeTags.isSensor(stL) || com.sdzjz.node.NodeTags.isDistributor(stL) || com.sdzjz.node.NodeTags.isExtractor(stL))) continue;
+                boolean pump = com.sdzjz.node.NodeTags.isExtractor(stL); // m154 抽取节点=主动泵
                 if (pump && !be.extractorLive(world, i, stL)) continue; // m160 手动关或感应未放行=不抽
                 boolean pumpAll = pump && be.depositFor(world, i) != null; // m157 有定向存储出线=搬仓，全抽
                 com.sdzjz.machine.StorageAccess sup = be.supplyFor(world, i);
@@ -301,7 +301,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 long pumpRate = 0, pumped = 0; // m159 泵速率=抽取量挡位×(1+数量升级)，缓存上限随速率放宽
                 long bufCapL = 4096;
                 if (pump) {
-                    pumpRate = extractorRate(stL) * (1 + be.nodeCount(stL));
+                    pumpRate = com.sdzjz.node.NodeTags.extractorRate(stL) * (1 + be.nodeCount(stL));
                     // m163a：撤 BUF_CAP 钳位——新高挡(32768/262144)×升级后 速率×2 远超 20 万，钳住就回到
                     // m159 修过的"速率>缓存卡喉"。泵缓存只是 id→long 计数不占实存，直接放到双周期余量。
                     bufCapL = Math.max(4096, pumpRate * 2);
@@ -312,7 +312,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     long have = ownL.getOrDefault(id, 0L);
                     if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）：链式需求门控仍在，在途量经 8/9 号属性可见
                     if (!pump && !be.chainWants(world, i, id, 0, be.wantsScratchCleared(), outT, crafterNeeds)) continue; // m218d scratch复用
-                    if (pump && !machineFilterAllows(stL, id)) continue; // m160 抽取白名单：名单外碰都不碰
+                    if (pump && !com.sdzjz.node.NodeTags.machineFilterAllows(stL, id)) continue; // m160 抽取白名单：名单外碰都不碰
                     if (pump && !pumpAll) {
                         // m157（用户实测：猪人塔/幽匿线产物"消失"）：m154 的无条件抽把全网络吸进
                         // 缓存囤着失踪（每种4096）——改为"没有去处的不抽"：出线机器目标当下肯收
@@ -346,7 +346,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             String idE = BuiltInRegistries.ITEM.getKey(t.getItem()).toString();
                             long haveE = ownL.getOrDefault(idE, 0L);
                             if (haveE >= bufCapL) continue; // m163a：原硬编码 4096 没跟 bufCapL 统一——泵开高挡后精确支路先被卡死
-                            if (isExtractor(stL) && !machineFilterAllows(stL, idE)) continue; // m160
+                            if (com.sdzjz.node.NodeTags.isExtractor(stL) && !com.sdzjz.node.NodeTags.machineFilterAllows(stL, idE)) continue; // m160
                             if (!be.bufTypeOk(ownL, idE)) continue; // m270 类型上限：withdrawExact 前判，拒收=不抽零损失
                             if (!be.chainEndsInTrash(world, i, idE, 0, be.trashScratchCleared(), outT)) continue; // m218d scratch复用
                             long roomE = bufCapL - haveE;
@@ -383,7 +383,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             // m115 过载保护：全线暂停（黄灯），流畅后自动恢复
             if (be.lagPause) { be.statR(i, 2, "服务器过载，自动暂停"); continue; }
             // m110b 单节点暂停：最先判——不产不耗不攒进度（m99 教训：early-continue 必须在累积之前）
-            if (StructureCoreBlockEntity.nodePaused(st)) { be.statR(i, 2, "已手动暂停"); continue; }
+            if (com.sdzjz.node.NodeTags.nodePaused(st)) { be.statR(i, 2, "已手动暂停"); continue; }
 
             // 传感器闸门：该节点全部出线目标都关闸 → 整台暂停（不白产、不绕道塞存储）
             if (hasOut[i] && be.allGatesClosed(world, outT[i])) {
@@ -391,7 +391,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 continue;
             }
 
-            if (StructureCoreBlockEntity.isDistributor(st)) {
+            if (com.sdzjz.node.NodeTags.isDistributor(st)) {
                 // 分配器节点：来料在出线目标间均分（余数轮转），没人要的走默认路由
                 if (be.ticks % 5 != 0) continue;
                 java.util.Map<String, Long> ownD = be.nodeBuf(i);
@@ -405,7 +405,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     movedD = true;
                 }
                 if (movedD) { be.stat(i, 1); produced = true; }
-            } else if (StructureCoreBlockEntity.isFilter(st)) {
+            } else if (com.sdzjz.node.NodeTags.isFilter(st)) {
                 // 过滤器节点：清运自己的输入缓存——放行的沿出线下游，拦下的走定向存储/默认路由
                 if (be.ticks % 5 != 0) continue;
                 java.util.Map<String, Long> own = be.nodeBuf(i);
@@ -415,12 +415,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int dk = 0; dk < dnF; dk++) {
                     String id = be.drainIds[dk]; long amt = be.drainAmts[dk];
                     if (amt <= 0) continue;
-                    if (StructureCoreBlockEntity.filterPasses(st, id)) be.distribute(world, i, outT[i], id, amt);
+                    if (com.sdzjz.node.NodeTags.filterPasses(st, id)) be.distribute(world, i, outT[i], id, amt);
                     else be.distribute(world, i, null, id, amt);
                     moved = true;
                 }
                 if (moved) { be.stat(i, 1); produced = true; }
-            } else if (StructureCoreBlockEntity.isTrash(st)) {
+            } else if (com.sdzjz.node.NodeTags.isTrash(st)) {
                 // m150 垃圾桶（用户点名：过滤器收想要的，其余连进来销毁）：吞光输入缓存并累计 "tc"。
                 // 终点节点无出线语义；不进中继拉料回路（防 仓→垃圾桶 手滑清空仓库——只吞推送来的）。
                 if (be.ticks % 5 != 0) continue;
@@ -458,17 +458,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.stat(i, 1);
                     produced = true;
                 }
-            } else if (StructureCoreBlockEntity.isExtractor(st)) {
+            } else if (com.sdzjz.node.NodeTags.isExtractor(st)) {
                 // m154 抽取节点（用户点名：点击抽取才开始，抽走物品流动）：开=主动泵——拉料回路
                 // pump 分支已无条件抽上游仓入缓存，这里把缓存沿出线推给"收的"目标；推不出去的
                 // 留在缓存（背压：缓存到顶 4096 拉料自然停），绝不走默认路由——否则抽出来又
                 // 存回同一个仓，每 5t 空转刷账。垃圾桶目标照 distribute 规矩两轮垫底。
                 if (be.ticks % 5 != 0) continue;
-                if (StructureCoreBlockEntity.extractorOn(st) && !be.extractorLive(world, i, st)) {
+                if (com.sdzjz.node.NodeTags.extractorOn(st) && !be.extractorLive(world, i, st)) {
                     be.stat(i, 2); // m160 感应暂停：持料待命不退料（条件一到自动续跑）
                     continue;
                 }
-                if (!StructureCoreBlockEntity.extractorOn(st)) {
+                if (!com.sdzjz.node.NodeTags.extractorOn(st)) {
                     // m157 歇工退料：关机把缓存沿默认路由退回存储——用户被 m154 无条件抽吸走的
                     // 货，点一下"停止抽取"就全数找回，不留缓存黑洞。
                     java.util.Map<String, Long> ownOff = be.nodeBuf(i);
@@ -494,7 +494,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                             for (int t : tgX) {
                                 if (left <= 0) break;
                                 if (t < 0 || t >= be.machineNodes.size()) continue;
-                                if ((pass == 0) == (StructureCoreBlockEntity.isTrash(be.machineNodes.get(t))
+                                if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(be.machineNodes.get(t))
                                         || be.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                                 if (!be.accepts(world, t, id)) continue;
                                 java.util.Map<String, Long> mX = be.nodeBuf(t);
@@ -518,10 +518,10 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, movedX ? 1 : 0);
                 if (movedX) produced = true;
-            } else if (StructureCoreBlockEntity.isSwitch(st)) {
+            } else if (com.sdzjz.node.NodeTags.isSwitch(st)) {
                 // 开关节点：开=直通转发，关=持料不动
                 if (be.ticks % 5 != 0) continue;
-                if (!StructureCoreBlockEntity.switchOn(st)) { be.stat(i, 2); continue; }
+                if (!com.sdzjz.node.NodeTags.switchOn(st)) { be.stat(i, 2); continue; }
                 java.util.Map<String, Long> ownSw = be.nodeBuf(i);
                 boolean movedSw = false;
                 final int dnS = be.fillDrain(ownSw); ownSw.clear(); // m350 整锅转存再清
@@ -533,7 +533,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 be.stat(i, movedSw ? 1 : 0);
                 if (movedSw) produced = true;
-            } else if (StructureCoreBlockEntity.isSensor(st)) {
+            } else if (com.sdzjz.node.NodeTags.isSensor(st)) {
                 // 传感器节点：开闸=直通转发自己的缓存；关闸=持料不动（缓存封顶后上游自然停）
                 if (be.ticks % 5 != 0) continue;
                 if (!be.sensorOpen(world, i)) { be.stat(i, 2); continue; }
@@ -550,16 +550,16 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (moved) produced = true;
             } else if (st.getItem() instanceof AutoCrafterItem) {
                 // 自动合成机：按原版配方吃料出货。目标在画布上设置（节点徽章）。
-                String target = craftTarget(st);
+                String target = com.sdzjz.node.NodeTags.craftTarget(st);
                 if (target.isEmpty()) continue;
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积，速度永不触底
                 if (cycles <= 0) continue;
                 java.util.List<CraftPlanner.Plan> planC = CraftPlanner.plans(world, target); // m234 全候选（原版排前）
                 if (planC.isEmpty()) continue; // 无合成配方
                 CraftPlanner.Plan chosen = null; // m235 手选配方（空/失效=自动；缺料按手选那条报）
-                String chosenR = craftRecipe(st);
+                String chosenR = com.sdzjz.node.NodeTags.craftRecipe(st);
                 if (!chosenR.isEmpty()) for (CraftPlanner.Plan pp : planC) if (pp.recipeId().equals(chosenR)) { chosen = pp; break; }
-                int running = runningCount(st, parallelLv, tier);   // m99 并发直接乘台数
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);   // m99 并发直接乘台数
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositAc = hasOut[i] ? null : be.depositFor(world, i); // 提前解析：封顶只对"进内部缓存"生效
                 int maxStack = BuiltInRegistries.ITEM.get(ResourceLocation.parse(target)).getDefaultMaxStackSize();
@@ -611,13 +611,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 酿造塔（m131b）：按原版酿造链吃料出药水，目标在画布节点徽章选择。
                 // 产物带 POTION_CONTENTS——不走 distribute/内部缓存（id 账本会抹组件），
                 // 出线一律无视，只走 存储入库（m130 精确账本自动分流）或输出缓存（addOutput 已保组件）。
-                String target = craftTarget(st);
+                String target = com.sdzjz.node.NodeTags.craftTarget(st);
                 if (target.isEmpty()) continue;
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
                 com.sdzjz.machine.BrewPlanner.Plan plan = com.sdzjz.machine.BrewPlanner.plan(world, target);
                 if (plan == null) continue; // 目标串非法/酿造不可达
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositBt = be.depositFor(world, i);
                 if (depositBt == null)
@@ -667,13 +667,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 附魔工厂（m132）：按目标附魔+等级吃 书+青金石+经验（核心经验池）出附魔书。
                 // 产物带 ENCHANTMENTS 组件——与酿造塔同款出路：不走 distribute/id 账本，
                 // 出线一律无视，只走 存储入库（m130 精确账本）或输出缓存（addOutput 保组件）。
-                String target = craftTarget(st);
+                String target = com.sdzjz.node.NodeTags.craftTarget(st);
                 if (target.isEmpty()) continue;
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
                 com.sdzjz.machine.EnchantPlanner.Plan plan = com.sdzjz.machine.EnchantPlanner.plan(world, target);
                 if (plan == null) continue; // 目标串非法/附魔不存在（数据包变更等）
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 long crafts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess depositEf = be.depositFor(world, i);
                 if (depositEf == null)
@@ -713,11 +713,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 produced = true;
             } else if (st.getItem() instanceof com.sdzjz.item.CropFarmItem) {
                 // 全自动农场：按所选作物产出（免费，对齐原版农场）。m93：多选≤8种，逐种产出
-                java.util.List<String> cropsSel = cropList(st);
+                java.util.List<String> cropsSel = com.sdzjz.node.NodeTags.cropList(st);
                 if (cropsSel.isEmpty()) { be.stat(i, 0); continue; } // 未选作物=待机
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCf = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedCf = !hasOut[i] && depositCf == null;  // m99 封顶只对"进内部缓存"生效
@@ -743,7 +743,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 万能熔炉：接什么烧什么（原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料/存储网络。
                 int cycles = be.cyclesThisTick(i, miu.def().baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier); // m99 并发直接乘台数
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier); // m99 并发直接乘台数
                 com.sdzjz.machine.StorageAccess depositSm = hasOut[i] ? null : be.depositFor(world, i);
                 long capacity = (long) running * 64L * (1 + countLv) * cycles
                         * com.sdzjz.machine.Machines.smelterUnit(miu.def().id()); // 每周期一组×并行×(1+数量)×周期数×熔炉族倍数(m173 工程款×108)
@@ -756,7 +756,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         if (done >= capacity) break;
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, id);
                         if (out == null) continue;
-                        if (!machineFilterAllows(st, id)) continue; // m149 选了烧什么就只烧什么
+                        if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, id)) continue; // m149 选了烧什么就只烧什么
                         long take = Math.min(be.bufCountFor(i, id), capacity - done);
                         if (take <= 0) continue;
                         be.bufWithdrawFor(i, id, take);
@@ -778,7 +778,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                         String idM = be.drainIds[dk];
                         Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, idM);
                         if (out == null) continue;
-                        if (!machineFilterAllows(st, idM)) continue; // m149
+                        if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, idM)) continue; // m149
                         long take = Math.min(be.drainAmts[dk], capacity - done);
                         if (take <= 0) continue;
                         int got = supply.withdraw(idM, (int) Math.min(take, Integer.MAX_VALUE));
@@ -806,7 +806,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 「工厂造书→砂轮回收」经验泵。供料边（存储→机器）选磨哪个仓，没连线走默认源。
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 com.sdzjz.machine.StorageAccess accG = be.supplyFor(world, i);
                 if (accG == null) {
                     if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
@@ -856,12 +856,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 最高档（没合同=原价不堵路——繁殖→就业→打折机→交易机全链有用）。附魔书产物照
                 // 山羊角组件规矩：出线无视（distribute 按 id 记账带不动组件），精确账本或输出缓存。
                 // 交易经验 4.5/次（原版 3-6 均值）进核心经验池——村民交易本就是原版经验源。
-                String tgtT = craftTarget(st);
+                String tgtT = com.sdzjz.node.NodeTags.craftTarget(st);
                 com.sdzjz.machine.VillagerTrades.Trade t = com.sdzjz.machine.TradePlanner.trade(tgtT);
                 if (t == null) { be.stat(i, 0); continue; } // 未选交易=待机（徽章"选交易"）
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 long attempts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess accT = be.supplyFor(world, i);
                 if (accT == null) {
@@ -932,11 +932,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // （只吃经验不吃料，经验非物品不走线——附魔工厂同注）；setNodeTarget=dupOk；
                 // 徽章=通用目标图标路（isDup 并入既有条件）；chainWants=显式零需求（不吃料自然不拉料）。
                 if (!cfg.duplicatorEnabled) { be.statR(i, 2, "复制机已在配置停用（duplicatorEnabled）"); continue; }
-                String tgtD = craftTarget(st);
+                String tgtD = com.sdzjz.node.NodeTags.craftTarget(st);
                 if (!com.sdzjz.item.DuplicatorItem.validTarget(tgtD)) { be.stat(i, 0); continue; } // 未选=待机（徽章"选复制"）
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 long attempts = (long) running * (1 + countLv) * cycles;
                 com.sdzjz.machine.StorageAccess accD = be.supplyFor(world, i);
                 if (accD == null) {
@@ -976,7 +976,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (!world.getChunkSource().hasChunk(cxS, czS)) { be.statR(i, 2, "目标区块未加载·等待中（核心自带 5×5 保载：把核心放进目标区域中心即可挂机；或人在附近）"); continue; }
                 int cycles = be.cyclesThisTick(i, 40, speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 long budgetS = Math.min(16384L, (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkScannerBlocksPerCycle));
                 int yS = com.sdzjz.node.NodeTags.chunkY(st), idxS = com.sdzjz.node.NodeTags.chunkIdx(st);
                 int bottomS = world.getMinBuildHeight();
@@ -1038,7 +1038,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                     be.vaultAcc.put(i, accV);
                 }
                 if (!accV.scanComplete) {
-                    int running = runningCount(st, parallelLv, tier);
+                    int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                     long budgetV = Math.min(16384L, (long) running * (1 + countLv) * cycles * Math.max(1, cfg.chunkVaultBlocksPerCycle));
                     net.minecraft.core.BlockPos.MutableBlockPos mpV = new net.minecraft.core.BlockPos.MutableBlockPos();
                     while (budgetV-- > 0 && yV >= bottomV) {
@@ -1142,7 +1142,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (cfg.chunkFilterEnabled) {
                     for (int j = 0; j < be.machineNodes.size(); j++) {
                         ItemStack fz = be.machineNodes.get(j);
-                        if (!(fz.getItem() instanceof com.sdzjz.item.ChunkFilterItem) || nodePaused(fz)) continue;
+                        if (!(fz.getItem() instanceof com.sdzjz.item.ChunkFilterItem) || com.sdzjz.node.NodeTags.nodePaused(fz)) continue;
                         boolean linkedZ = false;
                         if (outT[i] != null) for (int t : outT[i]) if (t == j) { linkedZ = true; break; }
                         if (!linkedZ && outT[j] != null) for (int t : outT[j]) if (t == i) { linkedZ = true; break; }
@@ -1155,7 +1155,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 }
                 int prevStZ = (i < be.nodeStatus.size()) ? be.nodeStatus.get(i) : 0; // m384 施法爆发沿：非运行态→首铲=锁定爆发
                 int fxNZ = 0; // m384 本拍已喷粒子数（前沿流封顶 6 点/拍）
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 boolean voidOkZ = cfg.chunkRemoverVoidMode;
                 int modeZ = com.sdzjz.item.ChunkRemoverItem.mode(st, voidOkZ); // m386 0=有掉落 1=无掉落极速；m397 2=空置域（破基岩，config 关掉时按 1 用）
                 boolean voidZ = modeZ == 2;   // m397 空置域：硬度<0 的方块（基岩/屏障/末地传送门框）也拆
@@ -1450,7 +1450,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 // 无可升合同（没交易所或全满级）=待机，升了=绿灯。
                 int cycles = be.cyclesThisTick(i, vd.def().baseIntervalTicks(), speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 com.sdzjz.machine.StorageAccess accV = be.supplyFor(world, i);
                 if (accV == null) {
                     if (!srcResolved) { src = be.resolveInputSource(world, pos); srcResolved = true; }
@@ -1497,7 +1497,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 MachineDef def = sk.def();
                 int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg);
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);
                 double xpPer = 20.0;
                 long attempts = (long) running * cycles;
                 attempts = Math.min(attempts, (long) (be.xpPool / xpPer)); // 经验闸
@@ -1507,7 +1507,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositSk = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedSk = !hasOut[i] && depositSk == null;
                 for (MachineDef.Drop d : def.outputs()) {
-                    if (!machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
+                    if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
                     long sum = be.rollDrops(world.getRandom(), d, (int) Math.min(attempts, Integer.MAX_VALUE), countLv);
                     if (sum <= 0) continue;
                     if (cappedSk) sum = Math.min(sum, 64L * OUTPUT_SLOTS);
@@ -1521,7 +1521,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 MachineDef def = mi.def();
                 int cycles = be.cyclesThisTick(i, def.baseIntervalTicks(), speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier); // m99 并发直接乘台数
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier); // m99 并发直接乘台数
                 int doCycles = cycles;
 
                 if (def.consumesInputs()) {
@@ -1553,7 +1553,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 com.sdzjz.machine.StorageAccess depositMi = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedMi = !hasOut[i] && depositMi == null; // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : def.outputs()) {
-                    if (!machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
+                    if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149 选了产物就只出选中
                     long sum = be.rollDrops(world.getRandom(), d, doCycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
@@ -1584,12 +1584,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 if (drops == null) continue;
                 int cycles = be.cyclesThisTick(i, 30, speedLv, cfg); // m99 工作量累积
                 if (cycles <= 0) continue;
-                int running = runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
+                int running = com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier);    // m99 并发直接乘台数
                 be.stat(i, 1);
                 com.sdzjz.machine.StorageAccess depositCg = hasOut[i] ? null : be.depositFor(world, i);
                 boolean cappedCg = !hasOut[i] && depositCg == null;  // m99 封顶只对"进内部缓存"生效
                 for (MachineDef.Drop d : drops) {
-                    if (!machineFilterAllows(st, d.item())) continue; // m149
+                    if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, d.item())) continue; // m149
                     long sum = be.rollDrops(world.getRandom(), d, cycles, countLv);
                     if (sum <= 0) continue;
                     long total = (long) running * sum;
@@ -1742,8 +1742,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m339 名单保洁口：仍是"就绪的吃经验机器"才配占保底坑（拆机/换机/暂停/丢目标=出名单）。 */
     boolean xpConsumerReady(int ix) {
         ItemStack st = machineNodes.get(ix);
-        if (nodePaused(st)) return false;
-        String ct = craftTarget(st);
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
+        String ct = com.sdzjz.node.NodeTags.craftTarget(st);
         if (st.getItem() instanceof com.sdzjz.item.DuplicatorItem)
             return com.sdzjz.item.DuplicatorItem.validTarget(ct);
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem)
@@ -1786,9 +1786,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (want > fromBuf && exp != null)
             exp.withdraw(id, (int) Math.min(Integer.MAX_VALUE, want - fromBuf));
     }
-
-    /** m99 并发升级直接乘台数：运行台数 = 节点内机器数 ×(1+并发级)×核心层级。 */
-    private static int runningCount(ItemStack st, int parallelLv, int tier) { return com.sdzjz.node.NodeTags.runningCount(st, parallelLv, tier); }
 
     /** m99 随机掉落表按周期数结算：每周期独立掷概率/数量，命中加数量升级奖励(+8/级)。 */
     private long rollDrops(net.minecraft.util.RandomSource rand, MachineDef.Drop d, int cycles, int countLv) {
@@ -1887,18 +1884,12 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     /** 读取自动合成机节点的目标产物 id（无则空串）。 */
-    /** m93：全自动农场多选作物（最多8种）。无 crops 列表时回退旧单选 ct（自动迁移）。 */
-    public static java.util.List<String> cropList(ItemStack s) { return com.sdzjz.node.NodeTags.cropList(s); }
-
-    public static String craftTarget(ItemStack s) { return com.sdzjz.node.NodeTags.craftTarget(s); }
-    public static String craftRecipe(ItemStack s) { return com.sdzjz.node.NodeTags.craftRecipe(s); } // m235
 
     // ===== 画布逻辑节点：过滤器 / 数量传感器 =====
-    static CompoundTag nbtOf(ItemStack s) { return com.sdzjz.node.NodeTags.nbtOf(s); }
 
     /** m354 机器类型桶判定（每节点每 tick 一次，PHASES 闸内；instanceof 链=纳秒级）。 */
     private static int typeBucket(ItemStack st) {
-        if (isFilter(st) || isSwitch(st) || isSensor(st) || isDistributor(st) || isExtractor(st) || isTrash(st)
+        if (com.sdzjz.node.NodeTags.isFilter(st) || com.sdzjz.node.NodeTags.isSwitch(st) || com.sdzjz.node.NodeTags.isSensor(st) || com.sdzjz.node.NodeTags.isDistributor(st) || com.sdzjz.node.NodeTags.isExtractor(st) || com.sdzjz.node.NodeTags.isTrash(st)
                 || st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 终端件归逻辑桶
             return com.sdzjz.debug.CoreProfiler.SUB_T_LOGIC;
         if (st.getItem() instanceof AutoCrafterItem) return com.sdzjz.debug.CoreProfiler.SUB_T_CRAFT;
@@ -1910,45 +1901,18 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         return com.sdzjz.debug.CoreProfiler.SUB_T_MISC;
     }
 
-    public static boolean isFilter(ItemStack s) { return com.sdzjz.node.NodeTags.isFilter(s); }
-
-    public static boolean isTrash(ItemStack s) { return com.sdzjz.node.NodeTags.isTrash(s); } // m150
-
-    public static boolean isExtractor(ItemStack s) { return com.sdzjz.node.NodeTags.isExtractor(s); } // m154
-
-    /** m154 抽取节点开合（默认关——用户点名"点击抽取才开始"）。 */
-    public static boolean extractorOn(ItemStack s) { return com.sdzjz.node.NodeTags.extractorOn(s); }
-
     /** m160 抽取节点有效运转态：手动开 且（无感应规则 或 感应放行）。感应键位与传感器
      *  同套（si/sv/sl，sensorOpen 通用判定）——配了监测物品的抽取节点=自带阈值自动启停。 */
     boolean extractorLive(Level world, int i, ItemStack st) {
-        return extractorOn(st) && (sensorItem(st).isEmpty() || sensorOpen(world, i));
+        return com.sdzjz.node.NodeTags.extractorOn(st) && (com.sdzjz.node.NodeTags.sensorItem(st).isEmpty() || sensorOpen(world, i));
     }
-
-    /** m159 抽取累计读数（卡面用）。 */
-    public static long extractorCount(ItemStack s) { return com.sdzjz.node.NodeTags.extractorCount(s); }
-
-    /** m159 抽取量/轮（每 5t 每种上限，未设=512）；m163a 五挡循环 64→512→4096→32768→262144。实际抽量再乘 (1+数量升级)。 */
-    public static long extractorRate(ItemStack s) { return com.sdzjz.node.NodeTags.extractorRate(s); }
-
-    /** m150 垃圾桶累计吞噬量（卡面读数）。 */
-    public static long trashCount(ItemStack s) { return com.sdzjz.node.NodeTags.trashCount(s); }
-    public static boolean isSensor(ItemStack s) { return com.sdzjz.node.NodeTags.isSensor(s); }
-    public static boolean isSwitch(ItemStack s) { return com.sdzjz.node.NodeTags.isSwitch(s); }
-    public static boolean isDistributor(ItemStack s) { return com.sdzjz.node.NodeTags.isDistributor(s); }
-
-    /** 开关节点状态：默认=开；NBT "so"=false 时为关。 */
-    public static boolean switchOn(ItemStack s) { return com.sdzjz.node.NodeTags.switchOn(s); }
-
-    /** m123 机器阶位：0普通 1超级 2神级 3GM。每阶=4台合1、战力8×/阶（4台份×2速）。 */
-    public static int machineTier(ItemStack s) { return com.sdzjz.node.NodeTags.machineTier(s); }
 
     /** m123 融合升阶（up=true：4台同阶→1台高阶，余数还玩家）/ 拆解降阶（1台→4台低阶，超堆叠上限的还玩家）。 */
     public void fuseNode(Player player, int index, boolean up) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
         if (s.isEmpty() || !(s.getItem() instanceof MachineItem)) return;
-        int mt = machineTier(s);
+        int mt = com.sdzjz.node.NodeTags.machineTier(s);
         if (up) {
             if (mt >= 3) return;
             if (s.getCount() < 4) { // m128(F1)：m78 后 insertMachine 恒为 ×1 节点——不聚敛则单节点永远
@@ -1968,13 +1932,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 ItemStack back = s.copyWithCount(rem);
                 if (!player.getInventory().add(back)) player.drop(back, false);
             }
-            CompoundTag n = nbtOf(s);
+            CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
             n.putInt("mt", mt + 1);
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
             s.setCount(keep);
         } else {
             if (mt <= 0) return;
-            CompoundTag n = nbtOf(s);
+            CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
             n.putInt("mt", mt - 1);
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
             long c = (long) s.getCount() * 4;
@@ -1996,15 +1960,15 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  返回聚敛后 index 的新下标（摘除低位节点会使下标前移）。倒序遍历：detach 只影响更高下标，安全。 */
     private int gatherSame(Player player, int index, int need) {
         ItemStack target = machineNodes.get(index);
-        int mt = machineTier(target);
+        int mt = com.sdzjz.node.NodeTags.machineTier(target);
         int idx = index;
         for (int j = machineNodes.size() - 1; j >= 0 && target.getCount() < need; j--) {
             if (j == idx) continue;
             ItemStack o = machineNodes.get(j);
-            if (o.isEmpty() || o.getItem() != target.getItem() || machineTier(o) != mt) continue;
+            if (o.isEmpty() || o.getItem() != target.getItem() || com.sdzjz.node.NodeTags.machineTier(o) != mt) continue;
             int take = Math.min(need - target.getCount(), o.getCount());
             if (take >= o.getCount()) { // 将被抽空：先读后抽——升级退还，再摘节点
-                refundUpgrades(player, nbtOf(o));
+                refundUpgrades(player, com.sdzjz.node.NodeTags.nbtOf(o));
                 target.grow(take);
                 detachNode(j);
                 if (j < idx) idx--; // 摘除低位节点，目标下标前移
@@ -2021,9 +1985,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  服务器 tick 是全局的，池的语义就是"本拍所有移除器一共可以花多少毫秒"。 */
     private static int remPoolTick = Integer.MIN_VALUE;
     private static long remPoolUsedNs = 0L;
-
-    /** m110b 单节点启停：默认=运行；NBT "np"=true 为暂停（任意节点类型通用）。 */
-    public static boolean nodePaused(ItemStack s) { return com.sdzjz.node.NodeTags.nodePaused(s); }
 
     /** m394 远距送达（作者报"我现在看不到激光特效"的真根因）：原版 `ServerWorld.spawnParticles`
      *  只发**32 格内**的玩家——移除器一个 5×5 区域就 80 格宽，削切面还常在脚下几十上百格深，
@@ -2089,8 +2050,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
         if (s.isEmpty()) return;
-        CompoundTag n = nbtOf(s);
-        n.putBoolean("np", !nodePaused(s));
+        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
+        n.putBoolean("np", !com.sdzjz.node.NodeTags.nodePaused(s));
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         setChanged();
         syncToClient();
@@ -2100,35 +2061,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void toggleSwitch(int index) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        CompoundTag n = nbtOf(s);
-        if (isSwitch(s)) n.putBoolean("so", !switchOn(s));
-        else if (isExtractor(s)) n.putBoolean("xo", !extractorOn(s)); // m154 抽取启停走同一收包口
+        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
+        if (com.sdzjz.node.NodeTags.isSwitch(s)) n.putBoolean("so", !com.sdzjz.node.NodeTags.switchOn(s));
+        else if (com.sdzjz.node.NodeTags.isExtractor(s)) n.putBoolean("xo", !com.sdzjz.node.NodeTags.extractorOn(s)); // m154 抽取启停走同一收包口
         else return;
         s.set(DataComponents.CUSTOM_DATA, CustomData.of(n));
         setChanged();
         syncToClient();
     }
-
-    /** 过滤模式：false=白名单（默认，只放行名单内），true=黑名单（拦下名单内）。 */
-    public static boolean filterBlacklist(ItemStack s) { return com.sdzjz.node.NodeTags.filterBlacklist(s); }
-
-    public static java.util.List<String> filterList(ItemStack s) { return com.sdzjz.node.NodeTags.filterList(s); }
-
-    public static boolean filterPasses(ItemStack s, String id) { return com.sdzjz.node.NodeTags.filterPasses(s, id); }
-
-    /** m149 机器加工二级界面：哪些机器有"选加工范围"资格——万能熔炉(选烧什么)或多产物机(选出什么)。 */
-    public static boolean machineFilterable(ItemStack s) { return com.sdzjz.node.NodeTags.machineFilterable(s); }
-
-    /** m149 机器加工过滤（复用 fl 名单，白名单语义）：空=全放行；非空=只加工选中项。
-     *  与过滤节点的 fl+fb 双语义区分：机器侧永远白名单、不碰 fb。 */
-    public static boolean machineFilterAllows(ItemStack s, String id) { return com.sdzjz.node.NodeTags.machineFilterAllows(s, id); }
-
-    public static String sensorItem(ItemStack s) { return com.sdzjz.node.NodeTags.sensorItem(s); }
-
-    public static long sensorThreshold(ItemStack s) { return com.sdzjz.node.NodeTags.sensorThreshold(s); }
-
-    /** 传感器方向：true=「低于阈值放行」(默认，补货型)；false=「高于阈值放行」(溢出型)。 */
-    public static boolean sensorLess(ItemStack s) { return com.sdzjz.node.NodeTags.sensorLess(s); }
 
     /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单。 */
     public void toggleFilterEntry(int index, String id) {
@@ -2136,9 +2076,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         ItemStack s = machineNodes.get(index);
         if ("#cr".equals(id) && s.getItem() instanceof AutoCrafterItem) { // m235 配方换挡复用此收包口（#xr 同款哨兵工艺）：
             // 自动(-1)→候选0→候选1→…→回自动；候选序=CraftPlanner.plans 原版排前+id字典序，双端同源循环稳定
-            String tgt = craftTarget(s);
+            String tgt = com.sdzjz.node.NodeTags.craftTarget(s);
             java.util.List<CraftPlanner.Plan> ps = tgt.isEmpty() ? java.util.List.of() : CraftPlanner.plans(level, tgt);
-            CompoundTag nc = nbtOf(s);
+            CompoundTag nc = com.sdzjz.node.NodeTags.nbtOf(s);
             String cur = nc.contains("cr") ? nc.getString("cr") : "";
             int at = -1;
             for (int k = 0; k < ps.size(); k++) if (ps.get(k).recipeId().equals(cur)) { at = k; break; }
@@ -2149,9 +2089,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             syncToClient();
             return;
         }
-        if ("#xr".equals(id) && isExtractor(s)) { // m159 抽取量换挡复用此收包口；m163a 扩至五挡（用户点名"还是太少"）
-            CompoundTag nx = nbtOf(s);
-            long cur = extractorRate(s);
+        if ("#xr".equals(id) && com.sdzjz.node.NodeTags.isExtractor(s)) { // m159 抽取量换挡复用此收包口；m163a 扩至五挡（用户点名"还是太少"）
+            CompoundTag nx = com.sdzjz.node.NodeTags.nbtOf(s);
+            long cur = com.sdzjz.node.NodeTags.extractorRate(s);
             nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : cur == 4096 ? 32768 : cur == 32768 ? 262144 : 64);
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(nx));
             setChanged();
@@ -2159,7 +2099,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         if ("#zy".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 Y 挡循环复用此收包口（#xr 同款哨兵工艺）：全高度→地表下→深层→深板岩→地上→回全高度
-            CompoundTag nz = nbtOf(s);
+            CompoundTag nz = com.sdzjz.node.NodeTags.nbtOf(s);
             nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(nz));
             setChanged();
@@ -2170,7 +2110,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             int dR;
             try { dR = Integer.parseInt(id.substring(5)); } catch (NumberFormatException e) { return; }
             if (dR < -1024 || dR > 1024) return; // 伪造包尺寸熔断
-            CompoundTag nr = nbtOf(s);
+            CompoundTag nr = com.sdzjz.node.NodeTags.nbtOf(s);
             int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
             int nv = Math.max(0, Math.min(Math.max(0, nr.getInt("zr")) + dR, capR));
             if (nv != nr.getInt("zr")) {
@@ -2187,7 +2127,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         if (("#bfx".equals(id) || "#bfl".equals(id)) && s.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 效果/等级循环
-            CompoundTag nbf = nbtOf(s);
+            CompoundTag nbf = com.sdzjz.node.NodeTags.nbtOf(s);
             if ("#bfx".equals(id)) nbf.putInt("bfx", com.sdzjz.item.InfiniteBeaconItem.nextEffect(nbf.getInt("bfx")));
             else nbf.putInt("bfl", nbf.getInt("bfl") >= 1 ? 0 : 1);
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(nbf));
@@ -2196,7 +2136,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
-            CompoundTag nb = nbtOf(s);
+            CompoundTag nb = com.sdzjz.node.NodeTags.nbtOf(s);
             nb.remove("zsb");
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(nb));
             setChanged();
@@ -2204,7 +2144,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
-            CompoundTag nm = nbtOf(s);
+            CompoundTag nm = com.sdzjz.node.NodeTags.nbtOf(s);
             nm.putInt("zm", com.sdzjz.item.ChunkRemoverItem.nextMode(nm.getInt("zm"),
                     com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode)); // m397 三挡循环
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(nm));
@@ -2213,7 +2153,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             return;
         }
         if ("#zw".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m388 封边挡水切换（开=重扫补封：已挖开的边界回补玻璃墙、灌进的水按普通块清；关不动游标）
-            CompoundTag nw = nbtOf(s);
+            CompoundTag nw = com.sdzjz.node.NodeTags.nbtOf(s);
             boolean sealOnW = nw.getInt("zw") == 2; // m394 三态：切换后的新状态（原为关=2 则开）
             nw.putInt("zw", sealOnW ? 1 : 2);
             if (sealOnW) { // 开堵水=新工程重扫（zn 总账保留，#zrd 同口径）
@@ -2236,11 +2176,11 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         }
         boolean chunkF = s.getItem() instanceof com.sdzjz.item.ChunkFilterItem; // m377 区块过滤器：名单+黑白切换全套复用过滤节点收包口
         boolean voidP = s.getItem() instanceof com.sdzjz.item.VoidProcessorItem; // m378 虚空处理器：白名单复用（永远白名单无黑白，垃圾桶同律）
-        if (!isFilter(s) && !machineFilterable(s) && !isExtractor(s) && !isTrash(s) && !chunkF && !voidP) return;
+        if (!com.sdzjz.node.NodeTags.isFilter(s) && !com.sdzjz.node.NodeTags.machineFilterable(s) && !com.sdzjz.node.NodeTags.isExtractor(s) && !com.sdzjz.node.NodeTags.isTrash(s) && !chunkF && !voidP) return;
         // m149 机器加工过滤 / m160 抽取白名单+垃圾桶白名单（安全桶）同走此口
-        CompoundTag n = nbtOf(s);
+        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         if (id == null || id.isEmpty()) {
-            if (!isFilter(s) && !chunkF) return; // 机器侧永远白名单，无黑白切换（m377 区块过滤器有黑白）
+            if (!com.sdzjz.node.NodeTags.isFilter(s) && !chunkF) return; // 机器侧永远白名单，无黑白切换（m377 区块过滤器有黑白）
             n.putBoolean("fb", !n.getBoolean("fb"));
         } else {
             ListTag l = n.getList("fl", Tag.TAG_STRING);
@@ -2262,8 +2202,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void setSensorConfig(int index, String id, long threshold, boolean less) {
         if (index < 0 || index >= machineNodes.size()) return;
         ItemStack s = machineNodes.get(index);
-        if (!isSensor(s) && !isExtractor(s)) return; // m160 抽取节点内置自动启停同走此口
-        CompoundTag n = nbtOf(s);
+        if (!com.sdzjz.node.NodeTags.isSensor(s) && !com.sdzjz.node.NodeTags.isExtractor(s)) return; // m160 抽取节点内置自动启停同走此口
+        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
         if ("§clear".equals(id)) n.remove("si"); // m160 清除感应（传感/抽取通用）
         else if (id != null && !id.isEmpty()) n.putString("si", id);
         n.putLong("sv", Math.max(0, Math.min(1_000_000_000_000L, threshold)));
@@ -2277,13 +2217,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  监测目标：连了 存储→传感器 供料线=监测那个库；否则=默认主存储（绑定>有线>无线>卫星）。 */
     boolean sensorOpen(Level world, int i) {
         ItemStack st = machineNodes.get(i);
-        String id = sensorItem(st);
+        String id = com.sdzjz.node.NodeTags.sensorItem(st);
         if (id.isEmpty()) return true;
         com.sdzjz.machine.StorageAccess sc = supplyFor(world, i);
         if (sc == null) sc = resolveInputSource(world, worldPosition);
         long have = sc == null ? 0 : sc.count(id);
-        long th = sensorThreshold(st);
-        return sensorLess(st) ? have < th : have > th;
+        long th = com.sdzjz.node.NodeTags.sensorThreshold(st);
+        return com.sdzjz.node.NodeTags.sensorLess(st) ? have < th : have > th;
     }
 
     /** 该节点的全部出线目标是否都是「关闸的传感器」——是则上游整台暂停（不白产不塞存储）。 */
@@ -2292,9 +2232,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (int t : targets) {
             if (t < 0 || t >= machineNodes.size()) return false;
             ItemStack ts = machineNodes.get(t);
-            boolean closedGate = (isSensor(ts) && !sensorOpen(world, t)) || (isSwitch(ts) && !switchOn(ts))
-                    || (isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
-                    || nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
+            boolean closedGate = (com.sdzjz.node.NodeTags.isSensor(ts) && !sensorOpen(world, t)) || (com.sdzjz.node.NodeTags.isSwitch(ts) && !com.sdzjz.node.NodeTags.switchOn(ts))
+                    || (com.sdzjz.node.NodeTags.isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
+                    || com.sdzjz.node.NodeTags.nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
             if (!closedGate) return false;
         }
         return true;
@@ -2380,7 +2320,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (sealOk) { // m396 封边材料：单选写 zsb（清回默认走菜单 #zsbd 哨兵）
             n.putString("zsb", id);
         } else if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
-            java.util.List<String> cur = cropList(s);
+            java.util.List<String> cur = com.sdzjz.node.NodeTags.cropList(s);
             if (cur.contains(id)) cur.remove(id);
             else if (cur.size() < 8) cur.add(id);
             net.minecraft.nbt.ListTag l = new net.minecraft.nbt.ListTag();
@@ -2865,13 +2805,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                                      int[][] outT) { // m355 数组化
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
-        if (nodePaused(st)) return false;
-        if (isTrash(st)) return machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
+        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 炼掉=销毁终点同格（磨石回收附魔经验的工业版）
-            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
-        if (isFilter(st) && !filterPasses(st, id)) return false;
-        if (isSwitch(st) && !switchOn(st)) return false;
-        if (isExtractor(st) && (!extractorLive(world, i, st) || !machineFilterAllows(st, id))) return false; // m160
+            return SdzjzConfig.get().voidProcessorEnabled && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
+        if (com.sdzjz.node.NodeTags.isFilter(st) && !com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
+        if (com.sdzjz.node.NodeTags.isSwitch(st) && !com.sdzjz.node.NodeTags.switchOn(st)) return false;
+        if (com.sdzjz.node.NodeTags.isExtractor(st) && (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id))) return false; // m160
         int[] targets = i < outT.length ? outT[i] : null; // m355 计划与节点表同拍重编译，越界仅防御
         if (targets == null) return false;
         for (int t : targets)
@@ -2934,14 +2874,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (prof != null) prof.chainChecks++; // m177
         if (depth > 8 || i < 0 || i >= machineNodes.size() || !visited.add(i)) return false;
         ItemStack st = machineNodes.get(i);
-        if (nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
-        if (isFilter(st)) {
-            if (!filterPasses(st, id)) return false;
-        } else if (isSwitch(st)) {
-            if (!switchOn(st)) return false;
-        } else if (isExtractor(st)) {
-            if (!extractorLive(world, i, st) || !machineFilterAllows(st, id)) return false; // m160 感应+白名单闸
-        } else if (isTrash(st)) {
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
+        if (com.sdzjz.node.NodeTags.isFilter(st)) {
+            if (!com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
+        } else if (com.sdzjz.node.NodeTags.isSwitch(st)) {
+            if (!com.sdzjz.node.NodeTags.switchOn(st)) return false;
+        } else if (com.sdzjz.node.NodeTags.isExtractor(st)) {
+            if (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id)) return false; // m160 感应+白名单闸
+        } else if (com.sdzjz.node.NodeTags.isTrash(st)) {
             // m153 垃圾桶链式需求（用户实测：仓→过滤器(白名单山羊角)→垃圾桶抽不动）——
             // 经逻辑节点转接 = 玩家明确布线授权，垃圾桶作为终端什么都"想要"；
             // 直连仓依然不抽（拉料回路的节点类型清单本就不含垃圾桶，m150 防手滑边界不动）。
@@ -2949,14 +2889,14 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) {
             // m378 虚空处理器链式需求=垃圾桶 m153 同律：经逻辑节点转接=玩家明确布线授权；
             // 收敛一步：只"想要"白名单放行的（与 accepts 同口径，省得拉来又退回）；停用=不想要。
-            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
-        } else if (isSensor(st) || isDistributor(st)) {
+            return SdzjzConfig.get().voidProcessorEnabled && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
+        } else if (com.sdzjz.node.NodeTags.isSensor(st) || com.sdzjz.node.NodeTags.isDistributor(st)) {
             // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行
         } else if (st.getItem() instanceof AutoCrafterItem) {
             java.util.Set<String> needs = crafterNeeds.computeIfAbsent(i, k -> {
-                String tgt = craftTarget(st);
+                String tgt = com.sdzjz.node.NodeTags.craftTarget(st);
                 if (tgt.isEmpty()) return java.util.Set.of();
-                String cr = craftRecipe(st); // m235 手选=只要那条的料；自动=全候选并集（m234）
+                String cr = com.sdzjz.node.NodeTags.craftRecipe(st); // m235 手选=只要那条的料；自动=全候选并集（m234）
                 if (!cr.isEmpty()) for (var pp : CraftPlanner.plans(world, tgt))
                     if (pp.recipeId().equals(cr)) return CraftPlanner.wantsOfCached(pp); // m343 手选也认槽位替代材料；m357 长期缓存版（每拍现建集合下岗，审计⑤轮①唯一真缺口）
                 return CraftPlanner.wants(world, tgt);
@@ -2965,13 +2905,13 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         } else if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) {
             // m132 顺修：m131b 漏接链式需求——存储→过滤器→酿造塔 的拉料此前恒 false
             // （落进下方通用 MachineItem 分支，免费型 def 不吃供料）。语义照 accepts：材料+燃料。
-            String tgtB = craftTarget(st);
+            String tgtB = com.sdzjz.node.NodeTags.craftTarget(st);
             if (tgtB.isEmpty()) return false;
             var planB = com.sdzjz.machine.BrewPlanner.plan(world, tgtB);
             return planB != null && (planB.needs().containsKey(id) || com.sdzjz.machine.BrewPlanner.FUEL_ID.equals(id));
         } else if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) {
             // m132：附魔工厂链式需求=书+青金石（经验非物品不走线）。
-            String tgtE = craftTarget(st);
+            String tgtE = com.sdzjz.node.NodeTags.craftTarget(st);
             if (tgtE.isEmpty()) return false;
             var planE = com.sdzjz.machine.EnchantPlanner.plan(world, tgtE);
             return planE != null && planE.needs().containsKey(id);
@@ -2979,7 +2919,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             var def = mi.def();
             if (com.sdzjz.machine.Machines.smelterFamily(def.id())) // m173 熔炉族
                 return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
-                        && machineFilterAllows(st, id); // m149 滤掉的不收，留上游走默认路由
+                        && com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m149 滤掉的不收，留上游走默认路由
             if (def.consumesInputs()) {
                 for (var in : def.inputs()) if (in.item().equals(id)) return true;
                 return false;
@@ -3325,7 +3265,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 for (int t : targets) {            // 垃圾桶永远是最后去处，与连线先后无关（不然想要的会被吞）
                     if (amt <= 0) return;
                     if (t < 0 || t >= machineNodes.size()) continue;
-                    if ((pass == 0) == (isTrash(machineNodes.get(t))
+                    if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(machineNodes.get(t))
                             || machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
                     if (!accepts(world, t, id)) continue;
                     java.util.Map<String, Long> m = nodeBuf(t);
@@ -3354,32 +3294,32 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private boolean accepts0(Level world, int target, String id) {
         ItemStack st = machineNodes.get(target);
-        if (nodePaused(st)) return false;                // m110b 暂停不收（上游改走默认路由）
-        if (isFilter(st)) return filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
-        if (isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
-        if (isSwitch(st)) return switchOn(st);              // 关闸不收，同上
-        if (isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
-        if (isTrash(st)) return machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥，非空=只吞名单内
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;                // m110b 暂停不收（上游改走默认路由）
+        if (com.sdzjz.node.NodeTags.isFilter(st)) return com.sdzjz.node.NodeTags.filterPasses(st, id);   // 拦下的留在上游走默认路由→存储
+        if (com.sdzjz.node.NodeTags.isSensor(st)) return sensorOpen(world, target); // 关闸不收（上游全关闸时整台暂停）
+        if (com.sdzjz.node.NodeTags.isSwitch(st)) return com.sdzjz.node.NodeTags.switchOn(st);              // 关闸不收，同上
+        if (com.sdzjz.node.NodeTags.isDistributor(st)) return true;                 // 分配器什么都收（分不出去的走默认路由）
+        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥，非空=只吞名单内
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) // m378 垃圾桶同律；停用=拒收让上游走默认路由回仓
-            return SdzjzConfig.get().voidProcessorEnabled && machineFilterAllows(st, id);
-        if (isExtractor(st))                                  // m154 开=收 / m160 感应联动+白名单一起闸
-            return extractorLive(world, target, st) && machineFilterAllows(st, id);
+            return SdzjzConfig.get().voidProcessorEnabled && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
+        if (com.sdzjz.node.NodeTags.isExtractor(st))                                  // m154 开=收 / m160 感应联动+白名单一起闸
+            return extractorLive(world, target, st) && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
         if (st.getItem() instanceof AutoCrafterItem) {
-            String tgt = craftTarget(st);
+            String tgt = com.sdzjz.node.NodeTags.craftTarget(st);
             if (tgt.isEmpty()) return false;
-            String cr = craftRecipe(st); // m235 手选=只收那条的料
+            String cr = com.sdzjz.node.NodeTags.craftRecipe(st); // m235 手选=只收那条的料
             if (!cr.isEmpty()) for (var pp : CraftPlanner.plans(world, tgt))
                 if (pp.recipeId().equals(cr)) return CraftPlanner.wantsItem(pp, id); // m343 手选也认槽位替代材料
             return CraftPlanner.wants(world, tgt).contains(id); // m234 全候选并集（m343 起含替代材料）
         }
         if (st.getItem() instanceof com.sdzjz.item.BrewingTowerItem) { // m131b：吃酿造链材料+燃料
-            String tgt = craftTarget(st);
+            String tgt = com.sdzjz.node.NodeTags.craftTarget(st);
             if (tgt.isEmpty()) return false;
             var plan = com.sdzjz.machine.BrewPlanner.plan(world, tgt);
             return plan != null && (plan.needs().containsKey(id) || com.sdzjz.machine.BrewPlanner.FUEL_ID.equals(id));
         }
         if (st.getItem() instanceof com.sdzjz.item.EnchantFactoryItem) { // m132：吃书+青金石（经验非物品不走线）
-            String tgt = craftTarget(st);
+            String tgt = com.sdzjz.node.NodeTags.craftTarget(st);
             if (tgt.isEmpty()) return false;
             var plan = com.sdzjz.machine.EnchantPlanner.plan(world, tgt);
             return plan != null && plan.needs().containsKey(id);
@@ -3387,7 +3327,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         if (st.getItem() instanceof MachineItem mi) {
             if (com.sdzjz.machine.Machines.smelterFamily(mi.def().id())) // m173 熔炉族
                 return com.sdzjz.machine.SmeltPlanner.resultOf(world, id) != null
-                        && machineFilterAllows(st, id); // m149
+                        && com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m149
             if (mi.def().consumesInputs()) {
                 for (MachineDef.Input in : mi.def().inputs()) if (in.item().equals(id)) return true;
             }
@@ -3566,7 +3506,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             ItemStack st = machineNodes.get(i);
             sb.append(String.format("  [%d] %s x%d%s%n", i,
                     net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(st.getItem()), st.getCount(),
-                    nodePaused(st) ? " (暂停)" : ""));
+                    com.sdzjz.node.NodeTags.nodePaused(st) ? " (暂停)" : ""));
         }
         for (int[] c : connections) sb.append("  edge ").append(c[0]).append(" -> ").append(c[1]).append('\n');
         return sb.toString();
