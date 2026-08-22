@@ -1,5 +1,9 @@
 package com.sdzjz.node;
 
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -7,7 +11,7 @@ import net.minecraft.world.item.ItemStack;
  * 画布渲染子集状态对象——m275 清单认定的「画布客户端消费面全集」12+1 字段自
  * StructureCoreBlockEntity 原样搬家（声明一字未改，仅 private→public；依附注释随迁）。
  * SCBE 持唯一实例 g，SCBE 内全部引用机械前缀 g. / be.g.（逐名计数断言）。
- * 本刀只动字段归属；渲染编解码（writeRenderNbt/readRenderNbt）mA2 迁入本类成员方法。
+ * m431 mA2：渲染编解码 writeRenderNbt/readRenderNbt 已迁入本类（方法体与 m428 原文逐字对拍一致，读侧仅 bumpTopo/MERGED_IDS 两注入点）。
  * 纯状态容器：零方法零逻辑，字段语义与同步节奏的注释仍以 SCBE 侧使用点为准。
  */
 public final class CanvasGraphState {
@@ -36,4 +40,113 @@ public final class CanvasGraphState {
 
     // m86：实测产量快照（分钟滚动窗口的结算值；计量窗口 prodWin/prodWinStart 留 SCBE）
     public long prodPerMin = 0;
+
+    /** m275：渲染快照子集=画布客户端消费面全集（清单依据 docs/同步拆分方案_m274.md §2 grep 实测：
+     *  节点栈/连线/分组/状态灯/阻塞原因/存储端点三件套/总线库存/实测产量）。
+     *  存档 writeNbt 与 flushCanvasSnapshot 共用。 */
+    public void writeRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+        ListTag mn = new ListTag();
+        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.save(lookup));
+        nbt.put("machineNodes", mn);
+        int[] flat = new int[connections.size() * 2];
+        for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
+        nbt.putIntArray("connections", flat);
+        CompoundTag grp = new CompoundTag(); // m191 分组元数据 id→名（成员归属在各节点栈里随 machineNodes 落盘）
+        for (var ge : groupNames.entrySet()) grp.putString(Integer.toString(ge.getKey()), ge.getValue());
+        nbt.put("groups", grp);
+        int[] nst = new int[machineNodes.size()];
+        for (int i = 0; i < nst.length; i++) nst[i] = i < nodeStatus.size() ? nodeStatus.get(i) : 0;
+        nbt.putIntArray("nodeStat", nst);
+        ListTag nwl = new ListTag(); // m178 阻塞原因（与 nodeStat 同序；转绿清空）
+        for (int i = 0; i < nst.length; i++) nwl.add(net.minecraft.nbt.StringTag.valueOf(i < nodeReason.size() ? nodeReason.get(i) : ""));
+        nbt.put("nodeWhy", nwl);
+        ListTag eps = new ListTag(); // 存储端点（同步给画布：连了几个显示几个）
+        for (int i = 0; i < storageEndpoints.size(); i++) {
+            CompoundTag c = new CompoundTag();
+            c.putLong("p", storageEndpoints.get(i)[0]);
+            c.putInt("k", (int) storageEndpoints.get(i)[1]);
+            c.putString("d", storageEndpointDims.get(i));
+            eps.add(c);
+        }
+        nbt.put("storEnds", eps);
+        ListTag seg = new ListTag(); // 机器↔存储 定向连线
+        for (int i = 0; i < storageEdges.size(); i++) {
+            CompoundTag c = new CompoundTag();
+            c.putInt("m", (int) storageEdges.get(i)[0]);
+            c.putLong("p", storageEdges.get(i)[1]);
+            c.putInt("r", (int) storageEdges.get(i)[2]);
+            c.putString("d", storageEdgeDims.get(i));
+            seg.add(c);
+        }
+        nbt.put("storEdges", seg);
+        CompoundTag spn = new CompoundTag(); // 存储节点画布坐标
+        for (var en : storageNodePos.entrySet()) spn.putIntArray(Long.toString(en.getKey()), en.getValue());
+        nbt.put("storNodePos", spn);
+        ListTag bt = new ListTag(); // m85 总线库存
+        for (int i = 0; i < busTopIds.size(); i++) {
+            CompoundTag c = new CompoundTag();
+            c.putString("i", busTopIds.get(i));
+            c.putLong("n", busTopCounts.get(i));
+            bt.add(c);
+        }
+        nbt.put("busTop", bt);
+        nbt.putLong("prodPM", prodPerMin); // m86 实测产量
+    }
+
+    /** m275：渲染子集读入（与 writeRenderNbt 严格对偶）——存档 readNbt 与客户端 applyRenderSnapshot 共用。 */
+    public void readRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup,
+                              java.util.Map<String, String> mergedIds, Runnable onTopoChange) { // m431 注入：仅有的两个 SCBE 跨界触点
+        machineNodes.clear();
+        onTopoChange.run(); // m179 bumpTopo 注入
+        ListTag mn = nbt.getList("machineNodes", Tag.TAG_COMPOUND);
+        for (int i = 0; i < mn.size(); i++) {
+            CompoundTag mc = mn.getCompound(i);
+            String mid = mergedIds.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
+            if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
+            ItemStack.parse(lookup, mc).ifPresent(machineNodes::add);
+        }
+        connections.clear();
+        int[] flat = nbt.getIntArray("connections");
+        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
+        CompoundTag grp = nbt.getCompound("groups");
+        for (String k : grp.getAllKeys()) {
+            try { groupNames.put(Integer.parseInt(k), grp.getString(k)); } catch (NumberFormatException ignored) {}
+        }
+        nodeStatus.clear();
+        for (int v : nbt.getIntArray("nodeStat")) nodeStatus.add(v);
+        nodeReason.clear(); // m178
+        ListTag nwl178 = nbt.getList("nodeWhy", Tag.TAG_STRING);
+        for (int i = 0; i < nwl178.size(); i++) nodeReason.add(nwl178.getString(i));
+        storageEndpoints.clear();
+        storageEndpointDims.clear();
+        ListTag eps = nbt.getList("storEnds", Tag.TAG_COMPOUND);
+        for (int i = 0; i < eps.size(); i++) {
+            CompoundTag c = eps.getCompound(i);
+            storageEndpoints.add(new long[]{c.getLong("p"), c.getInt("k")});
+            storageEndpointDims.add(c.getString("d"));
+        }
+        storageEdges.clear();
+        storageEdgeDims.clear();
+        ListTag seg = nbt.getList("storEdges", Tag.TAG_COMPOUND);
+        for (int i = 0; i < seg.size(); i++) {
+            CompoundTag c = seg.getCompound(i);
+            storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
+            storageEdgeDims.add(c.getString("d"));
+        }
+        storageNodePos.clear();
+        CompoundTag spn = nbt.getCompound("storNodePos");
+        for (String k : spn.getAllKeys()) {
+            int[] v = spn.getIntArray(k);
+            if (v.length == 2 || v.length == 3) try { storageNodePos.put(Long.parseLong(k), v); } catch (NumberFormatException ignored) {} // m265 三元=画布放置(带标记位)，二元=遗留停靠
+        }
+        busTopIds.clear();
+        busTopCounts.clear();
+        ListTag btr = nbt.getList("busTop", Tag.TAG_COMPOUND); // m85
+        for (int i = 0; i < btr.size(); i++) {
+            busTopIds.add(btr.getCompound(i).getString("i"));
+            busTopCounts.add(btr.getCompound(i).getLong("n"));
+        }
+        prodPerMin = nbt.getLong("prodPM"); // m86
+    }
 }

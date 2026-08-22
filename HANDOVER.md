@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m430：绞杀者 mA1——GraphNbt 方案 A 作者拍板后第一刀：渲染子集 12+1 字段搬家 xplat/node/CanvasGraphState（声明一字未改 private→public，注释随迁），SCBE 持唯一实例 g，五态词法机前缀 227 裸+14 be. 逐名双账对表（串/注释零漂移、同名访问器方法零触碰、g 遮蔽终检零）；13 名 variable 符号错定向全 0；SCBE 4084→4071 行。当日第三、四把坏尺子记档：后视排除与算术期望双重扣除/期望值算拧，教训"后视排没排掉每笔画一遍再定期望"。15 闸全绿，版本 0.1.430，零行为改动。**下一刀 mA2=writeRenderNbt/readRenderNbt 迁 CanvasGraphState 成员方法（g.前缀反向剥除+bumpTopo/MERGED_IDS 注入）**。上笔 m429：GraphNbt 普查+方案稿（作者已拍板 A）。上上笔 m428：第四刀 DropRolls）
+## 当前状态（m431：绞杀者 mA2 收官 GraphNbt 线——渲染编解码 writeRenderNbt/readRenderNbt 迁 CanvasGraphState 成员方法，g. 前缀反向剥除后方法体与 m428 原文逐字对拍一致（两注入点 mergedIds/onTopoChange 除外，m429 普查认定的仅有跨界触点），m275 单编码函数三处共用结构原样，调用点 5/5 切 g. 直调不留垫片；SCBE 4071→3965 行（GraphNbt 线累计 -162），渲染域自治于 xplat/node/CanvasGraphState 供 26.2 代际复用。15 闸全绿，版本 0.1.431，零行为改动。mA3（存档段）按方案稿缓做。m430+m431 实机验证同单待跑（DEVLOG 两条末尾）。上笔 m430：mA1 字段搬家（当日第三、四把坏尺子记档）。上上笔 m429：方案稿拍板 A）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 拍板 A、m430 mA1 字段搬家 CanvasGraphState 落地，mA2 编解码迁移进行中，长期最大工程项）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官=m430 mA1 字段搬家+m431 mA2 编解码迁移，渲染域自治 CanvasGraphState；mA3 存档段缓做，SCBE 3965 行，长期工程项继续）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测

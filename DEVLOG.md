@@ -8068,3 +8068,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   全部读数照旧；②增删节点连线+分组改名+存档重进：数据不丢不错位；③观众快照（两人同看一画布）
   与路过玩家初始同步（getUpdateTag 路径）照常；④/sdzjz dumpgraph 输出对表。
 - 零新配置键；零行为改动（纯字段归属变化，键名/顺序/语义零改动）。下一刀 mA2=编解码迁成员方法。
+## m431 绞杀者 mA2：渲染编解码迁 CanvasGraphState 成员方法（方案 A 第二刀，GraphNbt 线收官）
+
+- **刀法（方案稿 mA2 原案执行）**：writeRenderNbt/readRenderNbt 自 SCBE 迁 CanvasGraphState
+  成员方法，迁入时把 mA1 加的 `g.` 前缀**反向剥除**——方法体回到裸字段引用形态。**对拍断言**：
+  剥前缀后的两方法体与 m428(dad30fc，字段搬家前) 原文**逐字一致**（git show 取原文直 diff），
+  即 mA1+mA2 两刀合成后方法体相对原始状态零漂移，注入点除外。
+- **两注入点（m429 普查认定的仅有跨界触点）**：readRenderNbt 签名加
+  `Map<String,String> mergedIds, Runnable onTopoChange`，体内 `MERGED_IDS.get(`→`mergedIds.get(`、
+  `bumpTopo()`→`onTopoChange.run()` 各一处；调用侧 SCBE 传 `MERGED_IDS, this::bumpTopo`。
+  m275「单编码函数三处共用」结构原样保持：write 三调用点（saveAdditional/getUpdateTag/
+  flushCanvasSnapshot）、read 两调用点（loadAdditional/applyRenderSnapshot）全切 `g.` 直调，
+  不留垫片，逐对计数 5/5。javadoc 随迁；private→public。
+- **SCBE 4071→3965 行（-106）**；GraphNbt 线累计：SCBE 自 m426 后 4127→3965（-162），
+  渲染域（状态+编解码）整体自治于 xplat/node/CanvasGraphState（152 行），26.2 代际可整体复用。
+- **验证**：javac 冒烟真语法错 0；symbol: method write/readRenderNbt=0；SCBE 文件内新家相关
+  报错=0；总错 2882→2886（+4=新家四个 MC import 噪音，方向自洽）；15 道闸全绿。
+  行为判官=CI GameTest。**mA3（存档段）按方案稿缓做**，届时单独立项。
+- **实机验证脚本**：与 m430 同单（画布全读数/增删改存档重进/观众快照/dumpgraph 对表）——
+  两刀一次实机验完即可；另加⑤：老存档（m428 版本存的）进图渲染数据无损（键名零改动，
+  对偶结构原样，理论无迁移面，实机确认一遍）。
+- 零新配置键；零行为改动。
