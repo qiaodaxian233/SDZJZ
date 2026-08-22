@@ -2560,7 +2560,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         g.groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
         for (ItemStack s : g.machineNodes) {
             int g = com.sdzjz.node.NodeTags.nodeGroup(s);
-            if (g >= 0 && !g.groupNames.containsKey(g)) setNodeGroupTag(s, -1);
+            if (g >= 0 && !this.g.groupNames.containsKey(g)) setNodeGroupTag(s, -1); // m431b：局部 int g 遮蔽字段 g，this. 限定
         }
     }
 
