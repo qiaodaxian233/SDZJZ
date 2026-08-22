@@ -16,6 +16,7 @@ public final class RetroBootstrap implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        RetroBlocks.register(); // m441 刀①：注册骨架（存储核心+数据线+BE 类型+创造栏）
         LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；业务域随 P-B 第二段移植",
                 com.sdzjz.machine.CraftPlanner.class.getSimpleName(),
                 com.sdzjz.machine.CoreScheduler.class.getSimpleName(),

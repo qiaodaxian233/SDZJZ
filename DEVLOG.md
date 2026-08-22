@@ -8334,3 +8334,19 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   1.20.1 无 CustomPacketPayload 体系的最大拦路虎被范围切割挡在 P-C；FabricLedger/FabricXfer
   内脏在 0.92 transfer API 上近乎原样可用（Create Fabric 移植消费同一套 API=互通的物理基础）。
 - 不设新拍板（m437"推荐"已含 P-B 精简版口径）。15 闸全绿（版本闸 0.1.440 对表）。
+## m441 P-B② 刀①：1.20.1 注册骨架（存储核心+数据线，能摆能看）
+
+- **落地物**：retro 包 RetroBlocks（两方块+两 BlockItem+BE 类型+创造栏 FUNCTIONAL_BLOCKS 挂载）
+  + StorageCore120 最小 BE 占坑（账本随刀② m442）+ 入口挂注册；资产 10 件（简化 cube_all
+  blockstate/模型/物品模型 ×2、贴图自根仓同源拷贝 ×2、lang 中英 ×2）全过 json.load。
+  数据线刀①先平方块占位，连接形态与 BE 随刀③。
+- **1.20.1 签名差三处按 m440 清单落笔并注释指认**：ResourceLocation 构造器（1.21 静态工厂）、
+  Properties.copy（1.21 ofFullCopy）、BaseEntityBlock 无 codec（1.20.3 起才有）且 getRenderShape
+  须置回 MODEL。核名依据：fabric-example-mod 1.20 分支 raw 实查（模板即 mojmap 包名）。
+- **id/贴图/lang 键与 Legacy 同名同源**——将来两代并存/升档（DFU 自动搬 custom_data，m436 红利）
+  方块 id 不折腾。
+- **验证**：沙箱编不了 1.20.1，判官=CI retro 线（红了 ci-retro-errors 清单回推按批修）；
+  资产 JSON 全过、15 闸全绿。
+- **实机验证脚本**：CI 绿取 jar 装 1.20.1 实例：创造栏功能方块页见两方块、能摆能看、名字中英对；
+  存储核心方块实体在（F3 无报错）；无交互属预期（刀②③来）。
+- 零 Legacy/Modern 侧改动；零新配置键。

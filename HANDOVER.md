@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m440：P-B② 排刀稿交付——docs/存储网络移植1201_m440.md：移植面 1084 行盘点、API 差异五条清单（【核】点落刀前翻上游源码）、三刀排布 m441 注册骨架→m442 账本核心+retro GameTest→m443 数据线双向拍+Create 实机验收线；关键定性=本段零自定义网络包（互通走 transfer API 0.92 同包同形，payload 拦路虎切给 P-C）；工艺红线=逐类新写不留翻译腔+常量同源。15 闸全绿，版本 0.1.440。上笔 m439+b+c：1.20.1 开格八线全绿（回推基建+楼层闸两资产）。下一刀 m441=注册骨架）
+## 当前状态（m441：P-B② 刀①注册骨架落地——RetroBlocks 两方块+BE 类型+创造栏、StorageCore120 占坑 BE、资产 10 件简化同源；1.20.1 签名差三处按 m440 清单落笔注释指认（ResourceLocation 构造器/Properties.copy/BaseEntityBlock 无 codec 且渲染置回 MODEL）；判官=CI retro 线（沙箱编不了）。15 闸全绿，版本 0.1.441。下一刀 m442=账本核心+精确条目 tag 版+FabricLedger120+retro GameTest。上笔 m440：排刀稿）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；P-A 收官、P-B① bootstrap 落地、P-B② 排刀稿 m440 已交（三刀 m441~m443，Create 实机验收线在刀③），长期工程项继续）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；P-A 收官、P-B① bootstrap 落地、P-B② 刀① m441 注册骨架落地，刀② m442 账本核心/刀③ m443 Create 验收线在队，长期工程项继续）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测
