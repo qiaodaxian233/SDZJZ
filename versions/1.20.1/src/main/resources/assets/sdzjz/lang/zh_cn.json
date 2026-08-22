@@ -120,5 +120,6 @@
   "item.sdzjz.wither_killer": "龙池杀凋机",
   "item.sdzjz.wither_rose_farm": "凋灵玫瑰农场",
   "item.sdzjz.wither_skeleton_farm": "凋灵骷髅塔",
-  "sdzjz.machine.wip": "画布机器——画布系统移植中（P-C2），当前为收藏品"
+  "sdzjz.machine.wip": "画布机器——画布系统移植中（P-C2），当前为收藏品",
+  "block.sdzjz.structure_core": "结构核心"
 }

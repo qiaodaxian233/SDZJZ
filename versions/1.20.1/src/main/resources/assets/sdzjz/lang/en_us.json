@@ -120,5 +120,6 @@
   "item.sdzjz.wither_killer": "Dragon-Pool Wither Killer",
   "item.sdzjz.wither_rose_farm": "Wither Rose Farm",
   "item.sdzjz.wither_skeleton_farm": "Wither Skeleton Farm",
-  "sdzjz.machine.wip": "Canvas machine - canvas system port in progress (P-C2), collectible for now"
+  "sdzjz.machine.wip": "Canvas machine - canvas system port in progress (P-C2), collectible for now",
+  "block.sdzjz.structure_core": "Structure Core"
 }

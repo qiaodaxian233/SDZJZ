@@ -28,9 +28,11 @@ public final class RetroBlocks {
     public static Block STORAGE_CORE;
     public static Block DATA_CABLE;
     public static Block DATA_PANEL; // m447
+    public static Block STRUCTURE_CORE; // m454
     public static BlockEntityType<StorageCore120> STORAGE_CORE_BE;
     public static BlockEntityType<DataCable120> DATA_CABLE_BE; // m444
     public static BlockEntityType<DataPanel120> DATA_PANEL_BE; // m447
+    public static BlockEntityType<StructureCore120> STRUCTURE_CORE_BE; // m454
     public static net.minecraft.world.inventory.MenuType<DataPanel120.PanelMenu120> PANEL_MENU; // m447 扩展开屏（BlockPos 随包）
 
     /** 1.20.1 无 codec 的最小 EntityBlock 壳（渲染置回 MODEL，BaseEntityBlock 默认 INVISIBLE）。 */
@@ -39,6 +41,17 @@ public final class RetroBlocks {
 
         @Override
         public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new StorageCore120(pos, state); }
+
+        @Override
+        public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+    }
+
+    /** m454 结构核心（画布）方块：MODEL 壳，交互随 C2-④ 画布屏。 */
+    private static final class StructureCoreBlock120 extends BaseEntityBlock {
+        StructureCoreBlock120(BlockBehaviour.Properties p) { super(p); }
+
+        @Override
+        public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new StructureCore120(pos, state); }
 
         @Override
         public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
@@ -77,6 +90,9 @@ public final class RetroBlocks {
         PANEL_MENU = Registry.register(BuiltInRegistries.MENU, id("data_panel"), // m447 菜单 id 与方块同名
                 new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType<>(
                         (syncId, inv, buf) -> new DataPanel120.PanelMenu120(syncId, inv, buf.readBlockPos())));
+        STRUCTURE_CORE = reg("structure_core", new StructureCoreBlock120(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion())); // m454 画布骨架（无屏属预期，C2-④ 接）
+        STRUCTURE_CORE_BE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("structure_core"), // BE id 与 Legacy 同名同源
+                FabricBlockEntityTypeBuilder.create(StructureCore120::new, STRUCTURE_CORE).build());
         // m452 专属创造栏页（作者实机反馈：原挂功能方块页得靠搜索才找得到）——tab id "sdzjz:main"
         // 与 Legacy 同名同源（lang 键 itemGroup.sdzjz.main 共用），图标=存储核心。
         net.minecraft.resources.ResourceKey<net.minecraft.world.item.CreativeModeTab> groupKey =
@@ -91,6 +107,7 @@ public final class RetroBlocks {
             e.accept(STORAGE_CORE);
             e.accept(DATA_CABLE);
             e.accept(DATA_PANEL);
+            e.accept(STRUCTURE_CORE); // m454
             for (net.minecraft.world.item.Item machine : RetroMachineItems.items()) e.accept(machine); // m453
         });
     }

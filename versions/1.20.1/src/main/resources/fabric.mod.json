@@ -19,7 +19,8 @@
     "fabric-gametest": [
       "com.sdzjz.retro.RetroStorageTests",
       "com.sdzjz.retro.RetroNetTests",
-      "com.sdzjz.retro.RetroPanelTests"
+      "com.sdzjz.retro.RetroPanelTests",
+      "com.sdzjz.retro.RetroCanvasTests"
     ],
     "client": [
       "com.sdzjz.retro.RetroClientBootstrap"

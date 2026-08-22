@@ -8683,3 +8683,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   悬停见"画布移植中"双语提示；③机器丢进面板 shift 入仓、搜索命中、取回。
 - 零 Legacy/Modern 侧改动；零新配置键。下一刀 m454（C2-③）=画布 BE 骨架（CanvasGraphState120
   对位+节点栈 NBT 键同布局）。
+## m454 C2-③：画布 BE 骨架——结构核心摆得下、图状态存得住、拓扑操作簿记对拍蓝本
+
+- **落地物**：①CanvasGraphState120——蓝本（m430/m431 绞杀产物）字段与 NBT 键**逐字同名同布局**
+  （machineNodes/connections/groups/nodeStat/nodeWhy/storEnds/storEdges/storNodePos/busTop/
+  prodPM，DFU 红利口径同 m443）；1.20.1 差点只有 ItemStack 编解码两处（save(lookup)→save(tag)、
+  parse→of+isEmpty）；mergedIds/onTopoChange 两注入点保形（1.20.1 无史前存档 mergedIds 常态
+  空表，参数留着=世代内将来机器合并的现成接线点）。②StructureCore120 BE：持唯一图实例 g（蓝本
+  同构）+四拓扑操作——摘除簿记（触删连线断/大于下标左移/存储线同剪同移/三平行表同步缩）**逐字
+  对照蓝本 detachNode 剪线移位段**；连线拒自连拒同向重复；断线精确匹配。在途缓存 nodeBufs/
+  生产 tick 五分支/供料分发链需求随 C2-④+ 分片（范围外非漏抄）。③注册：方块/BE id 与 Legacy
+  同名同源+MODEL 壳（无屏属预期 C2-④ 接）+创造页+资产同源拷贝（blockstate/块模型/物品模型/
+  贴图+mcmeta/双语 lang）。
+- **判官两用例（累计二十二）**：摘中间节点=摘回栈 xc 对号/三表同缩/触删两线断仅存重映射 0→1/
+  重复与自连拒绝/断线精确清空；图状态 NBT 往返=节点栈 tag（画布坐标）不漂移/连线分组状态灯
+  原因存储线总线产量逐键对账。
+- **验证**：15 闸全绿（0.1.454 对表）；资产 JSON 全过；冒烟真语法错 0、自家符号 symbol 行定向 0。
+- **实机验证脚本**：重构建——创造页现"结构核心"，摆下退出重进不丢块；右键无反应属预期（画布屏
+  =C2-④）。
+- 零 Legacy/Modern 侧改动；零新配置键。下一段 C2-④=画布屏与节点操作 payload 分片——**动刀前按
+  m450 稿规矩先小普查 StructureCoreScreen 3435 行分片方案**（视口渲染/节点操作/机器库侧栏）。
