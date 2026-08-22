@@ -1968,7 +1968,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (o.isEmpty() || o.getItem() != target.getItem() || com.sdzjz.node.NodeTags.machineTier(o) != mt) continue;
             int take = Math.min(need - target.getCount(), o.getCount());
             if (take >= o.getCount()) { // 将被抽空：先读后抽——升级退还，再摘节点
-                refundUpgrades(player, com.sdzjz.node.NodeTags.nbtOf(o));
+                com.sdzjz.node.NodeUpgrades.refundUpgrades(player, com.sdzjz.node.NodeTags.nbtOf(o));
                 target.grow(take);
                 detachNode(j);
                 if (j < idx) idx--; // 摘除低位节点，目标下标前移
@@ -2346,8 +2346,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
      *  循环结束由调用方 syncNow() 一次。 */
     public boolean addNodeUpgradeRaw(Player player, int index, int type) {
         if (index < 0 || index >= machineNodes.size()) return false;
-        Item item = upgradeItem(type);
-        String key = upgradeKey(type);
+        Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
+        String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null || !consumeFromInv(player, item)) return false;
         ItemStack s = machineNodes.get(index);
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
@@ -2366,8 +2366,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** m128(F3)：无同步内核（同 addNodeUpgradeRaw）。 */
     public boolean removeNodeUpgradeRaw(Player player, int index, int type) {
         if (index < 0 || index >= machineNodes.size()) return false;
-        Item item = upgradeItem(type);
-        String key = upgradeKey(type);
+        Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
+        String key = com.sdzjz.node.NodeUpgrades.upgradeKey(type);
         if (item == null) return false;
         ItemStack s = machineNodes.get(index);
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
@@ -2383,24 +2383,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     public void syncNow() {
         setChanged();
         syncToClient();
-    }
-
-    private static Item upgradeItem(int type) {
-        return switch (type) {
-            case 0 -> ModItems.SPEED_UPGRADE;
-            case 1 -> ModItems.COUNT_UPGRADE;
-            case 2 -> ModItems.PARALLEL_UPGRADE;
-            default -> null;
-        };
-    }
-
-    private static String upgradeKey(int type) {
-        return switch (type) {
-            case 0 -> "spd";
-            case 1 -> "cnt";
-            case 2 -> "par";
-            default -> "";
-        };
     }
 
     private boolean consumeFromInv(Player player, Item item) {
@@ -2498,7 +2480,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private void returnNodeClean(Player player, ItemStack s) {
         CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         int mt = n.getInt("mt"); // m128(F2)：先读后抹——阶位是机器本体属性不是画布数据
-        refundUpgrades(player, n);
+        com.sdzjz.node.NodeUpgrades.refundUpgrades(player, n);
         s.remove(DataComponents.CUSTOM_DATA);
         if (mt > 0) { // m128(F2)：重挂纯 {"mt"}——取出 GM 仍是 GM，再放回经 insertMachine copy 自然携带；
             // 同阶同物品可堆叠、异阶 CUSTOM_DATA 不同天然不混栈（原版机制白拿）。此前一刀抹全=511 台凭空蒸发。
@@ -2507,18 +2489,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             s.set(DataComponents.CUSTOM_DATA, CustomData.of(keep));
         }
         if (!player.getInventory().add(s)) player.drop(s, false);
-    }
-
-    /** m128：把节点 NBT 里的内嵌升级折成物品退还玩家（returnNodeClean 与融合聚敛共用，双写归一）。 */
-    private void refundUpgrades(Player player, CompoundTag n) {
-        for (int type = 0; type < 3; type++) {
-            int lv = n.getInt(upgradeKey(type));
-            Item item = upgradeItem(type);
-            while (lv-- > 0 && item != null) {
-                ItemStack up = new ItemStack(item);
-                if (!player.getInventory().add(up)) player.drop(up, false);
-            }
-        }
     }
 
     /** 潜行空手右键：先弹出最后一个机器节点，其次弹升级。 */
@@ -3407,8 +3377,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         for (ItemStack s : machineNodes) {
             CompoundTag n = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
             for (int type = 0; type < 3; type++) {
-                int lv = n.getInt(upgradeKey(type));
-                Item item = upgradeItem(type);
+                int lv = n.getInt(com.sdzjz.node.NodeUpgrades.upgradeKey(type));
+                Item item = com.sdzjz.node.NodeUpgrades.upgradeItem(type);
                 if (item != null && lv > 0)
                     Containers.dropItemStack(world, pos.getX(), pos.getY(), pos.getZ(), new ItemStack(item, lv));
             }
