@@ -33,6 +33,10 @@ public final class RetroBootstrap implements ModInitializer {
         Net120.onServer(PanelPayloads120.Query.TYPE, DataPanel120::handleQuery);
         Net120.onServer(PanelPayloads120.Take.TYPE, DataPanel120::handleTake);
         Net120.onServer(CanvasPayloads120.CanvasQuery.TYPE, StructureCoreMenu120::handleQuery); // m456
+        Net120.onServer(NodePayloads120.NodeAdd.TYPE, StructureCoreMenu120::handleAdd);       // m457
+        Net120.onServer(NodePayloads120.NodeMove.TYPE, StructureCoreMenu120::handleMove);     // m457
+        Net120.onServer(NodePayloads120.NodeRemove.TYPE, StructureCoreMenu120::handleRemove); // m457
+        Net120.onServer(NodePayloads120.NodeLink.TYPE, StructureCoreMenu120::handleLink);     // m457
 
         LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；存储网络+数据面板服务端半已上线（m443/m444/m447），面板客户端屏随 m448",
                 com.sdzjz.machine.CraftPlanner.class.getSimpleName(),

@@ -123,5 +123,6 @@
   "sdzjz.machine.wip": "画布机器——画布系统移植中（P-C2），当前为收藏品",
   "block.sdzjz.structure_core": "结构核心",
   "sdzjz.canvas.nodes": "节点 %s",
-  "sdzjz.canvas.readonly": "只读视口——节点操作随下一版"
+  "sdzjz.canvas.link": "连线",
+  "sdzjz.canvas.hint": "拖=移动 · 右键=摘回 · 连线钮=接线"
 }

@@ -105,4 +105,44 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(gg.machineNodes.size() <= CanvasPayloads120.MAX_NODES, "应用层硬顶常量在位");
         ctx.succeed();
     }
+
+    /** m457：放置操作核——槽内非机器拒/生存扣 1 创造不扣/坐标钳位/节点带 xc yc 挂上。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_add_from_slot_consumes_and_validates(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        var p = ctx.makeMockPlayer();
+        ItemStack machine = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("sdzjz", "wither_farm")), 2);
+        p.getInventory().setItem(0, machine);
+        p.getInventory().setItem(1, new ItemStack(net.minecraft.world.item.Items.STONE, 5));
+        ctx.assertTrue(!StructureCoreMenu120.addFromSlot(c, p.getInventory(), false, 1, 0, 0), "非机器物品应拒");
+        ctx.assertTrue(!StructureCoreMenu120.addFromSlot(c, p.getInventory(), false, 99, 0, 0), "越界槽应拒");
+        ctx.assertTrue(StructureCoreMenu120.addFromSlot(c, p.getInventory(), false, 0, 33, 44), "生存放置应成立");
+        ctx.assertTrue(p.getInventory().getItem(0).getCount() == 1, "生存应扣 1，余 " + p.getInventory().getItem(0).getCount());
+        ctx.assertTrue(StructureCoreMenu120.addFromSlot(c, p.getInventory(), true, 0, 500_000, -500_000), "创造放置应成立");
+        ctx.assertTrue(p.getInventory().getItem(0).getCount() == 1, "创造不扣");
+        ctx.assertTrue(c.g.machineNodes.size() == 2, "画布应挂 2 节点");
+        ctx.assertTrue(c.g.machineNodes.get(0).getTag().getInt("xc") == 33
+                && c.g.machineNodes.get(0).getTag().getInt("yc") == 44, "首节点坐标应=33,44");
+        ctx.assertTrue(c.g.machineNodes.get(1).getTag().getInt("xc") == 100_000
+                && c.g.machineNodes.get(1).getTag().getInt("yc") == -100_000, "天量坐标应被钳位到 ±100000");
+        ctx.succeed();
+    }
+
+    /** m457：摘回操作核——洗净变裸（剥 xc/yc/gp 空 tag 置 null，与新件混堆）+回背包+画布同缩。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_remove_returns_clean_bare_item(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        ItemStack node = node("brewing_tower", 66, 77);
+        node.getTag().putInt("gp", 3); // 分组归属也须剥
+        c.addNode(node);
+        var p = ctx.makeMockPlayer();
+        ctx.assertTrue(StructureCoreMenu120.removeToInventory(c, p.getInventory(), 0), "摘回应成立");
+        ctx.assertTrue(c.g.machineNodes.isEmpty(), "画布应清空");
+        ItemStack got = ItemStack.EMPTY;
+        for (int i = 0; i < 36; i++) if (!p.getInventory().getItem(i).isEmpty()) { got = p.getInventory().getItem(i); break; }
+        ctx.assertTrue(!got.isEmpty() && !got.hasTag(), "回手的应为裸件（洗净变裸，与新件混堆）");
+        ctx.assertTrue(ItemStack.isSameItemSameTags(got, new ItemStack(got.getItem())), "裸件身份应与新件一致");
+        ctx.succeed();
+    }
 }

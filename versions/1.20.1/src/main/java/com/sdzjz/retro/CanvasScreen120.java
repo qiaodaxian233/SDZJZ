@@ -23,11 +23,20 @@ import java.util.Optional;
 public final class CanvasScreen120 extends AbstractContainerScreen<StructureCoreMenu120> {
 
     private static final int GRID_STEP = 24; // 画布世界格距（缩放前）
+    private static final int SIDEBAR_W = 30; // m457 机器库侧栏宽
     private CanvasGraphState120 g = new CanvasGraphState120(); // 最近快照的本地像（只读）
     private double viewX = 0, viewY = 0; // 视口左上对应的画布坐标
     private float zoom = 1.0f;
     private int refreshTicker = 0;
     private boolean panning = false;
+    // ===== m457 交互态 =====
+    private int placingSlot = -1;      // 侧栏点选的背包槽（≥0=放置模式，跟指针画幽灵图标）
+    private ItemStack placingIcon = ItemStack.EMPTY;
+    private int dragIndex = -1;        // 左键按住的节点（本地幽灵位，松手才发 NodeMove）
+    private double dragCx, dragCy;
+    private boolean dragMoved = false;
+    private boolean linkMode = false;  // 顶栏按钮切换
+    private int linkFrom = -1;         // 连线模式第一端
 
     public CanvasScreen120(StructureCoreMenu120 menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -80,24 +89,106 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) { panning = true; return true; } // ④a 只读：左键即平移；④b 起命中节点转拖动
+        if (button == 0 && mouseY < 16 && mouseX >= width - SIDEBAR_W - 64 && mouseX < width - SIDEBAR_W - 8) {
+            linkMode = !linkMode; // 顶栏连线按钮（区域化，m103 口径）
+            linkFrom = -1;
+            return true;
+        }
+        if (mouseX >= width - SIDEBAR_W) { // m457 机器库侧栏：点选进放置模式
+            if (button == 0) {
+                int entry = (int) ((mouseY - 20) / 26);
+                var lib = library();
+                if (entry >= 0 && entry < lib.size()) {
+                    placingSlot = lib.get(entry)[0];
+                    placingIcon = minecraft.player.getInventory().getItem(placingSlot).copyWithCount(1);
+                }
+            }
+            return true;
+        }
+        if (placingSlot >= 0) { // 放置模式：左键落位/右键取消
+            if (button == 0) {
+                int cx = (int) Math.round(viewX + mouseX / zoom) - 12;
+                int cy = (int) Math.round(viewY + mouseY / zoom) - 12;
+                ClientNet120.toServer(new NodePayloads120.NodeAdd(menu.corePos, placingSlot, cx, cy));
+                sendQuery();
+            }
+            placingSlot = -1;
+            placingIcon = ItemStack.EMPTY;
+            return true;
+        }
+        Integer hit = nodeAt(mouseX, mouseY);
+        if (hit != null) {
+            if (button == 1) { // 右键摘回
+                ClientNet120.toServer(new NodePayloads120.NodeRemove(menu.corePos, hit));
+                sendQuery();
+                if (linkFrom == hit) linkFrom = -1;
+                return true;
+            }
+            if (linkMode) { // 连线模式：A→B（已有同向对=断，toggle 语义）
+                if (linkFrom < 0) { linkFrom = hit; return true; }
+                if (linkFrom != hit) {
+                    boolean cut = false;
+                    for (int[] c : g.connections) if (c[0] == linkFrom && c[1] == hit) { cut = true; break; }
+                    ClientNet120.toServer(new NodePayloads120.NodeLink(menu.corePos, linkFrom, hit, cut));
+                    sendQuery();
+                }
+                linkFrom = -1;
+                return true;
+            }
+            dragIndex = hit; // 普通模式：按住拖动（本地幽灵，松手结算）
+            dragCx = nodeCx(hit);
+            dragCy = nodeCy(hit);
+            dragMoved = false;
+            return true;
+        }
+        if (button == 0) { panning = true; if (linkMode) linkFrom = -1; return true; }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) panning = false;
+        if (button == 0) {
+            panning = false;
+            if (dragIndex >= 0) {
+                if (dragMoved) {
+                    ClientNet120.toServer(new NodePayloads120.NodeMove(menu.corePos, dragIndex,
+                            (int) Math.round(dragCx), (int) Math.round(dragCy)));
+                    sendQuery();
+                }
+                dragIndex = -1;
+            }
+        }
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (dragIndex >= 0 && button == 0) {
+            dragCx += dragX / zoom;
+            dragCy += dragY / zoom;
+            dragMoved = true;
+            return true;
+        }
         if (panning && button == 0) {
             viewX -= dragX / zoom;
             viewY -= dragY / zoom;
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    /** 背包机器库：{槽位, 无重复}——同物品只列首个槽（占位收藏品同类无差别）。 */
+    private java.util.List<int[]> library() {
+        java.util.List<int[]> out = new java.util.ArrayList<>();
+        java.util.Set<net.minecraft.world.item.Item> seen = new java.util.HashSet<>();
+        var inv = minecraft.player.getInventory();
+        for (int i = 0; i < 36; i++) {
+            ItemStack st = inv.getItem(i);
+            if (!st.isEmpty() && st.getItem() instanceof RetroMachineItems.RetroMachineItem && seen.add(st.getItem()))
+                out.add(new int[]{i});
+        }
+        int cap = Math.max(1, (height - 24) / 26);
+        return out.size() > cap ? out.subList(0, cap) : out;
     }
 
     @Override
@@ -108,7 +199,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         if (hover != null) {
             ItemStack st = g.machineNodes.get(hover);
             String why = hover < g.nodeReason.size() ? g.nodeReason.get(hover) : "";
-            Component line2 = why.isEmpty() ? Component.translatable("sdzjz.canvas.readonly")
+            Component line2 = why.isEmpty() ? Component.translatable("sdzjz.canvas.hint")
                     : Component.literal(why);
             ctx.renderTooltip(font, List.of(st.getHoverName(), line2), Optional.empty(), mouseX, mouseY);
         }
@@ -129,7 +220,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             line(ctx, x1, y1, x2, y2, SciSkinPalette.ACCENT);
         }
         for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡：24×24 框+图标+状态灯环
-            int x = (int) sx(nodeCx(i)), y = (int) sy(nodeCy(i));
+            int x = (int) sx(i == dragIndex ? dragCx : nodeCx(i)), y = (int) sy(i == dragIndex ? dragCy : nodeCy(i)); // 拖动幽灵位
             if (x < -32 || y < -32 || x > width + 8 || y > height + 8) continue; // 视口裁剪
             int status = i < g.nodeStatus.size() ? g.nodeStatus.get(i) : 0;
             int ring = switch (status) { // 灯环取色（口径同蓝本状态灯：0待机 1绿 2黄 3红）
@@ -138,15 +229,31 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 case 3 -> SciSkinPalette.RED;
                 default -> SciSkinPalette.OFF_GRAY;
             };
-            ctx.fill(x - 1, y - 1, x + 25, y + 25, ring);
+            ctx.fill(x - 1, y - 1, x + 25, y + 25, (linkMode && i == linkFrom) ? SciSkinPalette.ACCENT : ring); // 连线首端高亮
             ctx.fill(x, y, x + 24, y + 24, SciSkinPalette.BTN_FACE);
             ctx.renderItem(g.machineNodes.get(i), x + 4, y + 4);
         }
-        ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+节点计数
+        int sbX = width - SIDEBAR_W; // m457 机器库侧栏
+        ctx.fill(sbX, 16, width, height, SciSkinPalette.BTN_FACE);
+        ctx.fill(sbX, 16, sbX + 1, height, SciSkinPalette.FRAME);
+        var lib = library();
+        for (int e = 0; e < lib.size(); e++) {
+            int y = 20 + e * 26;
+            boolean hov = mouseX >= sbX && mouseY >= y && mouseY < y + 24;
+            ctx.fill(sbX + 3, y, sbX + 27, y + 24, hov ? SciSkinPalette.HOVER : SciSkinPalette.CELL);
+            ctx.renderItem(minecraft.player.getInventory().getItem(lib.get(e)[0]), sbX + 7, y + 4);
+        }
+        ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+连线按钮+节点计数
         ctx.fill(0, 15, width, 16, SciSkinPalette.FRAME);
         ctx.drawString(font, title, 6, 4, SciSkinPalette.TXT_HI, false);
+        int btnX = width - SIDEBAR_W - 64;
+        ctx.fill(btnX, 2, btnX + 56, 13, linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.BTN_FRM);
+        ctx.fill(btnX + 1, 3, btnX + 55, 12, SciSkinPalette.BTN_FACE);
+        ctx.drawString(font, Component.translatable("sdzjz.canvas.link"), btnX + 5, 3,
+                linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.TXT, false);
         ctx.drawString(font, Component.translatable("sdzjz.canvas.nodes", g.machineNodes.size()),
-                width - 90, 4, SciSkinPalette.SUB, false);
+                width - SIDEBAR_W - 160, 4, SciSkinPalette.SUB, false);
+        if (placingSlot >= 0 && !placingIcon.isEmpty()) ctx.renderItem(placingIcon, mouseX - 8, mouseY - 8); // 放置幽灵
     }
 
     @Override
