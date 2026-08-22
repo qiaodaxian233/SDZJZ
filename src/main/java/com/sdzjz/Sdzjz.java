@@ -186,8 +186,7 @@ public class Sdzjz implements ModInitializer {
                 int m2 = Math.max(0, Math.min(2, payload.mode())); // m397 三挡
                 if (m2 == 2 && !SdzjzConfig.get().chunkRemoverVoidMode) m2 = 1; // 服主关了空置域=按无掉落收，节点侧不留假挡
                 int w2 = payload.seal() == 1 ? 1 : 0; // m388 封边挡水
-                var n2 = s2.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                        net.minecraft.world.item.component.CustomData.EMPTY).copyTag();
+                var n2 = com.sdzjz.item.ItemData.copyOf(s2);
                 boolean rCh = n2.getInt("zr") != r2;
                 boolean wOn = w2 == 1 && n2.getInt("zw") == 2; // m388 开堵水=重扫补封（已挖开的边界回补石墙、灌进来的水按普通块清掉；关堵水不动游标）。m394 三态：只有"原为显式关"才算开沿
                 n2.putInt("zr", r2);
@@ -200,8 +199,7 @@ public class Sdzjz implements ModInitializer {
                     n2.remove("zf");
                     n2.remove("zq"); // m390 湿账随新工程归零
                 }
-                s2.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                        net.minecraft.world.item.component.CustomData.of(n2));
+                com.sdzjz.item.ItemData.write(s2, n2);
             });
         });
         com.sdzjz.net.Net.onServer(com.sdzjz.net.NodeSensorPayload.ID, (payload, p) -> {

@@ -85,8 +85,7 @@ public class LinkerItem extends Item {
                 msg(player, "核心已解绑");
                 return InteractionResult.SUCCESS;
             }
-            CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-            if (c == null || !c.copyTag().contains(K_POS)) {
+            if (!com.sdzjz.item.ItemData.view(stack).contains(K_POS)) {
                 msg(player, "先右键一个数据面板记录目标");
                 return InteractionResult.FAIL;
             }

@@ -39,8 +39,7 @@ public class TerminalItem extends Item {
         if (world.isClientSide) return InteractionResult.SUCCESS;
         BlockPos pos = ctx.getClickedPos();
         if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity) {
-            CustomData oc = ctx.getItemInHand().get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留补货阈值等既有设置
+            CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(ctx.getItemInHand()); // 保留补货阈值等既有设置
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.dimension().location().toString());
             com.sdzjz.item.ItemData.write(ctx.getItemInHand(), nbt);
@@ -57,8 +56,7 @@ public class TerminalItem extends Item {
         if (world.isClientSide) return InteractionResultHolder.success(stack);
 
         if (player.isShiftKeyDown()) { // m80d：潜行右键循环自动补货阈值 关→16→32→64→关
-            CustomData oc = stack.get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag();
+            CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(stack);
             int th = nbt.getInt(K_RESTOCK);
             th = th == 0 ? 16 : th == 16 ? 32 : th == 32 ? 64 : 0;
             nbt.putInt(K_RESTOCK, th);
@@ -68,8 +66,7 @@ public class TerminalItem extends Item {
             return InteractionResultHolder.success(stack);
         }
 
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null || !c.copyTag().contains(K_POS)) {
+        if (!com.sdzjz.item.ItemData.view(stack).contains(K_POS)) {
             msg(player, "先右键一个数据面板绑定终端");
             return InteractionResultHolder.fail(stack);
         }
@@ -102,9 +99,8 @@ public class TerminalItem extends Item {
     public void inventoryTick(ItemStack stack, Level world, net.minecraft.world.entity.Entity entity, int slot, boolean selected) {
         if (world.isClientSide) return;
         if (!(entity instanceof net.minecraft.server.level.ServerPlayer player)) return;
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null) return;
-        CompoundTag nbt = c.copyTag();
+        if (!com.sdzjz.item.ItemData.has(stack)) return;
+        CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(stack);
         long t = world.getGameTime();
         if (t % 20 == 0) restockTick(stack, world, player, nbt);
         if (t % 40 == 0 && nbt.getBoolean(K_FEED))
@@ -144,12 +140,10 @@ public class TerminalItem extends Item {
                              net.minecraft.world.inventory.ClickAction clickType, Player player,
                              net.minecraft.world.entity.SlotAccess cursorStackReference) {
         if (clickType != net.minecraft.world.inventory.ClickAction.SECONDARY) return false;
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        CompoundTag nbt = c != null ? c.copyTag() : new CompoundTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(stack);
         if (otherStack.getItem() instanceof AutoFeederItem && !nbt.getBoolean(K_FEED)) { // 安装
-            CustomData fc = otherStack.get(DataComponents.CUSTOM_DATA);
             nbt.putBoolean(K_FEED, true);
-            nbt.putString(K_FFOOD, fc != null ? fc.copyTag().getString(AutoFeederItem.K_FOOD) : "");
+            nbt.putString(K_FFOOD, com.sdzjz.item.ItemData.view(otherStack).getString(AutoFeederItem.K_FOOD));
             com.sdzjz.item.ItemData.write(stack, nbt);
             otherStack.shrink(1);
             return true;
@@ -175,9 +169,7 @@ public class TerminalItem extends Item {
      *  K_POS/K_DIM 键保持私有，本方法是外部判定的唯一出口）。 */
     public static boolean isBoundTo(ItemStack stack, BlockPos pos, Level world) {
         if (world == null || pos == null || !(stack.getItem() instanceof TerminalItem)) return false;
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null) return false;
-        CompoundTag nbt = c.copyTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.view(stack); // 只读比对，缺数据=空表走 false 路
         return nbt.contains(K_POS)
                 && BlockPos.of(nbt.getLong(K_POS)).equals(pos)
                 && world.dimension().location().toString().equals(nbt.getString(K_DIM));
@@ -199,11 +191,10 @@ public class TerminalItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        int th = c != null ? c.copyTag().getInt(K_RESTOCK) : 0;
+        CompoundTag tn = com.sdzjz.item.ItemData.view(stack); // 悬浮文本只读
+        int th = tn.getInt(K_RESTOCK);
         tooltip.add(Component.literal(th > 0 ? "自动补货: 手持 < " + th + " 补齐，打空补一组（潜行右键调整）"
                 : "自动补货: 关（潜行右键开启）").withStyle(net.minecraft.ChatFormatting.AQUA));
-        CompoundTag tn = c != null ? c.copyTag() : new CompoundTag();
         if (tn.getBoolean(K_FEED)) {
             String fo = tn.getString(K_FFOOD);
             String fn2 = fo.isEmpty() ? "未选食物" : net.minecraft.core.registries.BuiltInRegistries.ITEM

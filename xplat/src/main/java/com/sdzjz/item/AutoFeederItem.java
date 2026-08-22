@@ -40,8 +40,7 @@ public class AutoFeederItem extends Item {
         if (world.isClientSide) return InteractionResult.SUCCESS;
         BlockPos pos = ctx.getClickedPos();
         if (world.getBlockEntity(pos) instanceof DataPanelBlockEntity) {
-            CustomData oc = ctx.getItemInHand().get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag(); // 保留已选食物
+            CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(ctx.getItemInHand()); // 保留已选食物
             nbt.putLong(K_POS, pos.asLong());
             nbt.putString(K_DIM, world.dimension().location().toString());
             com.sdzjz.item.ItemData.write(ctx.getItemInHand(), nbt);
@@ -55,8 +54,7 @@ public class AutoFeederItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (world.isClientSide) return InteractionResultHolder.success(stack);
-        CustomData oc = stack.get(DataComponents.CUSTOM_DATA);
-        CompoundTag nbt = oc != null ? oc.copyTag() : new CompoundTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(stack);
         if (player.isShiftKeyDown()) {
             nbt.remove(K_FOOD);
             com.sdzjz.item.ItemData.write(stack, nbt);
@@ -80,9 +78,8 @@ public class AutoFeederItem extends Item {
     public void inventoryTick(ItemStack stack, Level world, net.minecraft.world.entity.Entity entity, int slot, boolean selected) {
         if (world.isClientSide || world.getGameTime() % 40 != 0) return;
         if (!(entity instanceof net.minecraft.server.level.ServerPlayer player)) return;
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null) return;
-        CompoundTag nbt = c.copyTag();
+        if (!com.sdzjz.item.ItemData.has(stack)) return;
+        CompoundTag nbt = com.sdzjz.item.ItemData.copyOf(stack);
         feedTick(world, player, nbt.getString(K_FOOD), nbt);
     }
 
@@ -114,8 +111,7 @@ public class AutoFeederItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
                               net.minecraft.world.item.TooltipFlag type) {
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        String cur = c != null ? c.copyTag().getString(K_FOOD) : "";
+        String cur = com.sdzjz.item.ItemData.view(stack).getString(K_FOOD);
         if (cur.isEmpty()) {
             tooltip.add(Component.literal("副手拿食物+右键=选定要吃的").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {

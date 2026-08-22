@@ -44,8 +44,7 @@ public class PortableVaultItem extends Item {
     // ===== 账本纯函数（gametest 直测这四个口）=====
 
     static CompoundTag rootOf(ItemStack s) {
-        CustomData c = s.get(DataComponents.CUSTOM_DATA);
-        return c != null ? c.copyTag() : new CompoundTag();
+        return com.sdzjz.item.ItemData.copyOf(s); // 调用方要可改副本
     }
 
     static void writeRoot(ItemStack s, CompoundTag root) {

@@ -125,7 +125,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                         ItemStack s = input.getItem(i);
                         if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
                                 && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
-                            s.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+                            com.sdzjz.item.ItemData.clear(s);
                             s.remove(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
                             break;
                         }

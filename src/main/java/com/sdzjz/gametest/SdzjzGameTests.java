@@ -559,6 +559,7 @@ public class SdzjzGameTests implements FabricGameTest {
         // 旧合同：有职业没有 lv 键 → 按大师接管（m333 前它本就全表解锁，不没收），且不再记账
         var n = new net.minecraft.nbt.CompoundTag();
         n.putString("prof", "librarian");
+        // m438：故意原生 poke 组件层（测的是组件身份/混堆本体，不走 ItemData 门面；m404 同理归加载器侧）
         c.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
                 net.minecraft.world.item.component.CustomData.of(n));
         ctx.assertTrue(com.sdzjz.block.TradeCenterBlockEntity.contractLevel(c) == 5, "旧合同（无lv键）应按大师接管");

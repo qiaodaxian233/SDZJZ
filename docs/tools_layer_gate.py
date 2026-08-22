@@ -62,8 +62,8 @@ def main():
     left = []
     for r in ['src/main/java', 'xplat/src/main/java']:
         for p in glob.glob(os.path.join(root, r, '**', '*.java'), recursive=True):
-            if p.endswith('ComponentItemData.java'):
-                continue
+            if p.endswith('ComponentItemData.java') or '/gametest/' in p.replace('\\', '/'):
+                continue  # m438：gametest 原生 poke 测组件身份本体，归加载器侧（m404 同理），不计残余
             n = len(re.findall(r'DataComponents\.CUSTOM_DATA', strip_comments(open(p, encoding='utf-8').read())))
             if n:
                 left.append((os.path.basename(p), n))

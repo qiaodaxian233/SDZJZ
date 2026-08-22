@@ -465,13 +465,11 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
     /** m130：从展示栈剥掉数量标签 "amt"——展示栈=真身+amt 注入，剥后即还原真身：
      *  普通物品剥后归零组件可正常堆叠（与旧行为一致）；精确件保留自身其余组件（附魔/损耗/阶位不丢）。 */
     private static void stripAmt(ItemStack stack) {
-        var nc = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (nc == null) return;
-        net.minecraft.nbt.CompoundTag n = nc.copyTag();
+        if (!com.sdzjz.item.ItemData.has(stack)) return;
+        net.minecraft.nbt.CompoundTag n = com.sdzjz.item.ItemData.copyOf(stack);
         n.remove("amt");
-        if (n.isEmpty()) stack.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        else stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                net.minecraft.world.item.component.CustomData.of(n));
+        if (n.isEmpty()) com.sdzjz.item.ItemData.clear(stack);
+        else com.sdzjz.item.ItemData.write(stack, n);
     }
 
     /** 玩家当前总经验点（原版等级公式）。 */
@@ -706,11 +704,9 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
                 st = d.tpl.copyWithCount(Math.max(1, (int) Math.min(d.n, (long) d.tpl.getMaxStackSize())));
             }
             // m130：展示栈=真身+amt 数量标签；取出方剥 amt 还原真身（stripAmt）
-            var tag = st.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                    net.minecraft.world.item.component.CustomData.EMPTY).copyTag();
+            var tag = com.sdzjz.item.ItemData.copyOf(st);
             tag.putLong("amt", d.n);
-            st.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                    net.minecraft.world.item.component.CustomData.of(tag));
+            com.sdzjz.item.ItemData.write(st, tag);
             display.setItem(i, st);
         }
         for (; i < DataPanelBlockEntity.PAGE; i++) display.setItem(i, ItemStack.EMPTY);

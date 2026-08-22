@@ -99,15 +99,12 @@ public class CaptureCageItem extends Item {
     }
 
     public static boolean isCaged(ItemStack stack) {
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        return c != null && c.copyTag().contains(KEY);
+        return com.sdzjz.item.ItemData.view(stack).contains(KEY);
     }
 
     /** 取笼子里装的生物类型 id（空笼子返回 null）。 */
     public static String cagedType(ItemStack stack) {
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null) return null;
-        CompoundTag nbt = c.copyTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.view(stack); // 只读，缺数据=空表走 null 路
         return nbt.contains(KEY) ? nbt.getString(KEY) : null;
     }
 }

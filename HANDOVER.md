@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m437：P-A 收口刀第一段——ItemData 五口门面+ComponentItemData（1.21 世代实现，版本差=世代差住 xplat）落地，81 触点/16 文件机械切换（copy26/view1/write52/clear2 逐点对表），残余 28 触点/11 文件=可空 get 判空形态在分层闸第三记分牌上改一销一（TerminalItem 8 居首）；write 判空归一推迟另立项（零行为优先）；作者拍板 m436 三问全按推荐+供上游地址簿入档；当日两把坏尺子记档（head 截断基线/写盘置尾违例）。15 闸全绿，版本 0.1.437，零行为改动。下一段=残余 28 触点逐文件语义改写，随后 P-B 1.20.1 bootstrap+存储网络+Create 对接）
+## 当前状态（m438：P-A 收口刀全段收官——残余 26 触点逐点语义改写（只读走 view/外逸走 copyOf/判空走 has 三原则），ItemData 记分牌 0 触点/0 文件，gametest 原生 poke 加注保留（测组件身份本体，m404 同理）；物品数据版本差钉死 ComponentItemData 一文件，1.20.1 届时 TagItemData 对位即可。m436 路线：P-A ✅，**下一件=P-B：versions/1.20.1 bootstrap+存储网络移植+Create 传送带互通（作者承诺首兑点）**。15 闸全绿，版本 0.1.438，零行为改动。实机单 m437/m438 并跑。上笔 m437：ItemData 门面+81 触点机械切）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -162,7 +162,7 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
      审计标 P1 兼容风险，涉及三方模组 int 假设——机制改动需作者拍板）；⑦portableVaultSlot 双端
      一致改握手或恒留槽（m332 立档项，审计再点名）；⑧生产预算默认值出 safe/normal/high 预设
      （现四键天文数字=零变化哲学，审计建议预设化——产品口径待作者拍板）；⑨Machines.java 数据
-     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；ItemDataAccess 拍板全按推荐、P-A 第一段 m437 落地（残余 28 触点记分牌改一销一），随后 P-B=1.20.1 bootstrap+存储网络+Create 对接，长期工程项继续）；
+     驱动化 json（长期）；⑩SCBE 拆 Runtime 家族（绞杀者 m180 开线、m426 第二刀拆净 26 垫片、m427 第三刀升级折算族迁 NodeUpgrades、m428 第四刀掉落结算迁 DropRolls，GraphNbt 线收官 m430/m431，mA3 缓做，SCBE 3965 行；六漏斗接口化收口 m433~m435；ItemDataAccess P-A 全段收官（m437+m438 记分牌清零），下一件 P-B=1.20.1 bootstrap+存储网络+Create 对接（承诺首兑点），长期工程项继续）；
      ⑪Canvas 增量快照/复用集合 GC 优化（P3）。
    - **已有等效实现/部分失效**：审计⑬ Mixin method="*" 建议加 codec smoke——GameTest 九号用例
      m310 已是该判官；⑰⑱ GameTest/CI 已覆盖其点名的多数（withdraw 竞争/事务/精确件），其补测

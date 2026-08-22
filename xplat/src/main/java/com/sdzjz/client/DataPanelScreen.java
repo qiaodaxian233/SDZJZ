@@ -621,11 +621,8 @@ public class DataPanelScreen extends AbstractContainerScreen<DataPanelScreenHand
     }
 
     private static long amtOf(net.minecraft.world.item.ItemStack st) {
-        var c = st.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (c != null) {
-            var t = c.copyTag();
-            if (t.contains("amt")) return t.getLong("amt");
-        }
+        var t = com.sdzjz.item.ItemData.view(st); // 只读，缺数据=空表
+        if (t.contains("amt")) return t.getLong("amt");
         return st.getCount();
     }
 

@@ -45,9 +45,7 @@ public class CompressedPackItem extends Item {
     /** 取包的内容物物品 id（没装东西的裸包返回 null——裸包不参与任何核算）。 */
     public static String innerId(ItemStack stack) {
         if (!(stack.getItem() instanceof CompressedPackItem)) return null;
-        CustomData c = stack.get(DataComponents.CUSTOM_DATA);
-        if (c == null) return null;
-        CompoundTag nbt = c.copyTag();
+        CompoundTag nbt = com.sdzjz.item.ItemData.view(stack); // 只读，缺数据=空表走 null 路
         return nbt.contains(KEY) ? nbt.getString(KEY) : null;
     }
 
