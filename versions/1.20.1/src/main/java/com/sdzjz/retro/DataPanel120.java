@@ -133,21 +133,28 @@ final class DataPanel120 extends BlockEntity implements ExtendedScreenHandlerFac
     /** 取物进背包：amount 服务端钳位（1..maxStack×9=至多九栈一请求，防天量申报）；withdraw 后
      *  Inventory.add 塞不下的余量回账本绝不落地。返回实进背包件数（判官断言用）。 */
     static int serverTake(Player player, List<StorageCore120> cores, boolean exact, String id, ItemStack template, int amount) {
-        ItemStack shape = exact ? template : null;
-        if (exact && (shape == null || shape.isEmpty())) return 0;
-        int cap = (exact ? shape.getMaxStackSize() : new ItemStack(BuiltInRegistries.ITEM.get(
-                ResourceLocation.tryParse(id) == null ? new ResourceLocation("minecraft", "air") : ResourceLocation.tryParse(id))).getMaxStackSize()) * 9;
-        int want = Math.max(1, Math.min(amount, Math.max(1, cap)));
+        ItemStack shape; // m459 修②：两路统一成 shape（exact 保 tag/plain 裸件），早验早退——原普通路
+        if (exact) {     // 深处藏 BuiltInRegistries.ITEM.get(tryParse(id)) 无空守（今日不可达因 take>0 先要账本命中，潜伏雷拆除）
+            shape = template;
+            if (shape == null || shape.isEmpty()) return 0;
+        } else {
+            ResourceLocation rl = ResourceLocation.tryParse(id);
+            if (rl == null) return 0;
+            shape = new ItemStack(BuiltInRegistries.ITEM.get(rl));
+            if (shape.isEmpty()) return 0; // 未注册 id 落 air 即空
+        }
+        int cap = Math.max(1, shape.getMaxStackSize() * 9); // 一请求至多九栈（防天量申报）
+        int want = Math.max(1, Math.min(amount, cap));
         int moved = 0;
         for (StorageCore120 core : cores) {
             while (moved < want) {
                 int take = exact ? core.withdrawExact(shape, want - moved) : core.withdraw(id, want - moved);
                 if (take <= 0) break;
-                ItemStack out = exact ? shape.copyWithCount(take) : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.tryParse(id)), take);
+                ItemStack out = shape.copyWithCount(take);
                 player.getInventory().add(out);
                 int leftover = out.getCount(); // add 后余量留在 out 里（原版 Inventory.add 语义）
                 if (leftover > 0) { // 背包满：余量回账本绝不落地，本次请求收工
-                    ItemStack back = exact ? shape.copyWithCount(leftover) : new ItemStack(out.getItem(), leftover);
+                    ItemStack back = shape.copyWithCount(leftover);
                     if (exact) core.depositExact(back); else core.deposit(back);
                     return moved + (take - leftover);
                 }

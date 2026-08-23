@@ -39,6 +39,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private int linkFrom = -1;         // 连线模式第一端（机器下标）
     private long dragStorage = Long.MIN_VALUE; // m458 拖动中的存储节点（posLong）
     private double dragStX, dragStY;
+    private int sidebarScroll = 0; // m459 修③：侧栏首可见行（滚轮区域化 m103）
 
     public CanvasScreen120(StructureCoreMenu120 menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -97,10 +98,11 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             return true;
         }
         if (mouseX >= width - SIDEBAR_W) { // m457 机器库侧栏：点选进放置模式
-            if (button == 0) {
-                int entry = (int) ((mouseY - 20) / 26);
+            if (button == 0 && mouseY >= 20) {
+                int row = (int) ((mouseY - 20) / 26);
                 var lib = library();
-                if (entry >= 0 && entry < lib.size()) {
+                int entry = sidebarScroll + row; // m459 修③：命中按窗内行+滚动偏移
+                if (row >= 0 && row < visCap() && entry < lib.size()) {
                     placingSlot = lib.get(entry)[0];
                     placingIcon = minecraft.player.getInventory().getItem(placingSlot).copyWithCount(1);
                 }
@@ -221,9 +223,11 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             if (!st.isEmpty() && st.getItem() instanceof RetroMachineItems.RetroMachineItem && seen.add(st.getItem()))
                 out.add(new int[]{i});
         }
-        int cap = Math.max(1, (height - 24) / 26);
-        return out.size() > cap ? out.subList(0, cap) : out;
+        return out; // m459 修③：返回全表，开窗归绘制侧（原截断=超一屏机器永远够不着）
     }
+
+    /** 侧栏可见行数。 */
+    private int visCap() { return Math.max(1, (height - 24) / 26); }
 
     @Override
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
@@ -296,11 +300,17 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         ctx.fill(sbX, 16, width, height, SciSkinPalette.BTN_FACE);
         ctx.fill(sbX, 16, sbX + 1, height, SciSkinPalette.FRAME);
         var lib = library();
-        for (int e = 0; e < lib.size(); e++) {
-            int y = 20 + e * 26;
+        sidebarScroll = Math.max(0, Math.min(sidebarScroll, Math.max(0, lib.size() - visCap()))); // 背包变动后钳回
+        for (int r = 0; r < visCap() && sidebarScroll + r < lib.size(); r++) { // m459 修③：开窗绘制
+            int y = 20 + r * 26;
             boolean hov = mouseX >= sbX && mouseY >= y && mouseY < y + 24;
             ctx.fill(sbX + 3, y, sbX + 27, y + 24, hov ? SciSkinPalette.HOVER : SciSkinPalette.CELL);
-            ctx.renderItem(minecraft.player.getInventory().getItem(lib.get(e)[0]), sbX + 7, y + 4);
+            ctx.renderItem(minecraft.player.getInventory().getItem(lib.get(sidebarScroll + r)[0]), sbX + 7, y + 4);
+        }
+        if (lib.size() > visCap()) { // 超窗提示条（比例滑块，面板同形制）
+            int track = visCap() * 26, thumb = Math.max(8, track * visCap() / lib.size());
+            int off = (track - thumb) * sidebarScroll / Math.max(1, lib.size() - visCap());
+            ctx.fill(width - 2, 20 + off, width, 20 + off + thumb, SciSkinPalette.FRAME);
         }
         ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+连线按钮+节点计数
         ctx.fill(0, 15, width, 16, SciSkinPalette.FRAME);

@@ -61,6 +61,7 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         if (core == null) return;
         addFromSlot(core, player.getInventory(), player.getAbilities().instabuild,
                 packet.invSlot(), packet.xc(), packet.yc());
+        player.inventoryMenu.broadcastChanges(); // m459 修①：本菜单零槽位，服务端扣背包不广播=客户端失同步（侧栏数量不刷）
         pushSnapshot(player, core, packet.pos());
     }
 
@@ -75,6 +76,7 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         StructureCore120 core = coreFor(player, packet.pos());
         if (core == null) return;
         removeToInventory(core, player.getInventory(), packet.index());
+        player.inventoryMenu.broadcastChanges(); // m459 修①：摘回件不广播=开屏期客户端看不见
         pushSnapshot(player, core, packet.pos());
     }
 

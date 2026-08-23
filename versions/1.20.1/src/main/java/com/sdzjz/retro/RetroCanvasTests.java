@@ -185,4 +185,29 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(c.g.storageEdges.isEmpty() && c.g.storageEdgeDims.isEmpty(), "边与维度表应同清");
         ctx.succeed();
     }
+
+    /** m459 修④：坏档/恶意快照的越界、自连、坏方向条目读侧即剪——不得进 detach 簿记与生产 tick。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_read_prunes_corrupt_indices(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("wither_farm", 1, 1));
+        c.addNode(node("auto_crafter", 2, 2));
+        CompoundTag nbt = new CompoundTag();
+        c.g.writeRenderNbt(nbt);
+        nbt.putIntArray("connections", new int[]{0, 1, 7, 9, 1, 1, -1, 0}); // 好1条+越界+自连+负
+        var seg = nbt.getList("storEdges", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        CompoundTag bad = new CompoundTag(); bad.putInt("m", 99); bad.putLong("p", 1L); bad.putInt("r", 0); bad.putString("d", "d");
+        CompoundTag badDir = new CompoundTag(); badDir.putInt("m", 0); badDir.putLong("p", 2L); badDir.putInt("r", 7); badDir.putString("d", "d");
+        CompoundTag good = new CompoundTag(); good.putInt("m", 1); good.putLong("p", 3L); good.putInt("r", 1); good.putString("d", "d");
+        seg.add(bad); seg.add(badDir); seg.add(good);
+        nbt.put("storEdges", seg);
+        CanvasGraphState120 gg = new CanvasGraphState120();
+        gg.readRenderNbt(nbt, java.util.Map.of(), () -> { });
+        ctx.assertTrue(gg.connections.size() == 1 && gg.connections.get(0)[0] == 0 && gg.connections.get(0)[1] == 1,
+                "连线应只剩好的 0→1，实得 " + gg.connections.size());
+        ctx.assertTrue(gg.storageEdges.size() == 1 && gg.storageEdges.get(0)[0] == 1 && gg.storageEdges.get(0)[2] == 1,
+                "存储边应只剩好的 (1,p3,供料)，实得 " + gg.storageEdges.size());
+        ctx.assertTrue(gg.storageEdgeDims.size() == 1, "维度表应同长");
+        ctx.succeed();
+    }
 }

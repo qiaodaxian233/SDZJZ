@@ -104,7 +104,12 @@ final class CanvasGraphState120 {
         }
         connections.clear();
         int[] flat = nbt.getIntArray("connections");
-        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        int nodeCount = machineNodes.size();
+        for (int i = 0; i + 1 < flat.length; i += 2) { // m459 修④：坏档/恶意快照的越界或自连下标读侧即剪
+            int a = flat[i], b = flat[i + 1];         // ——蓝本只在屏侧护，本世代 detach 簿记与 C2-⑤ tick 都要吃
+            if (a < 0 || b < 0 || a >= nodeCount || b >= nodeCount || a == b) continue; // 这表，读侧剪一次处处安全（加固记档）
+            connections.add(new int[]{a, b});
+        }
         groupNames.clear(); // 坏键跳过不炸读档（蓝本同注）
         CompoundTag grp = nbt.getCompound("groups");
         for (String k : grp.getAllKeys()) {
@@ -128,7 +133,10 @@ final class CanvasGraphState120 {
         ListTag seg = nbt.getList("storEdges", Tag.TAG_COMPOUND);
         for (int i = 0; i < seg.size(); i++) {
             CompoundTag c = seg.getCompound(i);
-            storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
+            int m = c.getInt("m");
+            int r = c.getInt("r");
+            if (m < 0 || m >= machineNodes.size() || (r != 0 && r != 1)) continue; // m459 修④：机器下标/方向读侧同剪
+            storageEdges.add(new long[]{m, c.getLong("p"), r});
             storageEdgeDims.add(c.getString("d"));
         }
         storageNodePos.clear();
