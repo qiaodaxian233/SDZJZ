@@ -124,5 +124,5 @@
   "block.sdzjz.structure_core": "Structure Core",
   "sdzjz.canvas.nodes": "Nodes %s",
   "sdzjz.canvas.link": "Link",
-  "sdzjz.canvas.hint": "Drag=move · RMB=take back · Link btn=wire"
+  "sdzjz.canvas.hint": "Drag=move · RMB=take back · Link: node↔node; to vault cycles out/feed/cut"
 }

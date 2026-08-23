@@ -37,7 +37,9 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
     /** CanvasQuery 服务端处理：前验→整包快照回发（验不过静默丢，不可信来源不回声）。 */
     static void handleQuery(CanvasPayloads120.CanvasQuery packet, net.minecraft.server.level.ServerPlayer player) {
         StructureCore120 core = coreFor(player, packet.pos());
-        if (core != null) pushSnapshot(player, core, packet.pos());
+        if (core == null) return;
+        refreshEndpoints(core, player.level(), false); // m458：快照前刷端点（40t 缓存内直返）
+        pushSnapshot(player, core, packet.pos());
     }
 
     private static StructureCore120 coreFor(net.minecraft.server.level.ServerPlayer player, net.minecraft.core.BlockPos pos) {
@@ -134,5 +136,81 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
 
     private static int clampCoord(int v) {
         return Math.max(-COORD_LIMIT, Math.min(COORD_LIMIT, v));
+    }
+
+    // ===== m458（④c）：机器↔存储连线 =====
+
+    /** 端点扫描（可测，force=真忽略缓存）：BFS 可达存储核心=端点（kind=0，蓝本口径首位）；
+     *  新端点自动停靠（二元 {x,y}，m265 键口径：二元停靠/三元画布放置）；消失端点连坐清理
+     *  ——storEdges 触删、停靠位同清（拆核心=断线，与 m454 摘节点簿记同精神）。 */
+    static void refreshEndpoints(StructureCore120 core, net.minecraft.world.level.Level world, boolean force) {
+        if (!force && core.endpointScanTick != Long.MIN_VALUE
+                && world.getGameTime() - core.endpointScanTick < 40) return;
+        core.endpointScanTick = world.getGameTime();
+        String dim = world.dimension().location().toString();
+        java.util.LinkedHashSet<Long> alive = new java.util.LinkedHashSet<>();
+        for (StorageCore120 sc : StorageCore120.connectedCores(world, core.getBlockPos()))
+            alive.add(sc.getBlockPos().asLong());
+        core.g.storageEndpoints.clear();
+        core.g.storageEndpointDims.clear();
+        int dockRow = 0;
+        for (long p : alive) {
+            core.g.storageEndpoints.add(new long[]{p, 0});
+            core.g.storageEndpointDims.add(dim);
+            if (!core.g.storageNodePos.containsKey(p))
+                core.g.storageNodePos.put(p, new int[]{-70, 20 + dockRow * 40}); // 自动停靠列
+            dockRow++;
+        }
+        core.g.storageNodePos.keySet().retainAll(alive); // 消失端点停靠位同清
+        for (int i = core.g.storageEdges.size() - 1; i >= 0; i--) {
+            if (!alive.contains(core.g.storageEdges.get(i)[1])) {
+                core.g.storageEdges.remove(i);
+                core.g.storageEdgeDims.remove(i);
+            }
+        }
+        core.setChanged();
+    }
+
+    /** 连线循环（可测）：无→产出(0)→供料(1)→断；返回新态（-1=断/0/1，-2=拒）。机器越界或
+     *  端点不在场=拒（存在性校验先于执行，服务端权威）。 */
+    static int storageLinkCycle(StructureCore120 core, int machine, long endpoint, String dim) {
+        if (machine < 0 || machine >= core.g.machineNodes.size()) return -2;
+        boolean known = false;
+        for (long[] e : core.g.storageEndpoints) if (e[0] == endpoint) { known = true; break; }
+        if (!known) return -2;
+        for (int i = 0; i < core.g.storageEdges.size(); i++) {
+            long[] e = core.g.storageEdges.get(i);
+            if (e[0] == machine && e[1] == endpoint) {
+                if (e[2] == 0) { e[2] = 1; core.setChanged(); return 1; } // 产出→供料
+                core.g.storageEdges.remove(i); // 供料→断
+                core.g.storageEdgeDims.remove(i);
+                core.setChanged();
+                return -1;
+            }
+        }
+        core.g.storageEdges.add(new long[]{machine, endpoint, 0}); // 无→产出
+        core.g.storageEdgeDims.add(dim);
+        core.setChanged();
+        return 0;
+    }
+
+    static void handleStorageLink(StoragePayloads120.StorageLink packet, net.minecraft.server.level.ServerPlayer player) {
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        refreshEndpoints(core, player.level(), false);
+        storageLinkCycle(core, packet.machine(), packet.endpoint(),
+                player.level().dimension().location().toString());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleStorageNodeMove(StoragePayloads120.StorageNodeMove packet, net.minecraft.server.level.ServerPlayer player) {
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        if (core.g.storageNodePos.containsKey(packet.endpoint())) { // 三元=画布放置（m265 口径）
+            core.g.storageNodePos.put(packet.endpoint(),
+                    new int[]{clampCoord(packet.x()), clampCoord(packet.y()), 1});
+            core.setChanged();
+        }
+        pushSnapshot(player, core, packet.pos());
     }
 }

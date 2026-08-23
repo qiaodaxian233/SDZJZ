@@ -124,5 +124,5 @@
   "block.sdzjz.structure_core": "结构核心",
   "sdzjz.canvas.nodes": "节点 %s",
   "sdzjz.canvas.link": "连线",
-  "sdzjz.canvas.hint": "拖=移动 · 右键=摘回 · 连线钮=接线"
+  "sdzjz.canvas.hint": "拖=移动 · 右键=摘回 · 连线钮=机↔机；机→仓循环 产出/供料/断"
 }

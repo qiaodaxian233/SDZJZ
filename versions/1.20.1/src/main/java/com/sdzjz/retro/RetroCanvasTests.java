@@ -145,4 +145,44 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(ItemStack.isSameItemSameTags(got, new ItemStack(got.getItem())), "裸件身份应与新件一致");
         ctx.succeed();
     }
+
+    /** m458：端点扫描——BFS 可达存储核心成端点+自动停靠；拆核心重扫=端点/停靠位/连线三连坐清理。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_endpoint_scan_and_prune(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        ctx.setBlock(new BlockPos(1, 1, 0), RetroBlocks.DATA_CABLE.defaultBlockState());
+        BlockPos scRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(scRel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        long pl = ctx.absolutePos(scRel).asLong();
+        StructureCoreMenu120.refreshEndpoints(c, ctx.getLevel(), true);
+        ctx.assertTrue(c.g.storageEndpoints.size() == 1 && c.g.storageEndpoints.get(0)[0] == pl,
+                "隔一根线应扫到 1 端点，实得 " + c.g.storageEndpoints.size());
+        ctx.assertTrue(c.g.storageNodePos.containsKey(pl), "新端点应自动停靠");
+        c.addNode(node("wither_farm", 10, 10));
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 0, pl, "minecraft:overworld") == 0, "首触应=产出(0)");
+        ctx.setBlock(scRel, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()); // 拆核心
+        StructureCoreMenu120.refreshEndpoints(c, ctx.getLevel(), true);
+        ctx.assertTrue(c.g.storageEndpoints.isEmpty() && c.g.storageNodePos.isEmpty() && c.g.storageEdges.isEmpty(),
+                "拆核心重扫应三连坐清理，实得 " + c.g.storageEndpoints.size() + "/" + c.g.storageNodePos.size() + "/" + c.g.storageEdges.size());
+        ctx.succeed();
+    }
+
+    /** m458：连线循环——无→产出(0)→供料(1)→断(-1)；越界机器与不在场端点拒(-2)。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_storage_link_cycles(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        ctx.setBlock(new BlockPos(1, 1, 0), RetroBlocks.STORAGE_CORE.defaultBlockState());
+        long pl = ctx.absolutePos(new BlockPos(1, 1, 0)).asLong();
+        StructureCoreMenu120.refreshEndpoints(c, ctx.getLevel(), true);
+        c.addNode(node("auto_crafter", 5, 5));
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 7, pl, "d") == -2, "越界机器应拒");
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 0, 12345L, "d") == -2, "不在场端点应拒");
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 0, pl, "d") == 0, "第一触=产出");
+        ctx.assertTrue(c.g.storageEdges.size() == 1 && c.g.storageEdges.get(0)[2] == 0, "边应=产出");
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 0, pl, "d") == 1, "第二触=供料");
+        ctx.assertTrue(c.g.storageEdges.get(0)[2] == 1, "边应翻供料");
+        ctx.assertTrue(StructureCoreMenu120.storageLinkCycle(c, 0, pl, "d") == -1, "第三触=断");
+        ctx.assertTrue(c.g.storageEdges.isEmpty() && c.g.storageEdgeDims.isEmpty(), "边与维度表应同清");
+        ctx.succeed();
+    }
 }

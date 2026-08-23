@@ -22,6 +22,7 @@ final class StructureCore120 extends BlockEntity {
     private static final Map<String, String> MERGED_IDS = Map.of();
 
     final CanvasGraphState120 g = new CanvasGraphState120(); // 蓝本同名：唯一图实例
+    long endpointScanTick = Long.MIN_VALUE; // m458：端点扫描 40t 缓存戳（m218b 谱系防逐观众裸扫）
 
     StructureCore120(BlockPos pos, BlockState state) {
         super(RetroBlocks.STRUCTURE_CORE_BE, pos, state);

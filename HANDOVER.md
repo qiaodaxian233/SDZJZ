@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m457：C2-④b 节点四操作落地——画布能摆能连：四包定长零串+服务端操作核全可测（addFromSlot 硬顶两端/坐标钳位±1e5/生存扣1创造不扣；removeToInventory=detach 簿记+cleanNode 洗净变裸回背包，画布域落脚下与存储域绝不落地域界记档）；屏交互=机器库侧栏点选放置幽灵/拖动本地幽灵松手结算/右键摘回/连线按钮 toggle 同向再连即断。GameTest 二十五条。15 闸全绿，版本 0.1.457。**下一段**：④c 存储端点与机器↔存储连线（生产前置）→C2-⑤ 生产 tick（单独小普查）。实机单：画布最小可玩六步在 DEVLOG m457 条末。上笔 m456：只读视口）
+## 当前状态（m458：**C2-④ 三片全收**——④c 机器↔存储连线：端点扫描（BFS+40t 缓存+自动停靠+拆核心三连坐清理）、StorageLink 循环手势 无→产出→供料→断（C2-⑤ 消费口径记档）、屏侧仓节点卡/边着色 ON 绿产出 GOLD 金供料/可拖。1.20.1 画布=能看能摆能连能接仓。GameTest 二十七条。15 闸全绿，版本 0.1.458。**下一段 C2-⑤ 生产 tick 五分支（SCBE 主战场）——动刀前单独小普查**：五分支边界/nodeBufs/supplyFor/distribute/chainWants 最小可产集。实机单在 DEVLOG m458 条末。上笔 m457：节点四操作）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

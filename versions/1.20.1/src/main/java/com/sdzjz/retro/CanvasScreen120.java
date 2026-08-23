@@ -36,7 +36,9 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private double dragCx, dragCy;
     private boolean dragMoved = false;
     private boolean linkMode = false;  // 顶栏按钮切换
-    private int linkFrom = -1;         // 连线模式第一端
+    private int linkFrom = -1;         // 连线模式第一端（机器下标）
+    private long dragStorage = Long.MIN_VALUE; // m458 拖动中的存储节点（posLong）
+    private double dragStX, dragStY;
 
     public CanvasScreen120(StructureCoreMenu120 menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -116,6 +118,24 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             placingIcon = ItemStack.EMPTY;
             return true;
         }
+        Long stHit = storageAt(mouseX, mouseY); // m458 存储节点：连线第二端 / 普通拖动
+        if (stHit != null) {
+            if (linkMode && linkFrom >= 0 && button == 0) {
+                ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, linkFrom, stHit));
+                sendQuery();
+                linkFrom = -1;
+                return true;
+            }
+            if (button == 0 && !linkMode) {
+                dragStorage = stHit;
+                int[] sp = g.storageNodePos.get(stHit);
+                dragStX = sp[0];
+                dragStY = sp[1];
+                dragMoved = false;
+                return true;
+            }
+            return true;
+        }
         Integer hit = nodeAt(mouseX, mouseY);
         if (hit != null) {
             if (button == 1) { // 右键摘回
@@ -157,6 +177,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 }
                 dragIndex = -1;
             }
+            if (dragStorage != Long.MIN_VALUE) { // m458
+                if (dragMoved) {
+                    ClientNet120.toServer(new StoragePayloads120.StorageNodeMove(menu.corePos, dragStorage,
+                            (int) Math.round(dragStX), (int) Math.round(dragStY)));
+                    sendQuery();
+                }
+                dragStorage = Long.MIN_VALUE;
+            }
         }
         return super.mouseReleased(mouseX, mouseY, button);
     }
@@ -166,6 +194,12 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         if (dragIndex >= 0 && button == 0) {
             dragCx += dragX / zoom;
             dragCy += dragY / zoom;
+            dragMoved = true;
+            return true;
+        }
+        if (dragStorage != Long.MIN_VALUE && button == 0) { // m458
+            dragStX += dragX / zoom;
+            dragStY += dragY / zoom;
             dragMoved = true;
             return true;
         }
@@ -195,6 +229,12 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         renderBackground(ctx); // 1.20.1 单参
         super.render(ctx, mouseX, mouseY, delta);
+        Long stHover = storageAt(mouseX, mouseY); // m458 存储节点悬停：名称+方位
+        if (stHover != null) {
+            var bp = net.minecraft.core.BlockPos.of(stHover);
+            ctx.renderTooltip(font, List.of(Component.translatable("block.sdzjz.storage_core"),
+                    Component.literal(bp.getX() + ", " + bp.getY() + ", " + bp.getZ())), Optional.empty(), mouseX, mouseY);
+        }
         Integer hover = nodeAt(mouseX, mouseY); // 悬停详情（机器名+状态原因）
         if (hover != null) {
             ItemStack st = g.machineNodes.get(hover);
@@ -213,6 +253,15 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         int offY = (int) (Math.floorMod(Math.round(-viewY * zoom), step));
         for (int x = offX; x < width; x += step) ctx.fill(x, 0, x + 1, height, SciSkinPalette.CELL);
         for (int y = offY; y < height; y += step) ctx.fill(0, y, width, y + 1, SciSkinPalette.CELL);
+        for (int i = 0; i < g.storageEdges.size(); i++) { // m458 机器↔存储边（产出 ON / 供料 GOLD）
+            long[] e = g.storageEdges.get(i);
+            int m = (int) e[0];
+            int[] sp = g.storageNodePos.get(e[1]);
+            if (m >= g.machineNodes.size() || sp == null) continue;
+            double x1 = sx((m == dragIndex ? dragCx : nodeCx(m)) + 12), y1 = sy((m == dragIndex ? dragCy : nodeCy(m)) + 12);
+            double x2 = sx(stX(e[1], sp) + 12), y2 = sy(stY(e[1], sp) + 12);
+            line(ctx, x1, y1, x2, y2, e[2] == 0 ? SciSkinPalette.ON : SciSkinPalette.GOLD);
+        }
         for (int[] c : g.connections) { // 连线（节点中心→节点中心，真对角）
             if (c[0] >= g.machineNodes.size() || c[1] >= g.machineNodes.size()) continue; // 快照途中拓扑变化防御
             double x1 = sx(nodeCx(c[0]) + 12), y1 = sy(nodeCy(c[0]) + 12);
@@ -232,6 +281,16 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             ctx.fill(x - 1, y - 1, x + 25, y + 25, (linkMode && i == linkFrom) ? SciSkinPalette.ACCENT : ring); // 连线首端高亮
             ctx.fill(x, y, x + 24, y + 24, SciSkinPalette.BTN_FACE);
             ctx.renderItem(g.machineNodes.get(i), x + 4, y + 4);
+        }
+        for (int i = 0; i < g.storageEndpoints.size(); i++) { // m458 存储节点卡（图标=存储核心）
+            long pl = g.storageEndpoints.get(i)[0];
+            int[] sp = g.storageNodePos.get(pl);
+            if (sp == null) continue;
+            int x = (int) sx(stX(pl, sp)), y = (int) sy(stY(pl, sp));
+            if (x < -32 || y < -32 || x > width + 8 || y > height + 8) continue;
+            ctx.fill(x - 1, y - 1, x + 25, y + 25, SciSkinPalette.CELL_FRM);
+            ctx.fill(x, y, x + 24, y + 24, SciSkinPalette.CELL);
+            ctx.renderItem(STORAGE_ICON, x + 4, y + 4);
         }
         int sbX = width - SIDEBAR_W; // m457 机器库侧栏
         ctx.fill(sbX, 16, width, height, SciSkinPalette.BTN_FACE);
@@ -258,6 +317,23 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     protected void renderLabels(GuiGraphics ctx, int mouseX, int mouseY) { } // 满窗自绘，压掉默认双标签
+
+    private static final ItemStack STORAGE_ICON = new ItemStack(RetroBlocks.STORAGE_CORE); // m458
+
+    /** 存储节点画布坐标（拖动中取本地幽灵位）。 */
+    private double stX(long pl, int[] sp) { return pl == dragStorage ? dragStX : sp[0]; }
+    private double stY(long pl, int[] sp) { return pl == dragStorage ? dragStY : sp[1]; }
+
+    /** 命中存储节点（倒序无关，端点无遮叠序）。 */
+    private Long storageAt(double mx, double my) {
+        for (long[] e : g.storageEndpoints) {
+            int[] sp = g.storageNodePos.get(e[0]);
+            if (sp == null) continue;
+            double x = sx(stX(e[0], sp)), y = sy(stY(e[0], sp));
+            if (mx >= x && mx < x + 24 && my >= y && my < y + 24) return e[0];
+        }
+        return null;
+    }
 
     /** 节点画布坐标：读栈 NBT xc/yc（键同源 NodeTags 谱系；缺键=0,0 落画布原点可见可拖走）。 */
     private int nodeCx(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("xc") : 0; }
