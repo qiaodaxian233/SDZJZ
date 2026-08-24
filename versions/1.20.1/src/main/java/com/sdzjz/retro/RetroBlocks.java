@@ -54,6 +54,13 @@ public final class RetroBlocks {
         @Override
         public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new StructureCore120(pos, state); }
 
+        @Override // m464（C2-⑤a）：生产 tick 挂线（服务端权威，客户端无 ticker）
+        public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
+                net.minecraft.world.level.Level world, BlockState state,
+                net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+            return world.isClientSide ? null : createTickerHelper(type, STRUCTURE_CORE_BE, StructureCore120::tick);
+        }
+
         @Override
         public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 

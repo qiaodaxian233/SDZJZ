@@ -36,7 +36,7 @@ import java.util.Map;
  * <p>xplat 未挂本世代 → 不实现 StorageAccess 薄口、不消费 ItemData 门面（那两件建在 1.20.5+ 类型上），
  * 读写直用原版 hasTag/getTag——m353"读→view 写→copy"铁律的 tag 版：模板 tag 只读绝不改。
  */
-public final class StorageCore120 extends BlockEntity {
+public final class StorageCore120 extends BlockEntity implements com.sdzjz.machine.StorageAccess { // m464 挂主线契约：deposit/withdraw/count/storeView 四口现成，生产 tick 与蓝本辅件同型
 
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("sdzjz");
 

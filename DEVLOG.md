@@ -8911,3 +8911,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   → ⑤e 逐台评估。
 - **交付物**：docs/生产tick移植1201_C2-5小普查_m463.md（版图/地基/取舍/分片/风险五节）。
 - 15 闸全绿（0.1.463 对表）。
+## m464 C2-⑤a：生产 tick 脊柱+数据驱动无输入生成类——1.20.1 第一次转起来（m463 分片首刀）
+
+- **落地物**：①StructureCore120 挂静态 tick：逐节点 dispatch——非机器物品灰灯、特种/配方机型
+  （def 产表为空 ∨ 熔炉族）黄灯待分片、耗料机型黄灯待 ⑤b、未连产出仓红灯说人话、
+  rollDrops→kind0 仓 deposit→绿灯；②cyclesThisTick 四层预算闸**逐位对照蓝本**（节点 cap→
+  核内 m270→区块 m324→全服 m302 饥饿保底，耗尽只欠不丢工作量累积续；预算剪零亮黄说话
+  m339 同款）——世代差：无速度/并发升级，rate 恒 1.0 恒 1 台；③depositTarget：kind0 边+
+  同维度+已加载首中即用（蓝本 depositFor 世代精简）；④stat 灯表写入值不变不置脏
+  （tick 每拍跑，setChanged 去重防落盘风暴）；⑤StructureCoreBlock120 挂服务端 ticker
+  （createTickerHelper，客户端 null）；⑥StorageCore120 补 implements StorageAccess
+  （deposit/withdraw/count/storeView 四口现成零方法新增）；⑦白名单挂载 DropRolls+StorageAccess
+  （m451 机制，闭包干净）。
+- **世代取舍（m463 记档兑现）**：本世代核心**自动运转**（有节点即 tick，开停闸随屏侧到序——
+  产出仓连线手势本身就是玩家显式授权）；产出必须接仓无缓存无喷射；产出仓类型满=免费产物
+  折损黄灯（料本免费不产不损）；组件产物（山羊角）跳过待 ⑤d。
+- **判官三用例（RetroTickTests 新入口，累计三十一）**：灯表三色对拍（未连仓红/特种黄/熔炉黄）；
+  cobble_maker 确定性产量入账（10 拍 1 件 chance=1，可对数非对趋势；CoreScheduler 首尾
+  clearAll 护栏 m309 同款）；维度闸+kind 闸+首中即用（错维度不认/供料边不认/本维度产出边命中）。
+- **待编译验证（1.20.1 无本地 gradle，CI 是真判官）**：①BaseEntityBlock.createTickerHelper
+  1.20.1 三参签名与 protected static 可达性；②DropRolls 的 RandomSource 形参在 1.20.1 同名；
+  ③GameTestHelper.succeedWhen/runAfterDelay 1.20.1 在位；④ResourceLocation 构造器（版本差
+  已知：1.20.1 构造器/1.21 静态工厂，retro 树内先例同款）。
+- **验证**：1.20.1 全量纯语法冒烟真语法错 0；自家新符号（depositTarget/cyclesThisTick/
+  RetroMachineItem/storeView/createTickerHelper/workAcc/recipesThisTick 等）定向 grep 0；
+  推前 15 尺本地全绿（m462 教训流程首用）。
+- **实机验证脚本**：1.20.1 端——摆结构核心+存储核心贴数据线，画布放 cobble_maker、连线模式
+  点机器再点仓（绿线）：数据面板账每秒 +2 圆石；断开绿线：机器红灯"未连产出仓"且停产；
+  放 super_smelter：黄灯"配方/特种机型随 C2-⑤ 后续分片到序"。
+- **教训**：分片普查（m463）先行让本刀零意外——所有"该做没做"的都变成了灯面上的一句人话，
+  而不是静默不产的哑谜。
