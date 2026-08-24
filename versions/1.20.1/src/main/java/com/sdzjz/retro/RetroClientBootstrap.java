@@ -14,6 +14,10 @@ public final class RetroClientBootstrap implements ClientModInitializer {
     public void onInitializeClient() {
         MenuScreens.register(RetroBlocks.PANEL_MENU, DataPanelScreen120::new);
         MenuScreens.register(RetroBlocks.CANVAS_MENU, CanvasScreen120::new); // m456
+        // m465：动画归位——存储核心（能量核旋转+呼吸）与数据线（能量脉冲）BER，蓝本=主线 SdzjzClient
+        // 同两行；走原版注册口 BlockEntityRenderers（1.20.1 在位，免 Fabric rendering 面）。
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(RetroBlocks.STORAGE_CORE_BE, StorageCoreRenderer120::new);
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(RetroBlocks.DATA_CABLE_BE, DataCableRenderer120::new);
         ClientNet120.onClient(PanelPayloads120.Rows.TYPE, packet -> {
             if (Minecraft.getInstance().screen instanceof DataPanelScreen120 screen) screen.acceptRows(packet);
         });

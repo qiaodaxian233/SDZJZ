@@ -8941,3 +8941,43 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   放 super_smelter：黄灯"配方/特种机型随 C2-⑤ 后续分片到序"。
 - **教训**：分片普查（m463）先行让本刀零意外——所有"该做没做"的都变成了灯面上的一句人话，
   而不是静默不产的哑谜。
+## m465 C2 插队刀（作者实机反馈"1.20.1 模型不对、动画模型没动画"）：模型归位+两台 BER 动画移植
+
+- **现象定位（全量资源比对脚本逐字节对表，四处实锤）**：①1.20.1 的 `models/block/storage_core.json`
+  是 m441 骨架期的 cube_all 占位（主线是 bbmodel 转换的 33KB 全几何）——存储核心摆下是个平贴图
+  方块；②`models/item/storage_core.json` 只有一行 parent 指向该占位（主线是带 display 变换的
+  完整内联模型）——手持/背包里同样错；③`textures/item/data_cable.png` 是 128×768 六帧竖条却
+  **缺 .png.mcmeta**——1.20.1 把整条当单张精灵，数据线物品图标压扁花掉且不动（m453 只机械搬了
+  机器物品的 61 份 mcmeta，data_cable 是 RetroBlocks 方块物品、m441/m444 期搬贴图时漏了动画帧）；
+  ④主线的存储核心动画（能量核旋转+呼吸）与数据线能量脉冲是 **BER**（xplat StorageCoreRenderer/
+  DataCableRenderer，非 mcmeta 贴图动画），1.20.1 从未移植——"动画模型没有动画"主因。
+- **修法**：①②③三份资源自主线逐字节同源拷贝（cmp 断言=0 差异，JSON 过 json.load）；
+  ④几何数据 StorageCoreAnimGeo/DataCableAnimGeo 零 import 纯 float 表，走 m451 xplat 白名单
+  挂载机制（build.gradle syncXplatSubset +2 行，仓库零副本）；渲染器对位新写
+  StorageCoreRenderer120/DataCableRenderer120（动画语义逐位照蓝本：4s core_cycle 旋转+三角波
+  呼吸 / 1.5s energy_flow 六向错相脉冲+正弦淡入淡出），世代差三条：ResourceLocation 构造器
+  （RetroBlocks 同口径）、顶点发射 1.20.1 链式 vertex().color().uv().overlayCoords().uv2()
+  .normal().endVertex()（1.21 是单口 addVertex；法线仍 JOML 手工变换+零法线护栏同蓝本）、
+  属性表对位 DataCableBlock120.END_PROPS/CableEnd120（同包可达，序列化名与主线同源）；
+  注册走原版口 BlockEntityRenderers.register（RetroClientBootstrap +2 行，免 Fabric rendering 面）。
+- **待编译验证（1.20.1 无本地 gradle，CI 是真判官）**：①BlockEntityRenderers.register 1.20.1
+  可达性（public static，客户端类，client 入口调用时机 OK——原版自身注册即此口）；
+  ②VertexConsumer 链式六方法名 vertex/color/uv/overlayCoords/uv2/endVertex 与
+  normal(float,float,float)；③PoseStack.translate(float,float,float)（在树先例 CanvasScreen120
+  已用 float 版+mulPose(Quaternionf)，低险）；④BlockEntityRenderer.render 六参签名同名。
+- **验证**：1.20.1 全量（含新挂两份 AnimGeo）纯语法冒烟真语法错 0；冒烟盲区排雷——两渲染器+
+  入口全部 cannot find symbol 逐条拉 symbol 行分类，去重清单 18 个全为 MC/Fabric/JOML 类，
+  命中自家类（AnimGeo/CableEnd120/END_PROPS/StorageCore120/DataCable120/RetroBlocks）=0，
+  委托链验明；资源完整性脚本复跑：1.20.1 全部模型 JSON 可解析、贴图/parent 引用零缺失、
+  mcmeta 与主线零差异；15 尺本地全绿（0.1.465 对表）。
+- **实机验证脚本**：1.20.1 端——①摆存储核心：机身是主线同款多层几何造型（不再是贴图方块），
+  中央能量核 4 秒一圈旋转+呼吸、四角灯呼吸；②摆数据线连两端：每条臂上能量包从外端流向中心、
+  各方向错相；③背包里数据线物品图标不再压扁花屏，且六帧轮播在动；④手持/掉落/展示框里的
+  存储核心为完整模型带 display 变换。若装了 Sodium 类渲染模组物品图标不动，先试关"仅动画可见
+  纹理"——SodiumSpriteKicker（m320）本世代未移植，届时按需另开一刀。
+- **教训**：跨版本"资产机械化搬运"的计数断言（m453 模型/贴图/mcmeta/lang 四清单）只覆盖了
+  当刀的物料清单——**更早骨架期（m441）落的占位资产不会被后续搬运刀的断言抓到**，因为文件
+  存在、JSON 合法、计数闭合，坏的是"内容是占位"。今起跨版本资产对表加一道"与主线逐字节 cmp，
+  白名单显式登记刻意不同的文件"（本笔比对脚本即原型，四处实锤全靠它）；另外 BER 这类
+  **代码承载的动画**不在资产清单里，移植普查（m450/m463）的版图要把"客户端渲染器"列为独立
+  一格，别让"资产全齐"造成"观感全齐"的错觉。

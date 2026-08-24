@@ -32,6 +32,8 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/client/SciSkinPalette.java' // m452b 配色数值唯一出口（SciSkin 因内联 1.21 API 不可挂，见 DEVLOG）
         include 'com/sdzjz/machine/DropRolls.java'     // m464（C2-⑤a）掉落表掷点（依赖仅 RandomSource+MachineDef，闭包干净）
         include 'com/sdzjz/machine/StorageAccess.java' // m464（C2-⑤a）存储访问契约（依赖仅 ItemStack+Map；StorageCore120 补 implements 与主线辅件同型）
+        include 'com/sdzjz/client/StorageCoreAnimGeo.java' // m465 存储核心动画件几何（bbmodel 生成纯 float 表，零 import）
+        include 'com/sdzjz/client/DataCableAnimGeo.java'   // m465 数据线能量脉冲几何（同上）
     }
     into layout.buildDirectory.dir('xplat-subset-src')
 }
