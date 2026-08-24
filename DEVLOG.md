@@ -8894,3 +8894,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   14 把是纯 Python，本地全能跑，m460/m461 只跑了 javac 冒烟漏了这步，红灯本可推前发现；
   ②子串匹配 FQN 天然有前缀撞名雷（World→WorldlyContainer 不会是最后一对），
   凡"名单扫源码"的尺一律带词边界。
+## m463 C2-⑤ 小普查与分片稿（零代码笔，m458 留话兑现）
+
+- **版图实测**：tickInner 主循环 1456 行、"五分支"实为 17 个 item 分支归五族（数据驱动/配方域/
+  实体交互/经验经济/区块线）；通用 MachineItem 分支仅 61 行却覆盖 101 台绝大多数——数据驱动
+  是移植性价比之王；两颗路由脑（chainWants 链需求/distribute 两轮垫底）只被机器↔机器连线
+  语义消费，可整段后置。
+- **地基对表**：common 白捡（Machines/MachineXp/CoreScheduler）；xplat 白名单可挂两件
+  （DropRolls 闭包干净/StorageAccess 接口——挂上后 StorageCore120 补 implements 与主线辅件
+  同型）；NodeTags 不可挂连坐升级体系首片不带（恒 1 台 1 倍起步）；1.20.1 无 RecipeAccess
+  实现=配方域族前置缺口。
+- **世代取舍显式记档**：区块机器线不入 C2；首片产出必须接仓（无仓红灯待机），输出缓存+断网
+  喷射随 ⑤c 补——比主线严但零吞件零实体洪水。
+- **分片**：⑤a 脊柱+数据驱动无输入类 → ⑤b 耗料类 → ⑤c 机器连线语义（届时再普查两颗路由脑）
+  → ⑤d 配方域族（RetroRecipeAccess 喂 RecipeDomainAssertions 同套断言=跨版本不变量白捡）
+  → ⑤e 逐台评估。
+- **交付物**：docs/生产tick移植1201_C2-5小普查_m463.md（版图/地基/取舍/分片/风险五节）。
+- 15 闸全绿（0.1.463 对表）。
