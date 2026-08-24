@@ -20,6 +20,9 @@
 
 跑法：python3 docs/tools_yarn_residue_check.py     退出码 0=绿 1=红（CI 第 14 闸）
 维护：Mojmap 侧若确需用到某个同名类（极少），把该名从 YARN_BLACKLIST.txt 删掉并在本注释记里程碑。
+m462：FQN 段由裸子串改为「FQN+词尾边界」——Yarn 的 net.minecraft.world.World 曾把 Mojmap 正名
+WorldlyContainer（m460 漏斗对接）连 import 带 implements 一起误杀；边界修后裸 FQN 与成员访问照红，
+比删名单条目强（World 是最高频 Yarn 名，删了等于闸开个大洞）。
 """
 import os
 import re
@@ -74,7 +77,11 @@ def main():
         body = strip_comments(open(p, encoding='utf-8', errors='replace').read())
         rel = os.path.relpath(p, ROOT)
         for fq in fqns:
-            if fq in body:
+            # m462：FQN 段加词尾边界——裸子串会把 Mojmap 正名当 Yarn 前缀误杀
+            # （net.minecraft.world.World 命中 WorldlyContainer/WorldlyContainerHolder，
+            # m460 漏斗对接首撞）。词尾非 [\w$] 才算命中：裸 FQN、成员访问
+            # （net.minecraft.world.World.isClient）照红；更长的 Mojmap 正名放行。
+            if re.search(re.escape(fq) + r'(?![\w$])', body):
                 hits.append((rel, 'FQN', fq))
         for m in name_re.finditer(body):
             line = body.count('\n', 0, m.start()) + 1

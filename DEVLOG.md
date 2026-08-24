@@ -8874,3 +8874,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：给"找目标"类 BFS 加新目标类型时，**缓存层要跟着长同款腿**——只改 findTarget 不改
   resolveOutTarget 的命中侧，新目标每拍都要全套 BFS（性能回归）或干脆缓存失配（行为回归）；
   缓存句柄不如缓存坐标+现取（方块换脸/卸载的悬空引用一次根治）。
+## m462 修尺：Yarn 残留闸 FQN 段贪婪前缀误报——m460/m461 两笔 CI 红灯归零
+
+- **现象**：m460/m461 推后 CI 第 14 闸「Yarn 名残留」红：报 StorageCoreBlockEntity 命中
+  FQN net.minecraft.world.World。其余 14 闸全绿（含 Gradle 编译出包与 GameTest 用例集——
+  两笔的代码与判官本身没毛病）。
+- **根因**：闸脚本 FQN 段用**裸子串匹配**（`fq in body`）——Yarn 的 net.minecraft.world.World
+  恰是 Mojmap 正名 net.minecraft.world.**WorldlyContainer** 的前缀。m460 漏斗对接是全仓第一次
+  用到这个类，连 implements 带任何写法都必红（import 简名也躲不掉——import 行本身含该子串）。
+  尺子误报，不是代码倒退。
+- **修法**：FQN 匹配加**词尾边界** `(?![\w$])`——裸 FQN 与成员访问
+  （net.minecraft.world.World.isClient 这类真 Yarn 用法）照红，更长的 Mojmap 正名放行。
+  刻意不走脚本注释里"从 YARN_BLACKLIST.txt 删名"的维护通道：World 是最高频 Yarn 名，
+  删条目=闸开大洞；修边界=零漏报零误报。黑名单文件零改动。
+- **验证**：本地复现红→修后绿（172 源文件×164 FQN+123 简名零命中）；CI 全套 15 把 Python 尺
+  本地跑一遍全 0（m172/资源审计/文档同步/色域/重复方法/拼音/有界Codec/override/调度器仿真/
+  版本对表/common 闸/事务域/分层闸/Yarn 残留/量规）。
+- **教训**：①推前要把 docs/tools_*.py 全套尺本地过一遍——沙箱跑不了 gradle，但 15 闸里
+  14 把是纯 Python，本地全能跑，m460/m461 只跑了 javac 冒烟漏了这步，红灯本可推前发现；
+  ②子串匹配 FQN 天然有前缀撞名雷（World→WorldlyContainer 不会是最后一对），
+  凡"名单扫源码"的尺一律带词边界。
