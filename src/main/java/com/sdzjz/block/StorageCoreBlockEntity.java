@@ -34,7 +34,8 @@ import java.util.Set;
 
 /** 存储核心：双账本逻辑仓储——普通(id→long) + 精确(物品+组件模板→long, m130)；类型数受等级上限；可升级。
  *  数据面板/机器经网络(数据线/相邻)访问；机器/过滤器/熔炉只见普通账本。 */
-public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess {
+public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess,
+        net.minecraft.world.WorldlyContainer { // m460 漏斗对接：幻影槽，见文末「WorldlyContainer」节
 
     /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。
      *  m293 注：展示口径归本方法；插入闸另受 absoluteStorageTypeSafetyLimit(默认8192) 技术硬顶，见 typeGate()。 */
@@ -431,6 +432,55 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
             @Override public long getCapacity() { return Long.MAX_VALUE; }
         }
     }
+
+    // ===== m460 漏斗对接：幻影槽 WorldlyContainer =====
+    // 原版漏斗/漏斗矿车不走 FTA（只认 Container/WorldlyContainer），m161c 直连管不到它们——本节补上。
+    // 幻影槽设计：对外恒 1 格恒空（getItem 恒 EMPTY）→ 漏斗看见"空槽"就整栈 setItem 进来，我们当场
+    // deposit 入账（普通/精确双账本同 shift 存入口径，组件保真）；下一拍槽又是空的，吞吐=漏斗自身
+    // 节奏（8t/件≈2.5件/秒）。禁抽取三闸：canTakeItemThroughFace 恒假 + getItem 恒空 + removeItem 恒空
+    // ——漏斗贴核心底面抽不走任何东西（"插入即入账、禁抽取"，HANDOVER m161 后续①原案）。
+    // 【自冲突审计（动手前全树 grep instanceof Container）】：①findTarget/resolveOutTarget 两处
+    //   StorageCoreBlockEntity 分支都排在 Container 分支之前——核心变容器后仍走存储核心正路；
+    //   ②DataCableBlock.endFor 对 STORAGE_CORE 有显式 PLUG 分支在 Container 判定之前——线缆视觉不变；
+    //   ③区块扫描器 conS 统计会把核心计入"容器"——纯报告口径，无玩法影响（记档）；
+    //   ④FTA 侧：ItemStorage.SIDED 已有显式注册（fabricStorage），显式注册优先于 Fabric 的
+    //   Inventory 兜底包装——FTA 管道看到的仍是 FabricLedger 双账本，不会退化成幻影槽。
+    // 【第三方越闸兜底】：规矩管不了野管道——有的 Container 管道不问 canPlaceItem 直接 setItem。
+    //   类型闸拒收/配置关闸时**绝不吞件**：残料散落核心上方（掉落物比凭空蒸发轻一万倍；
+    //   存储域"绝不落地"说的是自家路由，不适用于第三方硬塞）。
+    private static final int[] PHANTOM_SLOT = {0};
+    private static final int[] NO_SLOTS = {};
+
+    /** 漏斗对接收货闸：与 deposit/depositExact 的类型闸完全同口径（先验后收，防 setItem 半路拒收）。 */
+    private boolean hopperDockAccepts(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !com.sdzjz.config.SdzjzConfig.get().hopperDockingEnabled) return false;
+        if (!stack.getComponentsPatch().isEmpty())
+            return exactIndexOf(stack) >= 0 || usedTypes() < typeGate(); // 精确件：已有同款或类型有余
+        return store.containsKey(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()) || usedTypes() < typeGate();
+    }
+
+    @Override public int getContainerSize() { return 1; }
+    @Override public boolean isEmpty() { return true; } // 幻影槽恒空（漏斗抽取侧因此恒跳过）
+    @Override public ItemStack getItem(int slot) { return ItemStack.EMPTY; }
+    @Override public ItemStack removeItem(int slot, int amount) { return ItemStack.EMPTY; }
+    @Override public ItemStack removeItemNoUpdate(int slot) { return ItemStack.EMPTY; }
+    @Override public void setItem(int slot, ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+        if (com.sdzjz.config.SdzjzConfig.get().hopperDockingEnabled) deposit(stack); // 收下即清空栈；类型满原样留着
+        if (!stack.isEmpty() && level != null && !level.isClientSide) { // 越闸兜底：绝不吞件，散落核心上方
+            net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX() + 0.5,
+                    worldPosition.getY() + 1.1, worldPosition.getZ() + 0.5, stack.copy());
+            stack.setCount(0);
+        }
+    }
+    @Override public boolean stillValid(net.minecraft.world.entity.player.Player player) { return false; } // 无 GUI，容器口不对玩家开
+    @Override public void clearContent() { } // 幻影槽无内容可清（账本清空只走管理命令，不走容器口）
+    @Override public boolean canPlaceItem(int slot, ItemStack stack) { return hopperDockAccepts(stack); }
+    @Override public int[] getSlotsForFace(Direction side) {
+        return com.sdzjz.config.SdzjzConfig.get().hopperDockingEnabled ? PHANTOM_SLOT : NO_SLOTS;
+    }
+    @Override public boolean canPlaceItemThroughFace(int slot, ItemStack stack, Direction dir) { return hopperDockAccepts(stack); }
+    @Override public boolean canTakeItemThroughFace(int slot, ItemStack stack, Direction dir) { return false; } // 禁抽取
 
     /** BFS：从某位置经数据线/相邻找到所有存储核心。 */
     public static List<StorageCoreBlockEntity> connectedCores(Level world, BlockPos from) {

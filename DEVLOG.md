@@ -8797,3 +8797,43 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   期即现背包；②背包塞 20+ 种机器开画布：滚轮悬停侧栏滚清单（画布不缩放）、悬停画布缩放（侧栏
   不动）、右缘滑块随滚。
 - 零 Legacy/Modern 侧改动；零新配置键。队列回正轨：C2-⑤ 生产 tick 小普查。
+## m460 漏斗对接：存储核心幻影槽 WorldlyContainer——原版漏斗族直入仓（m161 后续①销账，评论区 AE/自动化需求第一刀）
+
+- **背景**：MOD 发布后评论区要"AE 直接访问存储/材料写样板下单"。生态对表：AE2 官方 1.21.1 只发
+  NeoForge，Fabric 官方版停在 1.20.1——1.21.1 Fabric 侧的通用对接面就是 FTA（m161c 已通）+
+  原版 Container 族（本笔补上）。作者拍板优先序：m460 漏斗对接 → m461 反向直连 →（能量节点/
+  AE2 深度下单缓议）。
+- **落地物**：①StorageCoreBlockEntity 实现 WorldlyContainer**幻影槽**：对外恒 1 格恒空→漏斗
+  见"空槽"整栈 setItem→当场 deposit 入账（普通/精确双账本同 shift 存入口径，组件保真），下一拍
+  槽又空，吞吐=漏斗自身节奏（8t/件）；②**禁抽取三闸**：canTakeItemThroughFace 恒假+getItem 恒空
+  +removeItem 恒空（HANDOVER m161 后续①"插入即入账、禁抽取"原案）；③**收货闸前验**
+  hopperDockAccepts 与 deposit/depositExact 类型闸完全同口径（canPlaceItem/canPlaceItemThroughFace
+  两口都挂）——类型满时漏斗前验即拒不掏货，绝不卡半截；④**越闸兜底**：野管道不问 canPlaceItem
+  直接 setItem 时，拒收残料散落核心上方转掉落物，**绝不吞件**（存储域"绝不落地"是自家路由的律，
+  不适用第三方硬塞——域界不同，m457 摘回件落脚下同精神）；⑤config 新增 hopperDockingEnabled
+  （默认开，configVersion 61→62）：关=getSlotsForFace 返空+收货闸恒假，漏斗视核心为零槽位容器。
+- **自冲突审计（动手前全树 grep instanceof Container，m161 案头"内部 BFS 无自冲突"复核）**：
+  ①StructureCore 的 findTarget/resolveOutTarget 两处 StorageCoreBlockEntity 分支都排在 Container
+  分支之前——核心变容器后仍走存储核心正路不降级；②DataCableBlock.endFor 对 STORAGE_CORE 有
+  显式 PLUG 分支在 Container 判定之前——线缆视觉不变；③区块扫描器 conS 统计会把扫到的存储核心
+  计入"容器数"——纯报告口径无玩法影响（记档不修）；④FTA 侧 ItemStorage.SIDED 已有显式注册，
+  显式注册优先于 Fabric 的 Inventory 兜底包装——FTA 管道看到的仍是 FabricLedger 双账本事务视图，
+  不会退化成幻影槽单件插入。
+- **判官三用例（卅五~卅七）**：幻影槽直调（收货闸放行/双账本入账组件保真/禁抽取三闸/幻影槽恒空/
+  开闸暴露 1 槽）；类型闸同口径（硬顶=2 第三种前验即拒、已有类型放行、越闸硬塞不入账残料转掉落
+  物栈清空）；端到端（真·原版漏斗贴核心顶面 3 件圆石按 8t 节奏自动入账，succeedWhen 轮询）。
+- **待编译验证（沙箱无 MC 依赖，盲写 API 对表备忘）**：①net.minecraft.world.WorldlyContainer 及
+  getSlotsForFace/canPlaceItemThroughFace(第三参可空 Direction)/canTakeItemThroughFace 三签名；
+  ②net.minecraft.world.Containers.dropItemStack(Level,double,double,double,ItemStack)；
+  ③HopperBlockEntity 直调 setItem（经 BaseContainerBlockEntity 应为 public）；
+  ④GameTestHelper.succeedWhen(Runnable)。报错按此四点改。
+- **验证**：纯语法冒烟真语法错 0（-Xmaxerrs 10000 全量 5127 条均为缺 MC/Fabric 依赖噪音，被改三
+  文件逐条过目全部是 package does not exist）；自家新符号（hopperDockAccepts/hopperDockingEnabled/
+  PHANTOM_SLOT/NO_SLOTS）定向 grep 报错=0。
+- **实机验证脚本**：①核心顶面放漏斗塞一组圆石：约 25 秒滴完，面板账+64，漏斗排空；②核心底面
+  放漏斗：永远抽不到东西；③塞一本附魔书：面板精确条目+1 且附魔完好（不混堆不变裸）；④config
+  把 absoluteStorageTypeSafetyLimit 调成 2 后塞第三种新类型：漏斗卡住不掏货（不吞不丢）；
+  ⑤hopperDockingEnabled=false：漏斗彻底塞不进，FTA 管道（如 Create 溜槽）照常存取。
+- **教训**：给自家方块加原版容器接口前，必须全树 grep instanceof Container 把"谁会突然把它当
+  箱子"的消费点过一遍——本模组三处消费点恰好都有前置分支挡着，属设计余量不属侥幸，但下次加
+  接口（如流体）同样先扫。

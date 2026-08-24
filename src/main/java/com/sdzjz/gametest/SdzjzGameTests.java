@@ -922,6 +922,63 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m460 卅五号：漏斗对接幻影槽——直调容器口：收货闸放行、setItem 双账本入账（普通+精确
+     *  组件保真）、三闸禁抽取（canTake 恒假/getItem 恒空/removeItem 恒空）、幻影槽恒空。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void hopper_dock_phantom_slot_deposits(GameTestHelper ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        ItemStack plain = new ItemStack(Items.COBBLESTONE, 32);
+        ctx.assertTrue(c.canPlaceItemThroughFace(0, plain, net.minecraft.core.Direction.DOWN), "普通件收货闸应放行");
+        c.setItem(0, plain);
+        ctx.assertTrue(c.count("minecraft:cobblestone") == 32, "setItem 应入普通账本=32，实得 " + c.count("minecraft:cobblestone"));
+        ctx.assertTrue(plain.isEmpty(), "收下的栈应被清空（deposit 口径）");
+        ItemStack exact = exactSample(7, 3);
+        c.setItem(0, exact);
+        ctx.assertTrue(c.exactTemplates().size() == 1 && c.exactCount(0) == 3, "精确件应入精确账本且组件保真=3 件");
+        ctx.assertTrue(!c.canTakeItemThroughFace(0, new ItemStack(Items.COBBLESTONE), net.minecraft.core.Direction.DOWN), "禁抽取：canTake 必须恒假");
+        ctx.assertTrue(c.getItem(0).isEmpty() && c.removeItem(0, 64).isEmpty() && c.isEmpty(), "幻影槽必须恒空（漏斗抽取面三闸）");
+        ctx.assertTrue(c.getSlotsForFace(net.minecraft.core.Direction.UP).length == 1, "开闸时应暴露 1 个幻影槽");
+        ctx.succeed();
+    }
+
+    /** m460 卅六号：漏斗收货闸与类型闸同口径——硬顶=2 时第三种新类型前验即拒（漏斗根本不会掏货），
+     *  已有类型照常放行；越闸硬塞（直接 setItem）绝不吞件：账本不涨、残料散落为掉落物。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void hopper_dock_respects_type_gate(GameTestHelper ctx) {
+        SdzjzConfig cfg = SdzjzConfig.get();
+        int old = cfg.absoluteStorageTypeSafetyLimit;
+        cfg.absoluteStorageTypeSafetyLimit = 2;
+        try {
+            StorageCoreBlockEntity c = core(ctx);
+            c.deposit(new ItemStack(Items.STONE, 8));
+            c.deposit(new ItemStack(Items.DIRT, 8));
+            ItemStack third = new ItemStack(Items.SAND, 8);
+            ctx.assertTrue(!c.canPlaceItemThroughFace(0, third, net.minecraft.core.Direction.DOWN), "类型满时新类型应前验即拒");
+            ctx.assertTrue(c.canPlaceItemThroughFace(0, new ItemStack(Items.STONE), net.minecraft.core.Direction.DOWN), "已有类型不受闸");
+            c.setItem(0, third); // 模拟越闸野管道硬塞
+            ctx.assertTrue(c.usedTypes() == 2 && c.count("minecraft:sand") == 0, "越闸硬塞不得入账");
+            ctx.assertTrue(third.isEmpty(), "硬塞残料应转掉落物（绝不吞件），栈须被清空");
+        } finally {
+            cfg.absoluteStorageTypeSafetyLimit = old;
+        }
+        ctx.succeed();
+    }
+
+    /** m460 卅七号（端到端）：真·原版漏斗贴核心顶面，3 件圆石按漏斗节奏（8t/件）自动入账。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void hopper_dock_vanilla_hopper_e2e(GameTestHelper ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        BlockPos hp = new BlockPos(0, 2, 0); // 核心正上方，漏斗默认朝下
+        ctx.setBlock(hp, net.minecraft.world.level.block.Blocks.HOPPER.defaultBlockState());
+        if (!(ctx.getBlockEntity(hp) instanceof net.minecraft.world.level.block.entity.HopperBlockEntity hop)) {
+            ctx.fail("漏斗方块实体未生成");
+            return;
+        }
+        hop.setItem(0, new ItemStack(Items.COBBLESTONE, 3));
+        ctx.succeedWhen(() -> ctx.assertTrue(c.count("minecraft:cobblestone") == 3,
+                "漏斗应把 3 件圆石全部塞进核心，现账 " + c.count("minecraft:cobblestone")));
+    }
+
     /** m372 卅四号：配方域 SPI 行为契约（作者拍板 A 线）——判官只此一份在 Common
      *  （platform.RecipeDomainAssertions，七类判定：任意木板/候选组同口径/熔炼稳定选序/
      *  Ingredient 枚举口径/合成残留双口/酿造全路径/附魔成本语义——⑥⑦随 m373 B 线扩入），
