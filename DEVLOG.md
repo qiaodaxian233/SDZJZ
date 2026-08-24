@@ -8837,3 +8837,40 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：给自家方块加原版容器接口前，必须全树 grep instanceof Container 把"谁会突然把它当
   箱子"的消费点过一遍——本模组三处消费点恰好都有前置分支挡着，属设计余量不属侥幸，但下次加
   接口（如流体）同样先扫。
+## m461 反向直连：生产核心出货补 FTA 分支——产出直塞 MI/TechReborn/Create 这类 FTA-only 机器（m161 后续②销账）
+
+- **背景**：跨模组物流原来只有两口通：FTA 管道存取核心（m161c 提供侧）、抽取节点从 FTA 机器
+  拉料回仓（m225/m434 move）。缺的第三口=生产核心**出货**只认自家仓+原版箱子族，产出塞不进
+  只暴露 FTA 的机器。评论区"给科技模组做节点"的最小正解先把物品面打通（能量面待作者拍产品
+  定位另议）。
+- **落地物**：①findTarget BFS 邻位判定在「自家仓→箱子」之后补**探针分支** xferPushProbe
+  （可测核，public static）：Xfer.find+canInsert 命中即返 XferHit（只记方块+接入面 d.getOpposite()，
+  **句柄不入缓存现取现用**防方块换脸悬空引用）；②**自家 StructureCore 硬排除**——它实现
+  Container 会被 Fabric 的 Inventory 兜底包装出 FTA 视图，不排除=相邻两台生产核心互喂产出
+  （自冲突审计新发现，自家存储核心/箱子在上游分支已被接走轮不到探针）；③resolveOutTarget
+  缓存双侧改造：命中侧 cachedOutSide 非空=FTA 目标走 Xfer.find 重取，写入侧 XferHit 记
+  pos+side+40t，缓存作废两字段同清——FTA 目标享受与箱子完全同款的 40t 正缓存/负缓存节奏，
+  无每拍 BFS 回归；④pushOutput 第三分支 xferPushStack（可测核）：带组件走精确变体 exact=true
+  **组件保真不变裸**（与 deposit 分流同口径），按实收 shrink 余量留缓存绝不落地（insertInto
+  同律）；⑤config 新增 xferPushEnabled（默认开，configVersion 62→63）：关=探针恒 null，
+  出货路由逐位回旧行为。ejectOverflow 零改动自动受益：resolveOutTarget 非空即不喷——核心贴
+  FTA 机器后断网喷射自然停。
+- **判官三用例（卅八~四十）**：探针（挂桩玻璃命中/自家核心排除/配置闸关恒 null——测试桩=
+  gametest 入口类挂在玻璃上的"只进不出记录仓"，生产零污染）；出货栈（裸件全收扣空+精确件
+  5 件自定义组件 k=9 经 ItemData.view 读回保真）；端到端（运行中裸核心+输出缓存 8 件+相邻
+  挂桩玻璃：60 拍后零 sdzjz_ejected 掉落物且缓存原样在位——resolveOutTarget 接线与"无生产拍
+  不推送"箱子同律双证）。
+- **待编译验证（沙箱无 MC 依赖，盲写 API 对表备忘）**：①GameTestHelper.runAfterDelay(long,Runnable)；
+  ②AABB.ofSize(Vec3,double,double,double) 与 getEntitiesOfClass 谓词重载（cleanupEjected 在树
+  先例同款，低险）；③Storage<> 匿名类钻石推断（Java 9+ 语言面，非 API）；④ItemStorage.SIDED
+  .registerForBlocks 五参 lambda 形参序 (world,pos,state,be,context)；⑤record 声明在超 3900 行
+  类的字段区（语言面）。报错按此改。
+- **验证**：纯语法冒烟真语法错 0；自家新符号（XferHit/xferPushProbe/xferPushStack/
+  xferPushEnabled/cachedOutSide/XFER_SINK/ensureXferSink）定向 grep 报错=0。
+- **实机验证脚本**：①装 Create：核心（任一生产线）贴置物台——产出直上台面，断网喷射停；
+  ②装 MI/TechReborn：核心贴其机器输入面——产出进机器缓存；③拆掉目标：核心 40t 内恢复喷射
+  警告一次；④xferPushEnabled=false：立刻回喷射（配置闸逐位回退）；⑤附魔工厂产附魔书出货到
+  FTA 箱类（如 Create 工具箱）：附魔完好不变裸。
+- **教训**：给"找目标"类 BFS 加新目标类型时，**缓存层要跟着长同款腿**——只改 findTarget 不改
+  resolveOutTarget 的命中侧，新目标每拍都要全套 BFS（性能回归）或干脆缓存失配（行为回归）；
+  缓存句柄不如缓存坐标+现取（方块换脸/卸载的悬空引用一次根治）。

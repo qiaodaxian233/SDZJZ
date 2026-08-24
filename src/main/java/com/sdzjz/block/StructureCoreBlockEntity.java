@@ -3512,6 +3512,9 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     // ===== 输出路由缓存：目标坐标缓存 40 tick，避免每个生产周期反复 BFS =====
     private BlockPos cachedOutPos;
     private long cachedOutUntil;
+    private Direction cachedOutSide; // m461 非空=缓存目标是 FTA 句柄（记接入面，句柄不缓存每次重取防悬空）
+    /** m461 反向直连命中：FTA 目标只记「哪个方块的哪个面」，句柄由 resolveOutTarget 现取现用。 */
+    private record XferHit(BlockPos pos, Direction side) { }
     private BlockPos cachedInPos;
     private long cachedInUntil;
 
@@ -3542,16 +3545,29 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         long now = world.getGameTime();
         if (cachedOutPos != null && now < cachedOutUntil
                 && world.getChunkSource().hasChunk(cachedOutPos.getX() >> 4, cachedOutPos.getZ() >> 4)) {
-            BlockEntity be = world.getBlockEntity(cachedOutPos);
-            if (be instanceof StorageCoreBlockEntity sc) return sc;
-            if (be instanceof Container inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+            if (cachedOutSide != null) { // m461 缓存的是 FTA 目标：句柄现取现用（不缓存句柄防方块换脸悬空引用）
+                Object h = com.sdzjz.storage.Xfer.find(world, cachedOutPos, cachedOutSide);
+                if (h != null && com.sdzjz.storage.Xfer.canInsert(h)) return h;
+            } else {
+                BlockEntity be = world.getBlockEntity(cachedOutPos);
+                if (be instanceof StorageCoreBlockEntity sc) return sc;
+                if (be instanceof Container inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+            }
         }
         if (now < cachedOutMissUntil) return null; // m114 负缓存：断网核心不必每次全套 BFS+无线/卫星扫描
         cachedOutPos = null;
+        cachedOutSide = null; // m461 缓存作废两字段同清
         Object target = boundPanel(world, corePos);
         if (target == null) target = findTarget(world, corePos);
         if (target == null && hasWirelessNode(world, corePos)) target = nearestWirelessPanel(world, corePos);
         if (target == null && hasSatelliteNode(world, corePos)) target = findSatellitePanel(world, corePos);
+        if (target instanceof XferHit hit) { // m461 反向直连：记「方块+接入面」，句柄现取（同缓存命中路口径）
+            cachedOutPos = hit.pos();
+            cachedOutSide = hit.side();
+            cachedOutUntil = now + 40;
+            Object h = com.sdzjz.storage.Xfer.find(world, hit.pos(), hit.side());
+            return (h != null && com.sdzjz.storage.Xfer.canInsert(h)) ? h : null; // 刚扫到就被拆=本拍空手，40t 后重扫
+        }
         if (target instanceof BlockEntity tbe && tbe.getLevel() == world) {
             cachedOutPos = tbe.getBlockPos().immutable();
             cachedOutUntil = now + 40;
@@ -3571,6 +3587,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (slot.isEmpty()) continue;
             if (target instanceof StorageCoreBlockEntity panel) panel.deposit(slot);
             else if (target instanceof Container inv) insertInto(inv, slot);
+            else xferPushStack(target, slot); // m461 反向直连：FTA 句柄（resolveOutTarget 已验 canInsert）
             if (slot.isEmpty()) items.set(i, ItemStack.EMPTY);
         }
     }
@@ -3637,10 +3654,33 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
                 BlockEntity be = world.getBlockEntity(np);
                 if (be instanceof StorageCoreBlockEntity panel) return panel;
                 if (be instanceof Container inv && !(be instanceof StructureCoreBlockEntity)) return inv;
+                Object fh = xferPushProbe(world, np, d.getOpposite(), be); // m461 反向直连：FTA-only 机器（MI/TechReborn/Create 置物台…）
+                if (fh != null) return fh;
                 if (world.getBlockState(np).getBlock() instanceof DataCableBlock) q.add(np);
             }
         }
         return null;
+    }
+
+    /** m461 反向直连探针（可测核）：邻位既非自家仓也非原版容器时，问 FTA 有没有能收货的视图。
+     *  排除自家 StructureCore——它实现 Container，会被 Fabric 的 Inventory 兜底包装出 FTA 视图，
+     *  不排除=相邻两台生产核心互喂产出（自冲突）；自家存储核心/箱子在上游分支已被接走轮不到这里。
+     *  配置闸 xferPushEnabled 关=恒 null（出货路由行为逐位回 m460 前）。probe 在 BFS 里对每个邻位
+     *  都会问一次 FTA——lookup 是哈希直查+兜底 instanceof，且只在 40t 缓存失效时跑（m224 线缆插头
+     *  视觉同款姿势，先例在树）。返回 Object 实为 XferHit（只记方块+接入面，句柄现取现用防悬空）。 */
+    public static Object xferPushProbe(Level world, BlockPos np, Direction side, BlockEntity be) {
+        if (!com.sdzjz.config.SdzjzConfig.get().xferPushEnabled) return null;
+        if (be instanceof StructureCoreBlockEntity) return null; // 自家生产核心绝不当出货目标
+        Object h = com.sdzjz.storage.Xfer.find(world, np, side);
+        return (h != null && com.sdzjz.storage.Xfer.canInsert(h)) ? new XferHit(np.immutable(), side) : null;
+    }
+
+    /** m461 反向直连出货（可测核）：FTA 句柄单栈插入——带组件走精确变体（组件保真，不变裸），
+     *  裸件走裸变体（与 deposit 分流同口径）；按实收扣栈，余量留输出缓存绝不落地（insertInto 同律）。 */
+    public static void xferPushStack(Object handle, ItemStack slot) {
+        if (handle == null || slot == null || slot.isEmpty()) return;
+        long acc = com.sdzjz.storage.Xfer.insert(handle, slot, !slot.getComponentsPatch().isEmpty(), slot.getCount());
+        if (acc > 0) slot.shrink((int) Math.min(acc, Integer.MAX_VALUE));
     }
 
     /** 核心相邻或其数据线网络上是否接了无线节点。 */

@@ -979,6 +979,107 @@ public class SdzjzGameTests implements FabricGameTest {
                 "漏斗应把 3 件圆石全部塞进核心，现账 " + c.count("minecraft:cobblestone")));
     }
 
+    // ===== m461 判官专用测试桩：玻璃方块挂"只进不出记录仓"（本入口类只在 gametest 运行加载，生产零污染）=====
+    private static final java.util.List<ItemStack> XFER_SINK_LOG = new java.util.ArrayList<>();
+    private static final net.fabricmc.fabric.api.transfer.v1.storage.Storage<ItemVariant> XFER_SINK =
+            new net.fabricmc.fabric.api.transfer.v1.storage.Storage<>() {
+                @Override public boolean supportsExtraction() { return false; }
+                @Override public long insert(ItemVariant res, long max, net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext tx) {
+                    XFER_SINK_LOG.add(res.toStack((int) Math.min(max, Integer.MAX_VALUE))); // 测试桩即记（生产路径 FabricXfer.insert 单笔即提交，无回滚窗）
+                    return max;
+                }
+                @Override public long extract(ItemVariant res, long max, net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext tx) { return 0; }
+                @Override public java.util.Iterator<net.fabricmc.fabric.api.transfer.v1.storage.StorageView<ItemVariant>> iterator() { return java.util.Collections.emptyIterator(); }
+            };
+    private static boolean xferSinkRegistered;
+    private static synchronized void ensureXferSink() {
+        if (xferSinkRegistered) return;
+        xferSinkRegistered = true;
+        net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.registerForBlocks(
+                (world, pos, state, be, dir) -> XFER_SINK, net.minecraft.world.level.block.Blocks.GLASS);
+    }
+
+    /** m461 卅八号：反向直连探针——FTA-only 方块（挂桩玻璃）命中；自家生产核心必须排除
+     *  （它实现 Container 会被 Fabric 的 Inventory 兜底包装出 FTA 视图，不排除=相邻两核互喂）；
+     *  配置闸关=恒 null。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void xfer_push_probe_finds_fta_and_excludes_self(GameTestHelper ctx) {
+        ensureXferSink();
+        BlockPos grel = new BlockPos(1, 1, 0);
+        ctx.setBlock(grel, net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState());
+        BlockPos gabs = ctx.absolutePos(grel);
+        var lvl = ctx.getLevel();
+        Object hit = com.sdzjz.block.StructureCoreBlockEntity.xferPushProbe(lvl, gabs, net.minecraft.core.Direction.WEST, lvl.getBlockEntity(gabs));
+        ctx.assertTrue(hit != null, "挂桩玻璃应被探针命中（FTA-only 目标）");
+        BlockPos crel = new BlockPos(2, 1, 0);
+        ctx.setBlock(crel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        BlockPos cabs = ctx.absolutePos(crel);
+        Object self = com.sdzjz.block.StructureCoreBlockEntity.xferPushProbe(lvl, cabs, net.minecraft.core.Direction.WEST, lvl.getBlockEntity(cabs));
+        ctx.assertTrue(self == null, "自家生产核心必须被探针排除（防两核互喂自冲突）");
+        SdzjzConfig cfg = SdzjzConfig.get();
+        boolean old = cfg.xferPushEnabled;
+        cfg.xferPushEnabled = false;
+        try {
+            ctx.assertTrue(com.sdzjz.block.StructureCoreBlockEntity.xferPushProbe(lvl, gabs, net.minecraft.core.Direction.WEST, lvl.getBlockEntity(gabs)) == null,
+                    "配置闸关时探针必须恒 null");
+        } finally {
+            cfg.xferPushEnabled = old;
+        }
+        ctx.succeed();
+    }
+
+    /** m461 卅九号：反向直连出货栈——裸件走裸变体全收扣栈；带组件件走精确变体**组件保真不变裸**
+     *  （精确件三律"不混堆不变裸"延伸到出货口）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void xfer_push_stack_keeps_components(GameTestHelper ctx) {
+        ensureXferSink();
+        XFER_SINK_LOG.clear();
+        BlockPos grel = new BlockPos(1, 1, 0);
+        ctx.setBlock(grel, net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState());
+        Object h = com.sdzjz.storage.Xfer.find(ctx.getLevel(), ctx.absolutePos(grel), null);
+        ctx.assertTrue(h != null && com.sdzjz.storage.Xfer.canInsert(h), "测试桩句柄应可插入");
+        ItemStack plain = new ItemStack(Items.COBBLESTONE, 32);
+        com.sdzjz.block.StructureCoreBlockEntity.xferPushStack(h, plain);
+        ctx.assertTrue(plain.isEmpty(), "裸件应全收扣空，残留 " + plain.getCount());
+        ItemStack exact = exactSample(9, 5);
+        com.sdzjz.block.StructureCoreBlockEntity.xferPushStack(h, exact);
+        ctx.assertTrue(exact.isEmpty(), "精确件应全收扣空");
+        ctx.assertTrue(XFER_SINK_LOG.size() == 2, "记录仓应收到两笔，实得 " + XFER_SINK_LOG.size());
+        ctx.assertTrue(XFER_SINK_LOG.get(0).getCount() == 32 && XFER_SINK_LOG.get(0).getComponentsPatch().isEmpty(),
+                "第一笔应为 32 件裸圆石");
+        ItemStack got = XFER_SINK_LOG.get(1);
+        ctx.assertTrue(got.getCount() == 5 && com.sdzjz.item.ItemData.view(got).getInt("k") == 9,
+                "第二笔应为 5 件精确圆石且自定义组件 k=9 保真（不变裸）");
+        ctx.succeed();
+    }
+
+    /** m461 四十号（端到端）：resolveOutTarget 接线判官——运行中的裸核心相邻挂桩玻璃（FTA 去处），
+     *  断网喷射（m114）必须停喷：60 拍后核心上方零 sdzjz_ejected 掉落物、输出缓存原样在位
+     *  （无生产拍不推送=既有箱子通道同律）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    public void xfer_push_target_suppresses_eject(GameTestHelper ctx) {
+        ensureXferSink();
+        BlockPos crel = new BlockPos(0, 1, 0);
+        ctx.setBlock(crel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(crel) instanceof com.sdzjz.block.StructureCoreBlockEntity sc)) {
+            ctx.fail("生产核心方块实体未生成");
+            return;
+        }
+        ctx.setBlock(new BlockPos(1, 1, 0), net.minecraft.world.level.block.Blocks.GLASS.defaultBlockState());
+        sc.setItem(com.sdzjz.block.StructureCoreBlockEntity.OUTPUT_START, new ItemStack(Items.COBBLESTONE, 8));
+        sc.running = true; // 喷射段在 running 闸内
+        ctx.runAfterDelay(60, () -> {
+            var center = ctx.absolutePos(crel).getCenter();
+            int ejected = ctx.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                    net.minecraft.world.phys.AABB.ofSize(center, 8, 8, 8),
+                    e -> e.getTags().contains("sdzjz_ejected")).size();
+            ctx.assertTrue(ejected == 0, "有 FTA 去处时不得喷射，实测喷出 " + ejected + " 个掉落物");
+            ctx.assertTrue(sc.getItem(com.sdzjz.block.StructureCoreBlockEntity.OUTPUT_START).getCount() == 8,
+                    "无生产拍不推送：输出缓存应原样在位（箱子通道同律）");
+            ctx.succeed();
+        });
+    }
+
     /** m372 卅四号：配方域 SPI 行为契约（作者拍板 A 线）——判官只此一份在 Common
      *  （platform.RecipeDomainAssertions，七类判定：任意木板/候选组同口径/熔炼稳定选序/
      *  Ingredient 枚举口径/合成残留双口/酿造全路径/附魔成本语义——⑥⑦随 m373 B 线扩入），
