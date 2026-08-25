@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m465：C2 插队刀（作者实机反馈）——1.20.1 模型与动画归位：存储核心方块/物品模型自主线同源归位（撤 m441 cube_all 占位）+数据线物品图标补动画 mcmeta+两台 BER 移植（StorageCoreRenderer120 能量核旋转呼吸/DataCableRenderer120 六向能量脉冲，几何数据走 xplat 白名单挂载零副本，顶点发射换 1.20.1 链式 API），注册走原版 BlockEntityRenderers；教训入档：跨版本资产对表加"与主线逐字节 cmp"、移植普查把客户端渲染器列独立一格。下一笔照 m463 分片继续 ⑤b 耗料类。上笔 m464：C2-⑤a 落地——1.20.1 生产 tick 第一次转起来：StructureCore120 挂 tick（cyclesThisTick 四层预算闸逐位对照蓝本，世代差=无升级恒 1 倍）+kind0 产出边入账+灯表说人话（未连仓红/特种黄/预算剪零黄）+setChanged 去重；StorageCore120 补 implements StorageAccess；白名单挂载 DropRolls+StorageAccess；判官 RetroTickTests 三用例（灯表三色/cobble_maker 确定性对数/维度闸 kind 闸）。世代取舍：自动运转（开停闸随屏侧到序）、产出必须接仓无缓存喷射。下一笔 ⑤b 耗料类。上笔 m463：C2-⑤ 小普查收官（零代码笔）
+## 当前状态（m466：C2-⑤b 落地——1.20.1 生产 tick 吃上料：通用分支补 consumesInputs=true 半（supplyTarget kind1+蓝本按料折算 doCycles+withdraw+扣料即点绿），灯表三句新话（未连供料/缺料带量/类型满），防白耗料护栏（acceptsPlainType 扣料前先验产出仓类型余量，概率产物也计入），覆盖 11 台 defConsume；判官三用例（缺供料红灯/料折算+进出账恒等式/类型护栏零消耗——同步手拍 tick 零配置暴露窗）。下一笔照 m463 分片 ⑤c 机器↔机器连线语义（届时先单独小普查两颗路由脑）。上笔 m465：C2 插队刀（作者实机反馈）——1.20.1 模型与动画归位；m464：C2-⑤a 落地——1.20.1 生产 tick 第一次转起来：StructureCore120 挂 tick（cyclesThisTick 四层预算闸逐位对照蓝本，世代差=无升级恒 1 倍）+kind0 产出边入账+灯表说人话（未连仓红/特种黄/预算剪零黄）+setChanged 去重；StorageCore120 补 implements StorageAccess；白名单挂载 DropRolls+StorageAccess；判官 RetroTickTests 三用例（灯表三色/cobble_maker 确定性对数/维度闸 kind 闸）。世代取舍：自动运转（开停闸随屏侧到序）、产出必须接仓无缓存喷射。下一笔 ⑤b 耗料类。上笔 m463：C2-⑤ 小普查收官（零代码笔）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——

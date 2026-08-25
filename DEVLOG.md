@@ -8981,3 +8981,41 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   白名单显式登记刻意不同的文件"（本笔比对脚本即原型，四处实锤全靠它）；另外 BER 这类
   **代码承载的动画**不在资产清单里，移植普查（m450/m463）的版图要把"客户端渲染器"列为独立
   一格，别让"资产全齐"造成"观感全齐"的错觉。
+## m466 C2-⑤b：数据驱动耗料类——1.20.1 生产 tick 吃上料了（m463 分片第二刀）
+
+- **落地物**：①StructureCore120 通用分支补 consumesInputs=true 半：supplyTarget（kind1，蓝本
+  supplyFor→edgeStorage 的世代精简；depositTarget 同步合流成共用 edgeTarget 防重复方法）→
+  蓝本 m99 按料折算（doCycles=min(预算周期, 各料 count/需量)，running 恒 1 世代差）→
+  withdraw（蓝本同式 int 乘）→ 扣料即点绿（蓝本 stat 位次：全概率产表如猪灵交易本拍全没掷中
+  也不滞留旧灯）→ 产出循环改吃 doCycles（无输入类 doCycles==cycles 零变化）；②灯表三句新话：
+  未连供料仓红（m458 循环手势话术"点机器再点仓，再点循环到金线=供料"）/缺料红（蓝本
+  whyMissingSupIn 世代版，名称走 getHoverName 同蓝本 itemName）/类型满黄；③**防白耗料护栏**
+  （⑤a 取舍⑤ 的耗料版）：StorageCore120 新增 acceptsPlainType（与 deposit 的 m293 闸同一判式），
+  扣料前先验产出仓全部产物类型余量（概率产物如龙蛋 0.005 也计入=宁待机不烧料），不足=黄灯
+  待机零消耗；两机同拍抢最后类型位的残余竞态仍走折损黄灯，⑤c 输出缓存到序根治。覆盖机型
+  =11 台 defConsume（隧道掘进/屠龙炮/猪灵交易×2/铁金熔炼/烧炭/玻璃窑/凋灵猎杀/切石/村民繁殖），
+  熔炉族（super/mega_super）照旧黄灯待 ⑤d。
+- **先验位次世代差（显式记档）**：供料仓缺连线/类型护栏两道先验在 cyclesThisTick **之前**
+  （与 ⑤a 产出仓先验同律：未连线待机不烧预算不丢工作量）；蓝本是预算先扣、缺料后弃——
+  缺料折零（doCycles≤0）仍照蓝本在预算后（该拍工作量已支出，同蓝本）。MachineXp 经验产出
+  随 ⑤e（本世代耗料机只产物品不攒经验，段注⑥记档）。
+- **判官三用例（累计三十四）**：①缺供料线红灯说人话；②按料折算+进出账恒等式——iron_smelter
+  确定性（1 粗铁→1 铁锭 chance=1）：供料仓 3 粗铁 → 恰产 3 铁锭/供料仓清零/两仓零串账/料尽
+  红灯缺料；③类型护栏不白耗料——**同步手拍 tick 把改配置暴露窗口压到零**（硬顶=1+占位类型
+  填满产出仓，try/finally 复位后才断言，不脏并行判官）：25 拍后料一件未动、产出为零、黄灯说类型。
+- **待编译验证（沙箱无 MC 依赖，盲写 API 对表备忘）**：①ItemStack.getHoverName 1.20.1 在位
+  （Mojmap 同名，低险）；②GameTestHelper.getBlockState 不存在——判官用
+  ctx.getLevel().getBlockState(abs)（Level 口，稳）；③手拍 StructureCore120.tick 静态可达
+  （同包 default 可见，语言面）。报错按此改。
+- **验证**：全量纯语法冒烟真语法错 0；三改动文件 error 逐条 symbol 分类 26 个去重全为 MC 类，
+  命中自家新符号（acceptsPlainType/supplyTarget/edgeTarget/whyMissingSup/itemName120）=0；
+  15 尺本地全绿（0.1.466 对表）。
+- **实机验证脚本**：1.20.1 端——①画布放 iron_smelter，连产出仓（绿线）不连供料：红灯"未连
+  供料仓"；②补供料线（再点循环到金线）但仓里没粗铁：红灯"缺料：粗铁（仓 0/需 1）"；③往供料仓
+  塞一组粗铁：每秒 1 铁锭入产出仓、扣 1 粗铁，账目分毫不差；④config 把
+  absoluteStorageTypeSafetyLimit 调小逼类型满：黄灯"不白耗料先待机"且粗铁一件不掉；
+  ⑤放 piglin_barter 喂金锭：八项池产物按概率入仓、金锭稳定扣、没掷中的拍灯仍绿。
+- **教训**：str_replace 式补丁把"旧块整段换新块"时，**old_str 覆盖到的每一行都要在 new_str 里
+  有去处**——本笔把维度判官的 succeedWhen 尾巴当接缝锚点吞掉了，三个新方法落到类体外，
+  全靠推前冒烟的 expected 计数抓回（m137"断言脚本也要审"家族新成员：接缝锚点选"只读上下文"，
+  别选"会被顺手删掉的活代码"）。

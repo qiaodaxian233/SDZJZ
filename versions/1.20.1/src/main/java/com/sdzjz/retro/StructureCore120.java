@@ -85,15 +85,19 @@ final class StructureCore120 extends BlockEntity {
         return false;
     }
 
-    // ===== m464（C2-⑤a）：生产 tick 脊柱 + 数据驱动族·无输入生成类 =====
+    // ===== m464（C2-⑤a）+ m466（C2-⑤b）：生产 tick 脊柱 + 数据驱动族（生成类+耗料类）=====
     // 蓝本=SCBE tickInner 的最小可产集（m463 普查分片）：预算折算（cyclesThisTick 四层闸逐位对照，
-    // 世代差=无速度升级 rate 恒 1.0、无并发升级恒 1 台）→ 通用 MachineItem 分支的
-    // consumesInputs=false 半（rollDrops → kind0 产出仓 deposit）→ 灯表说人话。
+    // 世代差=无速度升级 rate 恒 1.0、无并发升级恒 1 台）→ 通用 MachineItem 分支两半：
+    // consumesInputs=false 半（rollDrops → kind0 产出仓 deposit）；=true 半（m466：kind1 供料仓
+    // 蓝本式按料折算 doCycles → withdraw → 产出同前）→ 灯表说人话。
     // 世代取舍（m463 记档）：①本世代核心**自动运转**（有节点即 tick，开停闸随屏侧到序）——
     // 产出仓连线（m458 手势）本身就是玩家显式授权；②产出必须接仓，无仓=红灯待机（无输出缓存/
     // 断网喷射，零吞件零实体洪水）；③特种/配方机型（def 产表为空或熔炉族）黄灯待后续分片；
-    // ④组件产物（山羊角）随 ⑤d 精确账本对接；⑤产出仓类型满=免费产物折损黄灯（料本免费，
-    // 不产=不损，与主线 depositOrBuffer 缓冲语义的世代差记档）。
+    // ④组件产物（山羊角）随 ⑤d 精确账本对接；⑤产出仓类型满：免费产物=折损黄灯（料本免费不产
+    // 不损）；耗料机=扣料前先验类型余量待机（m466 护栏，白耗料不可接受；两机同拍抢最后一个
+    // 类型位的残余竞态仍走折损黄灯，⑤c 输出缓存到序即根治）；⑥MachineXp 经验产出（蓝本
+    // xpPool += mxp）随 ⑤e 经验经济族到序——本世代耗料机只产物品不攒经验（显式记档非漏抄）；
+    // ⑦供料侧无 m340 topUpSource/机器连线缓存（hasIn 分支）——nodeBufs 在途缓存随 ⑤c。
     private transient double[] workAcc = new double[0]; // 蓝本 m356 数组直取（不落盘：重启丢半周期无妨）
     private transient long recipesThisTick;             // 蓝本 m270 全核 tick 周期预算游标
 
@@ -109,18 +113,34 @@ final class StructureCore120 extends BlockEntity {
                 be.stat(i, 2, "配方/特种机型随 C2-⑤ 后续分片到序（本世代暂只跑数据驱动生成类）");
                 continue;
             }
-            if (def.consumesInputs()) {
-                be.stat(i, 2, "耗料机型随 C2-⑤b 到序（供料连线语义届时接通）");
-                continue;
-            }
             StorageCore120 dep = be.depositTarget(world, i);
             if (dep == null) { be.stat(i, 3, "未连产出仓（画布连线模式：点机器再点仓=绿线产出）"); continue; }
+            StorageCore120 sup = null;
+            if (def.consumesInputs()) { // ===== m466（C2-⑤b）：数据驱动耗料类 =====
+                sup = be.supplyTarget(world, i); // 蓝本 supplyFor 的世代精简（kind1，m458 循环手势：绿线再点=金线供料）
+                if (sup == null) { be.stat(i, 3, "未连供料仓（画布连线模式：点机器再点仓，再点循环到金线=供料）"); continue; }
+                boolean typeRoom = true; // 护栏：先验产出仓类型余量再扣料——⑤a 取舍⑤"免费产物折损"到耗料机=白耗料，不可接受；
+                for (com.sdzjz.machine.MachineDef.Drop d : def.outputs()) { // 概率产物（如龙蛋 0.005）也计入先验=宁待机不烧料
+                    if ("minecraft:goat_horn".equals(d.item())) continue;
+                    if (!dep.acceptsPlainType(d.item())) { typeRoom = false; break; }
+                }
+                if (!typeRoom) { be.stat(i, 2, "产出仓类型已满，耗料机不白耗料先待机（清账本类型/换仓即恢复）"); continue; }
+            }
             int cycles = be.cyclesThisTick(world, i, def.baseIntervalTicks(), cfg);
             if (cycles <= 0) continue; // 预算剪零已亮黄说话；没攒够周期=保持上拍灯
+            int doCycles = cycles;
+            if (def.consumesInputs()) { // 蓝本 m99：料不够整批时按料量折算周期数（running 恒 1 世代差）
+                for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                    doCycles = (int) Math.min(doCycles, sup.count(in.item()) / (long) in.count());
+                if (doCycles <= 0) { be.stat(i, 3, whyMissingSup(sup, def.inputs())); continue; }
+                for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                    sup.withdraw(in.item(), in.count() * doCycles); // 蓝本同式（int 乘，cap 钳过不溢）
+                be.stat(i, 1, ""); // 蓝本位次：扣料即点绿——全概率产表（如猪灵交易）本拍全没掷中也不滞留旧灯
+            }
             boolean skippedComponent = false, produced = false;
             for (com.sdzjz.machine.MachineDef.Drop d : def.outputs()) {
                 if ("minecraft:goat_horn".equals(d.item())) { skippedComponent = true; continue; } // 组件产物 ⑤d
-                long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, cycles, 0);
+                long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, doCycles, 0);
                 while (sum > 0) {
                     int n = (int) Math.min(sum, Integer.MAX_VALUE);
                     ItemStack outSt = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
@@ -185,17 +205,43 @@ final class StructureCore120 extends BlockEntity {
         return cycles;
     }
 
-    /** kind0（产出）连线目标：同维度已加载存储核心，首中即用（蓝本 depositFor 的世代精简）。 */
+    /** kind0（产出）连线目标（蓝本 depositFor 的世代精简）。 */
     StorageCore120 depositTarget(net.minecraft.world.level.Level world, int machineIndex) {
+        return edgeTarget(world, machineIndex, 0);
+    }
+
+    /** kind1（供料）连线目标（蓝本 supplyFor→edgeStorage 的世代精简，m466）。 */
+    StorageCore120 supplyTarget(net.minecraft.world.level.Level world, int machineIndex) {
+        return edgeTarget(world, machineIndex, 1);
+    }
+
+    /** 边表定向解析：同维度已加载存储核心，首中即用（蓝本 edgeStorage 同构）。 */
+    private StorageCore120 edgeTarget(net.minecraft.world.level.Level world, int machineIndex, int kind) {
         String dim = world.dimension().location().toString();
         for (int e = 0; e < g.storageEdges.size(); e++) {
             long[] edge = g.storageEdges.get(e);
-            if (edge[0] != machineIndex || edge[2] != 0) continue;
+            if (edge[0] != machineIndex || edge[2] != kind) continue;
             if (e < g.storageEdgeDims.size() && !dim.equals(g.storageEdgeDims.get(e))) continue;
             StorageCore120 sc = StorageCore120.loadedCoreAt(world, BlockPos.of(edge[1]));
             if (sc != null) return sc;
         }
         return null;
+    }
+
+    /** 缺料说人话（蓝本 whyMissingSupIn 世代版：running 恒 1；名称走 getHoverName 同蓝本 itemName）。 */
+    private static String whyMissingSup(StorageCore120 sup, java.util.List<com.sdzjz.machine.MachineDef.Input> ins) {
+        for (com.sdzjz.machine.MachineDef.Input in : ins) {
+            long have = sup.count(in.item());
+            if (have < in.count()) return "缺料：" + itemName120(in.item()) + "（仓 " + have + "/需 " + in.count() + "）";
+        }
+        return "缺料（仓不足）";
+    }
+
+    private static String itemName120(String id) {
+        try {
+            return new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .get(new net.minecraft.resources.ResourceLocation(id))).getHoverName().getString();
+        } catch (Exception e) { return id; }
     }
 
     /** 灯表写入（蓝本 stat/statR 合口）：值不变不置脏（tick 每拍跑，setChanged 去重防落盘风暴）。 */

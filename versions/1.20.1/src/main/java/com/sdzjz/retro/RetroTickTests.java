@@ -94,4 +94,96 @@ public class RetroTickTests implements FabricGameTest {
             com.sdzjz.machine.CoreScheduler.clearAll();
         });
     }
+
+    /** m466（C2-⑤b）：耗料机连了产出仓但没连供料仓=红灯说人话（先验在预算前，不烧预算不丢工作量）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void tick_consumer_needs_supply_link(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        BlockPos srel = new BlockPos(1, 1, 0);
+        ctx.setBlock(srel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        c.addNode(node("iron_smelter", 10, 10));
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(srel).asLong(), 0}); // 只连产出边
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        ctx.runAfterDelay(20, () -> {
+            ctx.assertTrue(c.g.nodeStatus.get(0) == 3, "缺供料线应红灯，实得 " + c.g.nodeStatus.get(0));
+            ctx.assertTrue(c.g.nodeReason.get(0).contains("未连供料仓"), "红灯原因应说人话，实得 " + c.g.nodeReason.get(0));
+            com.sdzjz.machine.CoreScheduler.clearAll();
+            ctx.succeed();
+        });
+    }
+
+    /** m466：按料折算+进出账恒等式——iron_smelter（20 拍 1 周期，1 粗铁→1 铁锭 chance=1 确定性）：
+     *  供料仓只给 3 粗铁 → 恰产 3 铁锭、供料仓清零、两仓零串账，料尽后红灯"缺料"。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 400)
+    public void tick_consumer_folds_by_materials_ledger_identity(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        BlockPos depRel = new BlockPos(1, 1, 0), supRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(depRel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        ctx.setBlock(supRel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(depRel) instanceof StorageCore120 dep)
+                || !(ctx.getBlockEntity(supRel) instanceof StorageCore120 sup)) {
+            ctx.fail("存储核心方块实体未生成");
+            return;
+        }
+        sup.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:raw_iron")), 3));
+        c.addNode(node("iron_smelter", 10, 10));
+        String dim = ctx.getLevel().dimension().location().toString();
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(depRel).asLong(), 0}); // 产出→dep
+        c.g.storageEdgeDims.add(dim);
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(supRel).asLong(), 1}); // 供料←sup
+        c.g.storageEdgeDims.add(dim);
+        ctx.succeedWhen(() -> {
+            ctx.assertTrue(dep.count("minecraft:iron_ingot") == 3, "3 粗铁应恰产 3 铁锭（进出账恒等式），现账 " + dep.count("minecraft:iron_ingot"));
+            ctx.assertTrue(sup.count("minecraft:raw_iron") == 0, "供料仓应清零，现余 " + sup.count("minecraft:raw_iron"));
+            ctx.assertTrue(dep.count("minecraft:raw_iron") == 0 && sup.count("minecraft:iron_ingot") == 0, "两仓不得串账");
+            ctx.assertTrue(c.g.nodeStatus.get(0) == 3 && c.g.nodeReason.get(0).contains("缺料"),
+                    "料尽应红灯缺料说人话，实得 " + c.g.nodeStatus.get(0) + "/" + c.g.nodeReason.get(0));
+            com.sdzjz.machine.CoreScheduler.clearAll();
+        });
+    }
+
+    /** m466 护栏：产出仓类型满时耗料机**先验待机不白耗料**——同步手拍 tick（配置改动零暴露窗口，
+     *  不脏并行判官）：硬顶=1 且产出仓已被占位类型填满，手拍 25 拍后料一件未动、产出为零、黄灯说话。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void tick_consumer_type_guard_no_waste(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        BlockPos depRel = new BlockPos(1, 1, 0), supRel = new BlockPos(2, 1, 0);
+        ctx.setBlock(depRel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        ctx.setBlock(supRel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(depRel) instanceof StorageCore120 dep)
+                || !(ctx.getBlockEntity(supRel) instanceof StorageCore120 sup)) {
+            ctx.fail("存储核心方块实体未生成");
+            return;
+        }
+        dep.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:dirt")), 1)); // 占掉唯一类型位
+        sup.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:raw_iron")), 5));
+        c.addNode(node("iron_smelter", 10, 10));
+        String dim = ctx.getLevel().dimension().location().toString();
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(depRel).asLong(), 0});
+        c.g.storageEdgeDims.add(dim);
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(supRel).asLong(), 1});
+        c.g.storageEdgeDims.add(dim);
+        com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
+        int old = cfg.absoluteStorageTypeSafetyLimit;
+        cfg.absoluteStorageTypeSafetyLimit = 1; // 同步块内设改+手拍+复位，无跨拍暴露
+        try {
+            BlockPos abs = ctx.absolutePos(new BlockPos(0, 1, 0));
+            for (int t = 0; t < 25; t++)
+                StructureCore120.tick(ctx.getLevel(), abs, ctx.getLevel().getBlockState(abs), c);
+        } finally {
+            cfg.absoluteStorageTypeSafetyLimit = old;
+        }
+        ctx.assertTrue(sup.count("minecraft:raw_iron") == 5, "护栏下料应一件不耗，现余 " + sup.count("minecraft:raw_iron"));
+        ctx.assertTrue(dep.count("minecraft:iron_ingot") == 0, "护栏下不得产出");
+        ctx.assertTrue(c.g.nodeStatus.get(0) == 2 && c.g.nodeReason.get(0).contains("类型"),
+                "应黄灯说类型满，实得 " + c.g.nodeStatus.get(0) + "/" + c.g.nodeReason.get(0));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
 }

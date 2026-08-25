@@ -124,6 +124,10 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
     public void upgrade() { tier++; setChanged(); }
 
+    /** m466（C2-⑤b）：普通物品类型余量先验——耗料机"先扣料后入仓"，入仓才发现类型满=白耗料，
+     *  故扣料前用本口先验（与 deposit 的 m293 闸同一判式；带 tag 走精确账本不在本口）。 */
+    boolean acceptsPlainType(String id) { return store.containsKey(id) || usedTypes() < typeGate(); }
+
     /** m273：非负计数饱和加法——溢出封顶 Long.MAX_VALUE（与蓝本同式同注：符号溢出检测）。 */
     public static long satAdd(long a, long b) {
         long r = a + b;
