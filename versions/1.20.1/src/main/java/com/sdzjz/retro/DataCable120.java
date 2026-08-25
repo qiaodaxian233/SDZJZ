@@ -48,6 +48,7 @@ public final class DataCable120 extends BlockEntity {
     private long coresScanTick = Long.MIN_VALUE;               // 相连核心 40t 缓存（m108c 同款语义）
     private List<BlockPos> coresCache = List.of();
     private boolean pullMode = false; // m231 方向：false=送出(仓→机器) true=回收(机器→仓)；单向无环
+    private boolean endsHealed = false; // m469 端点自愈一次性闸（transient：每次加载重跑一遍，不落盘）
 
     public DataCable120(BlockPos pos, BlockState state) {
         super(RetroBlocks.DATA_CABLE_BE, pos, state);
@@ -118,7 +119,9 @@ public final class DataCable120 extends BlockEntity {
     /** m225 抽取口主拍：pos 哈希移相（m218c 口径，多口不挤同一全局 tick），周期与批量走 common
      *  配置同源键（extractPortPeriodTicks/extractPortBatch，m230 升级槽随 P-C——本世代基础值）。 */
     public static void tick(Level world, BlockPos pos, BlockState state, DataCable120 be) {
-        if (world.isClientSide || !be.extractOn) return;
+        if (world.isClientSide) return;
+        if (!be.endsHealed) be.endsHealed = DataCableBlock120.healEnds(world, pos, state); // m469 旧档端点自愈（一次性，不落盘）
+        if (!be.extractOn) return;
         int period = Math.max(1, SdzjzConfig.get().extractPortPeriodTicks);
         if (Math.floorMod(world.getGameTime() + pos.hashCode(), period) != 0) return;
         be.pulse(world, pos);

@@ -308,4 +308,45 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.assertTrue(hit.rows().size() == 1 && hit.rows().get(0).n() == 3, "面板按 id 搜索应命中机器物品 ×3");
         ctx.succeed();
     }
+
+    /** m469 判官：线缆端点名单——自家三块都要伸插头（原只抄了存储核心，结构核心/数据面板恒 NONE，
+     *  作者实机截图"线怼上去不连"）。**方向断言按计数做，避开 GameTest 结构旋转**：先摆线再摆
+     *  三个邻居（放置期 updateNeighbourShapes 会回头刷线的端点），数插头数=2、缆管数=0、其余=NONE。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_plugs_into_own_three_blocks(GameTestHelper ctx) {
+        BlockPos cableRel = new BlockPos(1, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        ctx.setBlock(new BlockPos(2, 1, 0), RetroBlocks.DATA_PANEL.defaultBlockState());
+        ctx.setBlock(new BlockPos(0, 1, 0), RetroBlocks.STRUCTURE_CORE.defaultBlockState());
+        ctx.setBlock(new BlockPos(1, 1, 1), Blocks.STONE.defaultBlockState()); // 对照：石头不伸
+        var st = ctx.getBlockState(cableRel);
+        int plug = 0, cable = 0;
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+            CableEnd120 e = st.getValue(DataCableBlock120.END_PROPS.get(d));
+            if (e == CableEnd120.PLUG) plug++;
+            else if (e == CableEnd120.CABLE) cable++;
+        }
+        ctx.assertTrue(plug == 2, "数据面板+结构核心应各伸一只插头，实得 " + plug);
+        ctx.assertTrue(cable == 0, "无相邻数据线，缆管端应为 0，实得 " + cable);
+        ctx.succeed();
+    }
+
+    /** m469 判官：旧档自愈——先摆邻居再摆线（原版 updateNeighbourShapes 只刷邻居不刷自己，
+     *  线落地即 NONE，等同旧存档里名单修好前存下的状态）；跑一次 healEnds 应把插头补回来。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void cable_heal_ends_fixes_stale_state(GameTestHelper ctx) {
+        ctx.setBlock(new BlockPos(2, 1, 0), RetroBlocks.DATA_PANEL.defaultBlockState());
+        BlockPos cableRel = new BlockPos(1, 1, 0);
+        ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
+        int before = 0;
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values())
+            if (ctx.getBlockState(cableRel).getValue(DataCableBlock120.END_PROPS.get(d)) != CableEnd120.NONE) before++;
+        ctx.assertTrue(before == 0, "后放的线本应是陈旧全 NONE 态，实得非 NONE 端 " + before);
+        DataCableBlock120.healEnds(ctx.getLevel(), ctx.absolutePos(cableRel), ctx.getBlockState(cableRel));
+        int after = 0;
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values())
+            if (ctx.getBlockState(cableRel).getValue(DataCableBlock120.END_PROPS.get(d)) == CableEnd120.PLUG) after++;
+        ctx.assertTrue(after == 1, "自愈后应对数据面板伸一只插头，实得 " + after);
+        ctx.succeed();
+    }
 }

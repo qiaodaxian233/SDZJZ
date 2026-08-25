@@ -9086,3 +9086,40 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   保留同值"两步、CI 四线共判；③nodeBufs 入 NBT=存档结构变更，写读对拍同一刀做完（m180 教训）。
 - **交付物**：docs/生产tick移植1201_C2-5c小普查_m468.md（版图/地基/取舍/分片/风险五节）。
 - 15 闸全绿（0.1.468 对表）。零代码零配置零资源改动。
+
+## m469 数据线连接修复（作者实机截图"线怼上去不伸插头"）：endFor 自家名单漏抄两块 + 客户端本地重算的双端分歧
+
+- **现象**：1.20.1 里数据线贴着数据面板/结构核心，视觉上不伸插头臂，线像是从机器身上"穿过去"
+  （截图：线一路铺到核心跟前，末端还是光缆管）。存储核心那面是好的。
+- **根因两条（第一条是本体）**：
+  ① **自家 PLUG 名单只抄了一条**。蓝本 `DataCableBlock.endFor:142-143` 列了六块
+     （结构核心/存储核心/数据面板/无线节点/卫星节点/交易所），本世代 `DataCableBlock120.endFor`
+     只写了 `STORAGE_CORE`。结构核心与数据面板**都不实现 Container**（StructureCore120/
+     DataPanel120 均裸继承 BlockEntity），于是恒落到最后一行 `return NONE`——不伸臂。
+     **注意：只是视觉**，存储网络 BFS（StorageCore120.connectedCores:75）只认方块类型不看端点状态，
+     所以逻辑一直是通的，这也是它躲过前面所有判官的原因。
+  ② **updateShape 的双端分歧**（顺手清掉的同族雷）。原注写"本世代无掩码，双端重算同果"——
+     **是把坏尺子**：endFor 的 FTA 分支自带 `!isClientSide` 闸（第三方存储客户端注册表可能缺登记），
+     客户端本地重算对 FTA-only 邻居必得 NONE，而服务端是 PLUG。谁最后写谁算数，插头臂会被客户端
+     自己算没。照蓝本 95 行改成 `if (world.isClientSide()) return state;`——形状一律听服务端同步。
+- **修法三件**：①endFor 名单补 `STRUCTURE_CORE`/`DATA_PANEL`（蓝本另三块本世代未建，行内记死，
+  到位随各自里程碑进名单）；②updateShape 加客户端闸并撤回旧注；③**旧档自愈** `healEnds`——
+  已经放好的线存的是 NONE，不去碰邻居永远不刷新，所以 DataCable120 首拍按当前邻居重算六面、
+  变了才写（flags=3，蓝本 refreshEnd 同款）；`endsHealed` 是 transient 闸，每次加载跑一遍不落盘；
+  邻块未加载直接返回 false 等下拍，**绝不用 getBlockState 变相发强制加载票**（m142 前车）。
+- **判官两用例（RetroStorageTests，累计三十六）**：①线缆端点名单——先摆线再摆
+  数据面板/结构核心/石头，插头数=2、缆管数=0（**方向断言按计数做，避开 GameTest 结构旋转**，
+  这条口径本身也入册）；②旧档自愈——先摆邻居再摆线（原版 updateNeighbourShapes 只刷邻居不刷自己，
+  线落地即全 NONE=陈旧态的等价复现），跑 healEnds 后插头补回 1。
+- **待编译验证**：`GameTestHelper.getBlockState(BlockPos)` 1.20.1 在位（getLevel/absolutePos/setBlock
+  在树已有先例）；`LevelAccessor.isClientSide()` 1.20.1 在位（蓝本 xplat 同签名同调用）。
+- **验证**：1.20.1 全量纯语法冒烟真语法错 0；自家新符号 healEnds/endsHealed/END_PROPS/CableEnd120
+  定向 grep symbol 错各 0；15 闸全绿（0.1.469 对表）。
+- **实机验证脚本**：装新包进原存档——①**不用重摆**：走近产线，线的端点应在一两拍内自愈成插头臂
+  （数据面板/结构核心/存储核心三种邻居都要有臂）；②新放一根线贴数据面板，落地即带臂；
+  ③拆掉面板，臂应立刻收回；④贴 Create/AE2 这类只暴露 FTA 的机器，臂应稳定不闪
+  （修前客户端会把它算没）。
+- **教训（本笔最贵的一条）**：**手抄的"名单/常量/判定表"是仿写路线的头号漏点**——它不像方法体
+  那样漏了就编不过，漏一条只是静默少一种行为，判官还照样全绿（本例连 BFS 都是通的，只有眼睛
+  能看出来）。凡两代同源的**数据**，要么进 common 由两代共读，要么加一道对表闸；下一笔 m470
+  就做这道闸（tools_retro_parity_check）。

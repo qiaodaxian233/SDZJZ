@@ -99,7 +99,10 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
     @Override
     public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                   LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
-        // 蓝本此处限服务端重算是为 m233 掩码（BE 数据不向客户端同步）；本世代无掩码，双端重算同果。
+        // m469 撤回旧注（"本世代无掩码，双端重算同果"是把坏尺子）：endFor 的 FTA 分支自带
+        // !isClientSide 闸，客户端本地重算对 FTA-only 邻居必得 NONE，而服务端是 PLUG——
+        // 双端不同果，客户端会把服务端同步来的插头臂算没（鬼影反向版）。形状一律听服务端。
+        if (world.isClientSide()) return state;
         return state.setValue(END_PROPS.get(direction), endFor(world, neighborPos, neighborState));
     }
 
@@ -164,13 +167,33 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
         return (BlockEntityTicker<T>) (BlockEntityTicker<DataCable120>) DataCable120::tick;
     }
 
-    /** 三态判定（蓝本 endFor 的本世代裁剪版）：数据线→缆管；存储核心/容器 BE/任意暴露 FTA 的
-     *  存储→插头；其余→无。FTA 探测只在服务端权威世界查（蓝本同注：客户端注册表可能缺第三方
-     *  登记，方块状态由服务端同步；世界生成期 ChunkRegion 不是 Level 直接跳过）。 */
+    /** m469 旧档自愈：已放好的线在名单修好之前存的是 NONE，不碰邻居就一直不刷新——
+     *  BE 首拍按当前邻居重算六面，变了才写（flags=3 同步客户端，蓝本 refreshEnd 同款口径）。
+     *  邻块未加载直接返回 false 让调用方下拍再来（别把 getBlockState 变成强制加载票，m142 前车）。 */
+    static boolean healEnds(Level world, BlockPos pos, BlockState state) {
+        if (!(state.getBlock() instanceof DataCableBlock120)) return true;
+        BlockState s = state;
+        for (Direction d : Direction.values()) {
+            BlockPos np = pos.relative(d);
+            if (!world.getChunkSource().hasChunk(np.getX() >> 4, np.getZ() >> 4)) return false; // 在树先例=StorageCore120.loadedCoreAt
+            s = s.setValue(END_PROPS.get(d), endFor(world, np, world.getBlockState(np)));
+        }
+        if (s != state) world.setBlock(pos, s, 3);
+        return true;
+    }
+
+    /** 三态判定（蓝本 endFor 的本世代裁剪版）：数据线→缆管；**自家三块**（存储核心/结构核心/
+     *  数据面板）·容器 BE·任意暴露 FTA 的存储→插头；其余→无。FTA 探测只在服务端权威世界查
+     *  （蓝本同注：客户端注册表可能缺第三方登记，方块状态由服务端同步；世界生成期 ChunkRegion
+     *  不是 Level 直接跳过）。
+     *  <p>m469：自家名单原只抄了 STORAGE_CORE 一条——结构核心与数据面板都不实现 Container，
+     *  于是恒落到 NONE，线怼上去不伸插头（作者实机截图）。名单=蓝本 143 行六块与本世代已有
+     *  三块的交集，**由 tools_retro_parity_check 对表闸看住，别再手抄**。 */
     private static CableEnd120 endFor(LevelAccessor world, BlockPos pos, BlockState state) {
         Block b = state.getBlock();
         if (b instanceof DataCableBlock120) return CableEnd120.CABLE;
-        if (b == RetroBlocks.STORAGE_CORE) return CableEnd120.PLUG;
+        if (b == RetroBlocks.STORAGE_CORE || b == RetroBlocks.STRUCTURE_CORE || b == RetroBlocks.DATA_PANEL)
+            return CableEnd120.PLUG; // m469：蓝本另三块（无线节点/卫星节点/交易所）本世代未建，到位随各自里程碑进名单
         if (world.getBlockEntity(pos) instanceof Container) return CableEnd120.PLUG;
         if (world instanceof Level w && !w.isClientSide
                 && ItemStorage.SIDED.find(w, pos, null) != null) return CableEnd120.PLUG;
