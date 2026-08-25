@@ -80,7 +80,7 @@ GameTest 七八号用例（m305/m309）+ 一键压测 /sdzjz bench（m306~m308�
 - **不要做**：每版本一套源码/长期分支/Common里if(version)/Mixin全版本共用/为兼容重写Planner/巨型Platform接口/26.2 API反向污染Common。
 - **积压重定位**：bigStacks/portableVault 升格为 SPI 模块（BigStackService/VaultScreenPlatform，§7/§8），随 Phase 1 落位不再单刀。
 
-## 当前状态（m466：C2-⑤b 落地——1.20.1 生产 tick 吃上料：通用分支补 consumesInputs=true 半（supplyTarget kind1+蓝本按料折算 doCycles+withdraw+扣料即点绿），灯表三句新话（未连供料/缺料带量/类型满），防白耗料护栏（acceptsPlainType 扣料前先验产出仓类型余量，概率产物也计入），覆盖 11 台 defConsume；判官三用例（缺供料红灯/料折算+进出账恒等式/类型护栏零消耗——同步手拍 tick 零配置暴露窗）。下一笔照 m463 分片 ⑤c 机器↔机器连线语义（届时先单独小普查两颗路由脑）。上笔 m465：C2 插队刀（作者实机反馈）——1.20.1 模型与动画归位；m464：C2-⑤a 落地——1.20.1 生产 tick 第一次转起来：StructureCore120 挂 tick（cyclesThisTick 四层预算闸逐位对照蓝本，世代差=无升级恒 1 倍）+kind0 产出边入账+灯表说人话（未连仓红/特种黄/预算剪零黄）+setChanged 去重；StorageCore120 补 implements StorageAccess；白名单挂载 DropRolls+StorageAccess；判官 RetroTickTests 三用例（灯表三色/cobble_maker 确定性对数/维度闸 kind 闸）。世代取舍：自动运转（开停闸随屏侧到序）、产出必须接仓无缓存喷射。下一笔 ⑤b 耗料类。上笔 m463：C2-⑤ 小普查收官（零代码笔）
+## 当前状态（m467：透明二次排查（零代码笔）——作者复报"进存档后界面还是透明、能直接看到桌面文件"，m452 那刀（改半透明填充为不透明）**打空**。本笔不做第三次盲猜，先做归属审计：全库 GL 状态零触点（RenderSystem/GlStateManager/colorMask/clearColor/blend 全 grep=0）、retro 两屏 15 个色键 alpha 全 0xFF、1.20.1 零 mixin、四方块全 noOcclusion——**本模组没有能写坏窗口 alpha 的代码路径**；"看到桌面"属 OS 窗口合成层现象，但不下"非本模组"结论（m140 前车），改交付分诊协议：**F2 截图分流**（图正常=窗口层/图也透明=渲染真没画）+ **挪走 jar 的对照组**，两刀之内必定分流。等作者回数再动刀。**下一笔 m468=C2-⑤c 小普查（两颗路由脑 chainWants/distribute），已可离线开工。** 上笔 m466：C2-⑤b 落地——1.20.1 生产 tick 吃上料：通用分支补 consumesInputs=true 半（supplyTarget kind1+蓝本按料折算 doCycles+withdraw+扣料即点绿），灯表三句新话（未连供料/缺料带量/类型满），防白耗料护栏（acceptsPlainType 扣料前先验产出仓类型余量，概率产物也计入），覆盖 11 台 defConsume；判官三用例（缺供料红灯/料折算+进出账恒等式/类型护栏零消耗——同步手拍 tick 零配置暴露窗）。下一笔照 m463 分片 ⑤c 机器↔机器连线语义（届时先单独小普查两颗路由脑）。上笔 m465：C2 插队刀（作者实机反馈）——1.20.1 模型与动画归位；m464：C2-⑤a 落地——1.20.1 生产 tick 第一次转起来：StructureCore120 挂 tick（cyclesThisTick 四层预算闸逐位对照蓝本，世代差=无升级恒 1 倍）+kind0 产出边入账+灯表说人话（未连仓红/特种黄/预算剪零黄）+setChanged 去重；StorageCore120 补 implements StorageAccess；白名单挂载 DropRolls+StorageAccess；判官 RetroTickTests 三用例（灯表三色/cobble_maker 确定性对数/维度闸 kind 闸）。世代取舍：自动运转（开停闸随屏侧到序）、产出必须接仓无缓存喷射。下一笔 ⑤b 耗料类。上笔 m463：C2-⑤ 小普查收官（零代码笔）
 
 **作者本地 gradle build 全绿至 c5b5982=m176（2026-08-01 实测：Loom 1.7.4，BUILD SUCCESSFUL 1m1s，
 仅两条"已过时 API"注提示非报错；作者自备"拉取并构建"工具直接同步 jar 进 1.21.1 测试实例）——
@@ -155,6 +155,10 @@ m129~m176 编译层欠账一次性清账，m173h 热修就此验明（修前的�
   差一张档位边框贴图，作者点头即做）。
 
 ## 待办池（按优先级）
+
+0. **【P0 现场】透明分诊未回数（m467 立）**：作者复报"进存档后界面还是透明、能看到桌面文件"，
+   m452 那刀打空。**等两个数**：①F2 截图长什么样（正常=窗口合成层／也透明=渲染真没画）；
+   ②挪走 sdzjz jar 的对照组还透不透明。回来即定归属再动刀，别再凭观感改色值。
 
 0. **外部审计②余账对表（m345 登记；P0 CraftPlanner=m343 已销、P1 玩家扫描=m344 已销，均逐行对源核实后才动的手）**：
    - **属实待做**：①SmeltPlanner 稳定选序=m346 已销，余"按库存挑输出"升级项待作者拍板；②tick 头维护段=m348 已销（扫描分档+看门狗冻结坑，区块票 20t 管停机转变沿属必要留驻）；③孤儿 claim 渐进核销=m347 已销；④DataPanel"重复解析"=已有等效实现（cores() 自 m108c 40t 缓存+幽灵重建，m290 升 public 共链路），不另做快照层；⑤BrewPlanner 全图一次 BFS=m425 已销
