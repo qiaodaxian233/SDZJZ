@@ -186,4 +186,155 @@ public class RetroTickTests implements FabricGameTest {
         com.sdzjz.machine.CoreScheduler.clearAll();
         ctx.succeed();
     }
+
+    // ===== m471（C2-⑤c1）在途缓存 + 直连路由判官五条 =====
+    // 样本对：sand_maker（15 拍 1 沙，chance=1f、min=max）→ glass_kiln（15 拍吃 1 沙出 1 玻璃）——
+    // 全库唯一「确定性生成机产物恰好是确定性耗料机输入」的一对，判官可以对数不对趋势。
+
+    /** 建存储核心（判官通用）。 */
+    private static StorageCore120 storage(GameTestHelper ctx, BlockPos rel) {
+        ctx.setBlock(rel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        if (ctx.getBlockEntity(rel) instanceof StorageCore120 sc) return sc;
+        ctx.fail("存储核心方块实体未生成");
+        return null;
+    }
+
+    /** 手拍 n 次（配置改动/单元断言场景用：同步跑完无跨拍暴露窗，不脏并行判官）。 */
+    private static void handTick(GameTestHelper ctx, StructureCore120 c, int n) {
+        BlockPos abs = ctx.absolutePos(new BlockPos(0, 1, 0));
+        for (int t = 0; t < n; t++)
+            StructureCore120.tick(ctx.getLevel(), abs, ctx.getLevel().getBlockState(abs), c);
+    }
+
+    /** ①直连产线跑通：sand_maker →（出线）→ glass_kiln，**下游一条供料仓边都不接**也能吃上料。
+     *  这条是 ⑤c1 的验收线——「产线接产线」在本世代第一次成立。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 400)
+    public void tick_direct_link_feeds_downstream_without_supply_storage(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));  // 0：免费产沙，**不接任何仓**，只有一条出线
+        c.addNode(node("glass_kiln", 20, 10));  // 1：吃沙出玻璃，**不接供料仓**，只接产出仓
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{1, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0}); // 只给下游一条 kind0
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        ctx.succeedWhen(() -> {
+            long glass = dep.count("minecraft:glass");
+            ctx.assertTrue(glass >= 3, "直连产线应产出玻璃入账（下游无供料仓，料全走线），现账 " + glass);
+            ctx.assertTrue(c.g.nodeStatus.get(0) == 1 && c.g.nodeStatus.get(1) == 1,
+                    "上下游都该绿灯，实得 " + c.g.nodeStatus.get(0) + "/" + c.g.nodeStatus.get(1));
+            ctx.assertTrue(dep.count("minecraft:sand") == 0, "沙子该全程走线不落仓，现仓里有 " + dep.count("minecraft:sand"));
+            com.sdzjz.machine.CoreScheduler.clearAll();
+        });
+    }
+
+    /** ②下游不收 → 余量必落 kind0 仓，**进出账恒等式**：产 N = 仓 N + 在途 0 + 遗留池 0，一件不许凭空消失。
+     *  下游取 cobble_maker（免费产出机，accepts 尾兜=false），手拍 60 拍=sand_maker 恰 4 周期。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void tick_undeliverable_output_falls_back_to_storage(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));    // 0：有出线，也有产出仓
+        c.addNode(node("cobble_maker", 20, 10));  // 1：免费产出机=不吃料，出线上的沙它不收
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        handTick(ctx, c, 60); // 15 拍/周期 → 恰 4 周期 → 恰 4 沙
+        long inStore = dep.count("minecraft:sand"), inBuf = c.bufAmount(1, "minecraft:sand"), inPool = c.legacyAmount("minecraft:sand");
+        ctx.assertTrue(inStore == 4, "下游拒收的 4 件应全额落仓，现仓 " + inStore);
+        ctx.assertTrue(inBuf == 0, "拒收就不该有东西留在下游缓存里，现缓存 " + inBuf);
+        ctx.assertTrue(inStore + inBuf + inPool == 4, "进出账恒等式破了：产 4 ≠ 仓 " + inStore + "+缓存 " + inBuf + "+遗留 " + inPool);
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ③类型上限拒收 → 转默认路由零丢件；最后一站也没有 → **原样回吐**给调用方点折损黄灯，绝不静默吞。
+     *  下游取 wither_killer（唯一双输入耗料机：soul_sand+wither_skeleton_skull），硬顶设 1 让第二种料必被拒。
+     *  单元直驱 routeOut（同步设改+复位，无跨拍暴露窗）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void route_type_cap_rejection_loses_nothing(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));
+        c.addNode(node("wither_killer", 20, 10)); // 吃 灵魂沙×4 + 凋骷头×3
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
+        int old = cfg.maxBufferTypesPerNode;
+        cfg.maxBufferTypesPerNode = 1; // 单节点缓存只许一种类型
+        try {
+            long l1 = c.routeOut(ctx.getLevel(), 0, dep, true, "minecraft:soul_sand", 10);
+            ctx.assertTrue(l1 == 0 && c.bufAmount(1, "minecraft:soul_sand") == 10,
+                    "第一种类型该正常入缓存，回吐 " + l1 + "、缓存 " + c.bufAmount(1, "minecraft:soul_sand"));
+            long l2 = c.routeOut(ctx.getLevel(), 0, dep, true, "minecraft:wither_skeleton_skull", 7);
+            ctx.assertTrue(c.bufAmount(1, "minecraft:wither_skeleton_skull") == 0, "超类型上限就不该进缓存");
+            ctx.assertTrue(l2 == 0 && dep.count("minecraft:wither_skeleton_skull") == 7,
+                    "被拒的 7 件该整额转默认路由落仓，回吐 " + l2 + "、仓 " + dep.count("minecraft:wither_skeleton_skull"));
+            long l3 = c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:wither_skeleton_skull", 3);
+            ctx.assertTrue(l3 == 3, "缓存拒收且无产出仓时应原样回吐 3（调用方点折损黄灯），实得 " + l3);
+        } finally {
+            cfg.maxBufferTypesPerNode = old;
+        }
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ④摘节点：被摘节点的在途物品进遗留池不丢 + **剩余节点的缓存随下标左移不错位**
+     *  （detachNode 少了「先补齐对齐」那行就会摘走别人的货，这条专盯它）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void detach_recycles_inflight_and_keeps_alignment(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("sand_maker", 10, 10));  // 0
+        c.addNode(node("glass_kiln", 20, 10));  // 1：待摘，缓存 20
+        c.addNode(node("glass_kiln", 30, 10));  // 2：留守，缓存 5，摘后应整体挪到下标 1
+        ctx.assertTrue(c.connect(0, 1), "出线 0→1 应连得上");
+        c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 20);
+        ctx.assertTrue(c.disconnect(0, 1) && c.connect(0, 2), "改线 0→2 应成立");
+        c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 5);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 20 && c.bufAmount(2, "minecraft:sand") == 5, "两节点缓存预置该到位");
+        c.detachNode(1);
+        ctx.assertTrue(c.legacyAmount("minecraft:sand") == 20,
+                "被摘节点的 20 件在途该进遗留池，实得 " + c.legacyAmount("minecraft:sand"));
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 5,
+                "留守节点的缓存该随下标左移跟过来（原 2 → 现 1），实得 " + c.bufAmount(1, "minecraft:sand"));
+        ctx.assertTrue(c.legacyAmount("minecraft:sand") + c.bufAmount(1, "minecraft:sand") == 25, "摘节点账不许缺斤少两");
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ⑤在途缓存存档写读对拍（m468 风险③：nodeBufs 入 NBT=存档结构变更，写读必须同一刀做完）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void inflight_buffers_survive_save_load_roundtrip(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("sand_maker", 10, 10));
+        c.addNode(node("glass_kiln", 20, 10));
+        c.addNode(node("glass_kiln", 30, 10));
+        ctx.assertTrue(c.connect(0, 2), "出线 0→2 应连得上");
+        c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 7);
+        c.detachNode(2);                                   // 遗留池 = 7
+        ctx.assertTrue(c.connect(0, 1), "出线 0→1 应连得上");
+        c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 20); // 节点 1 缓存 = 20
+        net.minecraft.nbt.CompoundTag nbt = new net.minecraft.nbt.CompoundTag();
+        c.saveAdditional(nbt);
+        BlockPos rel2 = new BlockPos(0, 1, 2);
+        ctx.setBlock(rel2, RetroBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel2) instanceof StructureCore120 c2)) {
+            ctx.fail("第二个结构核心方块实体未生成");
+            return;
+        }
+        c2.load(nbt);
+        ctx.assertTrue(c2.g.machineNodes.size() == 2, "读档节点数该是 2，实得 " + c2.g.machineNodes.size());
+        ctx.assertTrue(c2.bufAmount(1, "minecraft:sand") == 20,
+                "节点在途缓存该逐位读回，实得 " + c2.bufAmount(1, "minecraft:sand"));
+        ctx.assertTrue(c2.legacyAmount("minecraft:sand") == 7,
+                "遗留池该逐位读回，实得 " + c2.legacyAmount("minecraft:sand"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
 }

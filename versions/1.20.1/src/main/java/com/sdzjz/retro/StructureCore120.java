@@ -2,6 +2,8 @@ package com.sdzjz.retro;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -15,14 +17,27 @@ import java.util.Map;
  * 子集**：持唯一图实例 g（蓝本 m430 同构）+ 节点挂/摘/连/断四操作（摘除簿记逐字对照蓝本
  * detachNode 的剪线/移位段）。生产 tick 五分支、在途缓存 nodeBufs、供料/分发/链需求全数随
  * C2-④+ 分片来（蓝本对应段=范围外非漏抄）；无屏无 payload，摆得下存得住是本刀验收线。
+ *
+ * <p>m471（C2-⑤c1）起：在途缓存 nodeBufs + 直连路由（机器↔机器连线）落地——蓝本
+ * {@code nodeBuf/BUF_CAP/bufTypeOk/mergeLegacy/distribute/accepts} 的世代对位，见下方
+ * 「在途缓存 + 直连路由」段。链式拉料 chainWants 与逻辑节点七分支随 ⑤c2/⑤c3。
  */
 final class StructureCore120 extends BlockEntity {
+
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("sdzjz");
 
     /** m143 合并机映射：1.20.1 无史前存档常态空表（CanvasGraphState120 类注），接线点保形。 */
     private static final Map<String, String> MERGED_IDS = Map.of();
 
     final CanvasGraphState120 g = new CanvasGraphState120(); // 蓝本同名：唯一图实例
     long endpointScanTick = Long.MIN_VALUE; // m458：端点扫描 40t 缓存戳（m218b 谱系防逐观众裸扫）
+
+    /** m471（⑤c1）在途缓存三件：每节点输入缓存（与 machineNodes 同序，懒补齐）+ 遗留共享池
+     *  （删节点回收的在途物品，消耗时兜底）+ 单 id 硬顶。名、型、常量逐位照抄蓝本
+     *  StructureCoreBlockEntity:72-74，**不发明新数值**（m468 分片稿口径）。 */
+    private final java.util.List<java.util.Map<String, Long>> nodeBufs = new java.util.ArrayList<>();
+    private final java.util.Map<String, Long> internalBuffer = new java.util.HashMap<>();
+    private static final long BUF_CAP = 200000L;
 
     StructureCore120(BlockPos pos, BlockState state) {
         super(RetroBlocks.STRUCTURE_CORE_BE, pos, state);
@@ -37,11 +52,15 @@ final class StructureCore120 extends BlockEntity {
         setChanged();
     }
 
-    /** 摘节点（蓝本 detachNode 剪线/移位段逐字对照；在途缓存回收支路随 C2-④ 的 nodeBufs 来）：
-     *  机器线触删即断、下标大于被删位整体左移；存储线同剪同移。返回被摘栈（归还调用方自理）。 */
+    /** 摘节点（蓝本 detachNode 剪线/移位段逐字对照）：机器线触删即断、下标大于被删位整体左移；
+     *  存储线同剪同移；**在途缓存同位摘除并入遗留池**（m471 补齐，蓝本 2434-2435 同序：先补齐对齐
+     *  再摘——不补齐时 nodeBufs 比 machineNodes 短，remove(index) 会把别人的在途物品摘走）。
+     *  返回被摘栈（归还调用方自理）。 */
     ItemStack detachNode(int index) {
         if (index < 0 || index >= g.machineNodes.size()) return ItemStack.EMPTY;
+        nodeBuf(g.machineNodes.size() - 1); // 蓝本同位：先补齐对齐
         ItemStack s = g.machineNodes.remove(index);
+        if (index < nodeBufs.size()) mergeLegacy(nodeBufs.remove(index)); // 在途物品回遗留池，不丢
         if (index < g.nodeStatus.size()) g.nodeStatus.remove(index);
         if (index < g.nodeReason.size()) g.nodeReason.remove(index); // m178
         List<int[]> kept = new ArrayList<>();
@@ -85,19 +104,225 @@ final class StructureCore120 extends BlockEntity {
         return false;
     }
 
+    // ===== m471（C2-⑤c1）：在途缓存 + 直连路由（机器↔机器连线）=====
+    // 蓝本对位：nodeBuf/bufTypeOk/bufCountFor/bufWithdrawFor/bufAdd/mergeLegacy（缓存六件）+
+    // distribute 两轮垫底 + accepts 收料判定（路由两脑的下发那半）。世代取舍（m468 分片稿显式记档）：
+    // ①accepts 本刀只落 MachineItem·耗料机一支——零 NodeTags 零规划器依赖，正好盖住 ⑤b 那 11 台
+    //   defConsume 的上游喂料（「产线接产线」本刀能玩）；逻辑节点七分支随 ⑤c2 与 chainWants **成对**
+    //   落地（m131b→m132-6 血案：只写 accepts 那面，拉料恒不通拖了一整刀才实锤）；
+    // ②垃圾桶两轮垫底的**壳**先立好、判定恒 false（NodeTags 未上挂、虚空处理器本世代未建）；
+    // ③链式拉料 chainWants 随 ⑤c3；④蓝本 distribute 尾巴是 depositOrBuffer→addOutput（输出缓存/
+    //   断网喷射），本世代无输出缓存（⑤a 取舍②），故余量原样回吐给调用方走既定「折损黄灯」——
+    //   账面上看得见，绝不静默吞件（m99 家法：静默无效比数值弱更伤）。
+
+    /** 取第 i 个节点的输入缓存（懒补齐对齐 machineNodes；蓝本同名同构）。 */
+    private java.util.Map<String, Long> nodeBuf(int i) {
+        while (nodeBufs.size() < g.machineNodes.size()) nodeBufs.add(new java.util.HashMap<>());
+        return nodeBufs.get(i);
+    }
+
+    /** m270 单节点缓存类型上限：拒收**新类型**，已有类型照常合并，0=无限。
+     *  调用规矩同蓝本：**投递/取料前判**——拒收=不投递，余量转产出仓，零物品损失。 */
+    private static boolean bufTypeOk(java.util.Map<String, Long> m, String id) {
+        int cap = com.sdzjz.config.SdzjzConfig.get().maxBufferTypesPerNode;
+        return cap <= 0 || m.containsKey(id) || m.size() < cap;
+    }
+
+    /** 节点可用量 = 自己的输入缓存 + 遗留共享池（蓝本 bufCountFor 同口径）。 */
+    private long bufCountFor(int i, String id) {
+        return StorageCore120.satAdd(nodeBuf(i).getOrDefault(id, 0L), internalBuffer.getOrDefault(id, 0L)); // m273 饱和加法
+    }
+
+    /** 先扣自己的输入缓存，不足部分再扣遗留池（蓝本同序）。 */
+    private void bufWithdrawFor(int i, String id, long amt) {
+        if (amt <= 0) return;
+        java.util.Map<String, Long> m = nodeBuf(i);
+        long own = m.getOrDefault(id, 0L);
+        long fromOwn = Math.min(own, amt);
+        if (fromOwn > 0) {
+            long leftOwn = own - fromOwn;
+            if (leftOwn <= 0) m.remove(id); else m.put(id, leftOwn); // 写路径零/负值即 remove（m273 口径，读侧据此校验）
+        }
+        long rest = amt - fromOwn;
+        if (rest > 0) {
+            long left = internalBuffer.getOrDefault(id, 0L) - rest;
+            if (left <= 0) internalBuffer.remove(id); else internalBuffer.put(id, left);
+        }
+        setChanged();
+    }
+
+    /** 遗留池入账，BUF_CAP 硬顶（m273 饱和加法：中间加法溢出翻负会绕过封顶）。
+     *  世代差记档：蓝本超顶部分溢到输出缓存，本世代无输出缓存 → 硬顶截留并 warn 记账，
+     *  只在「单 id 遗留池已达 20 万还再摘一个满缓存节点」的极端形出现。 */
+    private void bufAdd(String id, long amt) {
+        if (id == null || id.isEmpty() || amt <= 0) return;
+        long sum = StorageCore120.satAdd(internalBuffer.getOrDefault(id, 0L), amt);
+        if (sum > BUF_CAP) {
+            LOGGER.warn("结构核心 {} 遗留池 {} 触顶 {}，截留 {} 件（本世代无输出缓存，m471 记档）",
+                    worldPosition, id, BUF_CAP, sum - BUF_CAP);
+            internalBuffer.put(id, BUF_CAP);
+        } else {
+            internalBuffer.put(id, sum);
+        }
+        setChanged();
+    }
+
+    /** 节点缓存回收进遗留池（bufAdd 自带封顶），摘节点不丢在途物品（蓝本 mergeLegacy）。 */
+    private void mergeLegacy(java.util.Map<String, Long> m) {
+        if (m == null) return;
+        for (java.util.Map.Entry<String, Long> e : m.entrySet()) bufAdd(e.getKey(), e.getValue());
+    }
+
+    /** 垃圾桶族判定（蓝本 {@code NodeTags.isTrash(st) || st.getItem() instanceof VoidProcessorItem}）。
+     *  **本世代恒 false**：NodeTags 未上挂（节点栈 NBT 判定随 ⑤c2 的 ItemData 五口改型）、虚空处理器
+     *  本世代未建——两轮垫底的壳先立好，⑤c2 只需把这一行接上真判定，路由主体一字不动。 */
+    private static boolean isTrashLike(ItemStack st) {
+        return false;
+    }
+
+    /** m471 收料判定：下游节点收不收 id（蓝本 accepts0 的世代子集）。
+     *  <p><b>蓝本逐分支对照表</b>（m470 家法：手抄判定表漏一条不报错、判官照绿，所以整表原样列在这儿供对表；
+     *  每条都标了到序刀号，补齐时逐条划掉）：
+     *  <ul>
+     *  <li>暂停 nodePaused→false ／ 过滤器 filterPasses ／ 传感器 sensorOpen ／ 开关 switchOn ／
+     *      分配器→true ／ 垃圾桶 machineFilterAllows ／ 虚空处理器 配置+白名单 ／ 抽取节点 extractorLive+白名单
+     *      —— 七条随 <b>⑤c2</b>（NodeTags 上挂后与 chainWants <b>成对</b>落地，同一张表的两面）；</li>
+     *  <li>自动合成机 CraftPlanner ／ 酿造塔 BrewPlanner ／ 附魔工厂 EnchantPlanner ／ 熔炉族 SmeltPlanner
+     *      —— 四条随 <b>⑤d</b>（规划器族依赖 RecipeAccess，本世代未建）；</li>
+     *  <li>MachineItem·consumesInputs 逐输入比对 ／ 免费产出机→false ／ 其余（农场/笼子）→false —— <b>本刀</b>。</li>
+     *  </ul>
+     *  world 形参本刀未用，保形是为了 ⑤c2 接传感器 sensorOpen 时**不动任何调用点**（蓝本同签名）。 */
+    private boolean accepts(net.minecraft.world.level.Level world, int target, String id) {
+        ItemStack st = g.machineNodes.get(target);
+        if (!(st.getItem() instanceof RetroMachineItems.RetroMachineItem rmi)) return false;
+        com.sdzjz.machine.MachineDef def = rmi.def;
+        if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false; // 熔炉族随 ⑤d（SmeltPlanner 缺 RecipeAccess）
+        if (!def.consumesInputs()) return false;                              // 免费产出机不吃料（蓝本尾兜同）
+        for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
+        return false;
+    }
+
+    /** m471 产物出线：先按边喂下游节点在途缓存（蓝本 distribute 两轮垫底同构），余量落 kind0 产出仓；
+     *  返回**仍无处可去**的件数（>0=折损，调用方点黄灯）。
+     *  <p><b>不变量</b>：绝不堵死在下游缓存里（装不下就往下游一级级让位到产出仓），也绝不静默吞件
+     *  （最后一站拒收就把数字原样回吐，账面可见）。 */
+    long routeOut(net.minecraft.world.level.Level world, int fromIndex, StorageCore120 dep,
+            boolean hasOut, String id, long amt) {
+        if (amt <= 0) return 0L;
+        if (hasOut) {
+            for (int pass = 0; pass < 2; pass++) {   // 蓝本 m150 两轮：第一轮跳过垃圾桶族，第二轮只喂它们——
+                for (int[] c : g.connections) {      // 垃圾桶永远是最后去处，与连线先后无关（判定随 ⑤c2，壳先立）
+                    if (amt <= 0) return 0L;
+                    if (c[0] != fromIndex) continue; // 蓝本 outT[i] 的等价遍历（同为 connections 原序，逐位一致）
+                    int t = c[1];
+                    if (t < 0 || t >= g.machineNodes.size()) continue;
+                    if ((pass == 0) == isTrashLike(g.machineNodes.get(t))) continue;
+                    if (!accepts(world, t, id)) continue;
+                    java.util.Map<String, Long> m = nodeBuf(t);
+                    if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面产出仓
+                    long cur = m.getOrDefault(id, 0L);
+                    long put = Math.min(Math.max(0L, BUF_CAP - cur), amt);
+                    if (put > 0) { m.put(id, cur + put); amt -= put; setChanged(); }
+                }
+            }
+        }
+        if (amt <= 0) return 0L;
+        if (dep == null) return amt;
+        while (amt > 0) { // 余量落 kind0 仓：deposit 全有或全无（类型满=整栈拒收），拒收即原样回吐零丢件
+            int give = (int) Math.min(amt, Integer.MAX_VALUE);
+            ItemStack rest = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .get(new net.minecraft.resources.ResourceLocation(id)), give);
+            dep.deposit(rest);
+            if (!rest.isEmpty()) return amt;
+            amt -= give;
+        }
+        return 0L;
+    }
+
+    /** m471 白耗料护栏（m466 那条的超集）：产物**有没有去处**——任一下游节点收得下（收料判定过 +
+     *  类型位没满 + 缓存没到顶）｜ kind0 产出仓类型有余量。无出线时逐位退化成 m466 原判据
+     *  {@code dep.acceptsPlainType}，m466 判官行为不变（那条本就无出线）。宁待机不白耗料。 */
+    private boolean hasSinkFor(net.minecraft.world.level.Level world, int fromIndex, StorageCore120 dep, String id) {
+        for (int[] c : g.connections) {
+            if (c[0] != fromIndex) continue;
+            int t = c[1];
+            if (t < 0 || t >= g.machineNodes.size()) continue;
+            if (!accepts(world, t, id)) continue;
+            java.util.Map<String, Long> m = nodeBuf(t);
+            if (bufTypeOk(m, id) && m.getOrDefault(id, 0L) < BUF_CAP) return true;
+        }
+        return dep != null && dep.acceptsPlainType(id);
+    }
+
+    /** 在途缓存读数（包内可见：判官对账用，屏侧顶栏「在途件数」到序时同口共用；蓝本 bufferedTotal 谱系）。
+     *  只读不建表——越界返 0，不触发懒补齐，判官问一句不改状态。 */
+    long bufAmount(int i, String id) {
+        if (i < 0 || i >= nodeBufs.size()) return 0L;
+        return nodeBufs.get(i).getOrDefault(id, 0L);
+    }
+
+    /** 遗留共享池读数（同上）。 */
+    long legacyAmount(String id) {
+        return internalBuffer.getOrDefault(id, 0L);
+    }
+
+    /** m340 连线喂料的「显式供料线补足」：连线喂料优先、显式 kind1 供料线补缺口（配置 supplyTopUp）。 */
+    private StorageCore120 topUpSource(net.minecraft.world.level.Level world, int i) {
+        return com.sdzjz.config.SdzjzConfig.get().supplyTopUp ? supplyTarget(world, i) : null;
+    }
+
+    private long dualCount(int i, StorageCore120 exp, String id) {
+        return bufCountFor(i, id) + (exp != null ? exp.count(id) : 0L);
+    }
+
+    /** 先吃缓存后吃供料线；调用方的量已被 dualCount 夹过，缺口非零时 exp 必非空（蓝本同注）。 */
+    private void dualWithdraw(int i, StorageCore120 exp, String id, long want) {
+        long fromBuf = Math.min(want, bufCountFor(i, id));
+        bufWithdrawFor(i, id, fromBuf);
+        if (want > fromBuf && exp != null) exp.withdraw(id, (int) Math.min(Integer.MAX_VALUE, want - fromBuf));
+    }
+
+    /** 缺料说人话（蓝本 whyMissingBufIn 世代版：running 恒 1；有供料线补足时口径写「缓存+供料」）。 */
+    private String whyMissingBufIn(int node, StorageCore120 exp, java.util.List<com.sdzjz.machine.MachineDef.Input> ins) {
+        String where = exp != null ? "缓存+供料" : "缓存";
+        for (com.sdzjz.machine.MachineDef.Input in : ins) {
+            long have = dualCount(node, exp, in.item());
+            if (have < in.count()) return "缺料：" + itemName120(in.item()) + "（" + where + " " + have + "/需 " + in.count() + "）";
+        }
+        return "缺料（" + where + "不足）";
+    }
+
+    /** m471 邻接派生位（每拍重建到复用数组）。世代取舍：蓝本 m179 按 topoRev 修订号缓存 hasOut/hasIn/outT，
+     *  本世代改「每拍两趟填复用数组 + 路由直接遍历 g.connections」——省掉修订号与 outT 逐节点分配，
+     *  代价 O(V+E)/拍（画布规模下可忽略），换掉「漏 bump 即静默错路由」那整条回归面
+     *  （蓝本靠 profile core 的 planCompiles 计数器兜的就是它）。规模上来再上修订号，改法现成。 */
+    private transient boolean[] planHasOut = new boolean[0];
+    private transient boolean[] planHasIn = new boolean[0];
+
+    private void buildPlan(int n) {
+        if (planHasOut.length < n) { planHasOut = new boolean[n]; planHasIn = new boolean[n]; }
+        java.util.Arrays.fill(planHasOut, 0, n, false);
+        java.util.Arrays.fill(planHasIn, 0, n, false);
+        for (int[] c : g.connections)
+            if (c[0] >= 0 && c[0] < n && c[1] >= 0 && c[1] < n) { planHasOut[c[0]] = true; planHasIn[c[1]] = true; }
+    }
+
     // ===== m464（C2-⑤a）+ m466（C2-⑤b）：生产 tick 脊柱 + 数据驱动族（生成类+耗料类）=====
     // 蓝本=SCBE tickInner 的最小可产集（m463 普查分片）：预算折算（cyclesThisTick 四层闸逐位对照，
     // 世代差=无速度升级 rate 恒 1.0、无并发升级恒 1 台）→ 通用 MachineItem 分支两半：
     // consumesInputs=false 半（rollDrops → kind0 产出仓 deposit）；=true 半（m466：kind1 供料仓
     // 蓝本式按料折算 doCycles → withdraw → 产出同前）→ 灯表说人话。
-    // 世代取舍（m463 记档）：①本世代核心**自动运转**（有节点即 tick，开停闸随屏侧到序）——
-    // 产出仓连线（m458 手势）本身就是玩家显式授权；②产出必须接仓，无仓=红灯待机（无输出缓存/
-    // 断网喷射，零吞件零实体洪水）；③特种/配方机型（def 产表为空或熔炉族）黄灯待后续分片；
-    // ④组件产物（山羊角）随 ⑤d 精确账本对接；⑤产出仓类型满：免费产物=折损黄灯（料本免费不产
-    // 不损）；耗料机=扣料前先验类型余量待机（m466 护栏，白耗料不可接受；两机同拍抢最后一个
-    // 类型位的残余竞态仍走折损黄灯，⑤c 输出缓存到序即根治）；⑥MachineXp 经验产出（蓝本
-    // xpPool += mxp）随 ⑤e 经验经济族到序——本世代耗料机只产物品不攒经验（显式记档非漏抄）；
-    // ⑦供料侧无 m340 topUpSource/机器连线缓存（hasIn 分支）——nodeBufs 在途缓存随 ⑤c。
+    // m471（⑤c1）接线：产出侧走 routeOut（有出线先喂下游节点在途缓存，余量落 kind0 仓），
+    // 供料侧补 hasIn 半（吃自己的在途缓存 + m340 显式供料线补足）——「产线接产线」自此能玩。
+    // 世代取舍（m463 记档，m471 修订三条）：①本世代核心**自动运转**（有节点即 tick，开停闸随屏侧
+    // 到序）——产出仓连线（m458 手势）本身就是玩家显式授权；②【m471 改】产出要有去处：**出线或
+    // 产出仓二者有其一**即可开工，两者皆无=红灯待机（本世代仍无输出缓存/断网喷射，零吞件零实体
+    // 洪水）；③特种/配方机型（def 产表为空或熔炉族）黄灯待后续分片；④组件产物（山羊角）随 ⑤d
+    // 精确账本对接；⑤【m471 改】去处满：免费产物=折损黄灯（料本免费不产不损）；耗料机=扣料前先验
+    // hasSinkFor（下游收得下 ｜ 仓类型有余量）待机，白耗料不可接受——m466 护栏的超集，无出线时
+    // 逐位退化成原判据；⑥MachineXp 经验产出（蓝本 xpPool += mxp）随 ⑤e 经验经济族到序——本世代
+    // 耗料机只产物品不攒经验（显式记档非漏抄）；⑦【m471 销】供料侧 hasIn 分支与 nodeBufs 已到位，
+    // 余下的链式拉料 chainWants 随 ⑤c3。
     private transient double[] workAcc = new double[0]; // 蓝本 m356 数组直取（不落盘：重启丢半周期无妨）
     private transient long recipesThisTick;             // 蓝本 m270 全核 tick 周期预算游标
 
@@ -105,7 +330,9 @@ final class StructureCore120 extends BlockEntity {
         if (world.isClientSide) return;
         be.recipesThisTick = 0;
         com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
-        for (int i = 0; i < be.g.machineNodes.size(); i++) {
+        int nSize = be.g.machineNodes.size();
+        be.buildPlan(nSize); // m471 邻接派生位：hasOut/hasIn（每拍重建，见 buildPlan 注的世代取舍）
+        for (int i = 0; i < nSize; i++) {
             ItemStack st = be.g.machineNodes.get(i);
             if (!(st.getItem() instanceof RetroMachineItems.RetroMachineItem rmi)) { be.stat(i, 0, ""); continue; }
             com.sdzjz.machine.MachineDef def = rmi.def;
@@ -113,48 +340,62 @@ final class StructureCore120 extends BlockEntity {
                 be.stat(i, 2, "配方/特种机型随 C2-⑤ 后续分片到序（本世代暂只跑数据驱动生成类）");
                 continue;
             }
+            boolean hasOut = be.planHasOut[i], hasIn = be.planHasIn[i]; // m471
             StorageCore120 dep = be.depositTarget(world, i);
-            if (dep == null) { be.stat(i, 3, "未连产出仓（画布连线模式：点机器再点仓=绿线产出）"); continue; }
-            StorageCore120 sup = null;
-            if (def.consumesInputs()) { // ===== m466（C2-⑤b）：数据驱动耗料类 =====
-                sup = be.supplyTarget(world, i); // 蓝本 supplyFor 的世代精简（kind1，m458 循环手势：绿线再点=金线供料）
-                if (sup == null) { be.stat(i, 3, "未连供料仓（画布连线模式：点机器再点仓，再点循环到金线=供料）"); continue; }
-                boolean typeRoom = true; // 护栏：先验产出仓类型余量再扣料——⑤a 取舍⑤"免费产物折损"到耗料机=白耗料，不可接受；
+            if (!hasOut && dep == null) { // m471 取舍②：出线与产出仓二者有其一即可开工
+                be.stat(i, 3, "未连产出仓、也没有出线（点机器再点仓=绿线产出仓，或从本机拉一条出线喂下游机器）");
+                continue;
+            }
+            StorageCore120 sup = null; // kind1 供料仓（无入线时的唯一料源）
+            StorageCore120 exp = null; // m340 有入线时的「显式供料线补足」源
+            if (def.consumesInputs()) { // ===== m466（C2-⑤b）耗料类 + m471（⑤c1）连线喂料 =====
+                if (hasIn) {
+                    exp = be.topUpSource(world, i); // 连线喂料优先、显式供料线补缺口；无供料线=纯吃缓存（判官①）
+                } else {
+                    sup = be.supplyTarget(world, i); // 蓝本 supplyFor 的世代精简（kind1，m458 循环手势：绿线再点=金线供料）
+                    if (sup == null) {
+                        be.stat(i, 3, "未连供料仓、也没有入线（点机器再点仓、再点循环到金线=供料仓，或从上游机器拉一条入线）");
+                        continue;
+                    }
+                }
+                boolean sink = true; // 白耗料护栏：先验产出**有去处**再扣料（m466 护栏的 m471 超集，见 hasSinkFor）
                 for (com.sdzjz.machine.MachineDef.Drop d : def.outputs()) { // 概率产物（如龙蛋 0.005）也计入先验=宁待机不烧料
                     if ("minecraft:goat_horn".equals(d.item())) continue;
-                    if (!dep.acceptsPlainType(d.item())) { typeRoom = false; break; }
+                    if (!be.hasSinkFor(world, i, dep, d.item())) { sink = false; break; }
                 }
-                if (!typeRoom) { be.stat(i, 2, "产出仓类型已满，耗料机不白耗料先待机（清账本类型/换仓即恢复）"); continue; }
+                if (!sink) { be.stat(i, 2, "产出仓类型已满且下游吃不下，耗料机不白耗料先待机（清账本类型/换仓/加下游即恢复）"); continue; }
             }
             int cycles = be.cyclesThisTick(world, i, def.baseIntervalTicks(), cfg);
             if (cycles <= 0) continue; // 预算剪零已亮黄说话；没攒够周期=保持上拍灯
             int doCycles = cycles;
             if (def.consumesInputs()) { // 蓝本 m99：料不够整批时按料量折算周期数（running 恒 1 世代差）
-                for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
-                    doCycles = (int) Math.min(doCycles, sup.count(in.item()) / (long) in.count());
-                if (doCycles <= 0) { be.stat(i, 3, whyMissingSup(sup, def.inputs())); continue; }
-                for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
-                    sup.withdraw(in.item(), in.count() * doCycles); // 蓝本同式（int 乘，cap 钳过不溢）
+                if (hasIn) { // m471：吃自己的在途缓存（+ 遗留池），缺口由显式供料线补足（蓝本 dualCount/dualWithdraw）
+                    for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                        doCycles = (int) Math.min(doCycles, be.dualCount(i, exp, in.item()) / (long) in.count());
+                    if (doCycles <= 0) { be.stat(i, 3, be.whyMissingBufIn(i, exp, def.inputs())); continue; }
+                    for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                        be.dualWithdraw(i, exp, in.item(), (long) in.count() * doCycles);
+                } else {
+                    for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                        doCycles = (int) Math.min(doCycles, sup.count(in.item()) / (long) in.count());
+                    if (doCycles <= 0) { be.stat(i, 3, whyMissingSup(sup, def.inputs())); continue; }
+                    for (com.sdzjz.machine.MachineDef.Input in : def.inputs())
+                        sup.withdraw(in.item(), in.count() * doCycles); // 蓝本同式（int 乘，cap 钳过不溢）
+                }
                 be.stat(i, 1, ""); // 蓝本位次：扣料即点绿——全概率产表（如猪灵交易）本拍全没掷中也不滞留旧灯
             }
             boolean skippedComponent = false, produced = false;
             for (com.sdzjz.machine.MachineDef.Drop d : def.outputs()) {
                 if ("minecraft:goat_horn".equals(d.item())) { skippedComponent = true; continue; } // 组件产物 ⑤d
                 long sum = com.sdzjz.machine.DropRolls.rollDrops(world.getRandom(), d, doCycles, 0);
-                while (sum > 0) {
-                    int n = (int) Math.min(sum, Integer.MAX_VALUE);
-                    ItemStack outSt = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
-                            .get(new net.minecraft.resources.ResourceLocation(d.item())), n);
-                    dep.deposit(outSt); // 收下清空；类型满原样留着
-                    if (!outSt.isEmpty()) { // 免费产物折损（见类注取舍⑤）
-                        be.stat(i, 2, "产出仓类型已满，产出折损中（清账本类型/换仓即恢复）");
-                        sum = -1; // 哨兵：跳出且不点绿
-                        break;
-                    }
-                    sum -= n;
-                    produced = true;
+                if (sum <= 0) continue;
+                long left = be.routeOut(world, i, dep, hasOut, d.item(), sum); // m471：先喂下游缓存，余量落仓
+                if (left > 0) { // 折损（见类注取舍⑤）：下游吃不下且产出仓也拒收——回吐的数字在这儿变黄灯，不静默
+                    be.stat(i, 2, "产出没处放，折损中（下游缓存满/产出仓类型已满，清账本类型或加下游即恢复）");
+                    produced = false;
+                    break;
                 }
-                if (sum < 0) { produced = false; break; }
+                produced = true;
             }
             if (produced) be.stat(i, 1, "");
             else if (skippedComponent) be.stat(i, 2, "组件产物机型随 C2-⑤d（精确账本对接）到序");
@@ -260,11 +501,44 @@ final class StructureCore120 extends BlockEntity {
     protected void saveAdditional(CompoundTag nbt) {
         super.saveAdditional(nbt);
         g.writeRenderNbt(nbt);
+        // m471 在途缓存两键：键名同蓝本（internalBuffer/nodeBufs，DFU 红利口径 m443——存档升 1.21.1 后逐键对上）
+        CompoundTag buf = new CompoundTag();
+        for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
+        nbt.put("internalBuffer", buf);
+        ListTag nbl = new ListTag(); // 每节点输入缓存（与 machineNodes 同序）
+        for (int i = 0; i < g.machineNodes.size(); i++) {
+            CompoundTag c = new CompoundTag();
+            for (java.util.Map.Entry<String, Long> e : nodeBuf(i).entrySet()) c.putLong(e.getKey(), e.getValue());
+            nbl.add(c);
+        }
+        nbt.put("nodeBufs", nbl);
     }
 
     @Override
     public void load(CompoundTag nbt) {
         super.load(nbt);
         g.readRenderNbt(nbt, MERGED_IDS, () -> { }); // 拓扑翻代消费方随 C2-④ 接 bumpTopo
+        // m471：渲染子集必须先读——下面按 machineNodes.size() 对齐补位（蓝本 m275 同序注）
+        internalBuffer.clear();
+        int dropped = 0; // m273 口径：写路径 left<=0 即 remove，零/负值从不合法落盘；负数毒化算术且能绕封顶
+        CompoundTag buf = nbt.getCompound("internalBuffer");
+        for (String k : buf.getAllKeys()) {
+            long v = buf.getLong(k);
+            if (!k.isEmpty() && v > 0) internalBuffer.put(k, v); else dropped++;
+        }
+        nodeBufs.clear();
+        ListTag nbl = nbt.getList("nodeBufs", Tag.TAG_COMPOUND);
+        for (int i = 0; i < g.machineNodes.size(); i++) {
+            java.util.Map<String, Long> m = new java.util.HashMap<>();
+            if (i < nbl.size()) {
+                CompoundTag c = nbl.getCompound(i);
+                for (String k : c.getAllKeys()) {
+                    long v = c.getLong(k);
+                    if (!k.isEmpty() && v > 0) m.put(k, v); else dropped++;
+                }
+            }
+            nodeBufs.add(m); // 老档无此键=全空缓存（无损；本世代自 m454 起就没有史前在途物品）
+        }
+        if (dropped > 0) LOGGER.warn("结构核心 {} 在途缓存读入丢弃 {} 条非法条目（空键或非正计数）", worldPosition, dropped);
     }
 }
