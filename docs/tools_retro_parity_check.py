@@ -52,6 +52,37 @@ ITEMS = [
         "整文件": True,
         "豁免": False,
     },
+    # m473（⑤c2）三条成对项：accepts 与 chainWants 是同一张节点类型表的两面（m131b→m132-6 血案：
+    # 只写 accepts 那面，"仓→过滤器→酿造塔"拉料恒不通拖了整整一刀才实锤）。三条一起看：
+    # ①本世代 accepts 有没有漏抄蓝本的类型分支；②③本世代两面互查（双向都跑=集合等价，
+    # 少哪面都会红）。抓取正则=NodeTags.isXxx 族判定调用，与方块无关故豁免关。
+    {
+        "名称": "accepts 节点类型分派表·蓝本→本世代（m473）",
+        "蓝本文件": "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java",
+        "蓝本方法": "accepts0",
+        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "本世代方法": "accepts",
+        "正则": r"NodeTags\.(is[A-Z]\w*)",
+        "豁免": False,
+    },
+    {
+        "名称": "accepts↔chainWants 成对表·收料面→需求面（m473）",
+        "蓝本文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "蓝本方法": "accepts",
+        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "本世代方法": "chainWants",
+        "正则": r"NodeTags\.(is[A-Z]\w*)",
+        "豁免": False,
+    },
+    {
+        "名称": "accepts↔chainWants 成对表·需求面→收料面（m473 反向）",
+        "蓝本文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "蓝本方法": "chainWants",
+        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "本世代方法": "accepts",
+        "正则": r"NodeTags\.(is[A-Z]\w*)",
+        "豁免": False,
+    },
 ]
 
 

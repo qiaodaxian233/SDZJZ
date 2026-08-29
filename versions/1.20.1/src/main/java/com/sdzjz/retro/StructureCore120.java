@@ -20,7 +20,9 @@ import java.util.Map;
  *
  * <p>m471（C2-⑤c1）起：在途缓存 nodeBufs + 直连路由（机器↔机器连线）落地——蓝本
  * {@code nodeBuf/BUF_CAP/bufTypeOk/mergeLegacy/distribute/accepts} 的世代对位，见下方
- * 「在途缓存 + 直连路由」段。链式拉料 chainWants 与逻辑节点七分支随 ⑤c2/⑤c3。
+ * 「在途缓存 + 直连路由」段。m473（C2-⑤c2）起：逻辑节点七分支在 accepts/chainWants **成对**落地 +
+ * 六族 tick 清运分支 + 垃圾桶两轮垫底真判定 + 分配器均分（见 tickLogicNode 段）；链式拉料的
+ * **供料侧接线**（拉料回路消费 chainWants）随 ⑤c3。
  */
 final class StructureCore120 extends BlockEntity {
 
@@ -174,31 +176,127 @@ final class StructureCore120 extends BlockEntity {
     }
 
     /** 垃圾桶族判定（蓝本 {@code NodeTags.isTrash(st) || st.getItem() instanceof VoidProcessorItem}）。
-     *  **本世代恒 false**：NodeTags 未上挂（节点栈 NBT 判定随 ⑤c2 的 ItemData 五口改型）、虚空处理器
-     *  本世代未建——两轮垫底的壳先立好，⑤c2 只需把这一行接上真判定，路由主体一字不动。 */
+     *  m473 真判定上线——两轮垫底自此生效。虚空处理器随 <b>⑤e</b> 入伙：xpPool 未建，它连收料行都还
+     *  没开（见 accepts ⑤e 行），现在进本名单=死码假装；届时与 accepts/chainWants 行**成对**补。 */
     private static boolean isTrashLike(ItemStack st) {
+        return com.sdzjz.node.NodeTags.isTrash(st);
+    }
+
+    /** m471 收料判定：下游节点收不收 id（蓝本 accepts0 的世代版，m473 七分支落地）。
+     *  <p><b>与 {@link #chainWants} 是同一张节点类型表的两面</b>（一个管"收不收"、一个管"要不要"），
+     *  改一面必改另一面——m131b 只写本面、"仓→过滤器→酿造塔"拉料恒不通拖到 m132-6 才实锤；
+     *  对表闸"accepts↔chainWants 成对表"两向压着（m470 家法）。
+     *  <p><b>蓝本逐分支对照表</b>（已落的划账，未落的标到序刀号）：
+     *  <ul>
+     *  <li>【m473 落】暂停 nodePaused→false ／ 过滤器 filterPasses ／ 传感器 sensorOpen ／
+     *      开关 switchOn ／ 分配器→true ／ 垃圾桶 machineFilterAllows ／ 抽取节点 extractorLive+白名单；</li>
+     *  <li>虚空处理器 配置+白名单 —— 随 <b>⑤e</b>（xpPool 未建，收了只会压死在缓存里；本刀显式拒收=
+     *      上游走默认路由回仓零丢件，与蓝本"配置停用"形态同一姿势）；</li>
+     *  <li>自动合成机 CraftPlanner ／ 酿造塔 BrewPlanner ／ 附魔工厂 EnchantPlanner ／ 熔炉族 SmeltPlanner
+     *      —— 四条随 <b>⑤d</b>（规划器族依赖 RecipeAccess，本世代未建；这四台 def 产表空/
+     *      consumesInputs=false，恰好逐位退化成蓝本"目标未配置"的行为=false，非漏抄）；</li>
+     *  <li>【m471 落】MachineItem·consumesInputs 逐输入比对 ／ 免费产出机→false ／ 其余（农场/笼子）→false。</li>
+     *  </ul> */
+    private boolean accepts(net.minecraft.world.level.Level world, int target, String id) {
+        ItemStack st = g.machineNodes.get(target);
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;                      // m110b 暂停不收（上游改走默认路由）
+        if (com.sdzjz.node.NodeTags.isFilter(st)) return com.sdzjz.node.NodeTags.filterPasses(st, id); // 拦下的留上游走默认路由→存储
+        if (com.sdzjz.node.NodeTags.isSensor(st)) return sensorOpen(world, target);    // 关闸不收（上游全关闸时整台暂停）
+        if (com.sdzjz.node.NodeTags.isSwitch(st)) return com.sdzjz.node.NodeTags.switchOn(st); // 关闸不收，同上
+        if (com.sdzjz.node.NodeTags.isDistributor(st)) return true;                    // 分配器什么都收（分不出去的走默认路由）
+        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥
+        if (com.sdzjz.node.NodeTags.isExtractor(st))                                   // m154 开=收 / m160 感应联动+白名单一起闸
+            return extractorLive(world, target, st) && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
+        com.sdzjz.machine.MachineDef def = com.sdzjz.node.NodeTags.defOf(st);          // m472 世代身份口（对位蓝本 instanceof MachineItem）
+        if (def == null) return false;
+        if (def == com.sdzjz.machine.Machines.VOID_PROCESSOR) return false;            // ⑤e（对照表第二条，与 chainWants 行成对记档）
+        if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false;          // 熔炉族随 ⑤d（SmeltPlanner 缺 RecipeAccess）
+        if (!def.consumesInputs()) return false;                                       // 免费产出机不吃料（蓝本尾兜同）
+        for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
         return false;
     }
 
-    /** m471 收料判定：下游节点收不收 id（蓝本 accepts0 的世代子集）。
-     *  <p><b>蓝本逐分支对照表</b>（m470 家法：手抄判定表漏一条不报错、判官照绿，所以整表原样列在这儿供对表；
-     *  每条都标了到序刀号，补齐时逐条划掉）：
-     *  <ul>
-     *  <li>暂停 nodePaused→false ／ 过滤器 filterPasses ／ 传感器 sensorOpen ／ 开关 switchOn ／
-     *      分配器→true ／ 垃圾桶 machineFilterAllows ／ 虚空处理器 配置+白名单 ／ 抽取节点 extractorLive+白名单
-     *      —— 七条随 <b>⑤c2</b>（NodeTags 上挂后与 chainWants <b>成对</b>落地，同一张表的两面）；</li>
-     *  <li>自动合成机 CraftPlanner ／ 酿造塔 BrewPlanner ／ 附魔工厂 EnchantPlanner ／ 熔炉族 SmeltPlanner
-     *      —— 四条随 <b>⑤d</b>（规划器族依赖 RecipeAccess，本世代未建）；</li>
-     *  <li>MachineItem·consumesInputs 逐输入比对 ／ 免费产出机→false ／ 其余（农场/笼子）→false —— <b>本刀</b>。</li>
-     *  </ul>
-     *  world 形参本刀未用，保形是为了 ⑤c2 接传感器 sensorOpen 时**不动任何调用点**（蓝本同签名）。 */
-    private boolean accepts(net.minecraft.world.level.Level world, int target, String id) {
-        ItemStack st = g.machineNodes.get(target);
-        if (!(st.getItem() instanceof RetroMachineItems.RetroMachineItem rmi)) return false;
-        com.sdzjz.machine.MachineDef def = rmi.def;
-        if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false; // 熔炉族随 ⑤d（SmeltPlanner 缺 RecipeAccess）
-        if (!def.consumesInputs()) return false;                              // 免费产出机不吃料（蓝本尾兜同）
-        for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
+    /** m473 传感器闸门（蓝本 sensorOpen 世代版）：未配置监测物品=直通；否则按监测库存量与阈值比较。
+     *  监测目标=本节点的 kind1 供料线所指的仓。<b>世代取舍记档</b>：本世代无"默认主存储"概念
+     *  （蓝本回落 resolveInputSource），未连供料线=按 0 计——补货型（默认 sl=低于阈值放行）恒放行、
+     *  溢出型恒关；连上供料线即与蓝本逐位同义。 */
+    boolean sensorOpen(net.minecraft.world.level.Level world, int i) {
+        ItemStack st = g.machineNodes.get(i);
+        String id = com.sdzjz.node.NodeTags.sensorItem(st);
+        if (id.isEmpty()) return true;
+        StorageCore120 sc = supplyTarget(world, i);
+        long have = sc == null ? 0 : sc.count(id);
+        long th = com.sdzjz.node.NodeTags.sensorThreshold(st);
+        return com.sdzjz.node.NodeTags.sensorLess(st) ? have < th : have > th;
+    }
+
+    /** m473 抽取节点"活着"判定（蓝本 extractorLive 同式）：手动开 && （未配监测 ｜ 传感条件放行）
+     *  ——配了监测物品的抽取节点=自带阈值自动启停（m160）。 */
+    boolean extractorLive(net.minecraft.world.level.Level world, int i, ItemStack st) {
+        return com.sdzjz.node.NodeTags.extractorOn(st)
+                && (com.sdzjz.node.NodeTags.sensorItem(st).isEmpty() || sensorOpen(world, i));
+    }
+
+    /** m473 该节点的全部出线目标是否都是「关着的闸」（关闸传感器/关开关/停机抽取/暂停节点）——
+     *  是则上游整台暂停不白产不塞存储（蓝本 allGatesClosed 同构；无出线=false）。 */
+    private boolean allGatesClosed(net.minecraft.world.level.Level world, int from) {
+        boolean any = false;
+        for (int[] c : g.connections) {
+            if (c[0] != from) continue;
+            int t = c[1];
+            if (t < 0 || t >= g.machineNodes.size()) return false;
+            ItemStack ts = g.machineNodes.get(t);
+            boolean closedGate = (com.sdzjz.node.NodeTags.isSensor(ts) && !sensorOpen(world, t))
+                    || (com.sdzjz.node.NodeTags.isSwitch(ts) && !com.sdzjz.node.NodeTags.switchOn(ts))
+                    || (com.sdzjz.node.NodeTags.isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
+                    || com.sdzjz.node.NodeTags.nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
+            if (!closedGate) return false;
+            any = true;
+        }
+        return any;
+    }
+
+    // m218d 谱系：chainWants 顶层调用的 visited 集合复用（服务端 tick 单线程、递归自身传同一集合，
+    // 清场复用安全）。⑤c3 拉料循环届时消费，判官现在就用。
+    private final transient java.util.HashSet<Integer> wantsScratch = new java.util.HashSet<>();
+
+    java.util.Set<Integer> wantsScratchCleared() { wantsScratch.clear(); return wantsScratch; }
+
+    /** m473 链式需求（蓝本 chainWants0 世代版）：上游拉料时问"这条出线链的下游到底要不要 id"。
+     *  深度≤8+visited 防环；逻辑节点按各自闸放行后**沿出线递归**（本世代直遍历 g.connections=
+     *  m471 邻接取舍同路）。<b>与 {@link #accepts} 成对</b>（同一张表的两面，见彼处对照表）：
+     *  规划器四行随 ⑤d、虚空行随 ⑤e，均与 accepts 逐行成对记档。⑤c3 供料侧接线届时直接消费本方法。 */
+    boolean chainWants(net.minecraft.world.level.Level world, int i, String id, int depth, java.util.Set<Integer> visited) {
+        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = g.machineNodes.get(i);
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
+        if (com.sdzjz.node.NodeTags.isFilter(st)) {
+            if (!com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
+        } else if (com.sdzjz.node.NodeTags.isSwitch(st)) {
+            if (!com.sdzjz.node.NodeTags.switchOn(st)) return false;
+        } else if (com.sdzjz.node.NodeTags.isExtractor(st)) {
+            if (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id)) return false; // m160 感应+白名单闸
+        } else if (com.sdzjz.node.NodeTags.isTrash(st)) {
+            // m153 垃圾桶链式需求：经逻辑节点转接=玩家明确布线授权，垃圾桶作为终端什么都"想要"；
+            // "直连仓不抽"的防手滑边界在 ⑤c3 拉料回路的节点类型清单里（本就不含垃圾桶），本方法不破。
+            return true;
+        } else if (com.sdzjz.node.NodeTags.isSensor(st) || com.sdzjz.node.NodeTags.isDistributor(st)) {
+            // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行（蓝本原注原句）
+        } else {
+            com.sdzjz.machine.MachineDef def = com.sdzjz.node.NodeTags.defOf(st); // m472 世代身份口
+            if (def == null) return false;
+            if (def == com.sdzjz.machine.Machines.VOID_PROCESSOR) return false;  // ⑤e（与 accepts 行成对）
+            if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false; // ⑤d（蓝本=SmeltPlanner 可熔判定+白名单）
+            if (def.consumesInputs()) {
+                for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
+                return false;
+            }
+            return false; // 免费产出机/农场笼子不吃供料（蓝本尾兜同）
+        }
+        for (int[] c : g.connections) { // 逻辑节点放行后沿出线递归（蓝本 outT[i] 的等价遍历）
+            if (c[0] != i) continue;
+            if (chainWants(world, c[1], id, depth + 1, visited)) return true;
+        }
         return false;
     }
 
@@ -226,9 +324,15 @@ final class StructureCore120 extends BlockEntity {
                 }
             }
         }
+        return depositTail(dep, id, amt); // m473 抽成共用尾巴（distributeEvenOut 同用），行为逐位不变
+    }
+
+    /** 存储尾巴（routeOut/distributeEvenOut 共用，m473 自 routeOut 原样抽出）：余量落 kind0 仓，
+     *  deposit 全有或全无（类型满=整栈拒收），拒收即**原样回吐**零丢件（m471 判官③口径不动）。 */
+    private long depositTail(StorageCore120 dep, String id, long amt) {
         if (amt <= 0) return 0L;
         if (dep == null) return amt;
-        while (amt > 0) { // 余量落 kind0 仓：deposit 全有或全无（类型满=整栈拒收），拒收即原样回吐零丢件
+        while (amt > 0) {
             int give = (int) Math.min(amt, Integer.MAX_VALUE);
             ItemStack rest = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
                     .get(new net.minecraft.resources.ResourceLocation(id)), give);
@@ -237,6 +341,64 @@ final class StructureCore120 extends BlockEntity {
             amt -= give;
         }
         return 0L;
+    }
+
+    /** m473 均分分发（分配器，蓝本 distributeEven0 世代版）：在所有"吃得下"的目标间平分、余数轮转
+     *  （前 extra 个各多一件）；类型上限拒收的份额与装不下的部分并入余量走存储尾巴；仍无处去的
+     *  **原样回吐**（蓝本 addOutput 输出缓存的世代对位=回调用方持料，m471 取舍④同路）。
+     *  蓝本刻意无两轮垫底：垃圾桶在均分里是平等目标（accepts=白名单），逐位照抄不发明。 */
+    long distributeEvenOut(net.minecraft.world.level.Level world, int fromIndex, StorageCore120 dep,
+            boolean hasOut, String id, long amt) {
+        if (amt <= 0) return 0L;
+        if (hasOut) {
+            int okN = 0; // m357 scratch 两遍法：收可吃目标进复用数组（不跨调用不可重入）
+            for (int[] c : g.connections) {
+                if (c[0] != fromIndex) continue;
+                int t = c[1];
+                if (t >= 0 && t < g.machineNodes.size() && accepts(world, t, id)) {
+                    if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
+                    evenOk[okN++] = t;
+                }
+            }
+            if (okN > 0) {
+                long share = amt / okN, extra = amt % okN, undelivered = 0;
+                for (int k = 0; k < okN; k++) {
+                    long want = share + (k < extra ? 1 : 0);
+                    if (want <= 0) continue;
+                    java.util.Map<String, Long> m = nodeBuf(evenOk[k]);
+                    if (!bufTypeOk(m, id)) { undelivered += want; continue; } // m270 类型上限：拒收份额转默认路由
+                    long cur = m.getOrDefault(id, 0L);
+                    long put = Math.min(Math.max(0L, BUF_CAP - cur), want);
+                    if (put > 0) { m.put(id, cur + put); setChanged(); }
+                    undelivered += want - put;
+                }
+                amt = undelivered;
+            }
+        }
+        return depositTail(dep, id, amt);
+    }
+
+    // ===== m473 逻辑节点清运 scratch（蓝本 m350/m357 同构：转存进复用双数组再处理，
+    // 不跨节点不跨 tick 不可重入；服务端 tick 单线程） =====
+    private transient String[] drainIds = new String[16];
+    private transient long[] drainAmts = new long[16];
+    private transient int[] evenOk = new int[8]; // m357 均分目标 scratch
+
+    private int fillDrain(java.util.Map<String, Long> m) {
+        int n = m.size();
+        if (drainIds.length < n) {
+            int cap = Math.max(n, drainIds.length * 2);
+            drainIds = new String[cap];
+            drainAmts = new long[cap];
+        }
+        int k = 0;
+        for (java.util.Map.Entry<String, Long> en : m.entrySet()) {
+            drainIds[k] = en.getKey();
+            Long v = en.getValue();
+            drainAmts[k] = v == null ? 0L : v;
+            k++;
+        }
+        return k;
     }
 
     /** m471 白耗料护栏（m466 那条的超集）：产物**有没有去处**——任一下游节点收得下（收料判定过 +
@@ -325,22 +487,29 @@ final class StructureCore120 extends BlockEntity {
     // 余下的链式拉料 chainWants 随 ⑤c3。
     private transient double[] workAcc = new double[0]; // 蓝本 m356 数组直取（不落盘：重启丢半周期无妨）
     private transient long recipesThisTick;             // 蓝本 m270 全核 tick 周期预算游标
+    private transient long ticks; // m473 逻辑节点 5t 节拍游标（蓝本 be.ticks；世代取舍记档：暂无 m218c 多核心移相，画布规模下可忽略，规模上来再补相位）
 
     static void tick(net.minecraft.world.level.Level world, BlockPos pos, BlockState state, StructureCore120 be) {
         if (world.isClientSide) return;
         be.recipesThisTick = 0;
+        be.ticks++;
         com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
         int nSize = be.g.machineNodes.size();
         be.buildPlan(nSize); // m471 邻接派生位：hasOut/hasIn（每拍重建，见 buildPlan 注的世代取舍）
         for (int i = 0; i < nSize; i++) {
             ItemStack st = be.g.machineNodes.get(i);
+            // m473（⑤c2）暂停最先判（m110b；m99 教训：early-continue 必须在任何累积/扣料之前）——任意节点类型通用
+            if (com.sdzjz.node.NodeTags.nodePaused(st)) { be.stat(i, 2, "已手动暂停"); continue; }
+            boolean hasOut = be.planHasOut[i], hasIn = be.planHasIn[i]; // m471
+            // m473 传感器闸门连锁：该节点全部出线目标都是关着的闸 → 整台暂停（不白产、不绕道塞存储，蓝本同位）
+            if (hasOut && be.allGatesClosed(world, i)) { be.stat(i, 2, "下游闸门全关"); continue; }
+            if (be.tickLogicNode(world, i, st, hasOut)) continue; // m473 逻辑节点六族清运分支（命中即本拍归它管）
             if (!(st.getItem() instanceof RetroMachineItems.RetroMachineItem rmi)) { be.stat(i, 0, ""); continue; }
             com.sdzjz.machine.MachineDef def = rmi.def;
             if (com.sdzjz.machine.Machines.smelterFamily(def.id()) || def.outputs().isEmpty()) {
                 be.stat(i, 2, "配方/特种机型随 C2-⑤ 后续分片到序（本世代暂只跑数据驱动生成类）");
                 continue;
             }
-            boolean hasOut = be.planHasOut[i], hasIn = be.planHasIn[i]; // m471
             StorageCore120 dep = be.depositTarget(world, i);
             if (!hasOut && dep == null) { // m471 取舍②：出线与产出仓二者有其一即可开工
                 be.stat(i, 3, "未连产出仓、也没有出线（点机器再点仓=绿线产出仓，或从本机拉一条出线喂下游机器）");
@@ -400,6 +569,123 @@ final class StructureCore120 extends BlockEntity {
             if (produced) be.stat(i, 1, "");
             else if (skippedComponent) be.stat(i, 2, "组件产物机型随 C2-⑤d（精确账本对接）到序");
         }
+    }
+
+    /** m473（⑤c2）逻辑节点六族清运分支（蓝本 tick 分配器/过滤器/垃圾桶/抽取/开关/传感器六段的世代版，
+     *  5t 节拍同蓝本）。命中六族返回 true——本拍无论有没有活都不再走机器路径；非逻辑节点返回 false。
+     *  <p><b>世代取舍显式记档（送不出去的货）</b>：蓝本装不下走 depositOrBuffer→addOutput（输出缓存/
+     *  断网喷射），本世代没有（⑤a 取舍②）——统一**原样回灌自己缓存**持料待命并亮黄说话（m471 取舍④
+     *  同路：账面可见绝不吞件；缓存到顶=对上游天然背压，蓝本抽取节点残量语义的推广）。 */
+    private boolean tickLogicNode(net.minecraft.world.level.Level world, int i, ItemStack st, boolean hasOut) {
+        boolean isF = com.sdzjz.node.NodeTags.isFilter(st), isT = com.sdzjz.node.NodeTags.isTrash(st),
+                isX = com.sdzjz.node.NodeTags.isExtractor(st), isSw = com.sdzjz.node.NodeTags.isSwitch(st),
+                isSe = com.sdzjz.node.NodeTags.isSensor(st), isD = com.sdzjz.node.NodeTags.isDistributor(st);
+        if (!(isF || isT || isX || isSw || isSe || isD)) return false;
+        if (ticks % 5 != 0) return true; // 5t 节拍（蓝本同：非节拍不动缓存不改灯）
+        java.util.Map<String, Long> own = nodeBuf(i);
+        if (isD) { // 分配器：来料在出线目标间均分（余数轮转），没人要的走产出仓
+            if (own.isEmpty()) return true;
+            StorageCore120 dep = depositTarget(world, i);
+            boolean moved = false; long held = 0;
+            final int dn = fillDrain(own); own.clear(); // m350 整锅转存再清（回灌进空表语义同蓝本）
+            for (int dk = 0; dk < dn; dk++) {
+                String id = drainIds[dk]; long amt = drainAmts[dk];
+                if (amt <= 0) continue;
+                long left = distributeEvenOut(world, i, dep, hasOut, id, amt);
+                if (left < amt) moved = true;
+                if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
+            }
+            lampAfterDrain(i, moved, held, false); // 蓝本：动了才点绿，没动保持上拍灯
+            return true;
+        }
+        if (isF) { // 过滤器：清运输入缓存——放行的沿出线下游，拦下的直落产出仓（蓝本 targets=null 同义）
+            if (own.isEmpty()) return true;
+            StorageCore120 dep = depositTarget(world, i);
+            boolean moved = false; long held = 0;
+            final int dn = fillDrain(own); own.clear();
+            for (int dk = 0; dk < dn; dk++) {
+                String id = drainIds[dk]; long amt = drainAmts[dk];
+                if (amt <= 0) continue;
+                long left = routeOut(world, i, dep, hasOut && com.sdzjz.node.NodeTags.filterPasses(st, id), id, amt);
+                if (left < amt) moved = true;
+                if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
+            }
+            lampAfterDrain(i, moved, held, false);
+            return true;
+        }
+        if (isT) { // m150 垃圾桶：吞光输入缓存并累计 tc（白名单在收料侧 accepts 把关，吞侧不设卡=蓝本同构）
+            if (own.isEmpty()) return true;
+            long ate = 0;
+            final int dn = fillDrain(own); own.clear();
+            for (int dk = 0; dk < dn; dk++) if (drainAmts[dk] > 0) ate += drainAmts[dk];
+            if (ate > 0) {
+                com.sdzjz.node.NodeTags.addTrashCount(st, ate); // m353 三段式写读（丢写="已吞"死数血案）
+                setChanged();
+                stat(i, 1, "");
+            }
+            return true;
+        }
+        if (isX) { // m154/m157/m160 抽取节点：开=推缓存给收的目标+搬仓，残量持料背压；感应暂停持料；关=退料
+            boolean on = com.sdzjz.node.NodeTags.extractorOn(st);
+            if (on && !extractorLive(world, i, st)) { stat(i, 2, "感应暂停：持料待命（监测条件一到自动续跑）"); return true; }
+            StorageCore120 dep = depositTarget(world, i);
+            if (!on) { // m157 歇工退料：缓存退回产出仓（本世代无默认路由；没接仓=持料不丢）
+                boolean movedO = false; long heldO = 0;
+                if (!own.isEmpty()) {
+                    final int dnO = fillDrain(own); own.clear();
+                    for (int dk = 0; dk < dnO; dk++) {
+                        String id = drainIds[dk]; long amt = drainAmts[dk];
+                        if (amt <= 0) continue;
+                        long left = routeOut(world, i, dep, false, id, amt);
+                        if (left < amt) movedO = true;
+                        if (left > 0) { own.merge(id, left, StorageCore120::satAdd); heldO += left; }
+                    }
+                    if (movedO) setChanged();
+                }
+                stat(i, 2, heldO > 0 ? "抽取已停止；退料没处放，持料待命（接一条产出仓绿线即退清）" : "抽取已停止");
+                return true;
+            }
+            if (own.isEmpty()) { stat(i, 0, ""); return true; }
+            boolean moved = false;
+            final int dn = fillDrain(own); own.clear(); // 蓝本"转存不清+残量 put/remove"的等价式：清后回灌残量
+            for (int dk = 0; dk < dn; dk++) {
+                String id = drainIds[dk]; long amt = drainAmts[dk];
+                if (amt <= 0) continue;
+                long left = routeOut(world, i, dep, hasOut, id, amt); // 两轮垫底+m157 搬仓（定向存储=明确目的地）
+                if (left < amt) moved = true;
+                if (left > 0) own.merge(id, left, StorageCore120::satAdd); // 残量留缓存=背压（蓝本原样，不亮黄）
+            }
+            stat(i, moved ? 1 : 0, "");
+            return true;
+        }
+        if (isSw && !com.sdzjz.node.NodeTags.switchOn(st)) { stat(i, 2, "开关已关：持料待命"); return true; }
+        if (isSe && !sensorOpen(world, i)) { stat(i, 2, "传感器关闸：持料待命（监测条件未满足）"); return true; }
+        // 开关（开）/传感器（开闸）：直通转发自己的缓存（蓝本两段同构）
+        if (own.isEmpty()) { stat(i, 0, ""); return true; }
+        StorageCore120 dep = depositTarget(world, i);
+        boolean moved = false; long held = 0;
+        final int dn = fillDrain(own); own.clear();
+        for (int dk = 0; dk < dn; dk++) {
+            String id = drainIds[dk]; long amt = drainAmts[dk];
+            if (amt <= 0) continue;
+            long left = routeOut(world, i, dep, hasOut, id, amt);
+            if (left < amt) moved = true;
+            if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
+        }
+        lampAfterDrain(i, moved, held, true); // 蓝本开关/传感器：stat(moved?1:0)
+        return true;
+    }
+
+    /** m473 清运后灯表收口：持料>0 亮黄说人话（世代取舍④：本世代无输出缓存，货在缓存没丢）；
+     *  否则按蓝本口径——动了点绿，没动的分配器/过滤器保持上拍灯、开关/传感器/抽取归零待机。 */
+    private void lampAfterDrain(int i, boolean moved, long held, boolean zeroWhenIdle) {
+        if (moved) setChanged();
+        if (held > 0) {
+            stat(i, 2, "去处满，持料待命（下游缓存/产出仓都装不下——货在本节点缓存里没丢，清出空位自动续走）");
+            return;
+        }
+        if (moved) stat(i, 1, "");
+        else if (zeroWhenIdle) stat(i, 0, "");
     }
 
     /** 蓝本 cyclesThisTick 四层闸逐位对照（节点 cap→核内→区块→全服，耗尽只欠不丢工作量累积续）；

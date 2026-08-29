@@ -307,6 +307,297 @@ public class RetroTickTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    // ===== m473（C2-⑤c2）：逻辑节点七分支成对判官（accepts 面经 routeOut 观测，chainWants 面直呼）=====
+
+    private static void putFilterList(ItemStack s, String... ids) {
+        net.minecraft.nbt.ListTag l = new net.minecraft.nbt.ListTag();
+        for (String id : ids) l.add(net.minecraft.nbt.StringTag.valueOf(id));
+        s.getOrCreateTag().put("fl", l);
+    }
+
+    private static String rs(StructureCore120 c, int i) { // 判官报错带灯色+原因
+        return c.g.nodeStatus.get(i) + "/" + c.g.nodeReason.get(i);
+    }
+
+    /** ①过滤器成对+端到端：白名单放行的走线到下游耗料机（sand_maker→过滤器→glass_kiln 全线绿），
+     *  名单外 accepts 拒收（routeOut 原样回吐）、chainWants 同步说不要——同一张表两面各拍一下。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 400)
+    public void pair_filter_passes_line_and_blocks_offlist(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        ItemStack filter = node("filter_node", 20, 10);
+        putFilterList(filter, "minecraft:sand"); // 白名单只放沙
+        c.addNode(filter);                        // 1
+        c.addNode(node("glass_kiln", 30, 10));   // 2：只接产出仓
+        ctx.assertTrue(c.connect(0, 1) && c.connect(1, 2), "两段出线应连得上");
+        c.g.storageEdges.add(new long[]{2, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        // chainWants 面：过滤器"要"沙（下游窑吃沙）、不"要"泥土（名单拦）
+        ctx.assertTrue(c.chainWants(ctx.getLevel(), 1, "minecraft:sand", 0, c.wantsScratchCleared()),
+                "链式需求应认沙（过滤器放行+下游窑吃沙）");
+        ctx.assertTrue(!c.chainWants(ctx.getLevel(), 1, "minecraft:dirt", 0, c.wantsScratchCleared()),
+                "链式需求不该认泥土（白名单拦下）");
+        // accepts 面：名单外投递整额回吐（无仓无去处，零吞件）
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:dirt", 5) == 5,
+                "名单外物品应被过滤器拒收并原样回吐 5");
+        ctx.succeedWhen(() -> {
+            long glass = dep.count("minecraft:glass");
+            ctx.assertTrue(glass >= 2, "白名单沙应穿过过滤器喂进窑产玻璃，现账 " + glass);
+            ctx.assertTrue(c.g.nodeStatus.get(0) == 1 && c.g.nodeStatus.get(1) == 1 && c.g.nodeStatus.get(2) == 1,
+                    "全线该绿灯，实得 " + rs(c, 0) + " | " + rs(c, 1) + " | " + rs(c, 2));
+            com.sdzjz.machine.CoreScheduler.clearAll();
+        });
+    }
+
+    /** ②开关成对+持料+闸门连锁：关=accepts 拒收/chainWants 不要/缓存持料黄灯/上游"下游闸门全关"不白产；
+     *  开=直通转发一件不少。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void pair_switch_holds_when_off_forwards_when_on(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        ItemStack sw = node("switch_node", 20, 10);
+        c.addNode(sw);                            // 1
+        c.addNode(node("glass_kiln", 30, 10));   // 2
+        ctx.assertTrue(c.connect(0, 1) && c.connect(1, 2), "两段出线应连得上");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 6) == 0
+                        && c.bufAmount(1, "minecraft:sand") == 6, "开着的开关应收下 6 件预置");
+        sw.getOrCreateTag().putBoolean("so", false); // 关闸
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 4) == 4,
+                "关着的开关应拒收并原样回吐 4");
+        ctx.assertTrue(!c.chainWants(ctx.getLevel(), 1, "minecraft:sand", 0, c.wantsScratchCleared()),
+                "关着的开关链式需求应说不要");
+        handTick(ctx, c, 10);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 6, "关闸持料：缓存该一件不动，实得 " + c.bufAmount(1, "minecraft:sand"));
+        ctx.assertTrue(c.g.nodeStatus.get(1) == 2 && c.g.nodeReason.get(1).contains("开关已关"),
+                "开关该黄灯说人话，实得 " + rs(c, 1));
+        ctx.assertTrue(c.g.nodeStatus.get(0) == 2 && c.g.nodeReason.get(0).contains("闸门"),
+                "上游该整台暂停不白产（下游闸门全关），实得 " + rs(c, 0));
+        ctx.assertTrue(c.bufAmount(2, "minecraft:sand") == 0, "关闸期间一件都不许漏到下游");
+        sw.getOrCreateTag().putBoolean("so", true); // 开闸
+        ctx.assertTrue(c.chainWants(ctx.getLevel(), 1, "minecraft:sand", 0, c.wantsScratchCleared()),
+                "开闸后链式需求应认沙");
+        handTick(ctx, c, 10);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 0 && c.bufAmount(2, "minecraft:sand") >= 1,
+                "开闸后 6 件该直通下游（窑已开吃），开关余 " + c.bufAmount(1, "minecraft:sand")
+                        + "、窑缓存 " + c.bufAmount(2, "minecraft:sand"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ③传感器成对（判定表两面**刻意不同**的那一格）：关闸时 accepts 拒收、tick 持料，
+     *  但 chainWants **照样放行**（蓝本原注"闸门在下发阶段生效，需求判定直接放行"）；监测目标=
+     *  自己的 kind1 供料线所指仓，阈值方向按 sl。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void pair_sensor_gates_accepts_but_not_wants(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 mon = storage(ctx, new BlockPos(1, 1, 0));
+        if (mon == null) return;
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        ItemStack se = node("sensor_node", 20, 10);
+        se.getOrCreateTag().putString("si", "minecraft:iron_ingot");
+        se.getOrCreateTag().putLong("sv", 10); // 默认 sl=低于阈值放行（补货型）
+        c.addNode(se);                            // 1
+        c.addNode(node("glass_kiln", 30, 10));   // 2
+        ctx.assertTrue(c.connect(0, 1) && c.connect(1, 2), "两段出线应连得上");
+        c.g.storageEdges.add(new long[]{1, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1}); // 传感器监测线（kind1）
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        ctx.assertTrue(c.sensorOpen(ctx.getLevel(), 1), "监测仓 0<10 应开闸（补货型）");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 6) == 0
+                        && c.bufAmount(1, "minecraft:sand") == 6, "开闸传感器应收下 6 件预置");
+        mon.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:iron_ingot")), 15));
+        ctx.assertTrue(!c.sensorOpen(ctx.getLevel(), 1), "监测仓 15>=10 应关闸");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 4) == 4,
+                "关闸传感器 accepts 应拒收并原样回吐 4");
+        ctx.assertTrue(c.chainWants(ctx.getLevel(), 1, "minecraft:sand", 0, c.wantsScratchCleared()),
+                "关闸传感器 chainWants 应照样放行（蓝本：闸门在下发阶段生效）——两面刻意不同的那一格");
+        handTick(ctx, c, 10);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 6 && c.g.nodeStatus.get(1) == 2
+                        && c.g.nodeReason.get(1).contains("传感器关闸"),
+                "关闸持料黄灯，实得缓存 " + c.bufAmount(1, "minecraft:sand") + "、灯 " + rs(c, 1));
+        mon.withdraw("minecraft:iron_ingot", 15); // 库存跌回阈下 → 自动复通
+        handTick(ctx, c, 10);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 0 && c.bufAmount(2, "minecraft:sand") >= 1,
+                "复通后该直通转发，传感余 " + c.bufAmount(1, "minecraft:sand") + "、窑缓存 " + c.bufAmount(2, "minecraft:sand"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ④分配器均分（蓝本 distributeEven 三口径）：余数轮转（11→6/5）、非收方拿零、
+     *  类型上限拒收的份额转默认路由零丢件、最后一站也没有→原样回吐。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void distributor_even_split_remainder_cap_reroute(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("distributor_node", 10, 10)); // 0
+        c.addNode(node("glass_kiln", 20, 10));       // 1
+        c.addNode(node("glass_kiln", 30, 10));       // 2
+        c.addNode(node("cobble_maker", 40, 10));     // 3：免费产出机=不收，均分该拿零
+        ctx.assertTrue(c.connect(0, 1) && c.connect(0, 2) && c.connect(0, 3), "三条出线应连得上");
+        ctx.assertTrue(c.distributeEvenOut(ctx.getLevel(), 0, dep, true, "minecraft:sand", 11) == 0,
+                "11 件在两个收方间该全额分完");
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 6 && c.bufAmount(2, "minecraft:sand") == 5
+                        && c.bufAmount(3, "minecraft:sand") == 0,
+                "均分该 6/5/0（余数轮转给前排），实得 " + c.bufAmount(1, "minecraft:sand") + "/"
+                        + c.bufAmount(2, "minecraft:sand") + "/" + c.bufAmount(3, "minecraft:sand"));
+        // 类型上限：wither_killer 双输入——先给 4 号占一位灵魂沙，硬顶 1 后凋骷头份额该转默认路由
+        c.addNode(node("wither_killer", 50, 10)); // 4
+        c.addNode(node("wither_killer", 60, 10)); // 5
+        c.addNode(node("distributor_node", 70, 10)); // 6
+        ctx.assertTrue(c.connect(6, 4) && c.connect(6, 5), "均分两目标应连得上");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 6, null, true, "minecraft:soul_sand", 3) == 0
+                && c.bufAmount(4, "minecraft:soul_sand") == 3, "4 号先占一个类型位");
+        com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
+        int old = cfg.maxBufferTypesPerNode;
+        cfg.maxBufferTypesPerNode = 1;
+        try {
+            ctx.assertTrue(c.distributeEvenOut(ctx.getLevel(), 6, dep, true, "minecraft:wither_skeleton_skull", 8) == 0,
+                    "拒收份额有仓兜底该零回吐");
+            ctx.assertTrue(c.bufAmount(4, "minecraft:wither_skeleton_skull") == 0
+                            && c.bufAmount(5, "minecraft:wither_skeleton_skull") == 4
+                            && dep.count("minecraft:wither_skeleton_skull") == 4,
+                    "满型目标份额该整额转仓零丢件，实得 4号 " + c.bufAmount(4, "minecraft:wither_skeleton_skull")
+                            + "/5号 " + c.bufAmount(5, "minecraft:wither_skeleton_skull")
+                            + "/仓 " + dep.count("minecraft:wither_skeleton_skull"));
+            ctx.assertTrue(c.distributeEvenOut(ctx.getLevel(), 6, null, true, "minecraft:wither_skeleton_skull", 3) == 3 - Math.min(3, 0)
+                            ? c.distributeEvenOut(ctx.getLevel(), 6, null, true, "minecraft:blaze_rod", 3) == 3 : false,
+                    "没人收且无仓时应原样回吐 3");
+        } finally {
+            cfg.maxBufferTypesPerNode = old;
+        }
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ⑤垃圾桶成对+两轮垫底：有人收就轮不到桶（第一轮喂窑、桶拿零）；没人要的第二轮进桶，
+     *  tick 吞光并把"已吞"真写进节点栈（m353 三段式）；m160 白名单桶名单外拒收回仓；
+     *  chainWants 照蓝本无条件"想要"（授权语义，与 accepts 白名单面刻意不同）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void pair_trash_two_pass_eats_and_counts(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        c.addNode(node("glass_kiln", 20, 10));   // 1
+        ItemStack trash = node("trash_node", 30, 10);
+        c.addNode(trash);                         // 2
+        ctx.assertTrue(c.connect(0, 1) && c.connect(0, 2), "两条出线应连得上");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, dep, true, "minecraft:sand", 7) == 0,
+                "沙该有去处");
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 7 && c.bufAmount(2, "minecraft:sand") == 0,
+                "两轮垫底：有人收就轮不到桶，实得 窑 " + c.bufAmount(1, "minecraft:sand") + "/桶 " + c.bufAmount(2, "minecraft:sand"));
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, dep, true, "minecraft:dirt", 5) == 0
+                        && c.bufAmount(2, "minecraft:dirt") == 5 && dep.count("minecraft:dirt") == 0,
+                "没人要的第二轮该进桶（不落仓）");
+        handTick(ctx, c, 5);
+        ctx.assertTrue(c.bufAmount(2, "minecraft:dirt") == 0
+                        && com.sdzjz.node.NodeTags.trashCount(c.g.machineNodes.get(2)) == 5,
+                "桶该吞光并计账 tc=5，实得缓存 " + c.bufAmount(2, "minecraft:dirt")
+                        + "/tc " + com.sdzjz.node.NodeTags.trashCount(c.g.machineNodes.get(2)));
+        putFilterList(c.g.machineNodes.get(2), "minecraft:sand"); // m160 安全桶：只吞沙
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, dep, true, "minecraft:dirt", 3) == 0
+                        && dep.count("minecraft:dirt") == 3 && c.bufAmount(2, "minecraft:dirt") == 0,
+                "白名单外该拒收回仓零丢件");
+        ctx.assertTrue(c.chainWants(ctx.getLevel(), 2, "minecraft:dirt", 0, c.wantsScratchCleared()),
+                "桶的链式需求照蓝本无条件放行（授权语义，与 accepts 白名单面刻意不同的那一格）");
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ⑥暂停成对+最先判：暂停的耗料机 accepts 拒收、chainWants 不要；暂停的生成机整拍白灯黄话
+     *  一件不产（early-continue 在预算/扣料之前，m99 教训）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void pair_paused_node_rejects_and_produces_nothing(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        c.addNode(node("glass_kiln", 20, 10));   // 1
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        c.g.machineNodes.get(1).getOrCreateTag().putBoolean("np", true); // 暂停下游窑
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 4) == 4,
+                "暂停节点该拒收（上游走默认路由），实回吐应 4");
+        ctx.assertTrue(!c.chainWants(ctx.getLevel(), 1, "minecraft:sand", 0, c.wantsScratchCleared()),
+                "暂停节点链式需求应说不要");
+        c.g.machineNodes.get(0).getOrCreateTag().putBoolean("np", true); // 暂停上游沙机
+        handTick(ctx, c, 40);
+        ctx.assertTrue(dep.count("minecraft:sand") == 0, "暂停生成机整拍一件不产（early-continue 在累积之前）");
+        ctx.assertTrue(c.g.nodeStatus.get(0) == 2 && c.g.nodeReason.get(0).contains("暂停"),
+                "暂停该黄灯说人话，实得 " + rs(c, 0));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ⑦持料守恒（世代取舍④判官）：过滤器拦下的货**无仓可去**时原样回灌自己缓存亮黄，一件不丢；
+     *  补上名单+下游后自动续走清空。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void logic_leftovers_hold_in_place_zero_loss(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("sand_maker", 10, 10));   // 0
+        ItemStack filter = node("filter_node", 20, 10); // 白名单空=全拦
+        c.addNode(filter);                        // 1
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 9) == 9,
+                "白名单空的过滤器该拒收（蓝本口径：空名单=全拦），回吐应 9");
+        putFilterList(filter, "minecraft:sand");  // 放行沙后预置 9 件进过滤器
+        ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 9) == 0
+                        && c.bufAmount(1, "minecraft:sand") == 9, "预置该到位");
+        handTick(ctx, c, 10); // 过滤器放行但没有下游也没有仓 → 原样回灌持料
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 9,
+                "无处可去该整锅回灌零丢件，实得 " + c.bufAmount(1, "minecraft:sand"));
+        ctx.assertTrue(c.g.nodeStatus.get(1) == 2 && c.g.nodeReason.get(1).contains("持料"),
+                "该黄灯说持料，实得 " + rs(c, 1));
+        c.addNode(node("glass_kiln", 30, 10));    // 2：补下游
+        ctx.assertTrue(c.connect(1, 2), "补线应连得上");
+        handTick(ctx, c, 10);
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 0 && c.bufAmount(2, "minecraft:sand") >= 1,
+                "补下游后该自动续走，过滤余 " + c.bufAmount(1, "minecraft:sand") + "、窑缓存 " + c.bufAmount(2, "minecraft:sand"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ⑧闸门全关连锁（判别性口径：**连着产出仓也不许绕道白产**）——上游沙机同时接了绿线产出仓
+     *  与一条通往关着的开关的出线，蓝本语义=整台暂停。只要有一个下游闸没关（补一台窑），立刻复工。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void gates_all_closed_stops_upstream_even_with_storage(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 dep = storage(ctx, new BlockPos(1, 1, 0));
+        if (dep == null) return;
+        c.addNode(node("sand_maker", 10, 10));   // 0：既有产出仓，又有一条出线通向关着的开关
+        ItemStack sw = node("switch_node", 20, 10);
+        sw.getOrCreateTag().putBoolean("so", false); // 关闸
+        c.addNode(sw);                            // 1
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        handTick(ctx, c, 45); // 沙机 15 拍/周期：不设闸门连锁的话这里该有 3 件落仓
+        ctx.assertTrue(dep.count("minecraft:sand") == 0,
+                "下游闸门全关时上游整台停——有产出仓也不许绕道白产，实得落仓 " + dep.count("minecraft:sand"));
+        ctx.assertTrue(c.g.nodeStatus.get(0) == 2 && c.g.nodeReason.get(0).contains("闸门"),
+                "上游该黄灯说人话，实得 " + rs(c, 0));
+        c.addNode(node("glass_kiln", 30, 10));    // 2：补一个没关闸的下游 → 不再是「全关」
+        ctx.assertTrue(c.connect(0, 2), "补线应连得上");
+        handTick(ctx, c, 45);
+        ctx.assertTrue(c.bufAmount(2, "minecraft:sand") >= 1 || dep.count("minecraft:sand") >= 1,
+                "有一个闸没关就该复工，窑缓存 " + c.bufAmount(2, "minecraft:sand") + "、仓 " + dep.count("minecraft:sand"));
+        ctx.assertTrue(c.bufAmount(1, "minecraft:sand") == 0, "关着的开关一件都不该收到");
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
     // ===== m472（绞杀者第五刀）：NodeTags 上挂判官 =====
 
     /** m472 NodeTags 上挂：六族身份（def 引用同一性）各归各位 + defOf 对位 + 默认值口径不漂
