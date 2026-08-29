@@ -800,10 +800,41 @@ final class StructureCore120 extends BlockEntity {
         nbt.put("nodeBufs", nbl);
     }
 
+    /** m474 旧档自愈（m469 healEnds 谱系）：本世代 m457 起把画布坐标误写在节点栈的 {@code xc/yc}
+     *  键上，而 {@code xc} 在 NodeTags 谱系里是 m159 <b>抽取节点累计抽取量</b>（long）——同键异义。
+     *  两个后果：①抽取节点卡面"已抽取"读的是自己的画布 X 坐标；②⑤c3 抽取泵一写累计就把节点弹飞。
+     *  另外蓝本坐标键是 {@code nx/ny}，键不同名还破 m443 DFU 红利（存档升 1.21.1 坐标全丢回默认位）。
+     *  <p>自愈规矩：只在<b>有旧键且无新键</b>时搬（新键在场=已是新档，一个字不动），搬完删旧键；
+     *  本世代此前从未写过抽取累计，故旧 xc 一定是坐标，搬迁无歧义。读档一次性，不落 tick 热路径。 */
+    private void healNodeCoordKeys() {
+        int healed = 0;
+        for (ItemStack s : g.machineNodes) {
+            CompoundTag t = s.getTag();
+            if (t == null) continue;
+            boolean hadOld = false;
+            if (t.contains("xc")) {
+                if (!t.contains("nx")) t.putInt("nx", t.getInt("xc"));
+                t.remove("xc");
+                hadOld = true;
+            }
+            if (t.contains("yc")) {
+                if (!t.contains("ny")) t.putInt("ny", t.getInt("yc"));
+                t.remove("yc");
+                hadOld = true;
+            }
+            if (hadOld) healed++;
+        }
+        if (healed > 0) {
+            LOGGER.info("结构核心 {} 旧档自愈：{} 个节点的画布坐标键 xc/yc 已迁为 nx/ny（m474 键位归位）", worldPosition, healed);
+            setChanged();
+        }
+    }
+
     @Override
     public void load(CompoundTag nbt) {
         super.load(nbt);
         g.readRenderNbt(nbt, MERGED_IDS, () -> { }); // 拓扑翻代消费方随 C2-④ 接 bumpTopo
+        healNodeCoordKeys(); // m474 旧档自愈：画布坐标键 xc/yc → nx/ny（须在 readRenderNbt 之后、任何消费方之前）
         // m471：渲染子集必须先读——下面按 machineNodes.size() 对齐补位（蓝本 m275 同序注）
         internalBuffer.clear();
         int dropped = 0; // m273 口径：写路径 left<=0 即 remove，零/负值从不合法落盘；负数毒化算术且能绕封顶

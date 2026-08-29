@@ -25,8 +25,8 @@ public final class RetroCanvasTests implements FabricGameTest {
     private static ItemStack node(String machineId, int xc, int yc) {
         ItemStack s = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .get(new net.minecraft.resources.ResourceLocation("sdzjz", machineId)));
-        s.getOrCreateTag().putInt("xc", xc);
-        s.getOrCreateTag().putInt("yc", yc);
+        s.getOrCreateTag().putInt("nx", xc); // m474 键位归位（同 RetroTickTests）
+        s.getOrCreateTag().putInt("ny", yc);
         return s;
     }
 
@@ -41,7 +41,7 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(!c.connect(0, 1), "同向重复连线应拒绝");
         ctx.assertTrue(!c.connect(0, 0), "自连应拒绝");
         ItemStack removed = c.detachNode(1);
-        ctx.assertTrue(!removed.isEmpty() && removed.getTag().getInt("xc") == 20, "摘回的应是中间节点（xc=20）");
+        ctx.assertTrue(!removed.isEmpty() && removed.getTag().getInt("nx") == 20, "摘回的应是中间节点（xc=20）");
         ctx.assertTrue(c.g.machineNodes.size() == 2 && c.g.nodeStatus.size() == 2 && c.g.nodeReason.size() == 2,
                 "三表应同步缩为 2");
         ctx.assertTrue(c.g.connections.size() == 1, "触删两条应断，仅存 0→2 重映射，实得 " + c.g.connections.size());
@@ -122,10 +122,10 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(StructureCoreMenu120.addFromSlot(c, p.getInventory(), true, 0, 500_000, -500_000), "创造放置应成立");
         ctx.assertTrue(p.getInventory().getItem(0).getCount() == 1, "创造不扣");
         ctx.assertTrue(c.g.machineNodes.size() == 2, "画布应挂 2 节点");
-        ctx.assertTrue(c.g.machineNodes.get(0).getTag().getInt("xc") == 33
-                && c.g.machineNodes.get(0).getTag().getInt("yc") == 44, "首节点坐标应=33,44");
-        ctx.assertTrue(c.g.machineNodes.get(1).getTag().getInt("xc") == 100_000
-                && c.g.machineNodes.get(1).getTag().getInt("yc") == -100_000, "天量坐标应被钳位到 ±100000");
+        ctx.assertTrue(c.g.machineNodes.get(0).getTag().getInt("nx") == 33
+                && c.g.machineNodes.get(0).getTag().getInt("ny") == 44, "首节点坐标应=33,44");
+        ctx.assertTrue(c.g.machineNodes.get(1).getTag().getInt("nx") == 100_000
+                && c.g.machineNodes.get(1).getTag().getInt("ny") == -100_000, "天量坐标应被钳位到 ±100000");
         ctx.succeed();
     }
 
@@ -208,6 +208,57 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(gg.storageEdges.size() == 1 && gg.storageEdges.get(0)[0] == 1 && gg.storageEdges.get(0)[2] == 1,
                 "存储边应只剩好的 (1,p3,供料)，实得 " + gg.storageEdges.size());
         ctx.assertTrue(gg.storageEdgeDims.size() == 1, "维度表应同长");
+        ctx.succeed();
+    }
+
+    // ===== m474：画布坐标键位归位（xc/yc → nx/ny）与旧档自愈 =====
+
+    /** m474①旧档自愈：史前存档（坐标写在 xc/yc）读进来后应逐节点搬到 nx/ny、旧键清干净、
+     *  坐标值一位不差；已是新档的节点一个字不动（新键在场=不搬）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void legacy_coord_keys_heal_on_load(GameTestHelper ctx) {
+        StructureCore120 src = canvas(ctx);
+        src.addNode(node("cobble_maker", 11, 22));  // 0：新档写法（nx/ny）
+        src.addNode(node("sand_maker", 33, 44));    // 1：下面改造成史前写法
+        CompoundTag nbt = new CompoundTag();
+        src.saveAdditional(nbt);
+        // 把节点 1 的存档栈改回史前键位（模拟 m457~m473 的旧档）
+        var list = nbt.getList("machineNodes", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        CompoundTag stackTag = list.getCompound(1).getCompound("tag");
+        stackTag.putInt("xc", stackTag.getInt("nx"));
+        stackTag.putInt("yc", stackTag.getInt("ny"));
+        stackTag.remove("nx");
+        stackTag.remove("ny");
+        BlockPos rel2 = new BlockPos(0, 1, 2);
+        ctx.setBlock(rel2, RetroBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel2) instanceof StructureCore120 c2)) {
+            ctx.fail("第二个结构核心方块实体未生成");
+            return;
+        }
+        c2.load(nbt);
+        ctx.assertTrue(c2.g.machineNodes.size() == 2, "读档节点数该是 2，实得 " + c2.g.machineNodes.size());
+        CompoundTag t1 = c2.g.machineNodes.get(1).getTag();
+        ctx.assertTrue(t1 != null && t1.getInt("nx") == 33 && t1.getInt("ny") == 44,
+                "史前节点坐标该自愈到 nx/ny=33,44，实得 " + (t1 == null ? "无 tag" : t1.getInt("nx") + "," + t1.getInt("ny")));
+        ctx.assertTrue(!t1.contains("xc") && !t1.contains("yc"),
+                "自愈后旧键该清干净（xc 撞 NodeTags 抽取累计，留着就是定时炸弹）");
+        CompoundTag t0 = c2.g.machineNodes.get(0).getTag();
+        ctx.assertTrue(t0 != null && t0.getInt("nx") == 11 && t0.getInt("ny") == 22, "新档节点该原样不动");
+        ctx.succeed();
+    }
+
+    /** m474②同键异义收口：节点摆在画布上（nx 有值）时，NodeTags 的抽取累计读数必须是 0——
+     *  改键前这里读的是画布 X 坐标（"已抽取 320 件"的鬼数字），改键后两者彻底不相干。
+     *  反向也测一次：写抽取累计不该动坐标。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void canvas_coords_do_not_pollute_extractor_count(GameTestHelper ctx) {
+        net.minecraft.world.item.ItemStack x = node("extractor_node", 320, 200);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.extractorCount(x) == 0,
+                "画布坐标不该被当成抽取累计，实得 " + com.sdzjz.node.NodeTags.extractorCount(x));
+        x.getOrCreateTag().putLong("xc", 777); // 模拟 ⑤c3 抽取泵写累计
+        ctx.assertTrue(x.getTag().getInt("nx") == 320 && x.getTag().getInt("ny") == 200,
+                "写抽取累计不该把节点弹飞，实得 " + x.getTag().getInt("nx") + "," + x.getTag().getInt("ny"));
+        ctx.assertTrue(com.sdzjz.node.NodeTags.extractorCount(x) == 777, "抽取累计该读回自己的键");
         ctx.succeed();
     }
 }

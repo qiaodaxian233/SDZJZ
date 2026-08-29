@@ -346,8 +346,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     }
 
     /** 节点画布坐标：读栈 NBT xc/yc（键同源 NodeTags 谱系；缺键=0,0 落画布原点可见可拖走）。 */
-    private int nodeCx(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("xc") : 0; }
-    private int nodeCy(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("yc") : 0; }
+    private int nodeCx(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("nx") : 0; } // m474 键位归位（原 xc 撞 NodeTags 抽取累计）
+    private int nodeCy(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("ny") : 0; }
 
     private Integer nodeAt(double mx, double my) {
         for (int i = g.machineNodes.size() - 1; i >= 0; i--) { // 后画在上，倒序命中

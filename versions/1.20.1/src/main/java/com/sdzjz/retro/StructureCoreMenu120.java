@@ -97,8 +97,8 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         net.minecraft.world.item.ItemStack held = inv.getItem(slot);
         if (held.isEmpty() || !(held.getItem() instanceof RetroMachineItems.RetroMachineItem)) return false;
         net.minecraft.world.item.ItemStack one = held.copyWithCount(1);
-        one.getOrCreateTag().putInt("xc", clampCoord(xc)); // 键同源 NodeTags 谱系
-        one.getOrCreateTag().putInt("yc", clampCoord(yc));
+        one.getOrCreateTag().putInt("nx", clampCoord(xc)); // m474 键位归位：nx/ny 同蓝本（原 xc 撞 NodeTags m159 抽取累计）
+        one.getOrCreateTag().putInt("ny", clampCoord(yc));
         core.addNode(one);
         if (!creative) { held.shrink(1); inv.setChanged(); }
         return true;
@@ -108,8 +108,8 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
     static boolean moveNode(StructureCore120 core, int index, int xc, int yc) {
         if (index < 0 || index >= core.g.machineNodes.size()) return false;
         net.minecraft.world.item.ItemStack s = core.g.machineNodes.get(index);
-        s.getOrCreateTag().putInt("xc", clampCoord(xc));
-        s.getOrCreateTag().putInt("yc", clampCoord(yc));
+        s.getOrCreateTag().putInt("nx", clampCoord(xc)); // m474 键位归位（同上）
+        s.getOrCreateTag().putInt("ny", clampCoord(yc));
         core.setChanged();
         return true;
     }
@@ -124,13 +124,16 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         return true;
     }
 
-    /** 洗净节点栈（可测纯函数）：剥 xc/yc/gp 画布键；剥空即 setTag(null) 变裸（m128 语义）。 */
+    /** 洗净节点栈（可测纯函数）：剥 nx/ny/gp 画布键；剥空即 setTag(null) 变裸（m128 语义）。
+     *  m474 并剥旧键 xc/yc（史前存档摘下来的节点也要洗干净，否则带着污染键回背包）。 */
     static net.minecraft.world.item.ItemStack cleanNode(net.minecraft.world.item.ItemStack s) {
         net.minecraft.world.item.ItemStack out = s.copy();
         if (out.hasTag()) {
-            out.getTag().remove("xc");
-            out.getTag().remove("yc");
+            out.getTag().remove("nx");
+            out.getTag().remove("ny");
             out.getTag().remove("gp");
+            out.getTag().remove("xc"); // m474 旧键残留一并剥（史前存档；xc 撞 NodeTags 抽取累计）
+            out.getTag().remove("yc");
             if (out.getTag().isEmpty()) out.setTag(null);
         }
         return out;

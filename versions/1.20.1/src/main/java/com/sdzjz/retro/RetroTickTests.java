@@ -24,8 +24,8 @@ public class RetroTickTests implements FabricGameTest {
     private static ItemStack node(String machineId, int xc, int yc) {
         ItemStack s = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .get(new net.minecraft.resources.ResourceLocation("sdzjz", machineId)));
-        s.getOrCreateTag().putInt("xc", xc);
-        s.getOrCreateTag().putInt("yc", yc);
+        s.getOrCreateTag().putInt("nx", xc); // m474 键位归位：画布坐标 nx/ny（原 xc 撞 NodeTags 抽取累计）
+        s.getOrCreateTag().putInt("ny", yc);
         return s;
     }
 
