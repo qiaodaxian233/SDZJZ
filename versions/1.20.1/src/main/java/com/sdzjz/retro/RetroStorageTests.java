@@ -379,4 +379,31 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m480（真移植 D 阶段先行）：存储域跨代行为契约——与主线 SdzjzGameTests.storage_domain_contract
+     *  跑的是**同一套断言**（xplat StorageDomainAssertions，判官只此一份），本用例喂 StorageCore120。
+     *  两代同绿=账本行为在两个世代上确实是同一个东西，而不是「看起来差不多」。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 100)
+    public void storage_domain_contract_retro(GameTestHelper ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0);
+        ctx.setBlock(rel, RetroBlocks.STORAGE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel) instanceof StorageCore120 c)) {
+            ctx.fail("存储核心方块实体未生成");
+            return;
+        }
+        ItemStack a1 = new ItemStack(Items.DIAMOND_SWORD);
+        a1.getOrCreateTag().putInt("k", 11);
+        ItemStack a2 = new ItemStack(Items.DIAMOND_SWORD);
+        a2.getOrCreateTag().putInt("k", 11); // 与 a1 同款
+        ItemStack b = new ItemStack(Items.DIAMOND_SWORD);
+        b.getOrCreateTag().putInt("k", 12);  // 异款
+        try {
+            com.sdzjz.machine.StorageDomainAssertions.runAll(c,
+                    new ItemStack(Items.STONE), new ItemStack(Items.DIRT), a1, a2, b);
+        } catch (AssertionError e) {
+            ctx.fail("存储域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
+
 }

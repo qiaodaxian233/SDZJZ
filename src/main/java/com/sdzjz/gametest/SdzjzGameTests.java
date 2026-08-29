@@ -1217,4 +1217,25 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m480（真移植 D 阶段先行）：存储域**跨代行为契约**——判官只此一份在 xplat
+     *  （com.sdzjz.machine.StorageDomainAssertions，八类判定：普通账基本律/精确账分流/并账分账/
+     *  附加数据保真/类型额度同占/类型闸零丢件/视图一致/经验池），本用例喂 1.21.1 的存储核心；
+     *  1.20.1 侧 RetroStorageTests 喂 StorageCore120 跑**同一套断言**。
+     *  <p>它先于 B 阶段的账本下沉存在：下沉之后实现从 BE 自己变成转发给共用账本类，
+     *  而这套断言必须继续全绿——**契约先立、手术后做**。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void storage_domain_contract(GameTestHelper ctx) {
+        StorageCoreBlockEntity c = core(ctx);
+        if (c == null) return;
+        try {
+            com.sdzjz.machine.StorageDomainAssertions.runAll(c,
+                    new ItemStack(Items.STONE), new ItemStack(Items.DIRT),
+                    exactSample(11, 1), exactSample(11, 1), exactSample(12, 1));
+        } catch (AssertionError e) {
+            ctx.fail("存储域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
+
 }

@@ -35,6 +35,7 @@ import java.util.Set;
 /** 存储核心：双账本逻辑仓储——普通(id→long) + 精确(物品+组件模板→long, m130)；类型数受等级上限；可升级。
  *  数据面板/机器经网络(数据线/相邻)访问；机器/过滤器/熔炉只见普通账本。 */
 public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.machine.StorageAccess,
+        com.sdzjz.machine.StorageLedgerProbe, // m480 跨代行为契约探针：十三个账本方法本来就长这样，只是把这件事写进类型系统让编译器盯着（零方法体改动）
         net.minecraft.world.WorldlyContainer { // m460 漏斗对接：幻影槽，见文末「WorldlyContainer」节
 
     /** m98：类型上限走配置——storageTypesPerTier 0=无限(默认)，>0=每级该数(旧机制27)。tier 保留兼容旧档与配置回切。
