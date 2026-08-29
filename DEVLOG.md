@@ -9193,3 +9193,46 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一笔 ⑤c2**（绞杀者第五刀）：`NodeTags` 出入口改走 `ItemData` 五口上挂 1.20.1 → 逻辑节点七分支
   **成对**落地（`accepts` 与 `chainWants` 是同一张表的两面，m131b→m132-6 血案）+ 垃圾桶两轮垫底真判定 +
   分配器均分。本刀 `accepts` 方法注里已把蓝本整张分派表逐条列好并标了到序刀号，照着划即可。
+
+## m472 绞杀者第五刀：NodeTags 上挂 1.20.1——身份出入口收进 Ident 世代口（⑤c2 前置刀）
+
+- **为什么是"第五刀"**：m180 迁出方法体、m437/m451 把 NBT 出入口收进 ItemData 五口之后，NodeTags
+  只剩三个**世代触点**挡着上挂：①`CustomData` import（1.20.5+ 专属 FQN——m437 改造后已是**死 import**，
+  1.21 编译器不报未用 import 所以一直躺着，1.20.1 一挂就炸）；②六族判定 `s.is(ModItems.X)`（ModItems
+  是 1.21 世代注册表）；③`machineFilterable` 的 `instanceof MachineItem`（1.21 物品族，用了 1.20.5+
+  的 TooltipContext 不可挂）。本刀把②③收进 `NodeTags.Ident` 世代口（六族 is* + defOf），①直接删。
+  自此 NodeTags 剩余 MC 触点=ItemStack/CompoundTag/Tag/ListTag 四个**两代同名**类型，整文件进
+  1.20.1 白名单（versions/1.20.1/build.gradle Sync include）。
+- **两代 Impl**：Legacy=`node/LegacyNodeIdent`（六式与 instanceof **原句照搬**——m468 风险②
+  "新增走法+旧走法原位保留同值"的落点；m180 家法：表达式一字不改才敢说回归风险按构造为零）；
+  Retro=`retro/RetroNodeIdent`（RetroMachineItem.def 与 Machines 常量**引用同一性**对比——m453 反射
+  注册用的就是同一批静态对象，零字符串手抄）。安装位=两代 bootstrap 的 ItemData.install 下一行
+  （早于一切 NodeTags 消费方；重复安装硬失败同 m437 律）。
+- **m470 家法先加闸再抄**：两代 NodeIdent 的六族常量是新生的两代同源手抄名单——对表闸
+  tools_retro_parity_check 加三个**可选键**（缺省=旧行为逐位不变）：`整文件`（名单散在多个小方法时
+  整文件抓取）、`豁免:False`（与 RetroBlocks 无关的名单关掉方块豁免表——那把尺子对它是交集恒空的
+  虚绿）、`正则`（方法名类名单用，⑤c2 分派表届时消费）；登记"NodeTags 身份口六族"条目。
+  **尺子自证**：临时把 RetroNodeIdent 的 isSensor 改成恒 false，闸当场红并点名"漏抄 1 条：
+  SENSOR_NODE"；还原复绿。m470 首批条目（PLUG 名单）输出逐字不变。
+- **判官两条（Legacy 卌二号 + Retro 一条，累计四十三）**：①Legacy `nodetags_ident_matches_item_identity`
+  ——Ident 走法与原 `s.is(ModItems.X)`/`instanceof MachineItem` 走法**逐族逐样本同值**（六族+机器+
+  原版件七个样本 × 七口，risk② 的可执行断言）；②Retro `nodetags_mounts_on_retro_generation`——
+  六族身份各归各位、defOf==Machines.COBBLE_MAKER（引用同一性）、machineFilterable 熔炉族真/单产物假、
+  默认值口径不漂（开关默认开/暂停默认否/**白名单空=全拦**蓝本同口径）、addTrashCount→trashCount=42
+  （三段式写读走 TagItemData 全链路真落栈）。
+- **待编译验证**：无新 MC API 面（NodeTags 上挂后只剩四个两代同名类型，1.20.1 侧 getTag/setTag
+  经 TagItemData 在树先例；判官侧 Items.DIRT 两代同名）。
+- **验证**：两代全量纯语法冒烟真语法错 0（-Xmaxerrs 20000 解开截断，m471 教训固化：Legacy 3036 条
+  /Retro 1782 条全为缺 MC 依赖噪音）；自家新符号（installIdent/Ident/defOf/LegacyNodeIdent/
+  RetroNodeIdent/nodetags_mounts…）定向 grep 报错各 0，尺子量程自证 BlockPos 噪音 135/122 确认能抓；
+  16 闸全绿（0.1.472 对表）。零配置零资源改动；SCBE/屏侧全库调用点**零改动**（公开 API 原签名）。
+- **实机验证脚本**：两代各进一次世界即算过半（Ident 未装会在首次 NodeTags 调用当场炸"未安装"）——
+  ①1.21.1：画布摆过滤器/开关/传感器照常分支、机器二级界面（熔炉选烧什么）照常出现、垃圾桶"已吞"
+  计数照常涨；②1.20.1：`gradlew runGametest` 全绿（新判官在内）；③两代同一存档来回：节点栈 NBT
+  键位不动（本刀不碰任何键）。
+- **教训**：**死 import 也是世代触点**——1.21 编译器不报未用 import，`CustomData` 从 m437 起躺了
+  三十多个里程碑，普查（m468）把它计进"6 处 MC 触点"才现形。跨代上挂前，import 区要当接口面全量过目，
+  不能只看方法体。
+- **下一笔 m473（⑤c2 本体）**：accepts 与 chainWants 逻辑节点七分支**成对**落地 + sensorOpen/
+  extractorLive 世代版 + 垃圾桶两轮垫底真判定 + 分配器均分 + 逻辑节点 tick 清运分支；对表闸再加
+  两类条目（两代 accepts 类型表对齐、本世代 accepts↔chainWants 成对表对齐，`正则` 键消费）。

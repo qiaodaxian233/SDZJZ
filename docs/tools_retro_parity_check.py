@@ -13,6 +13,14 @@
 本世代还没造出来的方块（无线节点/卫星节点/交易所…）不算漏抄，自动豁免并在日志里列出。
 
 **加新对表项**：往 ITEMS 里加一条即可，不改逻辑。
+
+**m472 三个可选键**（缺省=旧行为逐位不变，m470 首批条目零改动）：
+- "整文件": True —— 不取方法体，整个文件（剥注释后）当名单来源。用于名单散在多个小方法里的类
+  （如 NodeIdent 六族一族一方法）。
+- "豁免": False —— 关掉"本世代已建方块"豁免，蓝本名单必须**逐条**出现在本世代名单里。
+  用于与 RetroBlocks 无关的名单（方块豁免表对它是错的尺子——交集恒空=永远虚绿）。
+- "正则": r"..." —— 自定义抓取正则（必须带一个捕获组），替代默认的 前缀.大写常量。
+  用于方法名类名单（如 NodeTags.isXxx 类型判定表）。此时"蓝本前缀/本世代前缀"两键可省。
 """
 import re
 import sys
@@ -32,6 +40,17 @@ ITEMS = [
         "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/DataCableBlock120.java",
         "本世代方法": "endFor",
         "本世代前缀": "RetroBlocks",
+    },
+    {
+        # m472：两代 NodeIdent 各手抄一份六族常量（Legacy=ModItems.X_NODE / Retro=Machines.X_NODE，
+        # 常量名两侧同拼）——与 RetroBlocks 无关，方块豁免表对它是错的尺子，豁免关。
+        "名称": "NodeTags 身份口六族（m472 绞杀者第五刀）",
+        "蓝本文件": "src/main/java/com/sdzjz/node/LegacyNodeIdent.java",
+        "蓝本前缀": "ModItems",
+        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/RetroNodeIdent.java",
+        "本世代前缀": "Machines",
+        "整文件": True,
+        "豁免": False,
     },
 ]
 
@@ -83,15 +102,22 @@ def 主():
     print("本世代已建方块 %d 个：%s" % (len(已建), "、".join(sorted(已建))))
     坏 = 0
     for it in ITEMS:
-        蓝本 = 抓名单(取方法体(读(it["蓝本文件"]), it["蓝本方法"], it["蓝本文件"]), it["蓝本前缀"])
-        本代 = 抓名单(取方法体(读(it["本世代文件"]), it["本世代方法"], it["本世代文件"]), it["本世代前缀"])
+        def 名单(侧):  # m472：整文件/自定义正则两个可选项，缺省=旧行为（方法体+前缀.大写常量）
+            src = 读(it[侧 + "文件"])
+            体 = 剥注释(src) if it.get("整文件") else 取方法体(src, it[侧 + "方法"], it[侧 + "文件"])
+            if it.get("正则"):
+                return set(re.findall(it["正则"], 体))
+            return 抓名单(体, it[侧 + "前缀"])
+        蓝本 = 名单("蓝本")
+        本代 = 名单("本世代")
         if not 蓝本:
             print("❌ %s：蓝本名单抓到 0 条，先怀疑正则不是先怀疑代码" % it["名称"])
             坏 += 1
             continue
-        应有 = 蓝本 & 已建
+        免表 = 已建 if it.get("豁免", True) else 蓝本  # 豁免关=蓝本全额都要对上
+        应有 = 蓝本 & 免表
         缺 = 应有 - 本代
-        豁免 = 蓝本 - 已建
+        豁免 = 蓝本 - 免表
         print("\n【%s】" % it["名称"])
         print("  蓝本 %d 条：%s" % (len(蓝本), "、".join(sorted(蓝本))))
         print("  本世代 %d 条：%s" % (len(本代), "、".join(sorted(本代))))

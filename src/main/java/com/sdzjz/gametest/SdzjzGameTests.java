@@ -1096,4 +1096,33 @@ public class SdzjzGameTests implements FabricGameTest {
         }
         ctx.succeed();
     }
+
+    /** m472（绞杀者第五刀）卌二号：NodeTags 身份口**同值判官**——Ident 走法与原
+     *  {@code s.is(ModItems.X)}/{@code instanceof MachineItem} 走法逐族逐样本同值
+     *  （m468 风险②"新增走法+旧走法原位保留同值"的可执行断言；样本盖满六族+机器+原版件）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void nodetags_ident_matches_item_identity(GameTestHelper ctx) {
+        ItemStack[] samples = {
+                new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE),
+                new ItemStack(com.sdzjz.registry.ModItems.TRASH_NODE),
+                new ItemStack(com.sdzjz.registry.ModItems.EXTRACTOR_NODE),
+                new ItemStack(com.sdzjz.registry.ModItems.SENSOR_NODE),
+                new ItemStack(com.sdzjz.registry.ModItems.SWITCH_NODE),
+                new ItemStack(com.sdzjz.registry.ModItems.DISTRIBUTOR_NODE),
+                new ItemStack(Items.DIRT),
+        };
+        for (ItemStack s : samples) {
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isFilter(s) == s.is(com.sdzjz.registry.ModItems.FILTER_NODE), "isFilter 同值破位");
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isTrash(s) == s.is(com.sdzjz.registry.ModItems.TRASH_NODE), "isTrash 同值破位");
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isExtractor(s) == s.is(com.sdzjz.registry.ModItems.EXTRACTOR_NODE), "isExtractor 同值破位");
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isSensor(s) == s.is(com.sdzjz.registry.ModItems.SENSOR_NODE), "isSensor 同值破位");
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isSwitch(s) == s.is(com.sdzjz.registry.ModItems.SWITCH_NODE), "isSwitch 同值破位");
+            ctx.assertTrue(com.sdzjz.node.NodeTags.isDistributor(s) == s.is(com.sdzjz.registry.ModItems.DISTRIBUTOR_NODE), "isDistributor 同值破位");
+            boolean mi = s.getItem() instanceof com.sdzjz.item.MachineItem;
+            ctx.assertTrue((com.sdzjz.node.NodeTags.defOf(s) != null) == mi, "defOf 有无判定应与 instanceof MachineItem 同值");
+            if (mi) ctx.assertTrue(com.sdzjz.node.NodeTags.defOf(s) == ((com.sdzjz.item.MachineItem) s.getItem()).def(),
+                    "defOf 应回同一 def 对象");
+        }
+        ctx.succeed();
+    }
 }

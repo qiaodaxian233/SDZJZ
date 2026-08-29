@@ -35,6 +35,7 @@ public class Sdzjz implements ModInitializer {
         com.sdzjz.loader.Env.install(new com.sdzjz.loader.FabricEnv()); // m435 平台口安装：必须早于下行 initConfigDir
         com.sdzjz.loader.Hooks.install(new com.sdzjz.loader.FabricHooks()); // m435 平台口安装
         com.sdzjz.item.ItemData.install(new com.sdzjz.item.ComponentItemData()); // m437 平台口安装（1.21 组件世代）
+        com.sdzjz.node.NodeTags.installIdent(new com.sdzjz.node.LegacyNodeIdent()); // m472 世代身份口（绞杀者第五刀）：早于一切 NodeTags 消费方
         com.sdzjz.platform.Platform.initConfigDir(com.sdzjz.loader.Env.configDir()); // m365 必须第一行（早于任何 SdzjzConfig.get()）；m405 走环境口
         com.sdzjz.platform.Platform.initRecipes(new com.sdzjz.legacy.LegacyRecipeAccess()); // m362 代际引导：Legacy 配方 SPI 最早注册（Common 侧 planner 依赖）
         com.sdzjz.debug.SdzjzCommands.register(); // m177 /sdzjz profile|dumpgraph

@@ -307,6 +307,42 @@ public class RetroTickTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    // ===== m472（绞杀者第五刀）：NodeTags 上挂判官 =====
+
+    /** m472 NodeTags 上挂：六族身份（def 引用同一性）各归各位 + defOf 对位 + 默认值口径不漂
+     *  （开关默认开/暂停默认否/白名单空=全拦=蓝本同口径）+ 标签写读走 TagItemData 全链路真落栈。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void nodetags_mounts_on_retro_generation(GameTestHelper ctx) {
+        ItemStack filter = node("filter_node", 0, 0);
+        ItemStack trash = node("trash_node", 0, 0);
+        ItemStack machine = node("cobble_maker", 0, 0);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.isFilter(filter)
+                        && !com.sdzjz.node.NodeTags.isFilter(trash) && !com.sdzjz.node.NodeTags.isFilter(machine),
+                "过滤器身份判定错位");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.isTrash(trash)
+                        && com.sdzjz.node.NodeTags.isExtractor(node("extractor_node", 0, 0))
+                        && com.sdzjz.node.NodeTags.isSensor(node("sensor_node", 0, 0))
+                        && com.sdzjz.node.NodeTags.isSwitch(node("switch_node", 0, 0))
+                        && com.sdzjz.node.NodeTags.isDistributor(node("distributor_node", 0, 0)),
+                "六族身份判定应各归各位");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.defOf(machine) == com.sdzjz.machine.Machines.COBBLE_MAKER,
+                "defOf 应回同一 def 常量对象（引用同一性）");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.defOf(new ItemStack(net.minecraft.world.item.Items.DIRT)) == null,
+                "非机器族 defOf 应为 null");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.machineFilterable(node("super_smelter", 0, 0))
+                        && !com.sdzjz.node.NodeTags.machineFilterable(machine),
+                "machineFilterable 应熔炉族真/单产物机假");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.switchOn(node("switch_node", 0, 0))
+                        && !com.sdzjz.node.NodeTags.nodePaused(filter),
+                "默认值口径漂了（开关默认开/暂停默认否）");
+        ctx.assertTrue(!com.sdzjz.node.NodeTags.filterPasses(filter, "minecraft:sand"),
+                "过滤器白名单空应全拦（蓝本同口径）");
+        com.sdzjz.node.NodeTags.addTrashCount(trash, 42); // 三段式写（copyOf→改→write）走 TagItemData
+        ctx.assertTrue(com.sdzjz.node.NodeTags.trashCount(trash) == 42,
+                "tc 写读应走通 ItemData 五口，实得 " + com.sdzjz.node.NodeTags.trashCount(trash));
+        ctx.succeed();
+    }
+
     /** ⑤在途缓存存档写读对拍（m468 风险③：nodeBufs 入 NBT=存档结构变更，写读必须同一刀做完）。 */
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
     public void inflight_buffers_survive_save_load_roundtrip(GameTestHelper ctx) {

@@ -1,8 +1,6 @@
 package com.sdzjz.node;
 
-import com.sdzjz.item.MachineItem;
-import com.sdzjz.registry.ModItems;
-import net.minecraft.world.item.component.CustomData;
+import com.sdzjz.machine.MachineDef;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -13,9 +11,47 @@ import net.minecraft.nbt.ListTag;
  * 方法体一字未改）。判定（is 六族）/读数（阶位·暂停·开关·过滤·传感·抽取·垃圾桶·作物·目标）/
  * 并发战力 runningCount。全部只碰 ItemStack NBT，不碰任何 BE 状态。
  * SCBE 原位留同签名垫片＝全库零调用点改动；垫片待后续里程碑切换调用点后拆除。新代码直用本类。
+ *
+ * <p>m472 绞杀者第五刀：物品**身份**出入口收进 {@link Ident} 世代口（NBT 出入口 m437 已走
+ * ItemData 五口）——自此本类剩余 MC 触点只剩 ItemStack/CompoundTag/Tag/ListTag 四个两代同名
+ * 类型，整文件可挂 1.20.1（versions/1.20.1 白名单）。撤掉的三个世代触点：CustomData（1.20.5+
+ * 专属，m437 后已是死 import）、ModItems（1.21 世代注册表→六族判定进 LegacyNodeIdent 原句照搬）、
+ * MachineItem（1.21 物品族→defOf 世代口）。
  */
 public final class NodeTags {
     private NodeTags() {}
+
+    /** m472 世代身份口（绞杀者第五刀）：节点物品的身份判定（六族 is* 与 defOf）由各世代安装——
+     *  1.21 世代=LegacyNodeIdent（原 {@code s.is(ModItems.X)} 六式与 {@code instanceof MachineItem}
+     *  **原句照搬**：旧走法原位保留同值，m468 风险②口径）；1.20.1 世代=RetroNodeIdent
+     *  （RetroMachineItem.def 与 Machines 常量**引用同一性**对比，零字符串手抄零 m470 漏点）。 */
+    public interface Ident {
+        boolean isFilter(ItemStack s);
+        boolean isTrash(ItemStack s);
+        boolean isExtractor(ItemStack s);
+        boolean isSensor(ItemStack s);
+        boolean isSwitch(ItemStack s);
+        boolean isDistributor(ItemStack s);
+        /** 机器族物品（含逻辑节点/规划器机）携带的 def；非机器族=null。 */
+        MachineDef defOf(ItemStack s);
+    }
+
+    private static Ident ident;
+
+    /** 加载器入口首段调（重复安装直接炸出来，ItemData m437 同律）。 */
+    public static void installIdent(Ident i) {
+        if (ident != null) throw new IllegalStateException("NodeTags 身份实现重复安装");
+        ident = i;
+    }
+
+    private static Ident ident() {
+        if (ident == null) throw new IllegalStateException("NodeTags 身份实现未安装：加载器入口须先调 NodeTags.installIdent(...)（1.21=Sdzjz.onInitialize 首段，1.20.1=RetroBootstrap 同位）");
+        return ident;
+    }
+
+    /** m472 机器族物品（含逻辑节点/规划器机）携带的 def；非机器族=null（世代身份口出，
+     *  1.20.1 世代 accepts/chainWants 的通用机分支消费本口，与 Legacy 的 instanceof MachineItem 对位）。 */
+    public static MachineDef defOf(ItemStack s) { return ident().defOf(s); }
 
     /** m93：全自动农场多选作物（最多8种）。无 crops 列表时回退旧单选 ct（自动迁移）。 */
     public static java.util.List<String> cropList(ItemStack s) {
@@ -62,11 +98,11 @@ public final class NodeTags {
         com.sdzjz.item.ItemData.write(s, n);
     }
 
-    public static boolean isFilter(ItemStack s) { return s.is(ModItems.FILTER_NODE); }
+    public static boolean isFilter(ItemStack s) { return ident().isFilter(s); } // m472 走世代身份口（原式在 LegacyNodeIdent 原句保留）
 
-    public static boolean isTrash(ItemStack s) { return s.is(ModItems.TRASH_NODE); }
+    public static boolean isTrash(ItemStack s) { return ident().isTrash(s); }
 
-    public static boolean isExtractor(ItemStack s) { return s.is(ModItems.EXTRACTOR_NODE); }
+    public static boolean isExtractor(ItemStack s) { return ident().isExtractor(s); }
 
     /** m154 抽取节点开合（默认关——用户点名"点击抽取才开始"）。 */
     public static boolean extractorOn(ItemStack s) { return viewOf(s).getBoolean("xo"); }
@@ -83,11 +119,11 @@ public final class NodeTags {
     /** m150 垃圾桶累计吞噬量（卡面读数）。 */
     public static long trashCount(ItemStack s) { return viewOf(s).getLong("tc"); }
 
-    public static boolean isSensor(ItemStack s) { return s.is(ModItems.SENSOR_NODE); }
+    public static boolean isSensor(ItemStack s) { return ident().isSensor(s); }
 
-    public static boolean isSwitch(ItemStack s) { return s.is(ModItems.SWITCH_NODE); }
+    public static boolean isSwitch(ItemStack s) { return ident().isSwitch(s); }
 
-    public static boolean isDistributor(ItemStack s) { return s.is(ModItems.DISTRIBUTOR_NODE); }
+    public static boolean isDistributor(ItemStack s) { return ident().isDistributor(s); }
 
     /** 开关节点状态：默认=开；NBT "so"=false 时为关。 */
     public static boolean switchOn(ItemStack s) {
@@ -126,8 +162,9 @@ public final class NodeTags {
 
     /** m149 机器加工二级界面：哪些机器有"选加工范围"资格——万能熔炉(选烧什么)或多产物机(选出什么)。 */
     public static boolean machineFilterable(ItemStack s) {
-        if (!(s.getItem() instanceof com.sdzjz.item.MachineItem mi)) return false;
-        return com.sdzjz.machine.Machines.smelterFamily(mi.def().id()) || mi.def().outputs().size() > 1; // m173 熔炉族
+        MachineDef d = defOf(s); // m472：instanceof MachineItem 改走世代身份口（Legacy impl 同式，同值）
+        if (d == null) return false;
+        return com.sdzjz.machine.Machines.smelterFamily(d.id()) || d.outputs().size() > 1; // m173 熔炉族
     }
 
     /** m149 机器加工过滤（复用 fl 名单，白名单语义）：空=全放行；非空=只加工选中项。
