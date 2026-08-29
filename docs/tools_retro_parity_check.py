@@ -83,6 +83,18 @@ ITEMS = [
         "正则": r"NodeTags\.(is[A-Z]\w*)",
         "豁免": False,
     },
+    {
+        # m475（⑤c3）：拉料循环的「哪些逻辑节点吃供料边」清单——蓝本刻意**不含垃圾桶**
+        # （防「仓→垃圾桶」手滑清空整仓，m150 边界）。这份清单漏一族=那族接了金线也拉不动料，
+        # 多一族（尤其多了垃圾桶）=整仓被吞。两侧都用同名局部变量 stL，正则按它锚定，豁免关。
+        "名称": "拉料循环·吃供料边的逻辑节点五族（m475）",
+        "蓝本文件": "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java",
+        "蓝本方法": "tickInner",
+        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
+        "本世代方法": "pullSupply",
+        "正则": r"NodeTags\.(is[A-Z]\w*)\(stL\)",
+        "豁免": False,
+    },
 ]
 
 

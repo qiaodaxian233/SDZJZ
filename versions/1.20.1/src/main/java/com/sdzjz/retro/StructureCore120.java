@@ -300,6 +300,32 @@ final class StructureCore120 extends BlockEntity {
         return false;
     }
 
+    /** m475 精确账本抽取的授权判定（蓝本 chainEndsInTrash 世代版）：该 id 沿本节点的出线链
+     *  能否抵达垃圾桶（沿途尊重过滤白名单/开关/抽取启停/暂停，深度≤8+visited 防环）。
+     *  <p>只有「终点是销毁」才允许把带组件的精确件抹组件抽走——反正是去销毁，抹组件无损语义
+     *  （m155→m158 谱系）。顺带收益：链上有关着的抽取节点=闸断不抽，抽取节点成了销毁线的启停阀。
+     *  虚空处理器那一支随 ⑤e（与 accepts/chainWants 两面同批，见彼处记档）。 */
+    private boolean chainEndsInTrash(net.minecraft.world.level.Level world, int i, String id, int depth,
+            java.util.Set<Integer> visited) {
+        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
+        ItemStack st = g.machineNodes.get(i);
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
+        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
+        if (com.sdzjz.node.NodeTags.isFilter(st) && !com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
+        if (com.sdzjz.node.NodeTags.isSwitch(st) && !com.sdzjz.node.NodeTags.switchOn(st)) return false;
+        if (com.sdzjz.node.NodeTags.isExtractor(st)
+                && (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id))) return false; // m160
+        for (int[] c : g.connections) {
+            if (c[0] != i) continue;
+            if (chainEndsInTrash(world, c[1], id, depth + 1, visited)) return true;
+        }
+        return false;
+    }
+
+    private final transient java.util.HashSet<Integer> trashScratch = new java.util.HashSet<>();
+
+    private java.util.Set<Integer> trashScratchCleared() { trashScratch.clear(); return trashScratch; }
+
     /** m471 产物出线：先按边喂下游节点在途缓存（蓝本 distribute 两轮垫底同构），余量落 kind0 产出仓；
      *  返回**仍无处可去**的件数（>0=折损，调用方点黄灯）。
      *  <p><b>不变量</b>：绝不堵死在下游缓存里（装不下就往下游一级级让位到产出仓），也绝不静默吞件
@@ -496,6 +522,7 @@ final class StructureCore120 extends BlockEntity {
         com.sdzjz.config.SdzjzConfig cfg = com.sdzjz.config.SdzjzConfig.get();
         int nSize = be.g.machineNodes.size();
         be.buildPlan(nSize); // m471 邻接派生位：hasOut/hasIn（每拍重建，见 buildPlan 注的世代取舍）
+        if (be.ticks % 5 == 0) be.pullSupply(world, nSize); // m475（⑤c3）供料拉料段：与逻辑节点清运同拍，先拉后跑（蓝本同位）
         for (int i = 0; i < nSize; i++) {
             ItemStack st = be.g.machineNodes.get(i);
             // m473（⑤c2）暂停最先判（m110b；m99 教训：early-continue 必须在任何累积/扣料之前）——任意节点类型通用
@@ -686,6 +713,84 @@ final class StructureCore120 extends BlockEntity {
         }
         if (moved) stat(i, 1, "");
         else if (zeroWhenIdle) stat(i, 0, "");
+    }
+
+    /** m475（C2-⑤c3）逻辑节点供料拉取·链式需求传播（蓝本 tick 供料段 m92 世代版，5t 与清运同拍）：
+     *  任何逻辑节点接了「存储→自己」的 kind1 供料边，都按 <b>自身放行规则 ∩ 下游机器真实需求</b>
+     *  （{@link #chainWants}，m473 已就位）从那个仓里拉料进自己的在途缓存。遍历的是仓库类型清单
+     *  （有限），逐条按 id 问一次链式需求。
+     *  <p><b>抽取节点=主动泵</b>（m154）：不问下游要不要，按挡位速率无条件抽——但 m157 修订过
+     *  「没去处的不抽」（否则把全网络吸进缓存囤着失踪），故非搬仓模式下要求至少一个出线目标当下肯收；
+     *  m160 白名单名单外碰都不碰；有 kind0 定向产出仓=搬仓模式（pumpAll）全抽。
+     *  <p><b>精确账本支路</b>（m155→m158）：带组件的精确件只在「该 id 的出线链通向垃圾桶」时才抽
+     *  （{@link #chainEndsInTrash} 授权闸）——反正是去销毁，抹组件无损语义。
+     *  <p><b>三处世代取舍显式记档</b>：①无数量升级，蓝本 {@code extractorRate × (1+nodeCount)} 的
+     *  后半在本世代恒 1（m464 取舍同源），故泵速=挡位原值；②供料源只认自家存储核心（本世代无
+     *  数据面板聚合视图），蓝本的 banks 多源合并退化成单源；③<b>蓝本泵支路不查 nodePaused</b>
+     *  （暂停的抽取节点照抽，只是抽进来的货在清运侧被 m110b 拦住不动）——本刀<b>逐位照抄不擅自改</b>，
+     *  两代同形优先；这是蓝本疑似疏漏，留待作者拍板，改要两代一起改。 */
+    private void pullSupply(net.minecraft.world.level.Level world, int nSize) {
+        for (int i = 0; i < nSize; i++) {
+            ItemStack stL = g.machineNodes.get(i);
+            // 五族逻辑节点（蓝本同款清单：**不含垃圾桶**——防"仓→垃圾桶"手滑清空整仓，垃圾桶只吞推送来的）
+            if (!(com.sdzjz.node.NodeTags.isFilter(stL) || com.sdzjz.node.NodeTags.isSwitch(stL)
+                    || com.sdzjz.node.NodeTags.isSensor(stL) || com.sdzjz.node.NodeTags.isDistributor(stL)
+                    || com.sdzjz.node.NodeTags.isExtractor(stL))) continue;
+            boolean pump = com.sdzjz.node.NodeTags.isExtractor(stL); // m154 抽取节点=主动泵
+            if (pump && !extractorLive(world, i, stL)) continue;     // m160 手动关或感应未放行=不抽
+            boolean pumpAll = pump && depositTarget(world, i) != null; // m157 有定向产出仓=搬仓，全抽
+            StorageCore120 sup = supplyTarget(world, i);
+            if (sup == null) continue;
+            java.util.Map<String, Long> ownL = nodeBuf(i);
+            long pumpRate = 0, pumped = 0;
+            long bufCapL = 4096;
+            if (pump) {
+                pumpRate = com.sdzjz.node.NodeTags.extractorRate(stL); // 世代取舍①：无数量升级，蓝本 ×(1+nodeCount) 恒 ×1
+                // m163a：泵缓存只是 id→long 计数不占实存，上限随速率放宽到双周期余量（否则高挡位速率>缓存=卡喉）
+                bufCapL = Math.max(4096, pumpRate * 2);
+            }
+            boolean got1 = false;
+            final int dnP = fillDrain(sup.storeView()); // m350 转存 scratch：withdraw 当场实扣，边遍历边改表会炸迭代器
+            for (int dk = 0; dk < dnP; dk++) {
+                String id = drainIds[dk];
+                long have = ownL.getOrDefault(id, 0L);
+                if (have >= bufCapL) continue; // m116 每种封顶（泵按速率放宽）
+                if (!pump && !chainWants(world, i, id, 0, wantsScratchCleared())) continue; // m218d scratch 复用
+                if (pump && !com.sdzjz.node.NodeTags.machineFilterAllows(stL, id)) continue; // m160 白名单：名单外碰都不碰
+                if (pump && !pumpAll) { // m157 没去处的不抽（出线目标当下肯收才抽；过滤白名单在 accepts 里生效）
+                    boolean anyTake = false;
+                    for (int[] c : g.connections) {
+                        if (c[0] != i) continue;
+                        int t = c[1];
+                        if (t >= 0 && t < nSize && accepts(world, t, id)) { anyTake = true; break; }
+                    }
+                    if (!anyTake) continue;
+                }
+                long roomL = bufCapL - have;
+                if (pump) roomL = Math.min(roomL, pumpRate - pumped); // 泵按挡位限速
+                if (roomL <= 0) { if (pump) break; else continue; }
+                if (!bufTypeOk(ownL, id)) continue; // m270 类型上限：withdraw **前**判——拒收=不抽，物品留仓零损失
+                int got = sup.withdraw(id, (int) Math.min(roomL, Integer.MAX_VALUE));
+                if (got > 0) { ownL.merge(id, (long) got, StorageCore120::satAdd); pumped += got; got1 = true; } // m273 饱和加法
+            }
+            // m155→m158 精确账本支路：只在「出线链通向垃圾桶」时抽（抹组件=销毁语义无损）。
+            // 世代取舍②：供料源只认自家存储核心（无数据面板聚合视图），蓝本 banks 多源退化成单源。
+            for (ItemStack tpl : new java.util.ArrayList<>(sup.exactTemplates())) {
+                String idE = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(tpl.getItem()).toString();
+                long haveE = ownL.getOrDefault(idE, 0L);
+                if (haveE >= bufCapL) continue; // m163a 与普通支路同一上限（原硬编码 4096 会先卡死精确支路）
+                if (pump && !com.sdzjz.node.NodeTags.machineFilterAllows(stL, idE)) continue; // m160
+                if (!bufTypeOk(ownL, idE)) continue; // m270 withdrawExact 前判，拒收=不抽零损失
+                if (!chainEndsInTrash(world, i, idE, 0, trashScratchCleared())) continue; // 授权闸
+                long roomE = bufCapL - haveE;
+                if (pump) roomE = Math.min(roomE, pumpRate - pumped);
+                if (roomE <= 0) break;
+                ItemStack one = tpl.copyWithCount(1); // withdrawExact 可能移除模板，先复制
+                int gotE = sup.withdrawExact(one, (int) Math.min(roomE, Integer.MAX_VALUE));
+                if (gotE > 0) { ownL.merge(idE, (long) gotE, StorageCore120::satAdd); pumped += gotE; got1 = true; }
+            }
+            if (got1) setChanged();
+        }
     }
 
     /** 蓝本 cyclesThisTick 四层闸逐位对照（节点 cap→核内→区块→全服，耗尽只欠不丢工作量累积续）；

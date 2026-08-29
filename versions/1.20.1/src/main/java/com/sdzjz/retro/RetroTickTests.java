@@ -598,6 +598,131 @@ public class RetroTickTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    // ===== m475（C2-⑤c3）：链式拉料供料侧接线判官 =====
+
+    /** ①**m132-6 血案的复现形**：仓 →(kind1 供料线)→ 过滤器 →(出线)→ 耗料机，中间那台过滤器
+     *  必须**主动把料拉过来**再喂下去。m131b 当年只写了 accepts 那面，这条链恒不通拖了整整一刀；
+     *  m473 把 chainWants 补齐、本刀（⑤c3）接上供料侧，这条链第一次在本世代跑通。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void chain_pull_storage_through_filter_into_consumer(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));   // 料仓（供给过滤器）
+        StorageCore120 dep = storage(ctx, new BlockPos(2, 1, 0));   // 窑的产出仓
+        if (src == null || dep == null) return;
+        ItemStack filter = node("filter_node", 10, 10);
+        putFilterList(filter, "minecraft:sand"); // 白名单只放沙
+        c.addNode(filter);                        // 0
+        c.addNode(node("glass_kiln", 20, 10));   // 1：吃沙出玻璃
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1}); // 仓→过滤器（kind1 供料）
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        c.g.storageEdges.add(new long[]{1, ctx.absolutePos(new BlockPos(2, 1, 0)).asLong(), 0}); // 窑→产出仓
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        src.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:sand")), 40));
+        src.deposit(new ItemStack(net.minecraft.world.item.Items.DIRT, 30)); // 名单外：一件都不许被拉走
+        handTick(ctx, c, 60);
+        ctx.assertTrue(src.count("minecraft:sand") < 40, "过滤器该主动把沙拉过来（m132-6 复现形），仓里还剩 " + src.count("minecraft:sand"));
+        ctx.assertTrue(src.count("minecraft:dirt") == 30, "白名单外的泥土一件都不该被拉走，实剩 " + src.count("minecraft:dirt"));
+        ctx.assertTrue(dep.count("minecraft:glass") >= 1, "拉来的沙该喂进窑产出玻璃，现账 " + dep.count("minecraft:glass"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ②抽取节点=主动泵（m154）+ m157「没去处的不抽」+ m160 白名单：
+     *  关着=一件不抽；开了但下游没人要且没接产出仓=还是不抽（不许把整仓吸进缓存囤着失踪）；
+     *  接上产出仓=搬仓模式全抽；白名单外的永远碰都不碰。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void extractor_pump_respects_sink_and_whitelist(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
+        if (src == null) return;
+        ItemStack x = node("extractor_node", 10, 10);
+        putFilterList(x, "minecraft:sand"); // m160 抽取白名单：只碰沙
+        c.addNode(x);                        // 0
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1}); // 仓→抽取（供料）
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        src.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:sand")), 100));
+        src.deposit(new ItemStack(net.minecraft.world.item.Items.DIRT, 50));
+        handTick(ctx, c, 10);
+        ctx.assertTrue(src.count("minecraft:sand") == 100 && c.bufAmount(0, "minecraft:sand") == 0,
+                "抽取节点默认关着（m154 点击才开始），一件都不该抽，仓剩 " + src.count("minecraft:sand"));
+        x.getOrCreateTag().putBoolean("xo", true); // 开抽取
+        handTick(ctx, c, 10);
+        ctx.assertTrue(src.count("minecraft:sand") == 100 && c.bufAmount(0, "minecraft:sand") == 0,
+                "开了但没去处（无出线无产出仓）也不该抽——m157 修的就是这个失踪案，实抽 " + c.bufAmount(0, "minecraft:sand"));
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0}); // 补 kind0=搬仓模式
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        handTick(ctx, c, 10);
+        ctx.assertTrue(src.count("minecraft:dirt") == 50, "白名单外的泥土永远碰都不碰，实剩 " + src.count("minecraft:dirt"));
+        ctx.assertTrue(src.count("minecraft:sand") < 100, "搬仓模式该开抽，仓里还剩 " + src.count("minecraft:sand"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ③精确账本支路授权闸（m155→m158）：带 tag 的精确件**只在出线链通向垃圾桶时**才允许抽
+     *  （抹组件=销毁语义无损）；链尾不是垃圾桶（换成玻璃窑）时一件都不许动。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void exact_pull_requires_trash_terminated_chain(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
+        if (src == null) return;
+        c.addNode(node("filter_node", 10, 10));  // 0：白名单空=普通支路全拦，只留精确支路受检
+        c.addNode(node("glass_kiln", 20, 10));   // 1：链尾**不是**垃圾桶
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        ItemStack exact = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD, 8);
+        exact.getOrCreateTag().putInt("k", 1); // 带 tag → 走精确账本
+        src.deposit(exact);
+        ctx.assertTrue(src.exactTemplates().size() == 1, "精确件该进精确账本");
+        handTick(ctx, c, 20);
+        ctx.assertTrue(c.bufAmount(0, "minecraft:diamond_sword") == 0,
+                "链尾不是垃圾桶时精确件一件都不许抽（抹组件必须先有销毁授权），实抽 "
+                        + c.bufAmount(0, "minecraft:diamond_sword"));
+        c.addNode(node("trash_node", 30, 10));   // 2：把链尾改成垃圾桶
+        ctx.assertTrue(c.disconnect(0, 1) && c.connect(0, 2), "改线应成立");
+        handTick(ctx, c, 20);
+        ctx.assertTrue(src.exactTemplates().isEmpty() || src.exactCount(0) < 8,
+                "链尾是垃圾桶时该获授权开抽（销毁语义），精确账剩 "
+                        + (src.exactTemplates().isEmpty() ? 0 : src.exactCount(0)));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ④拉料侧守恒对账：仓里少的 = 节点缓存里多的 + 下游吃掉的，一件不许凭空生灭；
+     *  且每种类型的在途量不超过 4096 封顶（m116）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void pull_conserves_items_and_respects_cap(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
+        if (src == null) return;
+        ItemStack sw = node("switch_node", 10, 10); // 开关（开）：自身放行，无下游=链式需求不成立…
+        c.addNode(sw);                               // 0
+        c.addNode(node("glass_kiln", 20, 10));      // 1：给它一个真需求（吃沙）
+        ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        // 一次塞 9000（deposit 只读 getCount，不受堆叠上限约束）——用来验每种 4096 封顶
+        src.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .get(new net.minecraft.resources.ResourceLocation("minecraft:sand")), 9000));
+        long total = src.count("minecraft:sand");
+        handTick(ctx, c, 30);
+        long inStore = src.count("minecraft:sand");
+        long inSw = c.bufAmount(0, "minecraft:sand"), inKiln = c.bufAmount(1, "minecraft:sand");
+        long ate = total - inStore - inSw - inKiln; // 被窑吃掉的（已变成玻璃或在产）
+        ctx.assertTrue(ate >= 0, "账不该穿：仓 " + inStore + "+开关 " + inSw + "+窑 " + inKiln + " > 总 " + total);
+        ctx.assertTrue(inSw <= 4096, "每种在途该有 4096 封顶（m116），实得 " + inSw);
+        ctx.assertTrue(inSw > 0 || inKiln > 0, "链式需求成立时该拉得到料");
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
     // ===== m472（绞杀者第五刀）：NodeTags 上挂判官 =====
 
     /** m472 NodeTags 上挂：六族身份（def 引用同一性）各归各位 + defOf 对位 + 默认值口径不漂

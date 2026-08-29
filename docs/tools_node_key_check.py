@@ -46,6 +46,8 @@ RETRO_DIR = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "sv": (True, "传感器阈值（long）。判官预置用，NodeTags.sensorThreshold 读。"),
     "fl": (True, "过滤/机器白名单（ListTag of String）。判官预置用，NodeTags.filterPasses/"
                  "machineFilterAllows 读。"),
+    "xo": (True, "m154 抽取节点开合（boolean，NodeTags.extractorOn）——两代同键同义。"
+                 "m475 判官预置用（点开抽取才开始抽，默认关）。"),
     "k": (False, "判官造「精确件」样品的区分键（int，RetroPanelTests/RetroStorageTests）——"
                  "存储域账本样品，不是节点栈语义键；NodeTags 不认此键。"),
 }
