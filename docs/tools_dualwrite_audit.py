@@ -41,6 +41,7 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "TagStackKey.java": (True, False, "栈键的 1.20.1 实现"),
     "RetroNodeIdent.java": (True, False, "NodeTags.Ident 的 1.20.1 实现（m472）"),
     "RetroStackCodec.java": (True, False, "CanvasGraphState.StackCodec 的 1.20.1 实现（m477）"),
+    "RetroStackKind.java": (True, False, "StackKey.Kind 的 1.20.1 实现（m478）"),
     "CableEnd120.java": (True, False, "数据线端点枚举（方块状态属性，注册期类型）"),
     "DataCableRenderer120.java": (True, False, "BER 渲染（渲染 API 两代形状不同）"),
     "StorageCoreRenderer120.java": (True, False, "BER 渲染"),
@@ -67,6 +68,7 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
 
     # ===== 已合一：文件必须不存在 =====
     "CanvasGraphState120.java": (False, True, "m477 已合一 → xplat/node/CanvasGraphState（两代共用）"),
+    "TagStackKey.java": (False, True, "m478 已合一 → xplat/storage/StackKey（两代共用，相等与哈希走 Kind 口）"),
 }
 
 

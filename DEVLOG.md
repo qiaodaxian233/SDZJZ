@@ -9493,3 +9493,38 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   **这个做法项目里早就有了，只用在配方域，本次推广**）。
   UI 那几刀的方向同步改写：`SciSkin` 上挂后，主线 `drawNode`/`drawWire` 等绘制件**下沉共用**，
   1.20.1 屏只留输入处理与布局壳——不再照着主线重画一遍。
+
+## m478 真移植 B 阶段第一刀：精确账本身份键合一（账本下沉的前置）
+
+- **为什么先切它**：B 阶段目标是存储账本下沉（`StorageCore120` 425 行 vs
+  `StorageCoreBlockEntity` 558 行）。量的时候发现账本核心里**第一个也是唯一一个真世代差**，
+  是精确账本的身份键——`StackKey`（xplat，m404）与 `TagStackKey`（retro，m443）同一个东西两份写法，
+  差异只有 **equals 与 hash 两句**。账本下沉必须先有统一的身份键，否则搬过去还得带着两套判定。
+- **落地四件**：①共用 `StackKey` 加 `Kind` 世代口（`same`/`dataHash` 两方法，install/req 同
+  ItemData m437、NodeTags.Ident m472、StackCodec m477 律——**这是第八个世代口，手法已成套路**）；
+  ②两代各写实现（`LegacyStackKind` 组件口径、`RetroStackKind` tag 口径，均**原句照搬** m180 家法）；
+  ③白名单挂共用类，**`TagStackKey.java` 整个删除**，`StorageCore120` 里 7 处引用机械切换；
+  ④两代 bootstrap 装配位（StackCodec 下一行）。
+- **哈希契约是这刀的红线**：精确账本靠 `exactIdx` 哈希索引查条目，键的 equals/hashCode 一旦不自洽，
+  表现是**同一款物品分裂成两条账目**或**取货取错**——不报错、不崩、只有对账才看得出来。合一后
+  两代跑同一份 `StackKey`，契约论证也统一成一份：equals 调各世代"同物品+同附加数据"判定，
+  hashCode 取"物品身份 + 附加数据内容哈希"，同物品下附加数据相等 ⟺ 哈希相等，契约在两代都成立。
+- **判官两条（累计六十一）**：①主线 `stack_key_hash_contract_shared`——equals 相等必然 hashCode
+  相等、堆叠数不参与身份、不同附加数据必不相等、带附加数据与不带的不混为一谈、自反且对异类型安全、
+  模板只读直取、**作 HashMap 键时同款命中同一桶**（精确账本 exactIdx 的正确性就靠最后这条）；
+  ②1.20.1 `stack_key_hash_contract_retro`——同一份 StackKey 换 tag 口径的 Kind 后契约照样成立，
+  外加本世代特有的「**空 tag 在场 ≠ 无 tag**」（原版 tagMatches 同口径，与存取侧 hasTag 分流闭合）。
+  两条判官压的是同一份类的两种装配，这正是真移植该有的验法。
+- **双写账目**：已合一 2 个（图状态、身份键），待合一 10 个，**欠 3727 行**（本刀 TagStackKey 39 行
+  划掉，但 RetroStorageTests 因新增判官涨了 30 行——判官的双写要等 D 阶段才清得掉，账目如实反映）。
+- **验证**：两代全量纯语法冒烟真语法错 0；自家新符号（StackKey/Kind/installKind/LegacyStackKind/
+  RetroStackKind）symbol 级报错各 0；18 闸全绿（0.1.478 对表）。零配置零资源改动。
+- **实机验证脚本**：①两代各存一批**带附加数据的物品**（附魔书/命名工具/药水）进存储核心——
+  同款应并成一条账目、数量累加，不同附魔应各占一条；②取出来看组件/tag 是否保真；
+  ③存到类型上限附近再存新类型——应按 m293 硬顶拒收且不裁已有账；④退出存档再进，精确账目不漂。
+- **下一刀 m479（B 阶段主体）**：`StorageLedger` 下沉——把 store/exactTpl/exactN/xpBank/tier/
+  storeRev/exactRev 七个字段与 count/deposit/depositExact/withdraw/withdrawExact/exactTemplates/
+  exactCount/storeView/usedTypes/maxTypes/typeGate/upgrade/xpAdd/xpTake/satAdd 全套账本方法抽成
+  **共用纯类**，两代 BE 各持一个实例并转发；BE 只留世代壳（全局注册表、FTA、Container 漏斗对接、
+  存档签名、BlockEntity 继承）。账本方法里唯一碰 BE 的是 `setChanged()`，用一个 `Runnable onChange`
+  注入即可——**这刀之后 425 行里能消掉约 300 行**。

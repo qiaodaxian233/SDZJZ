@@ -349,4 +349,34 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.assertTrue(after == 1, "自愈后应对数据面板伸一只插头，实得 " + after);
         ctx.succeed();
     }
+
+    /** m478（真移植 B 阶段第一刀）：共用 StackKey 在 1.20.1 世代的哈希契约——与主线
+     *  SdzjzGameTests.stack_key_hash_contract_shared 是**同一份 StackKey**，本条压的是
+     *  RetroStackKind（tag 口径）装上去之后契约照样成立，外加本世代特有的
+     *  「空 tag 在场 ≠ 无 tag」口径（原版 tagMatches 同口径，存取侧 hasTag 分流与此闭合）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void stack_key_hash_contract_retro(GameTestHelper ctx) {
+        ItemStack a1 = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        a1.getOrCreateTag().putInt("k", 5);
+        ItemStack a2 = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD, 64);
+        a2.getOrCreateTag().putInt("k", 5);
+        ItemStack b = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        b.getOrCreateTag().putInt("k", 6);
+        ItemStack plain = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        ItemStack emptyTag = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        emptyTag.getOrCreateTag(); // 空 tag 在场
+        var ka1 = com.sdzjz.storage.StackKey.of(a1);
+        var ka2 = com.sdzjz.storage.StackKey.of(a2);
+        var kb = com.sdzjz.storage.StackKey.of(b);
+        var kp = com.sdzjz.storage.StackKey.of(plain);
+        var ke = com.sdzjz.storage.StackKey.of(emptyTag);
+        ctx.assertTrue(ka1.equals(ka2) && ka1.hashCode() == ka2.hashCode(), "同 tag 该相等且哈希相等（契约）");
+        ctx.assertTrue(!ka1.equals(kb), "不同 tag 不该相等");
+        ctx.assertTrue(!kp.equals(ke), "空 tag 在场 ≠ 无 tag（1.20.1 口径，与 hasTag 分流闭合）");
+        java.util.HashMap<com.sdzjz.storage.StackKey, Integer> m = new java.util.HashMap<>();
+        m.put(ka1, 1); m.put(kb, 2); m.put(kp, 3);
+        ctx.assertTrue(m.get(ka2) == 1 && m.size() == 3, "作 HashMap 键时同款命中同桶，异款各占一桶");
+        ctx.succeed();
+    }
+
 }

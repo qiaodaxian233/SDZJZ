@@ -28,7 +28,7 @@ import java.util.Map;
  * 不复制改；每处与蓝本的语义偏差在行内注释指认）。双账本：普通(id→long) + 精确(物品+tag 模板→long)。
  *
  * <p><b>本世代口径三条</b>：①精确分流从"组件增量非空"对位为 {@link ItemStack#hasTag()}（m436 方案：
- * 组件哈希退 tag 哈希），身份键={@link TagStackKey}；②NBT 键与 Legacy 同名同布局
+ * 组件哈希退 tag 哈希），身份键={@link com.sdzjz.storage.StackKey}（m478 起两代共用一份，世代差走 Kind 口）；②NBT 键与 Legacy 同名同布局
  * （tier/store/exact/xpBank，store 条目 id/n、exact 条目 item/n）——1.20.5 原版 DFU 升档时把物品 tag
  * 自动收进 custom_data（m436 红利），存档升 1.21.1 零迁移代码；③CORES 登记表/桶索引/BFS 均属机器与
  * 线缆消费面，随刀③（m444）与 P-C 移植，本类不带（蓝本对应段落=范围外，非漏抄）。
@@ -89,27 +89,27 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
     // ===== m295 精确账本内存索引（列表仍是唯一权威与落盘格式，旁挂 transient 键→下标索引）=====
     // 查找 O(1)；追加 O(1)；删除 O(n) 但只平移整数下标；事务回滚重放/NBT 读回直接置脏懒重建。
-    private transient HashMap<TagStackKey, Integer> exactIdx; // null=脏
+    private transient HashMap<com.sdzjz.storage.StackKey, Integer> exactIdx; // null=脏
 
     private int exactIndexOf(ItemStack probe) {
         var m = exactIdx;
         if (m == null) {
             m = new HashMap<>();
-            for (int i = 0; i < exactTpl.size(); i++) m.put(TagStackKey.of(exactTpl.get(i)), i);
+            for (int i = 0; i < exactTpl.size(); i++) m.put(com.sdzjz.storage.StackKey.of(exactTpl.get(i)), i);
             exactIdx = m;
         }
-        Integer i = m.get(TagStackKey.of(probe));
+        Integer i = m.get(com.sdzjz.storage.StackKey.of(probe));
         return i == null ? -1 : i;
     }
 
     private void exactIdxAppended() { // append 之后调（新条目下标=size-1）
-        if (exactIdx != null) exactIdx.put(TagStackKey.of(exactTpl.get(exactTpl.size() - 1)), exactTpl.size() - 1);
+        if (exactIdx != null) exactIdx.put(com.sdzjz.storage.StackKey.of(exactTpl.get(exactTpl.size() - 1)), exactTpl.size() - 1);
     }
 
     private void exactIdxRemoved(int i, ItemStack tpl) { // remove(i) 之后调：删键+平移
         var m = exactIdx;
         if (m == null) return;
-        m.remove(TagStackKey.of(tpl));
+        m.remove(com.sdzjz.storage.StackKey.of(tpl));
         for (var e : m.entrySet()) if (e.getValue() > i) e.setValue(e.getValue() - 1);
     }
 

@@ -1192,4 +1192,29 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m478（真移植 B 阶段第一刀）：共用 StackKey 的**哈希契约判官**（精确账本红线）——
+     *  equals 相等必然 hashCode 相等、不同附加数据必不相等、身份键与账本行为一致。
+     *  本条与 1.20.1 侧跑的是**同一份 StackKey**，世代差只在 Kind 实现里。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void stack_key_hash_contract_shared(GameTestHelper ctx) {
+        ItemStack a1 = exactSample(5, 1), a2 = exactSample(5, 64); // 同附加数据、不同堆叠数
+        ItemStack b = exactSample(6, 1);                            // 不同附加数据
+        ItemStack plain = new ItemStack(Items.DIAMOND);             // 无附加数据
+        var ka1 = com.sdzjz.storage.StackKey.of(a1);
+        var ka2 = com.sdzjz.storage.StackKey.of(a2);
+        var kb = com.sdzjz.storage.StackKey.of(b);
+        var kp = com.sdzjz.storage.StackKey.of(plain);
+        ctx.assertTrue(ka1.equals(ka2), "同物品同附加数据该相等（堆叠数不参与身份）");
+        ctx.assertTrue(ka1.hashCode() == ka2.hashCode(), "equals 相等则 hashCode 必相等（哈希契约）");
+        ctx.assertTrue(!ka1.equals(kb), "不同附加数据不该相等");
+        ctx.assertTrue(!ka1.equals(kp) && !kp.equals(ka1), "带附加数据与不带的不该混为一谈");
+        ctx.assertTrue(ka1.equals(ka1) && !ka1.equals(null) && !ka1.equals("x"), "自反且对异类型安全");
+        ctx.assertTrue(ka1.template() == a1, "模板只读直取，不拷贝不改");
+        java.util.HashMap<com.sdzjz.storage.StackKey, Integer> m = new java.util.HashMap<>();
+        m.put(ka1, 1); m.put(kb, 2);
+        ctx.assertTrue(m.get(ka2) == 1 && m.get(kb) == 2 && m.size() == 2,
+                "作 HashMap 键时同款命中同一桶（精确账本 exactIdx 的正确性就靠这条）");
+        ctx.succeed();
+    }
+
 }
