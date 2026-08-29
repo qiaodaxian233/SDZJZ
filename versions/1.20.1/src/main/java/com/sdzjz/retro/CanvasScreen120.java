@@ -1,5 +1,6 @@
 package com.sdzjz.retro;
 
+import com.sdzjz.node.CanvasGraphState;
 import com.mojang.math.Axis;
 import com.sdzjz.client.SciSkinPalette;
 import net.minecraft.client.gui.GuiGraphics;
@@ -24,7 +25,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     private static final int GRID_STEP = 24; // 画布世界格距（缩放前）
     private static final int SIDEBAR_W = 30; // m457 机器库侧栏宽
-    private CanvasGraphState120 g = new CanvasGraphState120(); // 最近快照的本地像（只读）
+    private CanvasGraphState g = new CanvasGraphState(); // 最近快照的本地像（只读）
     private double viewX = 0, viewY = 0; // 视口左上对应的画布坐标
     private float zoom = 1.0f;
     private int refreshTicker = 0;
@@ -62,8 +63,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     /** 快照到货（render 线程直达）：应用层有界——节点数超硬顶整包拒绝（m455 稿红线落点）。 */
     void acceptSnapshot(CanvasPayloads120.CanvasSnapshot snapshot) {
         if (snapshot.render() == null) return;
-        CanvasGraphState120 next = new CanvasGraphState120();
-        next.readRenderNbt(snapshot.render(), java.util.Map.of(), () -> { });
+        CanvasGraphState next = new CanvasGraphState();
+        next.readRenderNbt(snapshot.render(), null, java.util.Map.of(), () -> { });
         if (next.machineNodes.size() > CanvasPayloads120.MAX_NODES) return; // 超界整包拒绝
         this.g = next;
     }

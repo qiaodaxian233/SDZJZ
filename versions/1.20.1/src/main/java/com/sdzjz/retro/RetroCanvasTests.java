@@ -1,5 +1,6 @@
 package com.sdzjz.retro;
 
+import com.sdzjz.node.CanvasGraphState;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -92,12 +93,12 @@ public final class RetroCanvasTests implements FabricGameTest {
         c.addNode(node("super_smelter", 40, 9));
         c.connect(0, 1);
         CompoundTag render = new CompoundTag();
-        c.g.writeRenderNbt(render);
+        c.g.writeRenderNbt(render, null);
         var out = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create(); // 编→解全走真 buf
         new CanvasPayloads120.CanvasSnapshot(ctx.absolutePos(new BlockPos(0, 1, 0)), render).write(out);
         var back = new CanvasPayloads120.CanvasSnapshot(out);
-        CanvasGraphState120 gg = new CanvasGraphState120();
-        gg.readRenderNbt(back.render(), java.util.Map.of(), () -> { });
+        CanvasGraphState gg = new CanvasGraphState();
+        gg.readRenderNbt(back.render(), null, java.util.Map.of(), () -> { });
         ctx.assertTrue(gg.machineNodes.size() == 2 && gg.connections.size() == 1,
                 "快照包往返应保 2 节点 1 连线，实得 " + gg.machineNodes.size() + "/" + gg.connections.size());
         ctx.assertTrue(ItemStack.isSameItemSameTags(gg.machineNodes.get(0), c.g.machineNodes.get(0)),
@@ -193,7 +194,7 @@ public final class RetroCanvasTests implements FabricGameTest {
         c.addNode(node("wither_farm", 1, 1));
         c.addNode(node("auto_crafter", 2, 2));
         CompoundTag nbt = new CompoundTag();
-        c.g.writeRenderNbt(nbt);
+        c.g.writeRenderNbt(nbt, null);
         nbt.putIntArray("connections", new int[]{0, 1, 7, 9, 1, 1, -1, 0}); // 好1条+越界+自连+负
         var seg = nbt.getList("storEdges", net.minecraft.nbt.Tag.TAG_COMPOUND);
         CompoundTag bad = new CompoundTag(); bad.putInt("m", 99); bad.putLong("p", 1L); bad.putInt("r", 0); bad.putString("d", "d");
@@ -201,8 +202,8 @@ public final class RetroCanvasTests implements FabricGameTest {
         CompoundTag good = new CompoundTag(); good.putInt("m", 1); good.putLong("p", 3L); good.putInt("r", 1); good.putString("d", "d");
         seg.add(bad); seg.add(badDir); seg.add(good);
         nbt.put("storEdges", seg);
-        CanvasGraphState120 gg = new CanvasGraphState120();
-        gg.readRenderNbt(nbt, java.util.Map.of(), () -> { });
+        CanvasGraphState gg = new CanvasGraphState();
+        gg.readRenderNbt(nbt, null, java.util.Map.of(), () -> { });
         ctx.assertTrue(gg.connections.size() == 1 && gg.connections.get(0)[0] == 0 && gg.connections.get(0)[1] == 1,
                 "连线应只剩好的 0→1，实得 " + gg.connections.size());
         ctx.assertTrue(gg.storageEdges.size() == 1 && gg.storageEdges.get(0)[0] == 1 && gg.storageEdges.get(0)[2] == 1,

@@ -1125,4 +1125,71 @@ public class SdzjzGameTests implements FabricGameTest {
         }
         ctx.succeed();
     }
+
+    // ===== m477（真移植 A 阶段第一刀）：图状态两代共用一份 =====
+
+    /** m477①共用图状态往返对拍：write→read 十三个字段逐项还原（含带组件的精确栈）。
+     *  本条与 1.20.1 侧 RetroCanvasTests 的同名往返判官跑的是**同一份代码**——
+     *  真移植的第一份红利：一处修复两代同时受益，不再需要对表闸追平。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_graph_state_roundtrip_shared(GameTestHelper ctx) {
+        var g = new com.sdzjz.node.CanvasGraphState();
+        g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE));
+        g.machineNodes.add(exactSample(7, 1)); // 带组件的精确件：编解码走世代口，组件不许丢
+        g.connections.add(new int[]{0, 1});
+        g.groupNames.put(3, "测试组");
+        g.storageEndpoints.add(new long[]{123L, 1});
+        g.storageEndpointDims.add("minecraft:overworld");
+        g.storageEdges.add(new long[]{1, 456L, 1});
+        g.storageEdgeDims.add("minecraft:overworld");
+        g.storageNodePos.put(123L, new int[]{10, 20, 1});
+        g.nodeStatus.add(1); g.nodeStatus.add(2);
+        g.nodeReason.add(""); g.nodeReason.add("测试原因");
+        g.busTopIds.add("minecraft:stone"); g.busTopCounts.add(999L);
+        g.prodPerMin = 4242L;
+        CompoundTag nbt = new CompoundTag();
+        var lookup = ctx.getLevel().registryAccess();
+        g.writeRenderNbt(nbt, lookup);
+        var g2 = new com.sdzjz.node.CanvasGraphState();
+        g2.readRenderNbt(nbt, lookup, java.util.Map.of(), () -> { });
+        ctx.assertTrue(g2.machineNodes.size() == 2, "节点数该还原，实得 " + g2.machineNodes.size());
+        ctx.assertTrue(ItemStack.isSameItemSameComponents(g2.machineNodes.get(1), g.machineNodes.get(1)),
+                "带组件的精确栈该组件保真（栈编解码走世代口）");
+        ctx.assertTrue(g2.connections.size() == 1 && g2.connections.get(0)[1] == 1, "连线该还原");
+        ctx.assertTrue("测试组".equals(g2.groupNames.get(3)), "分组名该还原");
+        ctx.assertTrue(g2.storageEdges.size() == 1 && g2.storageEdges.get(0)[2] == 1, "存储边该还原");
+        ctx.assertTrue(java.util.Arrays.equals(g2.storageNodePos.get(123L), new int[]{10, 20, 1}), "存储节点坐标该还原");
+        ctx.assertTrue(g2.nodeReason.size() == 2 && "测试原因".equals(g2.nodeReason.get(1)), "阻塞原因该还原");
+        ctx.assertTrue(g2.busTopCounts.get(0) == 999L && g2.prodPerMin == 4242L, "总线库存与产量该还原");
+        ctx.succeed();
+    }
+
+    /** m477②**加固推广判官**（行为变更，显式记档）：m459 修④ 原只在 1.20.1 侧，合一后两代共享——
+     *  坏档/恶意快照里的越界连线、自连、坏存储边在**读侧即剪**，好数据一条不动。
+     *  主线此前只在屏侧护，而路由与摘节点簿记都要吃这张表，读侧剪一次处处安全。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_graph_state_prunes_bad_edges_shared(GameTestHelper ctx) {
+        var g = new com.sdzjz.node.CanvasGraphState();
+        g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE));
+        g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.TRASH_NODE));
+        CompoundTag nbt = new CompoundTag();
+        var lookup = ctx.getLevel().registryAccess();
+        g.writeRenderNbt(nbt, lookup);
+        nbt.putIntArray("connections", new int[]{0, 1, 7, 9, 1, 1, -1, 0}); // 好1条 + 越界 + 自连 + 负下标
+        var seg = nbt.getList("storEdges", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        CompoundTag bad = new CompoundTag(); bad.putInt("m", 99); bad.putLong("p", 1L); bad.putInt("r", 0); bad.putString("d", "d");
+        CompoundTag badDir = new CompoundTag(); badDir.putInt("m", 0); badDir.putLong("p", 2L); badDir.putInt("r", 7); badDir.putString("d", "d");
+        CompoundTag good = new CompoundTag(); good.putInt("m", 1); good.putLong("p", 3L); good.putInt("r", 1); good.putString("d", "d");
+        seg.add(bad); seg.add(badDir); seg.add(good);
+        nbt.put("storEdges", seg);
+        var g2 = new com.sdzjz.node.CanvasGraphState();
+        g2.readRenderNbt(nbt, lookup, java.util.Map.of(), () -> { });
+        ctx.assertTrue(g2.connections.size() == 1 && g2.connections.get(0)[0] == 0 && g2.connections.get(0)[1] == 1,
+                "连线该只剩好的 0→1，实得 " + g2.connections.size());
+        ctx.assertTrue(g2.storageEdges.size() == 1 && g2.storageEdges.get(0)[0] == 1 && g2.storageEdges.get(0)[2] == 1,
+                "存储边该只剩好的 (1,p3,供料)，实得 " + g2.storageEdges.size());
+        ctx.assertTrue(g2.storageEdgeDims.size() == 1, "维度表该同长（同剪不错位）");
+        ctx.succeed();
+    }
+
 }

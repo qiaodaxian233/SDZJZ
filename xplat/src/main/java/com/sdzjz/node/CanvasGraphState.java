@@ -1,6 +1,5 @@
 package com.sdzjz.node;
 
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -13,8 +12,37 @@ import net.minecraft.world.item.ItemStack;
  * SCBE 持唯一实例 g，SCBE 内全部引用机械前缀 g. / be.g.（逐名计数断言）。
  * m431 mA2：渲染编解码 writeRenderNbt/readRenderNbt 已迁入本类（方法体与 m428 原文逐字对拍一致，读侧仅 bumpTopo/MERGED_IDS 两注入点）。
  * 纯状态容器：零方法零逻辑，字段语义与同步节奏的注释仍以 SCBE 侧使用点为准。
+ *
+ * <p><b>m477（真移植 A 阶段第一刀）：本类自此两代共用一份</b>——1.20.1 世代的
+ * {@code CanvasGraphState120}（132 行仿写件）整个删除，白名单挂本文件。合一前两份的实测差异：
+ * 122 行逐字相同，**真世代差只有「栈↔NBT 编解码」一对**（1.21 的 {@code save(lookup)}/
+ * {@code parse(lookup,·)} vs 1.20.1 的 {@code save(new CompoundTag())}/{@code of(·)}），
+ * 已收进 {@link StackCodec} 世代口。lookup 形参改为**不透明代际句柄** {@code Object}
+ * ——与 {@code platform.RecipeAccess} 的 level 句柄同一约法（Common/共用层只透传绝不触碰），
+ * 主线调用点传 {@code registryAccess()} 自动向上转型，零改动。
  */
 public final class CanvasGraphState {
+
+    /** m477 世代口：栈↔NBT 编解码（两代唯一的真差异）。lookup=不透明代际句柄，实现方自行转型。 */
+    public interface StackCodec {
+        /** 整栈存 NBT（1.21=save(lookup) 返回 Tag；1.20.1=save(new CompoundTag())）。 */
+        Tag save(ItemStack s, Object lookup);
+        /** 整栈读回；坏数据返回 {@link ItemStack#EMPTY}（调用方按空跳过，不炸档，两代同律）。 */
+        ItemStack load(CompoundTag tag, Object lookup);
+    }
+
+    private static StackCodec codec;
+
+    /** 加载器入口首段调（重复安装直接炸出来，ItemData m437 / NodeTags.Ident m472 同律）。 */
+    public static void installCodec(StackCodec c) {
+        if (codec != null) throw new IllegalStateException("CanvasGraphState 栈编解码重复安装");
+        codec = c;
+    }
+
+    private static StackCodec codec() {
+        if (codec == null) throw new IllegalStateException("CanvasGraphState 栈编解码未安装：加载器入口须先调 CanvasGraphState.installCodec(...)（1.21=Sdzjz.onInitialize 首段，1.20.1=RetroBootstrap 同位）");
+        return codec;
+    }
 
     public final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     public final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
@@ -44,9 +72,9 @@ public final class CanvasGraphState {
     /** m275：渲染快照子集=画布客户端消费面全集（清单依据 docs/同步拆分方案_m274.md §2 grep 实测：
      *  节点栈/连线/分组/状态灯/阻塞原因/存储端点三件套/总线库存/实测产量）。
      *  存档 writeNbt 与 flushCanvasSnapshot 共用。 */
-    public void writeRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+    public void writeRenderNbt(CompoundTag nbt, Object lookup) { // m477 lookup=不透明代际句柄
         ListTag mn = new ListTag();
-        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(s.save(lookup));
+        for (ItemStack s : machineNodes) if (!s.isEmpty()) mn.add(codec().save(s, lookup)); // m477 世代口
         nbt.put("machineNodes", mn);
         int[] flat = new int[connections.size() * 2];
         for (int i = 0; i < connections.size(); i++) { flat[i * 2] = connections.get(i)[0]; flat[i * 2 + 1] = connections.get(i)[1]; }
@@ -94,7 +122,7 @@ public final class CanvasGraphState {
     }
 
     /** m275：渲染子集读入（与 writeRenderNbt 严格对偶）——存档 readNbt 与客户端 applyRenderSnapshot 共用。 */
-    public void readRenderNbt(CompoundTag nbt, HolderLookup.Provider lookup,
+    public void readRenderNbt(CompoundTag nbt, Object lookup,
                               java.util.Map<String, String> mergedIds, Runnable onTopoChange) { // m431 注入：仅有的两个 SCBE 跨界触点
         machineNodes.clear();
         onTopoChange.run(); // m179 bumpTopo 注入
@@ -103,11 +131,17 @@ public final class CanvasGraphState {
             CompoundTag mc = mn.getCompound(i);
             String mid = mergedIds.get(mc.getString("id")); // m143：旧子机器id→合并机（不映射会整节点丢失，
             if (mid != null) mc.putString("id", mid);        // 且 inputBuf/nodeStatus 同序列表随之错位）
-            ItemStack.parse(lookup, mc).ifPresent(machineNodes::add);
+            ItemStack t = codec().load(mc, lookup); // m477 世代口（坏数据=EMPTY，静默跳过不炸档，两代同律）
+            if (!t.isEmpty()) machineNodes.add(t);
         }
         connections.clear();
         int[] flat = nbt.getIntArray("connections");
-        for (int i = 0; i + 1 < flat.length; i += 2) connections.add(new int[]{flat[i], flat[i + 1]});
+        int nodeCount = machineNodes.size();
+        for (int i = 0; i + 1 < flat.length; i += 2) { // m459 修④（m477 自 1.20.1 推广到两代）：坏档/恶意快照的
+            int a = flat[i], b = flat[i + 1];          // 越界或自连下标读侧即剪——蓝本原只在屏侧护，而路由/摘节点
+            if (a < 0 || b < 0 || a >= nodeCount || b >= nodeCount || a == b) continue; // 簿记都要吃这张表，读侧剪一次处处安全
+            connections.add(new int[]{a, b});
+        }
         groupNames.clear(); // m191 分组元数据；键是 gid 的十进制串，坏键跳过不炸读档
         CompoundTag grp = nbt.getCompound("groups");
         for (String k : grp.getAllKeys()) {
@@ -131,7 +165,9 @@ public final class CanvasGraphState {
         ListTag seg = nbt.getList("storEdges", Tag.TAG_COMPOUND);
         for (int i = 0; i < seg.size(); i++) {
             CompoundTag c = seg.getCompound(i);
-            storageEdges.add(new long[]{c.getInt("m"), c.getLong("p"), c.getInt("r")});
+            int m = c.getInt("m"), r = c.getInt("r");
+            if (m < 0 || m >= machineNodes.size() || (r != 0 && r != 1)) continue; // m459 修④（m477 推广两代）：机器下标/方向同剪
+            storageEdges.add(new long[]{m, c.getLong("p"), r});
             storageEdgeDims.add(c.getString("d"));
         }
         storageNodePos.clear();

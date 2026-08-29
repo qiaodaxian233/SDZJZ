@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""m477 双写普查闸（第 18 闸，真移植路线的看门人）。
+
+**它管什么**：C2 这条 1.20.1 线一直是**仿写**——同一个东西两边各写一份，靠对表闸追平名单。
+作者 m477 拍板改走**真移植**：业务代码一份两代共用，世代差收进世代口（Env/Hooks/ItemData/
+NodeTags.Ident/StorageAccess/RecipeAccess/CanvasGraphState.StackCodec 已验证七次）。
+
+这把闸做两件事：
+1. **登记账**：把还没合一的双写件逐个登记，附「对位的共用件」与「合一刀号」。合一一个划掉一个，
+   账面上永远看得见还欠多少——**不许默默增加**。
+2. **拦新增**：retro 侧出现**未登记**的 `Xxx120` 类，或未登记地引用被判定已合一的类，一律红。
+   防的是「随手再写一份仿品」——m477 之前那种做法。
+
+**判据**：retro 侧所有 `*120.java` 与 `Retro*.java` 必须在下表登记；标 `已合一=True` 的必须
+真的不存在了（文件删干净）；标 `世代壳=True` 的是**该各写一份**的（方块/BE/屏/网络包/菜单——
+MC API 密集，两代形状本就不同），不算欠账。
+
+**加新文件**：往 登记表 加一行，写清它是世代壳还是待合一的双写件。
+"""
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
+
+# 文件名 → (世代壳?, 已合一?, 说明/对位共用件)
+登记表 = {
+    # ===== 世代壳：MC API 密集，两代形状本就不同，该各写一份（不算欠账）=====
+    "RetroBlocks.java": (True, False, "方块与 BE 类型注册——注册 API 两代形状不同"),
+    "RetroMachineItems.java": (True, False, "机器物品批量注册（反射 Machines 唯一数据源，零名单）"),
+    "RetroBootstrap.java": (True, False, "加载器入口：装配各世代口"),
+    "RetroClientBootstrap.java": (True, False, "客户端入口"),
+    "Net120.java": (True, False, "网络通道注册（1.20.1 无 CustomPacketPayload）"),
+    "ClientNet120.java": (True, False, "客户端收包"),
+    "CanvasPayloads120.java": (True, False, "画布包体编解码"),
+    "StoragePayloads120.java": (True, False, "存储包体编解码"),
+    "PanelPayloads120.java": (True, False, "面板包体编解码"),
+    "NodePayloads120.java": (True, False, "节点包体编解码"),
+    "TagItemData.java": (True, False, "ItemData 五口的 1.20.1 实现（m451）"),
+    "TagStackKey.java": (True, False, "栈键的 1.20.1 实现"),
+    "RetroNodeIdent.java": (True, False, "NodeTags.Ident 的 1.20.1 实现（m472）"),
+    "RetroStackCodec.java": (True, False, "CanvasGraphState.StackCodec 的 1.20.1 实现（m477）"),
+    "CableEnd120.java": (True, False, "数据线端点枚举（方块状态属性，注册期类型）"),
+    "DataCableRenderer120.java": (True, False, "BER 渲染（渲染 API 两代形状不同）"),
+    "StorageCoreRenderer120.java": (True, False, "BER 渲染"),
+    "StructureCoreMenu120.java": (True, False, "菜单/容器（Menu API 两代形状不同）"),
+    "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。**注意**：绘制件（drawCard/"
+                                         "drawNode/drawWire）应随 UI 刀下沉共用，届时本行改说明"),
+    "DataPanelScreen120.java": (True, False, "面板屏：同上"),
+
+    # ===== 待合一的双写件：业务逻辑两边各写一份，欠账 =====
+    "StructureCore120.java": (False, False, "对位 block/StructureCoreBlockEntity 的业务核心"
+                                            "（路由/拉料/accepts/chainWants/tick 编排/灯表）——C 阶段主刀"),
+    "StorageCore120.java": (False, False, "对位 block/StorageCoreBlockEntity 的账本核心"
+                                          "（普通账/精确账/类型闸/修订号）——B 阶段"),
+    "DataCable120.java": (False, False, "对位数据线 BE 的 BFS 与端点缓存——B 阶段之后"),
+    "DataCableBlock120.java": (False, False, "对位 xplat/block/DataCableBlock（endFor 名单已有对表闸看着）"),
+    "DataPanel120.java": (False, False, "对位 block/DataPanelBlockEntity"),
+
+    # ===== 判官：D 阶段照 RecipeDomainAssertions 的样子合一（断言一份，两代各喂自己的实现）=====
+    "RetroTickTests.java": (False, False, "生产/路由判官——D 阶段合一"),
+    "RetroStorageTests.java": (False, False, "存储判官——D 阶段合一"),
+    "RetroCanvasTests.java": (False, False, "画布判官——D 阶段合一"),
+    "RetroPanelTests.java": (False, False, "面板判官——D 阶段合一"),
+    "RetroNetTests.java": (False, False, "网络判官——D 阶段合一"),
+
+    # ===== 已合一：文件必须不存在 =====
+    "CanvasGraphState120.java": (False, True, "m477 已合一 → xplat/node/CanvasGraphState（两代共用）"),
+}
+
+
+def 主():
+    d = ROOT / RETRO
+    if not d.exists():
+        raise SystemExit("双写闸：找不到 retro 目录 " + RETRO)
+    实存 = {p.name for p in d.glob("*.java")}
+    坏 = 0
+
+    未登记 = sorted(实存 - set(登记表))
+    if 未登记:
+        print("❌ 未登记的 retro 文件 %d 个：%s" % (len(未登记), "、".join(未登记)))
+        print("   往 登记表 加一行，写清它是**世代壳**（该各写一份）还是**待合一的双写件**（欠账）。")
+        坏 += 1
+    else:
+        print("✅ retro 侧 %d 个文件全部已登记" % len(实存))
+
+    没删干净 = sorted(k for k, (_, 合, _d) in 登记表.items() if 合 and k in 实存)
+    if 没删干净:
+        print("❌ 登记为「已合一」但文件还在：%s" % "、".join(没删干净))
+        print("   合一=仿写件删除、引用改共用件。留着就是两份代码继续漂移。")
+        坏 += 1
+    else:
+        print("✅ 登记为已合一的仿写件都已删除")
+
+    壳 = [k for k, (s, _c, _d) in 登记表.items() if s]
+    合 = [k for k, (_s, c, _d) in 登记表.items() if c]
+    欠 = sorted(k for k, (s, c, _d) in 登记表.items() if not s and not c)
+    print("\n【真移植进度】世代壳 %d 个（该各写一份，不算欠账）｜已合一 %d 个｜**待合一 %d 个**"
+          % (len(壳), len(合), len(欠)))
+    if 欠:
+        总行 = 0
+        for k in 欠:
+            p = d / k
+            n = len(p.read_text(encoding="utf-8").split("\n")) if p.exists() else 0
+            总行 += n
+            print("   欠 %4d 行  %s —— %s" % (n, k, 登记表[k][2]))
+        print("   合计欠账 %d 行双写代码。" % 总行)
+
+    if 坏:
+        print("\n❌ 双写闸红：%d 条判据不过。" % 坏)
+        return 1
+    print("\n✅ 双写闸绿：登记 %d 个文件，账目清楚。" % len(登记表))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(主())

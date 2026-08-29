@@ -1,5 +1,6 @@
 package com.sdzjz.retro;
 
+import com.sdzjz.node.CanvasGraphState;
 import net.fabricmc.fabric.api.networking.v1.FabricPacket;
 import net.fabricmc.fabric.api.networking.v1.PacketType;
 import net.minecraft.core.BlockPos;
@@ -9,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * m456（C2-④a）：画布快照两包——轮询请求-响应制（m455 稿定性，同 m447 面板口径；Legacy 的
- * 观众推送+200t 自愈随规模再上）。快照体=CanvasGraphState120.writeRenderNbt 整包过 writeNbt；
+ * 观众推送+200t 自愈随规模再上）。快照体=CanvasGraphState.writeRenderNbt 整包过 writeNbt；
  * **有界红线落应用层**（m455 稿：解码 readNbt 有原版 NbtAccounter 顶着，节点数硬顶在
  * 应用函数里再验——CanvasScreen120.applyGuard 1024 常量，超界整包拒绝）。
  */
@@ -32,7 +33,7 @@ final class CanvasPayloads120 {
         @Override public PacketType<?> getType() { return TYPE; }
     }
 
-    /** S2C：一帧渲染快照（键布局=CanvasGraphState120，蓝本同名）。 */
+    /** S2C：一帧渲染快照（键布局=CanvasGraphState，蓝本同名）。 */
     record CanvasSnapshot(BlockPos pos, CompoundTag render) implements FabricPacket {
         static final PacketType<CanvasSnapshot> TYPE =
                 PacketType.create(new ResourceLocation("sdzjz", "canvas_snapshot"), CanvasSnapshot::new);

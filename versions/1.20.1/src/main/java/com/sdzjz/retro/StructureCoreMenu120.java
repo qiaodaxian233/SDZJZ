@@ -49,7 +49,7 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
 
     private static void pushSnapshot(net.minecraft.server.level.ServerPlayer player, StructureCore120 core, net.minecraft.core.BlockPos pos) {
         net.minecraft.nbt.CompoundTag render = new net.minecraft.nbt.CompoundTag();
-        core.g.writeRenderNbt(render);
+        core.g.writeRenderNbt(render, null); // m477 共用图状态：lookup 句柄本世代恒 null（RetroStackCodec 忽略）
         Net120.toPlayer(player, new CanvasPayloads120.CanvasSnapshot(pos, render));
     }
 

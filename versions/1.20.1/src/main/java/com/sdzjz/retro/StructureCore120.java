@@ -1,5 +1,6 @@
 package com.sdzjz.retro;
 
+import com.sdzjz.node.CanvasGraphState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -28,10 +29,10 @@ final class StructureCore120 extends BlockEntity {
 
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("sdzjz");
 
-    /** m143 合并机映射：1.20.1 无史前存档常态空表（CanvasGraphState120 类注），接线点保形。 */
+    /** m143 合并机映射：1.20.1 无史前存档常态空表（CanvasGraphState 类注），接线点保形。 */
     private static final Map<String, String> MERGED_IDS = Map.of();
 
-    final CanvasGraphState120 g = new CanvasGraphState120(); // 蓝本同名：唯一图实例
+    final CanvasGraphState g = new CanvasGraphState(); // 蓝本同名：唯一图实例
     long endpointScanTick = Long.MIN_VALUE; // m458：端点扫描 40t 缓存戳（m218b 谱系防逐观众裸扫）
 
     /** m471（⑤c1）在途缓存三件：每节点输入缓存（与 machineNodes 同序，懒补齐）+ 遗留共享池
@@ -891,7 +892,7 @@ final class StructureCore120 extends BlockEntity {
     @Override
     protected void saveAdditional(CompoundTag nbt) {
         super.saveAdditional(nbt);
-        g.writeRenderNbt(nbt);
+        g.writeRenderNbt(nbt, null); // m477 共用图状态（句柄本世代恒 null）
         // m471 在途缓存两键：键名同蓝本（internalBuffer/nodeBufs，DFU 红利口径 m443——存档升 1.21.1 后逐键对上）
         CompoundTag buf = new CompoundTag();
         for (java.util.Map.Entry<String, Long> e : internalBuffer.entrySet()) buf.putLong(e.getKey(), e.getValue());
@@ -938,7 +939,7 @@ final class StructureCore120 extends BlockEntity {
     @Override
     public void load(CompoundTag nbt) {
         super.load(nbt);
-        g.readRenderNbt(nbt, MERGED_IDS, () -> { }); // 拓扑翻代消费方随 C2-④ 接 bumpTopo
+        g.readRenderNbt(nbt, null, MERGED_IDS, () -> { }); // 拓扑翻代消费方随 C2-④ 接 bumpTopo
         healNodeCoordKeys(); // m474 旧档自愈：画布坐标键 xc/yc → nx/ny（须在 readRenderNbt 之后、任何消费方之前）
         // m471：渲染子集必须先读——下面按 machineNodes.size() 对齐补位（蓝本 m275 同序注）
         internalBuffer.clear();

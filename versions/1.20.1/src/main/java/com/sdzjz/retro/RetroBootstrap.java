@@ -22,6 +22,7 @@ public final class RetroBootstrap implements ModInitializer {
         Platform.initConfigDir(FabricLoader.getInstance().getConfigDir());
         com.sdzjz.item.ItemData.install(new TagItemData()); // m451：ItemDataAccess 双实现兑现（早于一切消费方，m365 同位）
         com.sdzjz.node.NodeTags.installIdent(new RetroNodeIdent()); // m472：NodeTags 上挂（绞杀者第五刀）——六族身份走 def 同一性
+        com.sdzjz.node.CanvasGraphState.installCodec(new RetroStackCodec()); // m477：图状态两代共用一份（真移植 A 阶段）——栈编解码走世代口
         RetroBlocks.register(); // m441 刀①：注册骨架（存储核心+数据线+BE 类型+创造栏）
 
         // m443（蓝本=Legacy m161c，Sdzjz.onInitialize 同位）：存储核心双账本挂 Fabric Transfer API——
