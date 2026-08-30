@@ -270,7 +270,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             int[] sp = g.storageNodePos.get(e[1]);
             if (m >= g.machineNodes.size() || sp == null) continue;
             // m488：锚点按 100×52 卡（出口柱在右缘中上、进口柱在右缘中下；存储卡仍是 24×24）
-            int mcx = (m == dragIndex ? dragCx : nodeCx(m)), mcy = (m == dragIndex ? dragCy : nodeCy(m));
+            double mcx = (m == dragIndex ? dragCx : nodeCx(m)), mcy = (m == dragIndex ? dragCy : nodeCy(m)); // 拖动位是 double
             boolean 产出 = e[2] == 0;
             double x1 = sx(mcx + NW), y1 = sy(mcy + (产出 ? NH / 2 - 7 : NH / 2 + 7));
             double x2 = sx(stX(e[1], sp) + 12), y2 = sy(stY(e[1], sp) + 12);
