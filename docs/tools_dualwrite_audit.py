@@ -44,6 +44,7 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "RetroStackCodec.java": (True, False, "CanvasGraphState.StackCodec 的 1.20.1 实现（m477）"),
     "RetroStackKind.java": (True, False, "StackKey.Kind 的 1.20.1 实现（m478）"),
     "RetroSkinGfx.java": (True, False, "SciSkin.Gfx 的 1.20.1 实现（m483，纹理 id 构造+顶点写法两处）"),
+    "RetroRecipeAccess.java": (True, False, "RecipeAccess 的 1.20.1 实现（m494 熔炼域实装，其余三域随 ⑤d1）"),
     "CableEnd120.java": (True, False, "数据线端点枚举（方块状态属性，注册期类型）"),
     "DataCableRenderer120.java": (True, False, "BER 渲染（渲染 API 两代形状不同）"),
     "StorageCoreRenderer120.java": (True, False, "BER 渲染"),

@@ -406,7 +406,71 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
             if (be.tickLogicNode(world, i, st, hasOut)) continue; // m473 逻辑节点六族清运分支（命中即本拍归它管）
             if (!(st.getItem() instanceof RetroMachineItems.RetroMachineItem rmi)) { be.stat(i, 0, ""); continue; }
             com.sdzjz.machine.MachineDef def = rmi.def;
-            if (com.sdzjz.machine.Machines.smelterFamily(def.id()) || def.outputs().isEmpty()) {
+            if (com.sdzjz.machine.Machines.smelterFamily(def.id())) { // m494（C2-⑤d2）m173 熔炉族
+                // 主线 StructureCoreBlockEntity 熔炉族分支（734~789）整段搬。万能熔炉：接什么烧什么
+                // （原版熔炼配方表）。有入线吃内部缓存，否则吃定向供料线。**世代取舍三处见方法末注**。
+                int cyclesSm = be.cyclesThisTick(world, i, def.baseIntervalTicks(), cfg); // m99 工作量累积
+                if (cyclesSm <= 0) continue;
+                StorageCore120 depSm = be.depositTarget(world, i);
+                // 每周期一组 ×(1+数量升级) × 周期数 × 熔炉族倍数（m173 工程款×108）；
+                // 世代取舍①：本世代无并发/数量升级（m464 记档），running 与 countLv 恒 1/0。
+                long capacity = 64L * cyclesSm * com.sdzjz.machine.Machines.smelterUnit(def.id());
+                if (!hasOut && depSm == null) capacity = Math.min(capacity, BUF_CAP); // 无存储时按缓存封顶防白扣
+                long done = 0;
+                if (hasIn) {
+                    java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(be.nodeBuf(i).keySet());
+                    keys.addAll(be.internalBuffer.keySet());
+                    for (String id : keys) {
+                        if (done >= capacity) break;
+                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, id);
+                        if (out == null) continue;
+                        if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, id)) continue; // m149 选了烧什么就只烧什么
+                        long take = Math.min(be.bufCountFor(i, id), capacity - done);
+                        if (take <= 0) continue;
+                        be.bufWithdrawFor(i, id, take);
+                        long give = take * (int) out[1];
+                        long left = be.routeOut(world, i, depSm, hasOut, (String) out[0], give);
+                        if (left > 0) { // 世代取舍②：无输出缓存/断网喷射，去处满=原样回灌自己缓存+黄灯（m473 同律）
+                            be.nodeBuf(i).merge((String) out[0], left, StorageCore120::satAdd);
+                            be.stat(i, 2, "去处满，持料待命（下游缓存满/产出仓类型已满）");
+                        }
+                        done += take;
+                    }
+                } else {
+                    // 万能熔炉必须显式接线（机器入线 或 存储→机器 定向供料线）才取料：
+                    // 不做全局网络兜底，防止把玩家存着的原木/圆石/粗矿悄悄全烧了。
+                    StorageCore120 supply = be.supplyTarget(world, i);
+                    if (supply == null) { be.stat(i, 3, "未接存储/供料线"); continue; }
+                    final int dnM = be.fillDrain(supply.storeView()); // m350 转存 scratch：withdraw 当场实扣防虚账
+                    for (int dk = 0; dk < dnM; dk++) {
+                        if (done >= capacity) break;
+                        String idM = be.drainIds[dk];
+                        Object[] out = com.sdzjz.machine.SmeltPlanner.resultOf(world, idM);
+                        if (out == null) continue;
+                        if (!com.sdzjz.node.NodeTags.machineFilterAllows(st, idM)) continue; // m149
+                        long take = Math.min(be.drainAmts[dk], capacity - done);
+                        if (take <= 0) continue;
+                        int got = supply.withdraw(idM, (int) Math.min(take, Integer.MAX_VALUE));
+                        if (got <= 0) continue;
+                        long give = (long) got * (int) out[1];
+                        long left = be.routeOut(world, i, depSm, hasOut, (String) out[0], give);
+                        if (left > 0) { // 同取舍②
+                            be.nodeBuf(i).merge((String) out[0], left, StorageCore120::satAdd);
+                            be.stat(i, 2, "去处满，持料待命（下游缓存满/产出仓类型已满）");
+                        }
+                        done += got;
+                    }
+                }
+                if (done > 0) {
+                    // 世代取舍③：主线此处 xpPool += 0.1*done（熔炼经验入核心池），本世代 xpPool 未建，
+                    // 随 ⑤e 经验经济族到序——**显式记档非漏抄**（m476 普查已标 ⑤d/⑤e 交叉依赖）。
+                    be.stat(i, 1, "");
+                } else {
+                    be.stat(i, 3, "无可烧材料（上游/仓库没有可熔炼项）");
+                }
+                continue;
+            }
+            if (def.outputs().isEmpty()) {
                 be.stat(i, 2, "配方/特种机型随 C2-⑤ 后续分片到序（本世代暂只跑数据驱动生成类）");
                 continue;
             }

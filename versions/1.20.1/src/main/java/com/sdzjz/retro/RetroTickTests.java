@@ -723,6 +723,57 @@ public class RetroTickTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    // ===== m494（C2-⑤d2）：熔炉族——万能熔炉，接什么烧什么 =====
+
+    /** ①供料线路径：仓里放铁矿 →(金线供料)→ 万能熔炉 →(绿线)→ 产出仓，应烧出铁锭；
+     *  烧不了的东西（泥土）一件不动——**不做全局网络兜底**，也不乱烧仓里别的料。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void smelter_burns_from_supply_line(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
+        StorageCore120 dep = storage(ctx, new BlockPos(2, 1, 0));
+        if (src == null || dep == null) return;
+        c.addNode(node("super_smelter", 10, 10)); // 0
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1}); // 供料
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(2, 1, 0)).asLong(), 0}); // 产出
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        src.deposit(new ItemStack(Items.RAW_IRON, 30));
+        src.deposit(new ItemStack(Items.DIRT, 20)); // 烧不了的：一件都不该动
+        handTick(ctx, c, 60);
+        ctx.assertTrue(dep.count("minecraft:iron_ingot") > 0,
+                "万能熔炉该把粗铁烧成铁锭落产出仓，实得 " + dep.count("minecraft:iron_ingot"));
+        ctx.assertTrue(src.count("minecraft:dirt") == 20, "烧不了的泥土一件都不该动，实剩 " + src.count("minecraft:dirt"));
+        ctx.assertTrue(src.count("minecraft:raw_iron") < 30, "粗铁该被取走，实剩 " + src.count("minecraft:raw_iron"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
+    /** ②不接线不取料（防「把玩家存着的原木/圆石悄悄全烧了」）+ m149 白名单只烧选中的。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void smelter_needs_link_and_respects_whitelist(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
+        if (src == null) return;
+        ItemStack sm = node("super_smelter", 10, 10);
+        c.addNode(sm); // 0：先什么线都不接
+        src.deposit(new ItemStack(Items.RAW_IRON, 20));
+        handTick(ctx, c, 30);
+        ctx.assertTrue(src.count("minecraft:raw_iron") == 20,
+                "没接供料线时一件都不该取（不做全局网络兜底），实剩 " + src.count("minecraft:raw_iron"));
+        ctx.assertTrue(c.g.nodeStatus.get(0) == 3, "该红灯说「未接存储/供料线」，实得灯 " + c.g.nodeStatus.get(0));
+        putFilterList(sm, "minecraft:raw_gold"); // m149 只烧金
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1});
+        c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
+        handTick(ctx, c, 30);
+        ctx.assertTrue(src.count("minecraft:raw_iron") == 20,
+                "白名单只勾了金，粗铁一件都不该烧，实剩 " + src.count("minecraft:raw_iron"));
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
     // ===== m472（绞杀者第五刀）：NodeTags 上挂判官 =====
 
     /** m472 NodeTags 上挂：六族身份（def 引用同一性）各归各位 + defOf 对位 + 默认值口径不漂
