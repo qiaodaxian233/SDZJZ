@@ -37,6 +37,8 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/storage/StackKey.java'       // m478（真移植 B 阶段第一刀）精确账本身份键两代共用一份——原 TagStackKey 仿写件已删；相等与哈希走 Kind 世代口（RetroStackKind），其余逐字同源
         include 'com/sdzjz/machine/StorageLedgerProbe.java'      // m480 存储域行为契约探针（十三口，两代 BE 本来就有同名方法）
         include 'com/sdzjz/machine/StorageDomainAssertions.java' // m480 存储域跨代行为契约：一套断言两代各喂自己的实现（照 m372 RecipeDomainAssertions 样板）
+        include 'com/sdzjz/node/RouteBrainProbe.java'            // m481 路由域判定探针（四口两代签名已对齐）
+        include 'com/sdzjz/node/RouteDomainAssertions.java'      // m481 路由域跨代行为契约：六条成对判定，含「传感器两面刻意不同」那格
         include 'com/sdzjz/client/StorageCoreAnimGeo.java' // m465 存储核心动画件几何（bbmodel 生成纯 float 表，零 import）
         include 'com/sdzjz/client/DataCableAnimGeo.java'   // m465 数据线能量脉冲几何（同上）
     }

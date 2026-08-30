@@ -789,4 +789,76 @@ public class RetroTickTests implements FabricGameTest {
         com.sdzjz.machine.CoreScheduler.clearAll();
         ctx.succeed();
     }
+
+    /** m481（真移植 D 阶段先行·第二域）：路由域**跨代行为契约**——判官只此一份在 xplat
+     *  （com.sdzjz.node.RouteDomainAssertions，六条成对判定），本用例喂 StructureCore120；
+     *  主线 SdzjzGameTests 喂 StructureCoreBlockEntity 跑**同一套断言**。
+     *  <p>最值钱的是「传感器关闸时两面刻意不同」那条：它长得像 bug，所以最容易在 C1 下沉时
+     *  被顺手「改对」，一改就是 m132-6 血案重演——契约钉死它。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    public void route_domain_contract_retro(GameTestHelper ctx) {
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        StructureCore120 c = canvas(ctx);
+        var lvl = ctx.getLevel();
+        try {
+            // ① 过滤器（白名单=沙）
+            ItemStack f = node("filter_node", 10, 10);
+            putFilterList(f, "minecraft:sand");
+            c.addNode(f);                                   // 0
+            c.addNode(node("glass_kiln", 20, 10));          // 1：给过滤器一个真下游（吃沙）
+            ctx.assertTrue(c.connect(0, 1), "出线应连得上");
+            com.sdzjz.node.RouteDomainAssertions.过滤器(c, lvl, 0, "minecraft:sand", "minecraft:dirt");
+
+            // ⑥ 通用耗料机
+            com.sdzjz.node.RouteDomainAssertions.耗料机(c, lvl, 1, "minecraft:sand", "minecraft:dirt");
+
+            // ② 开关（关→开）
+            ItemStack sw = node("switch_node", 30, 10);
+            sw.getOrCreateTag().putBoolean("so", false);
+            c.addNode(sw);                                  // 2
+            ctx.assertTrue(c.connect(2, 1), "开关出线应连得上");
+            com.sdzjz.node.RouteDomainAssertions.开关关着(c, lvl, 2, "minecraft:sand");
+            sw.getOrCreateTag().putBoolean("so", true);
+            com.sdzjz.node.RouteDomainAssertions.开关开着(c, lvl, 2, "minecraft:sand");
+
+            // ③ 传感器：未连监测仓=按 0 计（世代取舍），溢出型 → 关闸
+            ItemStack se = node("sensor_node", 40, 10);
+            se.getOrCreateTag().putString("si", "minecraft:iron_ingot");
+            se.getOrCreateTag().putLong("sv", 10);
+            se.getOrCreateTag().putBoolean("sl", false); // 溢出型：库存 > 阈值才开；未连线按 0 计 → 关闸
+            c.addNode(se);                                  // 3
+            ctx.assertTrue(c.connect(3, 1), "传感器出线应连得上");
+            com.sdzjz.node.RouteDomainAssertions.传感器关闸时两面刻意不同(c, lvl, 3, "minecraft:sand");
+            se.getOrCreateTag().putBoolean("sl", true);  // 补货型：库存 < 阈值就开 → 开闸
+            com.sdzjz.node.RouteDomainAssertions.传感器开闸时两面放行(c, lvl, 3, "minecraft:sand");
+
+            // ④ 暂停
+            ItemStack pz = node("filter_node", 50, 10);
+            putFilterList(pz, "minecraft:sand");
+            pz.getOrCreateTag().putBoolean("np", true);
+            c.addNode(pz);                                  // 4
+            ctx.assertTrue(c.connect(4, 1), "暂停节点出线应连得上");
+            com.sdzjz.node.RouteDomainAssertions.暂停(c, lvl, 4, "minecraft:sand");
+
+            // ⑤ 垃圾桶（安全白名单=沙）
+            ItemStack tr = node("trash_node", 60, 10);
+            putFilterList(tr, "minecraft:sand");
+            c.addNode(tr);                                  // 5
+            com.sdzjz.node.RouteDomainAssertions.垃圾桶授权语义(c, lvl, 5, "minecraft:sand", "minecraft:dirt");
+
+            // 抽取启停
+            ItemStack xOff = node("extractor_node", 70, 10);
+            ItemStack xOn = node("extractor_node", 71, 10);
+            xOn.getOrCreateTag().putBoolean("xo", true);
+            c.addNode(xOff);                                // 6
+            com.sdzjz.node.RouteDomainAssertions.抽取启停(c, lvl, 6, xOff, xOn);
+        } catch (AssertionError e) {
+            com.sdzjz.machine.CoreScheduler.clearAll();
+            ctx.fail("路由域契约失败: " + e.getMessage());
+            return;
+        }
+        com.sdzjz.machine.CoreScheduler.clearAll();
+        ctx.succeed();
+    }
+
 }

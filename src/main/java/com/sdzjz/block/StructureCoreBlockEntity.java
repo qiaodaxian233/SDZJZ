@@ -51,7 +51,8 @@ import org.jetbrains.annotations.Nullable;
  * 速度升级缩短周期、数量升级放大单次产量、并发升级提高同时运行的机器数；
  * 产物进输出缓存，尝试送入面板/存储/箱子；全都连不到时从顶面喷射掉落物（m114，节流 1 组/10t），缓存满则暂停。
  */
-public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, Container {
+public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, Container,
+        com.sdzjz.node.RouteBrainProbe { // m481 路由域跨代契约探针（四口转发，纯加法）
 
     public static final int MACHINE_START = 0, MACHINE_SLOTS = 8;
     public static final int UPGRADE_START = 8, UPGRADE_SLOTS = 3;
@@ -4002,4 +4003,28 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     public void toggleRunning(boolean run) { if (run && !this.running) lastEndpointScan = -1000; this.running = run; setChanged(); } // m348 停→开哨兵强刷端点，慢拍陈旧窗清零
     public boolean isRunning() { return running; }
+
+    // ===== m481 路由域跨代行为契约探针（纯加法：四行转发，不改任何现有方法体）=====
+    // 契约本体在 xplat com.sdzjz.node.RouteDomainAssertions，两代各喂自己的实现跑同一套断言。
+    // C1 路由脑下沉之后，转发目标会变成共用实现，而断言必须继续全绿——契约先立、手术后做。
+
+    @Override
+    public boolean probeAccepts(Object level, int target, String id) {
+        return accepts0((Level) level, target, id);
+    }
+
+    @Override
+    public boolean probeChainWants(Object level, int from, String id) {
+        return chainWants0((Level) level, from, id, 0, new java.util.HashSet<>());
+    }
+
+    @Override
+    public boolean probeSensorOpen(Object level, int i) {
+        return sensorOpen((Level) level, i);
+    }
+
+    @Override
+    public boolean probeExtractorLive(Object level, int i, ItemStack st) {
+        return extractorLive((Level) level, i, st);
+    }
 }

@@ -25,7 +25,7 @@ import java.util.Map;
  * 六族 tick 清运分支 + 垃圾桶两轮垫底真判定 + 分配器均分（见 tickLogicNode 段）；链式拉料的
  * **供料侧接线**（拉料回路消费 chainWants）随 ⑤c3。
  */
-final class StructureCore120 extends BlockEntity {
+final class StructureCore120 extends BlockEntity implements com.sdzjz.node.RouteBrainProbe { // m481 路由域跨代契约探针（四口转发，纯加法）
 
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("sdzjz");
 
@@ -963,5 +963,28 @@ final class StructureCore120 extends BlockEntity {
             nodeBufs.add(m); // 老档无此键=全空缓存（无损；本世代自 m454 起就没有史前在途物品）
         }
         if (dropped > 0) LOGGER.warn("结构核心 {} 在途缓存读入丢弃 {} 条非法条目（空键或非正计数）", worldPosition, dropped);
+    }
+
+    // ===== m481 路由域跨代行为契约探针（纯加法：四行转发，不改任何现有方法体）=====
+    // 与主线跑同一套断言（xplat RouteDomainAssertions），判官只此一份。
+
+    @Override
+    public boolean probeAccepts(Object level, int target, String id) {
+        return accepts((net.minecraft.world.level.Level) level, target, id);
+    }
+
+    @Override
+    public boolean probeChainWants(Object level, int from, String id) {
+        return chainWants((net.minecraft.world.level.Level) level, from, id, 0, new java.util.HashSet<>());
+    }
+
+    @Override
+    public boolean probeSensorOpen(Object level, int i) {
+        return sensorOpen((net.minecraft.world.level.Level) level, i);
+    }
+
+    @Override
+    public boolean probeExtractorLive(Object level, int i, ItemStack st) {
+        return extractorLive((net.minecraft.world.level.Level) level, i, st);
     }
 }

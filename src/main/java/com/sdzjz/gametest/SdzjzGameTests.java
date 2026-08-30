@@ -1238,4 +1238,73 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m481 判官助手：往节点栈写一个布尔标志（走 ItemData 五口，两代通用写路径）。 */
+    private static void putFlag(ItemStack s, String key, boolean v) {
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
+        n.putBoolean(key, v);
+        com.sdzjz.item.ItemData.write(s, n);
+    }
+
+    /** m481 判官助手：往节点栈写白名单（键 fl，与 1.20.1 侧 putFilterList 同布局）。 */
+    private static void putFilter(ItemStack s, String... ids) {
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
+        net.minecraft.nbt.ListTag l = new net.minecraft.nbt.ListTag();
+        for (String id : ids) l.add(net.minecraft.nbt.StringTag.valueOf(id));
+        n.put("fl", l);
+        com.sdzjz.item.ItemData.write(s, n);
+    }
+
+    /** m481（真移植 D 阶段先行·第二域）：路由域跨代行为契约——与 1.20.1 侧
+     *  RetroTickTests.route_domain_contract_retro 跑的是**同一套断言**（xplat RouteDomainAssertions）。
+     *  两代同绿=路由判定语义在两个世代上确实是同一个东西。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void route_domain_contract(GameTestHelper ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0);
+        ctx.setBlock(rel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
+            ctx.fail("结构核心方块实体未生成");
+            return;
+        }
+        var lvl = ctx.getLevel();
+        try {
+            ItemStack f = new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE);
+            putFilter(f, "minecraft:sand");
+            be.g.machineNodes.add(f);                                                   // 0
+            be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.GLASS_KILN)); // 1
+            be.g.connections.add(new int[]{0, 1});
+            com.sdzjz.node.RouteDomainAssertions.过滤器(be, lvl, 0, "minecraft:sand", "minecraft:dirt");
+            com.sdzjz.node.RouteDomainAssertions.耗料机(be, lvl, 1, "minecraft:sand", "minecraft:dirt");
+
+            ItemStack sw = new ItemStack(com.sdzjz.registry.ModItems.SWITCH_NODE);
+            putFlag(sw, "so", false);
+            be.g.machineNodes.add(sw);                                                  // 2
+            be.g.connections.add(new int[]{2, 1});
+            com.sdzjz.node.RouteDomainAssertions.开关关着(be, lvl, 2, "minecraft:sand");
+            putFlag(sw, "so", true);
+            com.sdzjz.node.RouteDomainAssertions.开关开着(be, lvl, 2, "minecraft:sand");
+
+            ItemStack pz = new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE);
+            putFilter(pz, "minecraft:sand");
+            putFlag(pz, "np", true);
+            be.g.machineNodes.add(pz);                                                  // 3
+            be.g.connections.add(new int[]{3, 1});
+            com.sdzjz.node.RouteDomainAssertions.暂停(be, lvl, 3, "minecraft:sand");
+
+            ItemStack tr = new ItemStack(com.sdzjz.registry.ModItems.TRASH_NODE);
+            putFilter(tr, "minecraft:sand");
+            be.g.machineNodes.add(tr);                                                  // 4
+            com.sdzjz.node.RouteDomainAssertions.垃圾桶授权语义(be, lvl, 4, "minecraft:sand", "minecraft:dirt");
+
+            ItemStack xOff = new ItemStack(com.sdzjz.registry.ModItems.EXTRACTOR_NODE);
+            ItemStack xOn = new ItemStack(com.sdzjz.registry.ModItems.EXTRACTOR_NODE);
+            putFlag(xOn, "xo", true);
+            be.g.machineNodes.add(xOff);                                                // 5
+            com.sdzjz.node.RouteDomainAssertions.抽取启停(be, lvl, 5, xOff, xOn);
+        } catch (AssertionError e) {
+            ctx.fail("路由域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
+
 }

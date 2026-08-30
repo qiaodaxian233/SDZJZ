@@ -44,6 +44,8 @@ RETRO_DIR = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "np": (True, "m110b 节点暂停（boolean）。判官预置用，NodeTags.nodePaused 读。"),
     "si": (True, "传感器监测物品 id（string）。判官预置用，NodeTags.sensorItem 读。"),
     "sv": (True, "传感器阈值（long）。判官预置用，NodeTags.sensorThreshold 读。"),
+    "sl": (True, "传感器方向（boolean，NodeTags.sensorLess）——真=补货型（库存低于阈值放行，缺省），"
+                 "假=溢出型（高于阈值才放行）。两代同键同义；m481 路由域契约判官预置用。"),
     "fl": (True, "过滤/机器白名单（ListTag of String）。判官预置用，NodeTags.filterPasses/"
                  "machineFilterAllows 读。"),
     "xo": (True, "m154 抽取节点开合（boolean，NodeTags.extractorOn）——两代同键同义。"
