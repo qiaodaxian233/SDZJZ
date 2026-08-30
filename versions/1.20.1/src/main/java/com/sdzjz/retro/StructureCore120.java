@@ -232,46 +232,19 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
         return 0L;
     }
 
-    /** m473 均分分发（分配器，蓝本 distributeEven0 世代版）：在所有"吃得下"的目标间平分、余数轮转
-     *  （前 extra 个各多一件）；类型上限拒收的份额与装不下的部分并入余量走存储尾巴；仍无处去的
-     *  **原样回吐**（蓝本 addOutput 输出缓存的世代对位=回调用方持料，m471 取舍④同路）。
-     *  蓝本刻意无两轮垫底：垃圾桶在均分里是平等目标（accepts=白名单），逐位照抄不发明。 */
+    /** m496：均分已下沉共用（xplat node/ProductRouter.distributeEven，与主线同一份代码——
+     *  m495 逐句对过：scratch 两遍法/share·extra 余数轮转/m270 拒收份额转兜底/BUF_CAP 封顶全部逐字相同，
+     *  两代唯一差异仍是兜底）。本世代只提供 Tail：余量落 kind0 产出仓，拒收原样回吐给调用方。 */
     long distributeEvenOut(net.minecraft.world.level.Level world, int fromIndex, StorageCore120 dep,
             boolean hasOut, String id, long amt) {
-        if (amt <= 0) return 0L;
-        if (hasOut) {
-            int okN = 0; // m357 scratch 两遍法：收可吃目标进复用数组（不跨调用不可重入）
-            for (int[] c : g.connections) {
-                if (c[0] != fromIndex) continue;
-                int t = c[1];
-                if (t >= 0 && t < g.machineNodes.size() && accepts(world, t, id)) {
-                    if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
-                    evenOk[okN++] = t;
-                }
-            }
-            if (okN > 0) {
-                long share = amt / okN, extra = amt % okN, undelivered = 0;
-                for (int k = 0; k < okN; k++) {
-                    long want = share + (k < extra ? 1 : 0);
-                    if (want <= 0) continue;
-                    java.util.Map<String, Long> m = nodeBuf(evenOk[k]);
-                    if (!bufTypeOk(m, id)) { undelivered += want; continue; } // m270 类型上限：拒收份额转默认路由
-                    long cur = m.getOrDefault(id, 0L);
-                    long put = Math.min(Math.max(0L, BUF_CAP - cur), want);
-                    if (put > 0) { m.put(id, cur + put); setChanged(); }
-                    undelivered += want - put;
-                }
-                amt = undelivered;
-            }
-        }
-        return depositTail(dep, id, amt);
+        return com.sdzjz.node.ProductRouter.distributeEven(routerHost, (lvl, from, i2, a2) -> depositTail(dep, i2, a2),
+                world, fromIndex, hasOut, id, amt);
     }
 
     // ===== m473 逻辑节点清运 scratch（蓝本 m350/m357 同构：转存进复用双数组再处理，
     // 不跨节点不跨 tick 不可重入；服务端 tick 单线程） =====
     private transient String[] drainIds = new String[16];
     private transient long[] drainAmts = new long[16];
-    private transient int[] evenOk = new int[8]; // m357 均分目标 scratch
 
     private int fillDrain(java.util.Map<String, Long> m) {
         int n = m.size();

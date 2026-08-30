@@ -2741,7 +2741,6 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     private transient java.util.HashMap<Integer, com.sdzjz.item.ChunkVaultItem.Acc> vaultAcc;
 
     private transient String[] drainIds = new String[16];
-    private transient int[] evenOk = new int[8]; // m357 均分目标 scratch（distributeEven0 每次一个 ArrayList 下岗，审计⑤轮④）
     private transient long[] drainAmts = new long[16];
     private int fillDrain(java.util.Map<String, Long> m) {
         int n = m.size();
@@ -3052,35 +3051,17 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
         finally { com.sdzjz.debug.CoreProfiler.sub(com.sdzjz.debug.CoreProfiler.SUB_DISTRIBUTE, System.nanoTime() - __t); }
     }
 
-    private void distributeEven0(Level world, int fromIndex, int[] targets, String id, long amt) { // m354b 补：m321 计时壳的实体签名漏改（沙盒 javac 缺 MC 类盲区，CI 抓获）
+    private void distributeEven0(Level world, int fromIndex, int[] targets, String id, long amt) { // m354b 补
         if (prof != null) prof.routes++; // m177
-        if (targets != null && targets.length > 0) {
-            int okN = 0; // m357 scratch 两遍法：收可吃目标进复用数组（不跨调用不可重入）
-            for (int t : targets)
-                if (t >= 0 && t < g.machineNodes.size() && accepts(world, t, id)) {
-                    if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
-                    evenOk[okN++] = t;
-                }
-            if (okN > 0) {
-                long share = amt / okN, extra = amt % okN, undelivered = 0;
-                for (int k = 0; k < okN; k++) {
-                    long want = share + (k < extra ? 1 : 0);
-                    if (want <= 0) continue;
-                    java.util.Map<String, Long> m = nodeBuf(evenOk[k]);
-                    if (!bufTypeOk(m, id)) { undelivered += want; continue; } // m270 类型上限：拒收份额转默认路由
-                    long cur = m.getOrDefault(id, 0L);
-                    long put = Math.min(Math.max(0, BUF_CAP - cur), want);
-                    if (put > 0) m.put(id, cur + put);
-                    undelivered += want - put;
-                }
-                amt = undelivered;
-            }
-        }
-        if (amt <= 0) return;
-        com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex);
-        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
-        if (dep != null) depositOrBuffer(dep, rest);
-        else addOutput(rest);
+        // m496：均分主体已下沉共用（ProductRouter.distributeEven，与 1.20.1 同一份）；兜底=本世代输出缓存路径。
+        com.sdzjz.node.ProductRouter.distributeEven(routerHost(targets), (lvl, from, id2, amt2) -> {
+            com.sdzjz.machine.StorageAccess dep = depositFor((Level) lvl, from);
+            ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id2)),
+                    (int) Math.min(amt2, 64L * OUTPUT_SLOTS));
+            if (dep != null) depositOrBuffer(dep, rest);
+            else addOutput(rest);
+            return 0L;
+        }, world, fromIndex, targets != null && targets.length > 0, id, amt);
     }
 
     /** 按需分发：只把目标机器"吃得下"的物品送下线；没人要的部分走 定向存储/默认路由——绝不堵死在下游缓存里。 */

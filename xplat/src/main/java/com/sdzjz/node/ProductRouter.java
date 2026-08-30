@@ -78,6 +78,46 @@ public final class ProductRouter {
         return tail.deposit(level, fromIndex, id, amt);
     }
 
+    /** m357 均分目标 scratch（两遍法：收可吃目标进复用数组；不跨调用不可重入）。 */
+    private static int[] evenOk = new int[8];
+
+    /**
+     * 均分分发（主线 distributeEven0 原文）：可吃目标间均分、**余数轮转**（前 extra 个各多一件）、
+     * m270 类型上限拒收的份额转兜底。与 {@link #distribute} 同构——**两代唯一差异同样只是兜底**，
+     * m495 逐句对过：scratch 两遍法、share/extra 算式、BUF_CAP 封顶全部逐字相同。
+     *
+     * @return 未能送出的余量（已交给 {@link Tail} 处理过一轮）
+     */
+    public static long distributeEven(Host host, Tail tail, Object level, int fromIndex,
+                                      boolean hasOut, String id, long amt) {
+        if (amt <= 0) return 0L;
+        int[] targets = hasOut ? host.outTargets(fromIndex) : null;
+        if (targets != null && targets.length > 0) {
+            int okN = 0; // m357 scratch 两遍法
+            for (int t : targets)
+                if (t >= 0 && t < host.nodeCount() && host.accepts(level, t, id)) {
+                    if (okN >= evenOk.length) evenOk = java.util.Arrays.copyOf(evenOk, evenOk.length * 2);
+                    evenOk[okN++] = t;
+                }
+            if (okN > 0) {
+                long share = amt / okN, extra = amt % okN, undelivered = 0;
+                for (int k = 0; k < okN; k++) {
+                    long want = share + (k < extra ? 1 : 0); // 余数轮转
+                    if (want <= 0) continue;
+                    java.util.Map<String, Long> m = host.nodeBuf(evenOk[k]);
+                    if (!host.bufTypeOk(m, id)) { undelivered += want; continue; } // m270 拒收份额转兜底
+                    long cur = m.getOrDefault(id, 0L);
+                    long put = Math.min(Math.max(0, BUF_CAP - cur), want);
+                    if (put > 0) { m.put(id, cur + put); host.markChanged(); }
+                    undelivered += want - put;
+                }
+                amt = undelivered;
+            }
+        }
+        if (amt <= 0) return 0L;
+        return tail.deposit(level, fromIndex, id, amt);
+    }
+
     /** m150 垃圾桶 + m378 虚空处理器：两者都是「最后去处」，第一轮一律跳过。 */
     public static boolean isTrashLike(ItemStack st) {
         return NodeTags.isTrash(st)
