@@ -892,37 +892,31 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     /** 概览：节点按分类配色画小矩形 + 当前视口白框；点击/拖拽跳转（见 mapJump）。 */
+    /** m490（真移植）：小地图已下沉共用（{@link MinimapRenderer}，两代同一份代码）。 */
     private void renderMinimap(GuiGraphics ctx) {
         StructureCoreBlockEntity be = be();
         if (be == null) return;
-        int mx = mapX(), my = mapY();
-        ctx.fill(mx + 2, my + 3, mx + MAP_W + 3, my + MAP_H + 3, 0x59000000); // m120 投影
-        ctx.fill(mx - 1, my - 1, mx + MAP_W + 1, my + MAP_H + 1, NODEFRM);
-        ctx.fill(mx, my, mx + MAP_W, my + MAP_H, 0xE0101820);
-        ctx.fill(mx, my, mx + MAP_W, my + 2, CYAN);
-        List<ItemStack> nodes = be.nodes();
-        if (nodes.isEmpty()) {
-            ctx.drawString(this.font, "画布为空", mx + (MAP_W - this.font.width("画布为空")) / 2,
-                    my + MAP_H / 2 - 4, SUB, false);
-            return;
-        }
-        double[] g = mapGeom(be);
-        for (int i = 0; i < nodes.size(); i++) {
-            int x1 = mx + 5 + (int) ((wnx(be, nodes, i) - g[0]) * g[2]);
-            int y1 = my + 5 + (int) ((wny(be, nodes, i) - g[1]) * g[2]);
-            int w = Math.max(3, (int) (NW * g[2])), h = Math.max(3, (int) (NH * g[2]));
-            ctx.fill(x1, y1, x1 + w, y1 + h, nodeAccent(nodes.get(i)));
-        }
-        int vx1 = mx + 5 + (int) (((0 - panX) / zoom - g[0]) * g[2]);
-        int vy1 = my + 5 + (int) (((34 - panY) / zoom - g[1]) * g[2]);
-        int vx2 = mx + 5 + (int) (((workRight() - panX) / zoom - g[0]) * g[2]);
-        int vy2 = my + 5 + (int) (((botTop() - panY) / zoom - g[1]) * g[2]);
-        vx1 = Math.max(mx + 1, vx1); vy1 = Math.max(my + 1, vy1);
-        vx2 = Math.min(mx + MAP_W - 1, vx2); vy2 = Math.min(my + MAP_H - 1, vy2);
-        int vc = 0xCCFFFFFF;
-        ctx.fill(vx1, vy1, vx2, vy1 + 1, vc); ctx.fill(vx1, vy2 - 1, vx2, vy2, vc);
-        ctx.fill(vx1, vy1, vx1 + 1, vy2, vc); ctx.fill(vx2 - 1, vy1, vx2, vy2, vc);
+        MinimapRenderer.render(ctx, this.font, mapViewOf(be), mapX(), mapY());
     }
+
+    /** m490：把本屏的 pan/zoom 记法归一成共用件要的 View（视口左上画布坐标 + 缩放 + 工作区边界）。 */
+    private MinimapRenderer.View mapViewOf(StructureCoreBlockEntity be) {
+        List<ItemStack> nodes = be.nodes();
+        return new MinimapRenderer.View() {
+            @Override public double viewLeft() { return (0 - panX) / zoom; }
+            @Override public double viewTop() { return (34 - panY) / zoom; }
+            @Override public double zoom() { return zoom; }
+            @Override public int workLeft() { return 0; }
+            @Override public int workTop() { return 34; }
+            @Override public int workRight() { return StructureCoreScreen.this.workRight(); }
+            @Override public int workBottom() { return botTop(); }
+            @Override public int nodeCount() { return nodes.size(); }
+            @Override public int nodeX(int i) { return wnx(be, nodes, i); }
+            @Override public int nodeY(int i) { return wny(be, nodes, i); }
+            @Override public ItemStack nodeStack(int i) { return nodes.get(i); }
+        };
+    }
+
 
     /** 点中的世界点移到工作区中心；拖拽期间用快照几何。 */
     private void mapJump(double mouseX, double mouseY) {

@@ -93,6 +93,12 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && overMap(mouseX, mouseY)) { // m490 小地图跳转：点中的画布点移到工作区中心
+            double[] w = com.sdzjz.client.MinimapRenderer.jumpTarget(mapView, mapX(), mapY(), mouseX, mouseY);
+            viewX = w[0] - (width - SIDEBAR_W) / 2.0 / zoom;
+            viewY = w[1] - (height - 16) / 2.0 / zoom;
+            return true;
+        }
         if (button == 0 && mouseY < 16 && mouseX >= width - SIDEBAR_W - 64 && mouseX < width - SIDEBAR_W - 8) {
             linkMode = !linkMode; // 顶栏连线按钮（区域化，m103 口径）
             linkFrom = -1;
@@ -337,6 +343,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.TXT, false);
         ctx.drawString(font, Component.translatable("sdzjz.canvas.nodes", g.machineNodes.size()),
                 width - SIDEBAR_W - 160, 4, SciSkinPalette.SUB, false);
+        if (mapOpen) com.sdzjz.client.MinimapRenderer.render(ctx, this.font, mapView, mapX(), mapY()); // m490 小地图
         if (placingSlot >= 0 && !placingIcon.isEmpty()) ctx.renderItem(placingIcon, mouseX - 8, mouseY - 8); // 放置幽灵
     }
 
@@ -372,6 +379,32 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         @Override public boolean running() { return true; } // 本世代画布无停机开关（世代取舍：核心恒运行）
     };
+
+    // ===== m490（真移植·画布视觉第五件）：小地图两代共用（xplat client/MinimapRenderer）=====
+    // 本世代原来完全没有小地图；主线 renderMinimap/mapGeom/mapJump 整段搬，几何走 View 口。
+    private boolean mapOpen = true;
+
+    private final com.sdzjz.client.MinimapRenderer.View mapView = new com.sdzjz.client.MinimapRenderer.View() {
+        @Override public double viewLeft() { return viewX; }
+        @Override public double viewTop() { return viewY; }
+        @Override public double zoom() { return zoom; }
+        @Override public int workLeft() { return 0; }
+        @Override public int workTop() { return 16; } // 本世代顶栏高 16
+        @Override public int workRight() { return width - SIDEBAR_W; }
+        @Override public int workBottom() { return height; }
+        @Override public int nodeCount() { return g.machineNodes.size(); }
+        @Override public int nodeX(int i) { return nodeCx(i); }
+        @Override public int nodeY(int i) { return nodeCy(i); }
+        @Override public net.minecraft.world.item.ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
+    };
+
+    private int mapX() { return width - SIDEBAR_W - com.sdzjz.client.MinimapRenderer.MAP_W - 8; }
+    private int mapY() { return height - 6 - com.sdzjz.client.MinimapRenderer.MAP_H; }
+
+    private boolean overMap(double mx, double my) {
+        return mapOpen && mx >= mapX() && mx <= mapX() + com.sdzjz.client.MinimapRenderer.MAP_W
+                && my >= mapY() && my <= mapY() + com.sdzjz.client.MinimapRenderer.MAP_H;
+    }
 
     private static final int NW = com.sdzjz.client.NodeCardRenderer.NW, NH = com.sdzjz.client.NodeCardRenderer.NH;
 

@@ -33,6 +33,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/client/SciSkin.java'        // m483（绞杀者第六刀）卡面工艺两代共用：326 行里只有 10 行世代专属（纹理 id 构造+顶点写法），已收进 Gfx 世代口（RetroSkinGfx）；drawCard/softShadow/glowLineH/vGrad/hGrad/vignette 自此在 1.20.1 可用
         include 'com/sdzjz/client/NodeCardRenderer.java' // m484（真移植·画布视觉第二件）节点卡渲染两代共用：主线 drawNode 216 行整段下沉，骨架层+六族逻辑节点读数行两代同一份；宿主数据走 Host 口，机器身份走 defOf 同一性，物品 id 走 Gfx.id 世代口
         include 'com/sdzjz/client/WireRenderer.java'    // m488（真移植·画布视觉第三件）连线缎带两代共用：主线 129 行整段搬（三次贝塞尔+三层缎带+彗星脉冲+端口发光圆点+m197 线宽封顶），唯一世代差=发顶点那四行走 Gfx.quadVC
+        include 'com/sdzjz/client/MinimapRenderer.java' // m490（真移植·画布视觉第五件）小地图两代共用：主线 renderMinimap/mapGeom/mapJump 整段搬，世代差为零（全是 fill 与算术），pan/zoom 记法差异归一在 View 口
         include 'com/sdzjz/machine/DropRolls.java'     // m464（C2-⑤a）掉落表掷点（依赖仅 RandomSource+MachineDef，闭包干净）
         include 'com/sdzjz/machine/StorageAccess.java' // m464（C2-⑤a）存储访问契约（依赖仅 ItemStack+Map；StorageCore120 补 implements 与主线辅件同型）
         include 'com/sdzjz/node/NodeTags.java'         // m472（绞杀者第五刀）节点栈标签纯函数上挂——NBT 走 ItemData 五口（m437/m451）、身份走 Ident 世代口（RetroNodeIdent），剩余 MC 触点=ItemStack/CompoundTag/Tag/ListTag 四个两代同名类型
