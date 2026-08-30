@@ -62,6 +62,9 @@ public final class StackKey {
     /** m500：附加数据稳定排序串的静态出口（面板排序用；同 {@link Kind#dataOrder} 口径）。 */
     public static String dataOrder(ItemStack stack) { return kind().dataOrder(stack); }
 
+    /** m502：「同物品+同附加数据」判定的静态出口（抽取口回收过滤用；同 {@link Kind#same} 口径）。 */
+    public static boolean same(ItemStack a, ItemStack b) { return kind().same(a, b); }
+
     public ItemStack template() { return tpl; }
 
     @Override

@@ -50,7 +50,7 @@ public class ExtractPortScreenHandler extends AbstractContainerMenu {
         this.props = (be != null && server) ? new ContainerData() { // 服务端实读 BE；邻接探测仅在开屏期间（m107a 面板同量级）
             @Override public int get(int index) {
                 if (index == 0) return be.extractOn() ? 1 : 0;
-                DataCableBlockEntity.Adjacency adj = DataCableBlockEntity.scanAdjacent(be.getLevel(), be.getBlockPos());
+                com.sdzjz.storage.ExtractPort.Adjacency adj = DataCableBlockEntity.scanAdjacent(be.getLevel(), be.getBlockPos()); // m502：Adjacency 迁共用件
                 if (index == 1) return adj.blockCount(); // m228 计邻块数
                 if (index == 2) {
                     if (be.pullMode() || !adj.sellTable()) return 0; // m229 出售状态：0=无桌（m231 回收模式桌不参与）

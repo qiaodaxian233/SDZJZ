@@ -42,6 +42,8 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "TagStackKey.java": (True, False, "栈键的 1.20.1 实现"),
     "RetroNodeIdent.java": (True, False, "NodeTags.Ident 的 1.20.1 实现（m472）"),
     "RetroStackCodec.java": (True, False, "CanvasGraphState.StackCodec 的 1.20.1 实现（m477）"),
+    "RetroXfer.java": (True, False, "m502：Xfer 五口的 1.20.1 实现（FabricXfer 原文照搬）——"
+                         "与主线 loader/FabricXfer 对位的世代口血肉，本来就该各世代一份，非双写"),
     "RetroStackKind.java": (True, False, "StackKey.Kind 的 1.20.1 实现（m478）"),
     "RetroSkinGfx.java": (True, False, "SciSkin.Gfx 的 1.20.1 实现（m483，纹理 id 构造+顶点写法两处）"),
     "RetroRecipeAccess.java": (True, False, "RecipeAccess 的 1.20.1 实现（m494 熔炼域实装，其余三域随 ⑤d1）"),
@@ -60,7 +62,9 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
                                           "本文件只剩 BE 注册/存档签名/tick 编排骨架/宿主面/机器生产分支"),
     "StorageCore120.java": (False, False, "对位 block/StorageCoreBlockEntity 的账本核心"
                                           "（普通账/精确账/类型闸/修订号）——B 阶段"),
-    "DataCable120.java": (False, False, "对位数据线 BE 的 BFS 与端点缓存——B 阶段之后"),
+    "DataCable120.java": (True, False, "数据线 BE **世代壳**：m502 起抽取口业务全走共用件"
+                         "（ExtractPort：逐模板抽/游标轮转/回收拍/六面视图/核心 40t 缓存）+ RetroXfer 五口内脏；"
+                         "本文件只剩 BE 注册与 1.20.1 存档签名、tick 相位闸与 m469 端点自愈、m449 持物右键过滤器交互"),
     "DataCableBlock120.java": (False, False, "对位 xplat/block/DataCableBlock（endFor 名单已有对表闸看着）"),
     "DataPanel120.java": (True, False, "数据面板**世代壳**：m500/m501 起业务全走共用件"
                          "（PanelAggregator：聚合/精确并账/排序/过滤/开窗/取物回账），本文件只剩 BE 开屏工厂"
