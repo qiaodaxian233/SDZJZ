@@ -1,10 +1,10 @@
 package com.sdzjz.retro;
 
-import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
+import com.sdzjz.block.CableEnd;
+import com.sdzjz.block.CableEndCore;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -20,70 +20,37 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * m444：数据线方块 1.20.1 版——语义蓝本=xplat {@code DataCableBlock}（m67 三态连接：缆对缆=纯细管、
  * 对设备=带插头臂、无连接=不伸臂；路由 BFS 只认方块类型，视觉不影响逻辑）。
  *
+ * <p>m502（真移植 B4b）：属性表/碰撞箱几何/三态判定核心迁 {@link CableEndCore} 两代共用
+ * （本世代自己的 {@code CableEnd120} 枚举同刀删除，改用共用的 {@link CableEnd}——两者原本逐字同值，
+ * 序列化名 none/cable/plug 与根仓 blockstate 多部件资产键同源，资产文件本身即同一份拷贝，
+ * 分两份纯属仿写路线的历史遗留）。
+ *
  * <p>1.20.1 签名差按 m440 清单口径行内指认：无 MapCodec（1.20.3 起才有）；updateShape/getShape/
  * getStateForPlacement 本版可见性为 public（1.20.5 起 Mojang 才收成 protected，蓝本的 protected
  * 在这版编不过）；交互走单一 use()（1.20.5 起才拆 useItemOn/useWithoutItem）。
  *
- * <p>本世代裁剪（P-C 到期补，非漏抄）：m233 按面断开（链接器随 P-C）——endFor 无掩码分支，
- * updateShape 无需服务端限定（掩码不存在，双端重算结果一致）；refreshEnd 无消费者不带。
- * 抽取口无配置屏（m226 属 P-C），空手右键在服务端循环 关→送出→回收 三态（actionbar 反馈），
- * 让 m231 双向拍在本世代可用可验。
+ * <p>本世代裁剪（P-C 到期补，非漏抄）：m233 按面断开（链接器随 P-C）——endFor 传给共用判定核心的
+ * 断开钩子恒 false；refreshEnd 无消费者不带。抽取口无配置屏（m226 属 P-C），空手右键在服务端
+ * 循环 关→送出→回收 三态（actionbar 反馈），让 m231 双向拍在本世代可用可验。
  */
 public final class DataCableBlock120 extends Block implements EntityBlock {
 
-    static final EnumProperty<CableEnd120> NORTH = EnumProperty.create("north", CableEnd120.class);
-    static final EnumProperty<CableEnd120> SOUTH = EnumProperty.create("south", CableEnd120.class);
-    static final EnumProperty<CableEnd120> EAST  = EnumProperty.create("east", CableEnd120.class);
-    static final EnumProperty<CableEnd120> WEST  = EnumProperty.create("west", CableEnd120.class);
-    static final EnumProperty<CableEnd120> UP    = EnumProperty.create("up", CableEnd120.class);
-    static final EnumProperty<CableEnd120> DOWN  = EnumProperty.create("down", CableEnd120.class);
-
-    static final Map<Direction, EnumProperty<CableEnd120>> END_PROPS = new EnumMap<>(Direction.class);
-    static {
-        END_PROPS.put(Direction.NORTH, NORTH);
-        END_PROPS.put(Direction.SOUTH, SOUTH);
-        END_PROPS.put(Direction.EAST, EAST);
-        END_PROPS.put(Direction.WEST, WEST);
-        END_PROPS.put(Direction.UP, UP);
-        END_PROPS.put(Direction.DOWN, DOWN);
-    }
-
-    private static final Map<BlockState, VoxelShape> SHAPES = new ConcurrentHashMap<>();
-    private static final VoxelShape CORE = Block.box(6, 6, 6, 10, 10, 10);
-    private static final Map<Direction, VoxelShape> ARMS = new EnumMap<>(Direction.class);
-    static {
-        ARMS.put(Direction.NORTH, Block.box(6, 6, 0, 10, 10, 6));
-        ARMS.put(Direction.SOUTH, Block.box(6, 6, 10, 10, 10, 16));
-        ARMS.put(Direction.EAST,  Block.box(10, 6, 6, 16, 10, 10));
-        ARMS.put(Direction.WEST,  Block.box(0, 6, 6, 6, 10, 10));
-        ARMS.put(Direction.UP,    Block.box(6, 10, 6, 10, 16, 10));
-        ARMS.put(Direction.DOWN,  Block.box(6, 0, 6, 10, 6, 10));
-    }
-
     public DataCableBlock120(Properties settings) {
         super(settings);
-        BlockState s = getStateDefinition().any();
-        for (EnumProperty<CableEnd120> p : END_PROPS.values()) s = s.setValue(p, CableEnd120.NONE);
-        registerDefaultState(s);
+        registerDefaultState(CableEndCore.allNone(getStateDefinition().any()));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN);
+        CableEndCore.addStateDefinition(builder);
     }
 
     @Override
@@ -91,7 +58,7 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
         BlockState s = defaultBlockState();
         for (Direction d : Direction.values()) {
             BlockPos np = ctx.getClickedPos().relative(d);
-            s = s.setValue(END_PROPS.get(d), endFor(ctx.getLevel(), np, ctx.getLevel().getBlockState(np)));
+            s = s.setValue(CableEndCore.END_PROPS.get(d), endFor(ctx.getLevel(), np, ctx.getLevel().getBlockState(np)));
         }
         return s;
     }
@@ -103,18 +70,12 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
         // !isClientSide 闸，客户端本地重算对 FTA-only 邻居必得 NONE，而服务端是 PLUG——
         // 双端不同果，客户端会把服务端同步来的插头臂算没（鬼影反向版）。形状一律听服务端。
         if (world.isClientSide()) return state;
-        return state.setValue(END_PROPS.get(direction), endFor(world, neighborPos, neighborState));
+        return state.setValue(CableEndCore.END_PROPS.get(direction), endFor(world, neighborPos, neighborState));
     }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
-        return SHAPES.computeIfAbsent(state, st -> {
-            VoxelShape shape = CORE;
-            for (Direction d : Direction.values()) {
-                if (st.getValue(END_PROPS.get(d)) != CableEnd120.NONE) shape = Shapes.or(shape, ARMS.get(d));
-            }
-            return shape;
-        });
+        return CableEndCore.shapeFor(state);
     }
 
     /** m444/m449 本世代交互（服务端权威改状态，actionbar 反馈；m226 配置屏随 P-C 到位后保留为
@@ -176,27 +137,24 @@ public final class DataCableBlock120 extends Block implements EntityBlock {
         for (Direction d : Direction.values()) {
             BlockPos np = pos.relative(d);
             if (!world.getChunkSource().hasChunk(np.getX() >> 4, np.getZ() >> 4)) return false; // 在树先例=StorageCore120.loadedCoreAt
-            s = s.setValue(END_PROPS.get(d), endFor(world, np, world.getBlockState(np)));
+            s = s.setValue(CableEndCore.END_PROPS.get(d), endFor(world, np, world.getBlockState(np)));
         }
         if (s != state) world.setBlock(pos, s, 3);
         return true;
     }
 
     /** 三态判定（蓝本 endFor 的本世代裁剪版）：数据线→缆管；**自家三块**（存储核心/结构核心/
-     *  数据面板）·容器 BE·任意暴露 FTA 的存储→插头；其余→无。FTA 探测只在服务端权威世界查
-     *  （蓝本同注：客户端注册表可能缺第三方登记，方块状态由服务端同步；世界生成期 ChunkRegion
-     *  不是 Level 直接跳过）。
+     *  数据面板）·容器 BE·任意暴露 FTA 的存储→插头；其余→无。m502：核心算法迁
+     *  {@link CableEndCore#classify}（两代共用，m233/m229 断开钩子本世代恒 false）；本方法只剩
+     *  "把名单判成布尔"——**名单字面必须留在本方法体里**（第 16 闸抓这段文本防漏抄，m469 血案）。
      *  <p>m469：自家名单原只抄了 STORAGE_CORE 一条——结构核心与数据面板都不实现 Container，
-     *  于是恒落到 NONE，线怼上去不伸插头（作者实机截图）。名单=蓝本 143 行六块与本世代已有
-     *  三块的交集，**由 tools_retro_parity_check 对表闸看住，别再手抄**。 */
-    private static CableEnd120 endFor(LevelAccessor world, BlockPos pos, BlockState state) {
+     *  于是恒落到 NONE，线怼上去不伸插头（作者实机截图）。名单=蓝本六块与本世代已有三块的交集，
+     *  **由 tools_retro_parity_check 对表闸看住，别再手抄**。 */
+    private static CableEnd endFor(LevelAccessor world, BlockPos pos, BlockState state) {
         Block b = state.getBlock();
-        if (b instanceof DataCableBlock120) return CableEnd120.CABLE;
-        if (b == RetroBlocks.STORAGE_CORE || b == RetroBlocks.STRUCTURE_CORE || b == RetroBlocks.DATA_PANEL)
-            return CableEnd120.PLUG; // m469：蓝本另三块（无线节点/卫星节点/交易所）本世代未建，到位随各自里程碑进名单
-        if (world.getBlockEntity(pos) instanceof Container) return CableEnd120.PLUG;
-        if (world instanceof Level w && !w.isClientSide
-                && ItemStorage.SIDED.find(w, pos, null) != null) return CableEnd120.PLUG;
-        return CableEnd120.NONE;
+        boolean isCable = b instanceof DataCableBlock120;
+        boolean isPlugBlock = b == RetroBlocks.STORAGE_CORE || b == RetroBlocks.STRUCTURE_CORE || b == RetroBlocks.DATA_PANEL;
+        // m469：蓝本另三块（无线节点/卫星节点/交易所）本世代未建，到位随各自里程碑进名单
+        return CableEndCore.classify(world, pos, isCable, false, false, isPlugBlock, false);
     }
 }

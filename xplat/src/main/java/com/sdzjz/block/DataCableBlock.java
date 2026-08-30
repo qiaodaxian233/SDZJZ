@@ -7,64 +7,40 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
-
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 数据线（m67 重做）：三态连接。
  * 缆对缆 = 纯细管（直线摆放视觉连续，无接头盒）；对设备 = 带连接器插头的臂；无连接 = 不伸臂。
  * 中心件与细管同粗，直通时看不出断点。路由 BFS 只认方块类型，视觉不影响逻辑。
+ *
+ * <p>m502（真移植 B4b）：属性表/碰撞箱几何/三态判定核心迁 {@link CableEndCore} 两代共用
+ * （本类保留 NORTH/SOUTH/... 等作为**只读转发**，外部引用点零改动）；本类只剩 CODEC/方法可见性
+ * 这类版本 API 差、与 m233 按面断开/m229 转化桌这类主线专属功能（{@code endFor} 里判成布尔传共用件）。
  */
 public class DataCableBlock extends Block implements EntityBlock {
 
     public static final MapCodec<DataCableBlock> CODEC = simpleCodec(DataCableBlock::new);
 
-    public static final EnumProperty<CableEnd> NORTH = EnumProperty.create("north", CableEnd.class);
-    public static final EnumProperty<CableEnd> SOUTH = EnumProperty.create("south", CableEnd.class);
-    public static final EnumProperty<CableEnd> EAST  = EnumProperty.create("east", CableEnd.class);
-    public static final EnumProperty<CableEnd> WEST  = EnumProperty.create("west", CableEnd.class);
-    public static final EnumProperty<CableEnd> UP    = EnumProperty.create("up", CableEnd.class);
-    public static final EnumProperty<CableEnd> DOWN  = EnumProperty.create("down", CableEnd.class);
-
-    public static final Map<Direction, EnumProperty<CableEnd>> END_PROPS = new EnumMap<>(Direction.class);
-    static {
-        END_PROPS.put(Direction.NORTH, NORTH);
-        END_PROPS.put(Direction.SOUTH, SOUTH);
-        END_PROPS.put(Direction.EAST, EAST);
-        END_PROPS.put(Direction.WEST, WEST);
-        END_PROPS.put(Direction.UP, UP);
-        END_PROPS.put(Direction.DOWN, DOWN);
-    }
-
-    private static final Map<BlockState, VoxelShape> SHAPES = new ConcurrentHashMap<>();
-    private static final VoxelShape CORE = Block.box(6, 6, 6, 10, 10, 10);
-    private static final Map<Direction, VoxelShape> ARMS = new EnumMap<>(Direction.class);
-    static {
-        ARMS.put(Direction.NORTH, Block.box(6, 6, 0, 10, 10, 6));
-        ARMS.put(Direction.SOUTH, Block.box(6, 6, 10, 10, 10, 16));
-        ARMS.put(Direction.EAST,  Block.box(10, 6, 6, 16, 10, 10));
-        ARMS.put(Direction.WEST,  Block.box(0, 6, 6, 6, 10, 10));
-        ARMS.put(Direction.UP,    Block.box(6, 10, 6, 10, 16, 10));
-        ARMS.put(Direction.DOWN,  Block.box(6, 0, 6, 10, 6, 10));
-    }
+    // ===== m502：转发 CableEndCore（外部引用点如 DataCableRenderer 零改动）=====
+    public static final EnumProperty<CableEnd> NORTH = CableEndCore.NORTH;
+    public static final EnumProperty<CableEnd> SOUTH = CableEndCore.SOUTH;
+    public static final EnumProperty<CableEnd> EAST  = CableEndCore.EAST;
+    public static final EnumProperty<CableEnd> WEST  = CableEndCore.WEST;
+    public static final EnumProperty<CableEnd> UP    = CableEndCore.UP;
+    public static final EnumProperty<CableEnd> DOWN  = CableEndCore.DOWN;
+    public static final java.util.Map<Direction, EnumProperty<CableEnd>> END_PROPS = CableEndCore.END_PROPS;
 
     public DataCableBlock(Properties settings) {
         super(settings);
-        BlockState s = getStateDefinition().any();
-        for (EnumProperty<CableEnd> p : END_PROPS.values()) s = s.setValue(p, CableEnd.NONE);
-        registerDefaultState(s);
+        registerDefaultState(CableEndCore.allNone(getStateDefinition().any()));
     }
 
     @Override
@@ -74,7 +50,7 @@ public class DataCableBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(NORTH, SOUTH, EAST, WEST, UP, DOWN);
+        CableEndCore.addStateDefinition(builder);
     }
 
     @Override
@@ -106,13 +82,7 @@ public class DataCableBlock extends Block implements EntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
-        return SHAPES.computeIfAbsent(state, st -> {
-            VoxelShape shape = CORE;
-            for (Direction d : Direction.values()) {
-                if (st.getValue(END_PROPS.get(d)) != CableEnd.NONE) shape = Shapes.or(shape, ARMS.get(d));
-            }
-            return shape;
-        });
+        return CableEndCore.shapeFor(state);
     }
 
     @Override
@@ -131,23 +101,18 @@ public class DataCableBlock extends Block implements EntityBlock {
                 (net.minecraft.world.level.block.entity.BlockEntityTicker<DataCableBlockEntity>) DataCableBlockEntity::tick;
     }
 
-    /** 三态判定：数据线→缆管；网络方块/容器→插头；其余→无。m233：任一端按面断开→无。 */
+    /** 三态判定：数据线→缆管；网络方块/容器→插头；其余→无。m233：任一端按面断开→无。
+     *  m502：核心算法迁 {@link CableEndCore#classify}（两代共用）；本方法只剩"把名单/断开状态
+     *  判成布尔"这道手续——**名单字面必须留在本方法体里**（第 16 闸靠抓这段文本防漏抄，m469 血案）。 */
     private static CableEnd endFor(LevelAccessor world, BlockPos cablePos, Direction d, BlockPos pos, BlockState state) {
-        if (world.getBlockEntity(cablePos) instanceof DataCableBlockEntity self && self.faceDisabled(d))
-            return CableEnd.NONE; // m233 本端断开（放置期 BE 未建=掩码 0，天然直通）
         Block b = state.getBlock();
-        if (b instanceof DataCableBlock)
-            return (world.getBlockEntity(pos) instanceof DataCableBlockEntity oc && oc.faceDisabled(d.getOpposite()))
-                    ? CableEnd.NONE : CableEnd.CABLE; // m233 对端断开=这边也不伸（视觉与 BFS 口径一致）
-        if (b == ModBlocks.STRUCTURE_CORE || b == ModBlocks.STORAGE_CORE || b == ModBlocks.DATA_PANEL
-                || b == ModBlocks.WIRELESS_NODE || b == ModBlocks.SATELLITE_NODE || b == ModBlocks.TRADE_CENTER) return CableEnd.PLUG;
-        if (world.getBlockEntity(pos) instanceof Container) return CableEnd.PLUG;
-        if (com.sdzjz.compat.ProjectEFCompat.isTransmutationTable(state)) return CableEnd.PLUG; // m229 转化桌（纯 id 判无反射，双端安全）
-        // m224 任意暴露 Fabric Transfer API 的存储也伸插头（Create 置物台/AE2 接口这类不实现 Container 的
-        // 全吃）；只在服务端权威世界查（客户端注册表可能缺第三方登记，方块状态由服务端同步），
-        // 世界生成期的 ChunkRegion 不是 World 直接跳过。
-        if (world instanceof net.minecraft.world.level.Level w && !w.isClientSide
-                && com.sdzjz.storage.Xfer.find(w, pos, null) != null) return CableEnd.PLUG; // m404 平台口
-        return CableEnd.NONE;
+        boolean selfDisabled = world.getBlockEntity(cablePos) instanceof DataCableBlockEntity self && self.faceDisabled(d);
+        boolean isCable = b instanceof DataCableBlock;
+        boolean neighborDisabled = isCable
+                && world.getBlockEntity(pos) instanceof DataCableBlockEntity oc && oc.faceDisabled(d.getOpposite());
+        boolean isPlugBlock = b == ModBlocks.STRUCTURE_CORE || b == ModBlocks.STORAGE_CORE || b == ModBlocks.DATA_PANEL
+                || b == ModBlocks.WIRELESS_NODE || b == ModBlocks.SATELLITE_NODE || b == ModBlocks.TRADE_CENTER;
+        boolean isSellNeighbor = com.sdzjz.compat.ProjectEFCompat.isTransmutationTable(state); // m229 转化桌
+        return CableEndCore.classify(world, pos, isCable, selfDisabled, neighborDisabled, isPlugBlock, isSellNeighbor);
     }
 }

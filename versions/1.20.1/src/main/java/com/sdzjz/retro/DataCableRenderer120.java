@@ -21,8 +21,8 @@ import org.joml.Vector3f;
  * （energy_flow 1.5s 循环：每条连接臂一个能量包从外端流向中心，各方向错相 0.25s，
  * 端点缩放包络淡入淡出）。几何数据 {@code DataCableAnimGeo} 经 xplat 白名单挂载同一份。
  * 与蓝本世代差同 {@code StorageCoreRenderer120} 两条（ResourceLocation 构造器/链式顶点），
- * 外加属性表对位：主线 DataCableBlock.END_PROPS/CableEnd → 本世代
- * DataCableBlock120.END_PROPS/CableEnd120（m444 对位新写，序列化名同源）。
+ * 外加属性表：m502 起两代共用 CableEndCore.END_PROPS/CableEnd（真移植 B4b），
+ * 本渲染器随之改引共用件，不再有本世代专属的 END_PROPS/CableEnd120。
  */
 public final class DataCableRenderer120 implements BlockEntityRenderer<DataCable120> {
 
@@ -42,7 +42,7 @@ public final class DataCableRenderer120 implements BlockEntityRenderer<DataCable
 
         for (int i = 0; i < DIRS.length; i++) {
             Direction d = DIRS[i];
-            if (state.getValue(DataCableBlock120.END_PROPS.get(d)) == CableEnd120.NONE) continue;
+            if (state.getValue(com.sdzjz.block.CableEndCore.END_PROPS.get(d)) == com.sdzjz.block.CableEnd.NONE) continue; // m502：属性表迁共用件
             float progress = ((time + i * 5f) % 30f) / 30f;          // 各方向错相 0.25s
             float zLocal = 0.06f + progress * 0.44f;                  // 外端 → 中心
             float fade = (float) Math.sin(Math.PI * progress);        // 端点淡入淡出

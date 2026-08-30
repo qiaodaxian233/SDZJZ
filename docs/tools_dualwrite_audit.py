@@ -65,7 +65,9 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "DataCable120.java": (True, False, "数据线 BE **世代壳**：m502 起抽取口业务全走共用件"
                          "（ExtractPort：逐模板抽/游标轮转/回收拍/六面视图/核心 40t 缓存）+ RetroXfer 五口内脏；"
                          "本文件只剩 BE 注册与 1.20.1 存档签名、tick 相位闸与 m469 端点自愈、m449 持物右键过滤器交互"),
-    "DataCableBlock120.java": (False, False, "对位 xplat/block/DataCableBlock（endFor 名单已有对表闸看着）"),
+    "DataCableBlock120.java": (True, False, "数据线方块**世代壳**：m502（B4b）起属性表/碰撞箱几何/"
+                         "三态判定核心全走共用件 CableEndCore；本文件只剩 CODEC 缺失/方法可见性等版本 API 差、"
+                         "endFor 里的自家名单字面（第16闸看着，故意不下沉）、m444/m449 本世代专属交互（空手循环三态/持物过滤器）"),
     "DataPanel120.java": (True, False, "数据面板**世代壳**：m500/m501 起业务全走共用件"
                          "（PanelAggregator：聚合/精确并账/排序/过滤/开窗/取物回账），本文件只剩 BE 开屏工厂"
                          "（ExtendedScreenHandlerFactory 两代签名不同）、虚拟列表菜单 PanelMenu120（主线是 54 展示槽+合成网格，协议形状差）、"

@@ -23,6 +23,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
    ["exactTpl","exactN","exactIdx","store","xpBank","exactIndexOf","typeGate",
     "exactIdxAppended","exactIdxRemoved","storeRev","exactRev"],
  "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java": [],
+ "xplat/src/main/java/com/sdzjz/block/DataCableBlock.java": ["SHAPES", "CORE", "ARMS"],
+ "versions/1.20.1/src/main/java/com/sdzjz/retro/DataCableBlock120.java":
+   ["NORTH", "SOUTH", "EAST", "WEST", "UP", "DOWN", "END_PROPS", "SHAPES", "CORE", "ARMS"],
  "src/main/java/com/sdzjz/block/DataCableBlockEntity.java":
    ["filter","rrCursor","opTargetsFull","coresScanTick","coresCache",
     "extractSpec","extractAll","doPull","pullWants","insertInto","collectView","Adjacency"],

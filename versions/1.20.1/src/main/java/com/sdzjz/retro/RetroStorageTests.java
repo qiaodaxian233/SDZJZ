@@ -289,9 +289,9 @@ public final class RetroStorageTests implements FabricGameTest {
         var st = ctx.getBlockState(cableRel);
         int plug = 0, cable = 0;
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-            CableEnd120 e = st.getValue(DataCableBlock120.END_PROPS.get(d));
-            if (e == CableEnd120.PLUG) plug++;
-            else if (e == CableEnd120.CABLE) cable++;
+            com.sdzjz.block.CableEnd e = st.getValue(com.sdzjz.block.CableEndCore.END_PROPS.get(d)); // m502：属性表迁共用件
+            if (e == com.sdzjz.block.CableEnd.PLUG) plug++;
+            else if (e == com.sdzjz.block.CableEnd.CABLE) cable++;
         }
         ctx.assertTrue(plug == 2, "数据面板+结构核心应各伸一只插头，实得 " + plug);
         ctx.assertTrue(cable == 0, "无相邻数据线，缆管端应为 0，实得 " + cable);
@@ -307,12 +307,12 @@ public final class RetroStorageTests implements FabricGameTest {
         ctx.setBlock(cableRel, RetroBlocks.DATA_CABLE.defaultBlockState());
         int before = 0;
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values())
-            if (ctx.getBlockState(cableRel).getValue(DataCableBlock120.END_PROPS.get(d)) != CableEnd120.NONE) before++;
+            if (ctx.getBlockState(cableRel).getValue(com.sdzjz.block.CableEndCore.END_PROPS.get(d)) != com.sdzjz.block.CableEnd.NONE) before++;
         ctx.assertTrue(before == 0, "后放的线本应是陈旧全 NONE 态，实得非 NONE 端 " + before);
         DataCableBlock120.healEnds(ctx.getLevel(), ctx.absolutePos(cableRel), ctx.getBlockState(cableRel));
         int after = 0;
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values())
-            if (ctx.getBlockState(cableRel).getValue(DataCableBlock120.END_PROPS.get(d)) == CableEnd120.PLUG) after++;
+            if (ctx.getBlockState(cableRel).getValue(com.sdzjz.block.CableEndCore.END_PROPS.get(d)) == com.sdzjz.block.CableEnd.PLUG) after++;
         ctx.assertTrue(after == 1, "自愈后应对数据面板伸一只插头，实得 " + after);
         ctx.succeed();
     }
