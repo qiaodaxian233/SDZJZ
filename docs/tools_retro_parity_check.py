@@ -31,6 +31,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # 本世代已建方块：RetroBlocks 里 reg("xxx") 的登记表（snake → 常量名）
 RETRO_BLOCKS_SRC = "versions/1.20.1/src/main/java/com/sdzjz/retro/RetroBlocks.java"
 
+# m486 退役记录：m473 立的三条「accepts / accepts↔chainWants 成对表」对表项已摘除。
+# 理由——**它们是为仿写路线而设的补丁**：当年两代各写一份 accepts/chainWants，靠这把尺子
+# 追平名单。m486 起路由脑判定层两代共用同一份代码（xplat node/RouteBrain），"名单漏抄"
+# 这种失败模式**按构造不存在**了，尺子没有对象可量。行为改由 m481 的路由域跨代契约
+# （RouteDomainAssertions 六条成对判定）压着——从"对表"升级成"对行为"。
+# 这正是 m477 定路线时预言的「对表闸可以退役」，第一批兑现。
+
 ITEMS = [
     {
         "名称": "数据线端点 PLUG 自家方块名单（m469 血案）",
@@ -56,33 +63,6 @@ ITEMS = [
     # 只写 accepts 那面，"仓→过滤器→酿造塔"拉料恒不通拖了整整一刀才实锤）。三条一起看：
     # ①本世代 accepts 有没有漏抄蓝本的类型分支；②③本世代两面互查（双向都跑=集合等价，
     # 少哪面都会红）。抓取正则=NodeTags.isXxx 族判定调用，与方块无关故豁免关。
-    {
-        "名称": "accepts 节点类型分派表·蓝本→本世代（m473）",
-        "蓝本文件": "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java",
-        "蓝本方法": "accepts0",
-        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
-        "本世代方法": "accepts",
-        "正则": r"NodeTags\.(is[A-Z]\w*)",
-        "豁免": False,
-    },
-    {
-        "名称": "accepts↔chainWants 成对表·收料面→需求面（m473）",
-        "蓝本文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
-        "蓝本方法": "accepts",
-        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
-        "本世代方法": "chainWants",
-        "正则": r"NodeTags\.(is[A-Z]\w*)",
-        "豁免": False,
-    },
-    {
-        "名称": "accepts↔chainWants 成对表·需求面→收料面（m473 反向）",
-        "蓝本文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
-        "蓝本方法": "chainWants",
-        "本世代文件": "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java",
-        "本世代方法": "accepts",
-        "正则": r"NodeTags\.(is[A-Z]\w*)",
-        "豁免": False,
-    },
     {
         # m475（⑤c3）：拉料循环的「哪些逻辑节点吃供料边」清单——蓝本刻意**不含垃圾桶**
         # （防「仓→垃圾桶」手滑清空整仓，m150 边界）。这份清单漏一族=那族接了金线也拉不动料，

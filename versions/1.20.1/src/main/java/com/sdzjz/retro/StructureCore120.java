@@ -183,79 +183,9 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
         return com.sdzjz.node.NodeTags.isTrash(st);
     }
 
-    /** m471 收料判定：下游节点收不收 id（蓝本 accepts0 的世代版，m473 七分支落地）。
-     *  <p><b>与 {@link #chainWants} 是同一张节点类型表的两面</b>（一个管"收不收"、一个管"要不要"），
-     *  改一面必改另一面——m131b 只写本面、"仓→过滤器→酿造塔"拉料恒不通拖到 m132-6 才实锤；
-     *  对表闸"accepts↔chainWants 成对表"两向压着（m470 家法）。
-     *  <p><b>蓝本逐分支对照表</b>（已落的划账，未落的标到序刀号）：
-     *  <ul>
-     *  <li>【m473 落】暂停 nodePaused→false ／ 过滤器 filterPasses ／ 传感器 sensorOpen ／
-     *      开关 switchOn ／ 分配器→true ／ 垃圾桶 machineFilterAllows ／ 抽取节点 extractorLive+白名单；</li>
-     *  <li>虚空处理器 配置+白名单 —— 随 <b>⑤e</b>（xpPool 未建，收了只会压死在缓存里；本刀显式拒收=
-     *      上游走默认路由回仓零丢件，与蓝本"配置停用"形态同一姿势）；</li>
-     *  <li>自动合成机 CraftPlanner ／ 酿造塔 BrewPlanner ／ 附魔工厂 EnchantPlanner ／ 熔炉族 SmeltPlanner
-     *      —— 四条随 <b>⑤d</b>（规划器族依赖 RecipeAccess，本世代未建；这四台 def 产表空/
-     *      consumesInputs=false，恰好逐位退化成蓝本"目标未配置"的行为=false，非漏抄）；</li>
-     *  <li>【m471 落】MachineItem·consumesInputs 逐输入比对 ／ 免费产出机→false ／ 其余（农场/笼子）→false。</li>
-     *  </ul> */
-    private boolean accepts(net.minecraft.world.level.Level world, int target, String id) {
-        ItemStack st = g.machineNodes.get(target);
-        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;                      // m110b 暂停不收（上游改走默认路由）
-        if (com.sdzjz.node.NodeTags.isFilter(st)) return com.sdzjz.node.NodeTags.filterPasses(st, id); // 拦下的留上游走默认路由→存储
-        if (com.sdzjz.node.NodeTags.isSensor(st)) return sensorOpen(world, target);    // 关闸不收（上游全关闸时整台暂停）
-        if (com.sdzjz.node.NodeTags.isSwitch(st)) return com.sdzjz.node.NodeTags.switchOn(st); // 关闸不收，同上
-        if (com.sdzjz.node.NodeTags.isDistributor(st)) return true;                    // 分配器什么都收（分不出去的走默认路由）
-        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m150 垃圾桶 / m160 安全桶：白名单空=连啥吞啥
-        if (com.sdzjz.node.NodeTags.isExtractor(st))                                   // m154 开=收 / m160 感应联动+白名单一起闸
-            return extractorLive(world, target, st) && com.sdzjz.node.NodeTags.machineFilterAllows(st, id);
-        com.sdzjz.machine.MachineDef def = com.sdzjz.node.NodeTags.defOf(st);          // m472 世代身份口（对位蓝本 instanceof MachineItem）
-        if (def == null) return false;
-        if (def == com.sdzjz.machine.Machines.VOID_PROCESSOR) return false;            // ⑤e（对照表第二条，与 chainWants 行成对记档）
-        if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false;          // 熔炉族随 ⑤d（SmeltPlanner 缺 RecipeAccess）
-        if (!def.consumesInputs()) return false;                                       // 免费产出机不吃料（蓝本尾兜同）
-        for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
-        return false;
-    }
 
-    /** m473 传感器闸门（蓝本 sensorOpen 世代版）：未配置监测物品=直通；否则按监测库存量与阈值比较。
-     *  监测目标=本节点的 kind1 供料线所指的仓。<b>世代取舍记档</b>：本世代无"默认主存储"概念
-     *  （蓝本回落 resolveInputSource），未连供料线=按 0 计——补货型（默认 sl=低于阈值放行）恒放行、
-     *  溢出型恒关；连上供料线即与蓝本逐位同义。 */
-    boolean sensorOpen(net.minecraft.world.level.Level world, int i) {
-        ItemStack st = g.machineNodes.get(i);
-        String id = com.sdzjz.node.NodeTags.sensorItem(st);
-        if (id.isEmpty()) return true;
-        StorageCore120 sc = supplyTarget(world, i);
-        long have = sc == null ? 0 : sc.count(id);
-        long th = com.sdzjz.node.NodeTags.sensorThreshold(st);
-        return com.sdzjz.node.NodeTags.sensorLess(st) ? have < th : have > th;
-    }
 
-    /** m473 抽取节点"活着"判定（蓝本 extractorLive 同式）：手动开 && （未配监测 ｜ 传感条件放行）
-     *  ——配了监测物品的抽取节点=自带阈值自动启停（m160）。 */
-    boolean extractorLive(net.minecraft.world.level.Level world, int i, ItemStack st) {
-        return com.sdzjz.node.NodeTags.extractorOn(st)
-                && (com.sdzjz.node.NodeTags.sensorItem(st).isEmpty() || sensorOpen(world, i));
-    }
 
-    /** m473 该节点的全部出线目标是否都是「关着的闸」（关闸传感器/关开关/停机抽取/暂停节点）——
-     *  是则上游整台暂停不白产不塞存储（蓝本 allGatesClosed 同构；无出线=false）。 */
-    private boolean allGatesClosed(net.minecraft.world.level.Level world, int from) {
-        boolean any = false;
-        for (int[] c : g.connections) {
-            if (c[0] != from) continue;
-            int t = c[1];
-            if (t < 0 || t >= g.machineNodes.size()) return false;
-            ItemStack ts = g.machineNodes.get(t);
-            boolean closedGate = (com.sdzjz.node.NodeTags.isSensor(ts) && !sensorOpen(world, t))
-                    || (com.sdzjz.node.NodeTags.isSwitch(ts) && !com.sdzjz.node.NodeTags.switchOn(ts))
-                    || (com.sdzjz.node.NodeTags.isExtractor(ts) && !extractorLive(world, t, ts)) // m154+m160 感应暂停同视关闸
-                    || com.sdzjz.node.NodeTags.nodePaused(ts); // m110b 暂停视同关闸——下游全暂停时上游整台停，不白产
-            if (!closedGate) return false;
-            any = true;
-        }
-        return any;
-    }
 
     // m218d 谱系：chainWants 顶层调用的 visited 集合复用（服务端 tick 单线程、递归自身传同一集合，
     // 清场复用安全）。⑤c3 拉料循环届时消费，判官现在就用。
@@ -263,65 +193,7 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
 
     java.util.Set<Integer> wantsScratchCleared() { wantsScratch.clear(); return wantsScratch; }
 
-    /** m473 链式需求（蓝本 chainWants0 世代版）：上游拉料时问"这条出线链的下游到底要不要 id"。
-     *  深度≤8+visited 防环；逻辑节点按各自闸放行后**沿出线递归**（本世代直遍历 g.connections=
-     *  m471 邻接取舍同路）。<b>与 {@link #accepts} 成对</b>（同一张表的两面，见彼处对照表）：
-     *  规划器四行随 ⑤d、虚空行随 ⑤e，均与 accepts 逐行成对记档。⑤c3 供料侧接线届时直接消费本方法。 */
-    boolean chainWants(net.minecraft.world.level.Level world, int i, String id, int depth, java.util.Set<Integer> visited) {
-        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
-        ItemStack st = g.machineNodes.get(i);
-        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false; // m110b 暂停节点不参与链式需求
-        if (com.sdzjz.node.NodeTags.isFilter(st)) {
-            if (!com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
-        } else if (com.sdzjz.node.NodeTags.isSwitch(st)) {
-            if (!com.sdzjz.node.NodeTags.switchOn(st)) return false;
-        } else if (com.sdzjz.node.NodeTags.isExtractor(st)) {
-            if (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id)) return false; // m160 感应+白名单闸
-        } else if (com.sdzjz.node.NodeTags.isTrash(st)) {
-            // m153 垃圾桶链式需求：经逻辑节点转接=玩家明确布线授权，垃圾桶作为终端什么都"想要"；
-            // "直连仓不抽"的防手滑边界在 ⑤c3 拉料回路的节点类型清单里（本就不含垃圾桶），本方法不破。
-            return true;
-        } else if (com.sdzjz.node.NodeTags.isSensor(st) || com.sdzjz.node.NodeTags.isDistributor(st)) {
-            // 传感器闸门/分配器均分在下发阶段生效，需求判定直接放行（蓝本原注原句）
-        } else {
-            com.sdzjz.machine.MachineDef def = com.sdzjz.node.NodeTags.defOf(st); // m472 世代身份口
-            if (def == null) return false;
-            if (def == com.sdzjz.machine.Machines.VOID_PROCESSOR) return false;  // ⑤e（与 accepts 行成对）
-            if (com.sdzjz.machine.Machines.smelterFamily(def.id())) return false; // ⑤d（蓝本=SmeltPlanner 可熔判定+白名单）
-            if (def.consumesInputs()) {
-                for (com.sdzjz.machine.MachineDef.Input in : def.inputs()) if (in.item().equals(id)) return true;
-                return false;
-            }
-            return false; // 免费产出机/农场笼子不吃供料（蓝本尾兜同）
-        }
-        for (int[] c : g.connections) { // 逻辑节点放行后沿出线递归（蓝本 outT[i] 的等价遍历）
-            if (c[0] != i) continue;
-            if (chainWants(world, c[1], id, depth + 1, visited)) return true;
-        }
-        return false;
-    }
 
-    /** m475 精确账本抽取的授权判定（蓝本 chainEndsInTrash 世代版）：该 id 沿本节点的出线链
-     *  能否抵达垃圾桶（沿途尊重过滤白名单/开关/抽取启停/暂停，深度≤8+visited 防环）。
-     *  <p>只有「终点是销毁」才允许把带组件的精确件抹组件抽走——反正是去销毁，抹组件无损语义
-     *  （m155→m158 谱系）。顺带收益：链上有关着的抽取节点=闸断不抽，抽取节点成了销毁线的启停阀。
-     *  虚空处理器那一支随 ⑤e（与 accepts/chainWants 两面同批，见彼处记档）。 */
-    private boolean chainEndsInTrash(net.minecraft.world.level.Level world, int i, String id, int depth,
-            java.util.Set<Integer> visited) {
-        if (depth > 8 || i < 0 || i >= g.machineNodes.size() || !visited.add(i)) return false;
-        ItemStack st = g.machineNodes.get(i);
-        if (com.sdzjz.node.NodeTags.nodePaused(st)) return false;
-        if (com.sdzjz.node.NodeTags.isTrash(st)) return com.sdzjz.node.NodeTags.machineFilterAllows(st, id); // m160 安全桶名单外不算销毁终点
-        if (com.sdzjz.node.NodeTags.isFilter(st) && !com.sdzjz.node.NodeTags.filterPasses(st, id)) return false;
-        if (com.sdzjz.node.NodeTags.isSwitch(st) && !com.sdzjz.node.NodeTags.switchOn(st)) return false;
-        if (com.sdzjz.node.NodeTags.isExtractor(st)
-                && (!extractorLive(world, i, st) || !com.sdzjz.node.NodeTags.machineFilterAllows(st, id))) return false; // m160
-        for (int[] c : g.connections) {
-            if (c[0] != i) continue;
-            if (chainEndsInTrash(world, c[1], id, depth + 1, visited)) return true;
-        }
-        return false;
-    }
 
     private final transient java.util.HashSet<Integer> trashScratch = new java.util.HashSet<>();
 
@@ -987,4 +859,60 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
     public boolean probeExtractorLive(Object level, int i, ItemStack st) {
         return extractorLive((net.minecraft.world.level.Level) level, i, st);
     }
+
+    // ===== m486（真移植·C 阶段主刀）：路由脑判定层已下沉共用（xplat node/RouteBrain）=====
+    // 原来这里是六个**按主线重写的判定函数**（accepts/chainWants/chainEndsInTrash/sensorOpen/
+    // extractorLive/allGatesClosed，共 157 行）。整段删除，改为转发到与主线**同一份**代码。
+    // 行为由 m481 的路由域跨代契约压着（RouteDomainAssertions 六条成对判定）。
+    private final com.sdzjz.node.RouteBrain.Host brainHost = new com.sdzjz.node.RouteBrain.Host() {
+        @Override public int nodeCount() { return g.machineNodes.size(); }
+        @Override public ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
+        @Override public long sensorObserved(int i, String id) {
+            StorageCore120 sc = supplyTarget(level, i); // 世代取舍：本世代无「默认主存储」，未连供料线按 0 计
+            return sc == null ? 0L : sc.count(id);
+        }
+    };
+
+    /** 本节点的出线目标数组（主线 m355 已数组化，本世代按需现算）。 */
+    private int[] outTargetsOf(int i) {
+        int n = 0;
+        for (int[] c : g.connections) if (c[0] == i) n++;
+        int[] out = new int[n];
+        int k = 0;
+        for (int[] c : g.connections) if (c[0] == i) out[k++] = c[1];
+        return out;
+    }
+
+    private int[][] outTAll() {
+        int n = g.machineNodes.size();
+        int[][] t = new int[n][];
+        for (int i = 0; i < n; i++) t[i] = outTargetsOf(i);
+        return t;
+    }
+
+    private boolean accepts(net.minecraft.world.level.Level world, int target, String id) {
+        return com.sdzjz.node.RouteBrain.accepts(brainHost, world, target, id);
+    }
+
+    boolean chainWants(net.minecraft.world.level.Level world, int i, String id, int depth, java.util.Set<Integer> visited) {
+        return com.sdzjz.node.RouteBrain.chainWants(brainHost, world, i, id, depth, visited, outTAll(), new java.util.HashMap<>());
+    }
+
+    private boolean chainEndsInTrash(net.minecraft.world.level.Level world, int i, String id, int depth,
+            java.util.Set<Integer> visited) {
+        return com.sdzjz.node.RouteBrain.chainEndsInTrash(brainHost, world, i, id, depth, visited, outTAll());
+    }
+
+    boolean sensorOpen(net.minecraft.world.level.Level world, int i) {
+        return com.sdzjz.node.RouteBrain.sensorOpen(brainHost, world, i);
+    }
+
+    boolean extractorLive(net.minecraft.world.level.Level world, int i, ItemStack st) {
+        return com.sdzjz.node.RouteBrain.extractorLive(brainHost, world, i, st);
+    }
+
+    private boolean allGatesClosed(net.minecraft.world.level.Level world, int from) {
+        return com.sdzjz.node.RouteBrain.allGatesClosed(brainHost, world, outTargetsOf(from));
+    }
+
 }
