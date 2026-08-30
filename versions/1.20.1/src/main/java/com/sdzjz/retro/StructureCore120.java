@@ -176,17 +176,6 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
         for (java.util.Map.Entry<String, Long> e : m.entrySet()) bufAdd(e.getKey(), e.getValue());
     }
 
-    /** 垃圾桶族判定（蓝本 {@code NodeTags.isTrash(st) || st.getItem() instanceof VoidProcessorItem}）。
-     *  m473 真判定上线——两轮垫底自此生效。虚空处理器随 <b>⑤e</b> 入伙：xpPool 未建，它连收料行都还
-     *  没开（见 accepts ⑤e 行），现在进本名单=死码假装；届时与 accepts/chainWants 行**成对**补。 */
-    private static boolean isTrashLike(ItemStack st) {
-        return com.sdzjz.node.NodeTags.isTrash(st);
-    }
-
-
-
-
-
     // m218d 谱系：chainWants 顶层调用的 visited 集合复用（服务端 tick 单线程、递归自身传同一集合，
     // 清场复用安全）。⑤c3 拉料循环届时消费，判官现在就用。
     private final transient java.util.HashSet<Integer> wantsScratch = new java.util.HashSet<>();
@@ -205,26 +194,27 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
      *  （最后一站拒收就把数字原样回吐，账面可见）。 */
     long routeOut(net.minecraft.world.level.Level world, int fromIndex, StorageCore120 dep,
             boolean hasOut, String id, long amt) {
-        if (amt <= 0) return 0L;
-        if (hasOut) {
-            for (int pass = 0; pass < 2; pass++) {   // 蓝本 m150 两轮：第一轮跳过垃圾桶族，第二轮只喂它们——
-                for (int[] c : g.connections) {      // 垃圾桶永远是最后去处，与连线先后无关（判定随 ⑤c2，壳先立）
-                    if (amt <= 0) return 0L;
-                    if (c[0] != fromIndex) continue; // 蓝本 outT[i] 的等价遍历（同为 connections 原序，逐位一致）
-                    int t = c[1];
-                    if (t < 0 || t >= g.machineNodes.size()) continue;
-                    if ((pass == 0) == isTrashLike(g.machineNodes.get(t))) continue;
-                    if (!accepts(world, t, id)) continue;
-                    java.util.Map<String, Long> m = nodeBuf(t);
-                    if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面产出仓
-                    long cur = m.getOrDefault(id, 0L);
-                    long put = Math.min(Math.max(0L, BUF_CAP - cur), amt);
-                    if (put > 0) { m.put(id, cur + put); amt -= put; setChanged(); }
-                }
-            }
-        }
-        return depositTail(dep, id, amt); // m473 抽成共用尾巴（distributeEvenOut 同用），行为逐位不变
+        // m495（B2 前置）：两轮垫底与缓存投喂已下沉共用（xplat node/ProductRouter，与主线同一份代码）；
+        // 本世代只提供**兜底口**——余量落 kind0 产出仓，拒收就原样回吐给调用方亮黄灯持料
+        // （主线那边的兜底是输出缓存+断网喷射，这是两代唯一的真差异，收进 Tail 口）。
+        return com.sdzjz.node.ProductRouter.distribute(routerHost, (lvl, from, i2, a2) -> depositTail(dep, i2, a2),
+                world, fromIndex, hasOut, id, amt);
     }
+
+    /** m495：分发所需的宿主面（画布状态 + 缓存 + 收料判定）。 */
+    private final com.sdzjz.node.ProductRouter.Host routerHost = new com.sdzjz.node.ProductRouter.Host() {
+        @Override public int nodeCount() { return g.machineNodes.size(); }
+        @Override public ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
+        @Override public int[] outTargets(int from) { return outTargetsOf(from); }
+        @Override public java.util.Map<String, Long> nodeBuf(int i) { return StructureCore120.this.nodeBuf(i); }
+        @Override public boolean bufTypeOk(java.util.Map<String, Long> buf, String id) {
+            return StructureCore120.bufTypeOk(buf, id);
+        }
+        @Override public boolean accepts(Object level, int target, String id) {
+            return StructureCore120.this.accepts((net.minecraft.world.level.Level) level, target, id);
+        }
+        @Override public void markChanged() { setChanged(); }
+    };
 
     /** 存储尾巴（routeOut/distributeEvenOut 共用，m473 自 routeOut 原样抽出）：余量落 kind0 仓，
      *  deposit 全有或全无（类型满=整栈拒收），拒收即**原样回吐**零丢件（m471 判官③口径不动）。 */

@@ -3094,27 +3094,34 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private void distribute0(Level world, int fromIndex, int[] targets, String id, long amt) { // m354b 补：同上
         if (prof != null) prof.routes++; // m177
-        if (targets != null) {
-            for (int pass = 0; pass < 2; pass++) { // m150 两轮：第一轮跳过垃圾桶，第二轮只喂垃圾桶——
-                for (int t : targets) {            // 垃圾桶永远是最后去处，与连线先后无关（不然想要的会被吞）
-                    if (amt <= 0) return;
-                    if (t < 0 || t >= g.machineNodes.size()) continue;
-                    if ((pass == 0) == (com.sdzjz.node.NodeTags.isTrash(g.machineNodes.get(t))
-                            || g.machineNodes.get(t).getItem() instanceof com.sdzjz.item.VoidProcessorItem)) continue; // m378 虚空同垫底
-                    if (!accepts(world, t, id)) continue;
-                    java.util.Map<String, Long> m = nodeBuf(t);
-                    if (!bufTypeOk(m, id)) continue; // m270 类型上限：跳过满型目标，余量走下面定向存储/默认路由
-                    long cur = m.getOrDefault(id, 0L);
-                    long put = Math.min(Math.max(0, BUF_CAP - cur), amt);
-                    if (put > 0) { m.put(id, cur + put); amt -= put; }
-                }
+        // m495（B2 前置）：两轮垫底与缓存投喂已下沉共用（xplat node/ProductRouter，与 1.20.1 同一份代码）；
+        // 本世代的**兜底口**=定向存储 → depositOrBuffer → addOutput（输出缓存/断网喷射），
+        // 那是 1.20.1 没有的东西，故收进 Tail 口各实现各的（两代唯一的真差异）。
+        com.sdzjz.node.ProductRouter.distribute(routerHost(targets), (lvl, from, id2, amt2) -> {
+            com.sdzjz.machine.StorageAccess dep = depositFor((Level) lvl, from);
+            ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id2)),
+                    (int) Math.min(amt2, 64L * OUTPUT_SLOTS));
+            if (dep != null) depositOrBuffer(dep, rest);
+            else addOutput(rest);
+            return 0L; // 主线有输出缓存兜住，恒不回吐
+        }, world, fromIndex, targets != null, id, amt);
+    }
+
+    /** m495：分发所需的宿主面（targets 由调用方传入——主线 m355 已数组化）。 */
+    private com.sdzjz.node.ProductRouter.Host routerHost(int[] targets) {
+        return new com.sdzjz.node.ProductRouter.Host() {
+            @Override public int nodeCount() { return g.machineNodes.size(); }
+            @Override public ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
+            @Override public int[] outTargets(int from) { return targets; }
+            @Override public java.util.Map<String, Long> nodeBuf(int i) { return StructureCoreBlockEntity.this.nodeBuf(i); }
+            @Override public boolean bufTypeOk(java.util.Map<String, Long> buf, String id) {
+                return StructureCoreBlockEntity.this.bufTypeOk(buf, id);
             }
-        }
-        if (amt <= 0) return;
-        com.sdzjz.machine.StorageAccess dep = depositFor(world, fromIndex); // 剩余按定向存储→默认路由
-        ItemStack rest = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)), (int) Math.min(amt, 64L * OUTPUT_SLOTS));
-        if (dep != null) depositOrBuffer(dep, rest);
-        else addOutput(rest);
+            @Override public boolean accepts(Object level, int target, String id) {
+                return StructureCoreBlockEntity.this.accepts((Level) level, target, id);
+            }
+            @Override public void markChanged() { setChanged(); }
+        };
     }
 
     /** 目标机器是否"吃"该物品：万能熔炉=可熔炼物；消耗机=配方输入；自动合成机=当前目标用料；农场=不吃。 */
