@@ -283,9 +283,15 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 case 3 -> SciSkinPalette.RED;
                 default -> SciSkinPalette.OFF_GRAY;
             };
-            ctx.fill(x - 1, y - 1, x + 25, y + 25, (linkMode && i == linkFrom) ? SciSkinPalette.ACCENT : ring); // 连线首端高亮
-            ctx.fill(x, y, x + 24, y + 24, SciSkinPalette.BTN_FACE);
+            // m483（绞杀者第六刀）卡面工艺归位：drawCard = 软投影(三层渐淡)+外分离暗环+顶点插值渐变面
+            // +顶部冷光泽+内顶受光棱线/内底压边+四角括号刻，与主线同一份代码（xplat SciSkin）。
+            int frame = (linkMode && i == linkFrom) ? SciSkinPalette.ACCENT : ring; // 连线首端高亮
+            com.sdzjz.client.SciSkin.drawCard(ctx, x, y, 24, 24, frame);
             ctx.renderItem(g.machineNodes.get(i), x + 4, y + 4);
+            if (status != 0) { // m483 状态灯**点**（主线口径：右上角小圆点，不是整圈边框）
+                ctx.fill(x + 18, y + 2, x + 22, y + 6, com.sdzjz.client.SciSkin.withAlpha(ring, 0.35f));
+                ctx.fill(x + 19, y + 3, x + 21, y + 5, ring);
+            }
         }
         for (int i = 0; i < g.storageEndpoints.size(); i++) { // m458 存储节点卡（图标=存储核心）
             long pl = g.storageEndpoints.get(i)[0];
@@ -293,8 +299,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             if (sp == null) continue;
             int x = (int) sx(stX(pl, sp)), y = (int) sy(stY(pl, sp));
             if (x < -32 || y < -32 || x > width + 8 || y > height + 8) continue;
-            ctx.fill(x - 1, y - 1, x + 25, y + 25, SciSkinPalette.CELL_FRM);
-            ctx.fill(x, y, x + 24, y + 24, SciSkinPalette.CELL);
+            com.sdzjz.client.SciSkin.drawCard(ctx, x, y, 24, 24, SciSkinPalette.CELL_FRM); // m483 同上
             ctx.renderItem(STORAGE_ICON, x + 4, y + 4);
         }
         int sbX = width - SIDEBAR_W; // m457 机器库侧栏

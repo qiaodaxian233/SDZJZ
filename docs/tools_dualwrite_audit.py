@@ -43,12 +43,14 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "RetroNodeIdent.java": (True, False, "NodeTags.Ident 的 1.20.1 实现（m472）"),
     "RetroStackCodec.java": (True, False, "CanvasGraphState.StackCodec 的 1.20.1 实现（m477）"),
     "RetroStackKind.java": (True, False, "StackKey.Kind 的 1.20.1 实现（m478）"),
+    "RetroSkinGfx.java": (True, False, "SciSkin.Gfx 的 1.20.1 实现（m483，纹理 id 构造+顶点写法两处）"),
     "CableEnd120.java": (True, False, "数据线端点枚举（方块状态属性，注册期类型）"),
     "DataCableRenderer120.java": (True, False, "BER 渲染（渲染 API 两代形状不同）"),
     "StorageCoreRenderer120.java": (True, False, "BER 渲染"),
     "StructureCoreMenu120.java": (True, False, "菜单/容器（Menu API 两代形状不同）"),
-    "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。**注意**：绘制件（drawCard/"
-                                         "drawNode/drawWire）应随 UI 刀下沉共用，届时本行改说明"),
+    "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。m483 起卡面工艺走共用 SciSkin"
+                                         "（drawCard 已用）；节点卡的信息层（顶条/名字/阶位/进出口柱/"
+                                         "类型读数行）与连线缎带仍待逐件搬"),
     "DataPanelScreen120.java": (True, False, "面板屏：同上"),
 
     # ===== 待合一的双写件：业务逻辑两边各写一份，欠账 =====

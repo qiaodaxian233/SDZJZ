@@ -6,6 +6,37 @@ package com.sdzjz.client;
  * 用户若提供 slot.png / button.png（见 GUI素材.md），贴图接入点也放这里。
  */
 public final class SciSkin {
+
+    /**
+     * m483（真移植·绞杀者第六刀）世代口：本类 326 行里**只有 10 行**是世代专属——
+     * 两处纹理 ID 构造与八行顶点写法（1.21 的 {@code ResourceLocation.fromNamespaceAndPath} 与
+     * {@code addVertex(mat,x,y,z).setColor(c)}；1.20.1 是 {@code new ResourceLocation} 与
+     * {@code vertex(mat,x,y,z).color(r,g,b,a).endVertex()}）。其余 316 行全是 {@code ctx.fill}
+     * 与纯算术，两代逐字可用。收掉这两处，整张卡面工艺（drawCard/softShadow/glowLineH/vGrad/
+     * hGrad/vignette/easeOut/mix/lighten…）就能在 1.20.1 上跑起来。
+     */
+    public interface Gfx {
+        /** 造本模组纹理 id（1.21=fromNamespaceAndPath，1.20.1=new ResourceLocation）。 */
+        net.minecraft.resources.ResourceLocation tex(String path);
+
+        /** 画一个四角各自着色的矩形（GUI 顶点缓冲，顶点色插值零色带）。 */
+        void quad(net.minecraft.client.gui.GuiGraphics ctx,
+                  float x1, float y1, float x2, float y2,
+                  int c11, int c12, int c22, int c21);
+    }
+
+    private static Gfx gfx;
+
+    /** 客户端入口首段调（重复安装直接炸出来，与 ItemData/NodeTags.Ident/StackCodec/StackKey.Kind 同律）。 */
+    public static void installGfx(Gfx g) {
+        if (gfx != null) throw new IllegalStateException("SciSkin 绘制世代实现重复安装");
+        gfx = g;
+    }
+
+    private static Gfx gfx() {
+        if (gfx == null) throw new IllegalStateException("SciSkin 绘制世代实现未安装：客户端入口须先调 SciSkin.installGfx(...)（1.21=SdzjzClient 首段，1.20.1=RetroClientBootstrap 同位）");
+        return gfx;
+    }
     private SciSkin() {}
 
     // ===== 基底 =====
@@ -159,14 +190,24 @@ public final class SciSkin {
     public static final int GROUP_FILL = SciSkinPalette.GROUP_FILL; // m452b 数值下沉 Palette，换肤改那边
 
     // ===== 贴图接入点（m118）：换皮=同名覆盖 textures/gui/ 下的 png，代码零改动 =====
-    public static final net.minecraft.resources.ResourceLocation SLOT_TEX =
-            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/slot.png");
-    public static final net.minecraft.resources.ResourceLocation BUTTON_TEX =
-            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/button.png");
+    // m483：改**惰性求值**——原来是 static final 直接初始化，收进世代口后那会在**类加载时**就跑
+    // gfx()，任何在 installGfx 之前碰到本类的代码（哪怕只是读一个颜色常量）都会当场炸。
+    // 惰性化后首次真正要用贴图时才解析，且解析结果缓存，行为与原来逐位相同。
+    private static net.minecraft.resources.ResourceLocation slotTex, buttonTex;
+
+    public static net.minecraft.resources.ResourceLocation slotTex() {
+        if (slotTex == null) slotTex = gfx().tex("textures/gui/slot.png");
+        return slotTex;
+    }
+
+    public static net.minecraft.resources.ResourceLocation buttonTex() {
+        if (buttonTex == null) buttonTex = gfx().tex("textures/gui/button.png");
+        return buttonTex;
+    }
 
     /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
     public static void drawSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {
-        ctx.blit(SLOT_TEX, x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
+        ctx.blit(slotTex(), x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);
     }
 
     /** m120 画布卡片 · m187 质感升级：软投影(三层渐淡)+外分离暗环+平滑渐变面(顶点插值,
@@ -226,25 +267,13 @@ public final class SciSkin {
     /** m187 平滑纵向渐变矩形：顶点色插值零色带（照画布 wirePath/ribbon 在树先例走 GUI 顶点缓冲）。 */
     public static void vGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int top, int bottom) {
-        com.mojang.blaze3d.vertex.VertexConsumer vc =
-                ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().last().pose();
-        vc.addVertex(mat, x1, y1, 0).setColor(top);
-        vc.addVertex(mat, x1, y2, 0).setColor(bottom);
-        vc.addVertex(mat, x2, y2, 0).setColor(bottom);
-        vc.addVertex(mat, x2, y1, 0).setColor(top);
+        gfx().quad(ctx, x1, y1, x2, y2, top, bottom, bottom, top); // m483 世代口
     }
 
     /** m187 平滑横向渐变矩形。 */
     public static void hGrad(net.minecraft.client.gui.GuiGraphics ctx,
                              float x1, float y1, float x2, float y2, int left, int right) {
-        com.mojang.blaze3d.vertex.VertexConsumer vc =
-                ctx.bufferSource().getBuffer(net.minecraft.client.renderer.RenderType.gui());
-        org.joml.Matrix4f mat = ctx.pose().last().pose();
-        vc.addVertex(mat, x1, y1, 0).setColor(left);
-        vc.addVertex(mat, x1, y2, 0).setColor(left);
-        vc.addVertex(mat, x2, y2, 0).setColor(right);
-        vc.addVertex(mat, x2, y1, 0).setColor(right);
+        gfx().quad(ctx, x1, y1, x2, y2, left, left, right, right); // m483 世代口
     }
 
     /** m187 软投影：三层递缩递浓半透黑（中心叠深、边缘渐淡），替代旧单层硬边黑块。 */
@@ -319,8 +348,8 @@ public final class SciSkin {
     /** 按钮三切片（button.png 200×32：上=常态 下=悬停）。左右 8px 帽区原样、中段横向拉伸、整体纵向缩放到 h。 */
     public static void drawButton(net.minecraft.client.gui.GuiGraphics ctx, int x, int y, int w, int h, boolean hover) {
         int v = hover ? 16 : 0, cap = 8;
-        ctx.blit(BUTTON_TEX, x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
-        ctx.blit(BUTTON_TEX, x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);
-        ctx.blit(BUTTON_TEX, x + cap, y, w - 2 * cap, h, cap, v, 200 - 2 * cap, 16, 200, 32);
+        ctx.blit(buttonTex(), x, y, cap, h, 0.0F, v, cap, 16, 200, 32);
+        ctx.blit(buttonTex(), x + w - cap, y, cap, h, 200 - cap, v, cap, 16, 200, 32);
+        ctx.blit(buttonTex(), x + cap, y, w - 2 * cap, h, cap, v, 200 - 2 * cap, 16, 200, 32);
     }
 }

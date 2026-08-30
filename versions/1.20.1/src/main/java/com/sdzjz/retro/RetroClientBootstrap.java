@@ -12,6 +12,7 @@ public final class RetroClientBootstrap implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        com.sdzjz.client.SciSkin.installGfx(new RetroSkinGfx()); // m483（绞杀者第六刀）卡面工艺上挂：早于一切屏注册
         MenuScreens.register(RetroBlocks.PANEL_MENU, DataPanelScreen120::new);
         MenuScreens.register(RetroBlocks.CANVAS_MENU, CanvasScreen120::new); // m456
         // m465：动画归位——存储核心（能量核旋转+呼吸）与数据线（能量脉冲）BER，蓝本=主线 SdzjzClient
