@@ -17,6 +17,11 @@ public final class LegacySkinGfx implements SciSkin.Gfx {
     }
 
     @Override
+    public ResourceLocation id(String s) {
+        return ResourceLocation.parse(s); // 原句照搬（主线 drawNode 原文用法）
+    }
+
+    @Override
     public void quad(GuiGraphics ctx, float x1, float y1, float x2, float y2,
                      int c11, int c12, int c22, int c21) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =

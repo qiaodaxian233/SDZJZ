@@ -21,6 +21,11 @@ final class RetroSkinGfx implements SciSkin.Gfx {
     }
 
     @Override
+    public ResourceLocation id(String s) {
+        return new ResourceLocation(s); // 1.20.1 对位：构造器（parse 是 1.20.5+）
+    }
+
+    @Override
     public void quad(GuiGraphics ctx, float x1, float y1, float x2, float y2,
                      int c11, int c12, int c22, int c21) {
         com.mojang.blaze3d.vertex.VertexConsumer vc =

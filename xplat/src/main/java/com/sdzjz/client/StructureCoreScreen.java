@@ -1012,93 +1012,15 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         ctx.drawString(this.font, fitText(sub, x + bw() - txI - 4), txI, y + 17, SUB, false);
     }
 
+    /** m484（真移植）：骨架层与六族逻辑节点行已下沉共用（{@link NodeCardRenderer}，两代同一份代码）；
+     *  本方法保留本世代独有的分支（虚空处理器/区块族/作物/酿造/附魔/交易/复制器徽章等），
+     *  它们随各族在 1.20.1 到序时再逐族下沉。原文逐句未改，只是把前两段换成调用。 */
     private void drawNode(GuiGraphics ctx, StructureCoreBlockEntity be, int i, int x, int y, ItemStack st) {
-        SciSkin.drawCard(ctx, x, y, NW, NH, NODEFRM); // m120 投影+渐变面+角刻
-        ctx.fill(x, y, x + NW, y + 3, nodeAccent(st)); // m86 分类配色
-        ctx.fill(x, y + 3, x + NW, y + 15, SciSkin.withAlpha(SciSkin.BACKDROP, 0.25f)); // m120 标题读数底带（m207 字面量退役随族）
-        if (com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts) { // m352 双侧进出口（作者点名"左右都要有进和出"）：
-            // 出上/进下、两缘各一对——m184 连线几何早就两侧智能选缘，此前柱子只画单侧=线常贴到没柱/颜色不对的缘上。
-            int oyP = y + NH / 2 - 10, iyP = y + NH / 2 + 4; // 柱心=NH/2∓7，与锚点分高同源
-            ctx.fill(x - 4, oyP, x + 2, oyP + 6, ON);           ctx.fill(x + NW - 2, oyP, x + NW + 4, oyP + 6, ON);   // 出口柱×2
-            ctx.fill(x - 4, iyP, x + 2, iyP + 6, CYAN);         ctx.fill(x + NW - 2, iyP, x + NW + 4, iyP + 6, CYAN); // 进口柱×2
-            ctx.drawString(this.font, "出", x - 16, oyP - 1, ON, false);   ctx.drawString(this.font, "出", x + NW + 7, oyP - 1, ON, false);
-            ctx.drawString(this.font, "进", x - 16, iyP - 1, CYAN, false); ctx.drawString(this.font, "进", x + NW + 7, iyP - 1, CYAN, false);
-        } else {
-            boolean swP = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped; // m341 进出口互换（关=单侧旧行为，此键仍生效）
-            int inX = swP ? x + NW - 2 : x - 4, outX = swP ? x - 4 : x + NW - 2;
-            ctx.fill(inX, y + NH / 2 - 3, inX + 6, y + NH / 2 + 3, CYAN);      // 进口柱
-            ctx.fill(outX, y + NH / 2 - 3, outX + 6, y + NH / 2 + 3, ON);      // 出口柱
-            // m342 字标画卡外（作者点名"加上进和出"）：柱在左缘=字在柱左，柱在右缘=字在柱右，不压卡面图标
-            boolean inRight = inX > x + NW / 2;
-            ctx.drawString(this.font, "进", inRight ? inX + 9 : inX - 12, y + NH / 2 - 4, CYAN, false);
-            ctx.drawString(this.font, "出", inRight ? outX - 12 : outX + 9, y + NH / 2 - 4, ON, false);
-        }
-        int mt = com.sdzjz.node.NodeTags.machineTier(st); // m123 阶位视觉：图标放大+前缀变色
+        NodeCardRenderer.Host host = hostOf(be);
+        NodeCardRenderer.drawBase(ctx, this.font, host, i, x, y, st);
+        if (NodeCardRenderer.drawBody(ctx, this.font, host, i, x, y, st)) return; // 六族逻辑节点：共用件已画完
+        int mt = com.sdzjz.node.NodeTags.machineTier(st);
         float isc = 2f + 0.45f * mt;
-        var msi = ctx.pose();
-        msi.pushPose();
-        msi.translate(x + 6, y + 16 - (isc - 2f) * 10, 0);
-        msi.scale(isc, isc, 1f);
-        ctx.renderItem(st, 0, 0);
-        msi.popPose();
-        String pre = mt <= 0 ? "" : mt == 1 ? "超级·" : mt == 2 ? "神级·" : "GM·";
-        int preW = pre.isEmpty() ? 0 : this.font.width(pre);
-        if (preW > 0) ctx.drawString(this.font, pre, x + 6, y + 6,
-                mt == 1 ? SciSkin.GOLD : mt == 2 ? 0xFFB06AE8 : SciSkin.RED, false);
-        String name = st.getHoverName().getString();
-        if (this.font.width(name) > NW - 22 - preW) {
-            while (name.length() > 1 && this.font.width(name + "…") > NW - 22 - preW) name = name.substring(0, name.length() - 1);
-            name = name + "…";
-        }
-        ctx.drawString(this.font, name, x + 6 + preW, y + 6, TXT, false);
-        drawStatusDot(ctx, x + NW - 11, y + 5, be.nodeStatus(i)); // 状态灯：绿=运行 黄=阻塞/关闸 红=缺料
-        if (com.sdzjz.node.NodeTags.isDistributor(st)) {
-            int outs = 0;
-            for (int[] c : be.connections()) if (c[0] == i) outs++;
-            ctx.drawString(this.font, "均分 → " + outs + " 路", x + 44, y + 26, CYAN, false);
-            ctx.drawString(this.font, outs == 0 ? "拉出线到下游" : "余数轮转", x + 44, y + 38, SUB, false);
-            return;
-        }
-        if (com.sdzjz.node.NodeTags.isExtractor(st)) { // m154 启停显示 + m159 速率与已抽读数
-            boolean onX = com.sdzjz.node.NodeTags.extractorOn(st);
-            int bfx = onX ? ON : SciSkin.OFF_GRAY;
-            ctx.fill(x + 43, y + 23, x + 91, y + 45, bfx);
-            ctx.fill(x + 44, y + 24, x + 90, y + 44, onX ? SciSkin.ON_DARK : 0xFF141A24);
-            ctx.drawString(this.font, onX ? "● 抽取中" : "○ 待命", x + 48, y + 30, onX ? ON : SUB, false);
-            String siX = com.sdzjz.node.NodeTags.sensorItem(st);
-            if (!siX.isEmpty()) { // m160 自动启停行：图标 <阈值 [−][+]
-                try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(siX))), x + 4, y + 44); } catch (Exception ignored) {}
-                long thX = com.sdzjz.node.NodeTags.sensorThreshold(st);
-                ctx.drawString(this.font, (com.sdzjz.node.NodeTags.sensorLess(st) ? "<" : ">") + fmtNum(thX),
-                        x + 22, y + 48, CYAN, false);
-                ctx.fill(x + 62, y + 46, x + 76, y + 59, SciSkin.BTN_FACE);
-                ctx.fill(x + 79, y + 46, x + 93, y + 59, SciSkin.BTN_FACE);
-                ctx.drawString(this.font, "-", x + 67, y + 49, TXT, false);
-                ctx.drawString(this.font, "+", x + 84, y + 49, TXT, false);
-            } else {
-                long xr = com.sdzjz.node.NodeTags.extractorRate(st);
-                long xc = com.sdzjz.node.NodeTags.extractorCount(st);
-                // m164a：262144 挡原样拼"262144/轮×升级"必出框——速率走 fmtNum(262.1K)，整行 fitText 兜底
-                ctx.drawString(this.font, fitText(fmtNum(xr) + "/轮" + (xc > 0 ? " 抽" + fmtNum(xc) : "×升级"), NW - 48),
-                        x + 44, y + 48, SUB, false);
-            }
-            return;
-        }
-        if (com.sdzjz.node.NodeTags.isSwitch(st)) {
-            boolean on = com.sdzjz.node.NodeTags.switchOn(st);
-            int bfr = on ? ON : SciSkin.OFF_GRAY;
-            ctx.fill(x + 43, y + 23, x + 91, y + 45, bfr);
-            ctx.fill(x + 44, y + 24, x + 90, y + 44, on ? SciSkin.ON_DARK : 0xFF141A24);
-            ctx.drawString(this.font, on ? "● 开" : "○ 关", x + 55, y + 30, on ? ON : SUB, false);
-            return;
-        }
-        if (com.sdzjz.node.NodeTags.isTrash(st)) { // m150 卡面 / 菜单入口见 openNodeMenu
-            long ate = com.sdzjz.node.NodeTags.trashCount(st);
-            int tfN = com.sdzjz.node.NodeTags.filterList(st).size();
-            ctx.drawString(this.font, tfN > 0 ? "[白名单·" + tfN + "]" : "[虚空]", x + 44, y + 26, SciSkin.RED_SOFT, false);
-            ctx.drawString(this.font, ate > 0 ? "已吞 " + fmtNum(ate) : tfN > 0 ? "只吞名单内" : "连啥吞啥", x + 44, y + 38, SUB, false);
-            return;
-        }
         if (st.getItem() instanceof com.sdzjz.item.VoidProcessorItem) { // m378 卡面：行1 名单摘要 / 行2 吞炼账
             int vfN = com.sdzjz.node.NodeTags.filterList(st).size();
             ctx.drawString(this.font, vfN > 0 ? "[白名单·" + vfN + "]" : "[全炼]", x + 44, y + 26, SciSkin.GOLD, false);
@@ -1141,38 +1063,6 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     x + 44, y + 26, cfN == 0 ? SUB : cfB ? SciSkin.GOLD : ON, false);
             ctx.drawString(this.font, fitText("Y挡:" + com.sdzjz.item.ChunkFilterItem.presetName(st), NW - 50),
                     x + 44, y + 38, CYAN, false);
-            return;
-        }
-        if (com.sdzjz.node.NodeTags.isFilter(st)) {
-            boolean black = com.sdzjz.node.NodeTags.filterBlacklist(st);
-            ctx.drawString(this.font, black ? "[黑名单]" : "[白名单]", x + 44, y + 26, black ? SciSkin.GOLD : ON, false);
-            List<String> fl = com.sdzjz.node.NodeTags.filterList(st);
-            if (fl.isEmpty()) {
-                ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
-            } else {
-                int shown = Math.min(3, fl.size());
-                for (int k = 0; k < shown; k++) {
-                    try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(fl.get(k)))), x + 42 + k * 18, y + 34); } catch (Exception ignored) {}
-                }
-                if (fl.size() > 3) ctx.drawString(this.font, "+" + (fl.size() - 3), x + 42 + 54, y + 38, SUB, false);
-            }
-            return;
-        }
-        if (com.sdzjz.node.NodeTags.isSensor(st)) {
-            String si = com.sdzjz.node.NodeTags.sensorItem(st);
-            if (si.isEmpty()) {
-                ctx.drawString(this.font, "直通(未配置)", x + 44, y + 26, SUB, false);
-                ctx.drawString(this.font, "右键配置", x + 44, y + 38, SUB, false);
-            } else {
-                try { ctx.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(si))), x + 40, y + 20); } catch (Exception ignored) {}
-                long th = com.sdzjz.node.NodeTags.sensorThreshold(st);
-                boolean less = com.sdzjz.node.NodeTags.sensorLess(st);
-                ctx.drawString(this.font, (less ? "<" : ">") + fmtNum(th) + " 放行", x + 58, y + 24, CYAN, false);
-                ctx.fill(x + 57, y + 36, x + 71, y + 49, SciSkin.BTN_FACE); // [−]
-                ctx.fill(x + 74, y + 36, x + 88, y + 49, SciSkin.BTN_FACE); // [+]
-                ctx.drawString(this.font, "-", x + 62, y + 39, TXT, false);
-                ctx.drawString(this.font, "+", x + 79, y + 39, TXT, false);
-            }
             return;
         }
         ctx.drawString(this.font, "×" + st.getCount(), x + Math.max(44, 10 + Math.round(16 * isc)), y + 26, CYAN, false); // m123 让位大图标
@@ -1230,6 +1120,20 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     /** 状态灯：核心停机=灰；1 绿呼吸=运行 2 黄=阻塞/关闸 3 红=缺料 其余=待机灰。 */
+    /** m484：把 BE 适配成共用渲染件要的四项数据。 */
+    private NodeCardRenderer.Host hostOf(StructureCoreBlockEntity be) {
+        return new NodeCardRenderer.Host() {
+            @Override public int nodeStatus(int i) { return be.nodeStatus(i); }
+            @Override public String nodeReason(int i) { return be.nodeReason(i); }
+            @Override public int outCount(int i) {
+                int n = 0;
+                for (int[] c : be.connections()) if (c[0] == i) n++;
+                return n;
+            }
+            @Override public boolean running() { return StructureCoreScreen.this.menu.isRunning(); }
+        };
+    }
+
     private void drawStatusDot(GuiGraphics ctx, int x, int y, int stat) {
         int c;
         if (!this.menu.isRunning()) c = 0xFF3A424E;

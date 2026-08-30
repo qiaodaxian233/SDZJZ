@@ -48,9 +48,9 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "DataCableRenderer120.java": (True, False, "BER 渲染（渲染 API 两代形状不同）"),
     "StorageCoreRenderer120.java": (True, False, "BER 渲染"),
     "StructureCoreMenu120.java": (True, False, "菜单/容器（Menu API 两代形状不同）"),
-    "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。m483 起卡面工艺走共用 SciSkin"
-                                         "（drawCard 已用）；节点卡的信息层（顶条/名字/阶位/进出口柱/"
-                                         "类型读数行）与连线缎带仍待逐件搬"),
+    "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。m483 卡面工艺、m484 整张节点卡"
+                                         "（骨架+六族读数行）已走共用件；仍待搬：连线缎带(m136)+归并徽章、"
+                                         "小地图、悬停详情浮层、面板屏工艺"),
     "DataPanelScreen120.java": (True, False, "面板屏：同上"),
 
     # ===== 待合一的双写件：业务逻辑两边各写一份，欠账 =====

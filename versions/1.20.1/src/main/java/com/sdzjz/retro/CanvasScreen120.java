@@ -283,14 +283,16 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 case 3 -> SciSkinPalette.RED;
                 default -> SciSkinPalette.OFF_GRAY;
             };
-            // m483（绞杀者第六刀）卡面工艺归位：drawCard = 软投影(三层渐淡)+外分离暗环+顶点插值渐变面
-            // +顶部冷光泽+内顶受光棱线/内底压边+四角括号刻，与主线同一份代码（xplat SciSkin）。
-            int frame = (linkMode && i == linkFrom) ? SciSkinPalette.ACCENT : ring; // 连线首端高亮
-            com.sdzjz.client.SciSkin.drawCard(ctx, x, y, 24, 24, frame);
-            ctx.renderItem(g.machineNodes.get(i), x + 4, y + 4);
-            if (status != 0) { // m483 状态灯**点**（主线口径：右上角小圆点，不是整圈边框）
-                ctx.fill(x + 18, y + 2, x + 22, y + 6, com.sdzjz.client.SciSkin.withAlpha(ring, 0.35f));
-                ctx.fill(x + 19, y + 3, x + 21, y + 5, ring);
+            // m484（真移植）：节点卡整张走共用渲染件——与主线**同一份代码**（xplat NodeCardRenderer）：
+            // 卡面工艺+分类配色顶条+标题底带+进出口柱与「进」「出」字标+阶位图标放大与前缀变色+
+            // 机器名(自动截断)+状态灯点(绿灯呼吸)+六族逻辑节点各自的读数行。m483 我自己编的灯点画法退役。
+            com.sdzjz.client.NodeCardRenderer.drawNode(ctx, this.font, cardHost, i, x, y, g.machineNodes.get(i));
+            if (linkMode && i == linkFrom) { // 连线首端高亮：卡外描一圈强调色（不覆盖卡面工艺）
+                int NW = com.sdzjz.client.NodeCardRenderer.NW, NH = com.sdzjz.client.NodeCardRenderer.NH;
+                ctx.fill(x - 2, y - 2, x + NW + 2, y - 1, SciSkinPalette.ACCENT);
+                ctx.fill(x - 2, y + NH + 1, x + NW + 2, y + NH + 2, SciSkinPalette.ACCENT);
+                ctx.fill(x - 2, y - 1, x - 1, y + NH + 1, SciSkinPalette.ACCENT);
+                ctx.fill(x + NW + 1, y - 1, x + NW + 2, y + NH + 1, SciSkinPalette.ACCENT);
             }
         }
         for (int i = 0; i < g.storageEndpoints.size(); i++) { // m458 存储节点卡（图标=存储核心）
@@ -352,6 +354,18 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     }
 
     /** 节点画布坐标：读栈 NBT xc/yc（键同源 NodeTags 谱系；缺键=0,0 落画布原点可见可拖走）。 */
+    /** m484：把画布状态适配成共用渲染件要的四项数据（与主线 hostOf 同形）。 */
+    private final com.sdzjz.client.NodeCardRenderer.Host cardHost = new com.sdzjz.client.NodeCardRenderer.Host() {
+        @Override public int nodeStatus(int i) { return i < g.nodeStatus.size() ? g.nodeStatus.get(i) : 0; }
+        @Override public String nodeReason(int i) { return i < g.nodeReason.size() ? g.nodeReason.get(i) : ""; }
+        @Override public int outCount(int i) {
+            int n = 0;
+            for (int[] c : g.connections) if (c[0] == i) n++;
+            return n;
+        }
+        @Override public boolean running() { return true; } // 本世代画布无停机开关（世代取舍：核心恒运行）
+    };
+
     private int nodeCx(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("nx") : 0; } // m474 键位归位（原 xc 撞 NodeTags 抽取累计）
     private int nodeCy(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("ny") : 0; }
 
