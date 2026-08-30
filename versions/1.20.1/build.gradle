@@ -42,6 +42,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/node/RouteBrain.java'        // m486（真移植·C 阶段主刀）路由脑判定层两代共用一份：accepts/chainWants/chainEndsInTrash/sensorOpen/extractorLive/allGatesClosed 逐句取自主线，只把身份判定换成 defOf 同一性、传感器库存来源换成 Host 口；1.20.1 那 128 行重写已删
         include 'com/sdzjz/node/ProductRouter.java'     // m495（B2 前置）产物分发两代共用：主线 distribute0 的两轮垫底与缓存投喂逐句搬，**两代唯一真差异（兜底：主线输出缓存+断网喷射 vs 本世代落仓回吐）收进 Tail 世代口**
         include 'com/sdzjz/node/SupplyPuller.java'      // m498（B2 收尾）拉料循环两代共用：主线 m92 段整段搬（含 m154 主动泵/m157 没去处不抽/m160 白名单/m163a 泵缓存放宽/m155→m158 精确账本授权支路），差异六处全参数化收进 Host
+        include 'com/sdzjz/node/LogicNodeTicker.java'   // m499（B2 收尾）逻辑节点六分支两代共用：分配器/过滤器/垃圾桶/抽取/开关/传感器清运逐句照原文，灯表（真实世代差）收进 Host.lampAfterDrain
         include 'com/sdzjz/storage/StackKey.java'       // m478（真移植 B 阶段第一刀）精确账本身份键两代共用一份——原 TagStackKey 仿写件已删；相等与哈希走 Kind 世代口（RetroStackKind），其余逐字同源
         include 'com/sdzjz/storage/StorageLedger.java'   // m485（真移植·直接移除仿写件）存储账本核心两代共用一份：逐句取自主线 StorageCoreBlockEntity 139~275 行，只把 setChanged() 换成注入回调；1.20.1 原来那 181 行重写已删
         include 'com/sdzjz/machine/StorageLedgerProbe.java'      // m480 存储域行为契约探针（十三口，两代 BE 本来就有同名方法）

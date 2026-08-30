@@ -498,110 +498,37 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
         }
     }
 
-    /** m473（⑤c2）逻辑节点六族清运分支（蓝本 tick 分配器/过滤器/垃圾桶/抽取/开关/传感器六段的世代版，
-     *  5t 节拍同蓝本）。命中六族返回 true——本拍无论有没有活都不再走机器路径；非逻辑节点返回 false。
-     *  <p><b>世代取舍显式记档（送不出去的货）</b>：蓝本装不下走 depositOrBuffer→addOutput（输出缓存/
-     *  断网喷射），本世代没有（⑤a 取舍②）——统一**原样回灌自己缓存**持料待命并亮黄说话（m471 取舍④
-     *  同路：账面可见绝不吞件；缓存到顶=对上游天然背压，蓝本抽取节点残量语义的推广）。 */
+    /** m499（B2 收尾）：逻辑节点六分支已下沉共用（xplat node/LogicNodeTicker，与主线同一份代码）。
+     *  本世代只提供宿主面——其中**灯表是真实的世代差**（本世代无输出缓存，货会停在缓存里，
+     *  故 m473 加了「持料待命」黄灯；主线有输出缓存不需要这条），收在 lampAfterDrain 里。 */
     private boolean tickLogicNode(net.minecraft.world.level.Level world, int i, ItemStack st, boolean hasOut) {
-        boolean isF = com.sdzjz.node.NodeTags.isFilter(st), isT = com.sdzjz.node.NodeTags.isTrash(st),
-                isX = com.sdzjz.node.NodeTags.isExtractor(st), isSw = com.sdzjz.node.NodeTags.isSwitch(st),
-                isSe = com.sdzjz.node.NodeTags.isSensor(st), isD = com.sdzjz.node.NodeTags.isDistributor(st);
-        if (!(isF || isT || isX || isSw || isSe || isD)) return false;
-        if (ticks % 5 != 0) return true; // 5t 节拍（蓝本同：非节拍不动缓存不改灯）
-        java.util.Map<String, Long> own = nodeBuf(i);
-        if (isD) { // 分配器：来料在出线目标间均分（余数轮转），没人要的走产出仓
-            if (own.isEmpty()) return true;
-            StorageCore120 dep = depositTarget(world, i);
-            boolean moved = false; long held = 0;
-            final int dn = fillDrain(own); own.clear(); // m350 整锅转存再清（回灌进空表语义同蓝本）
-            for (int dk = 0; dk < dn; dk++) {
-                String id = drainIds[dk]; long amt = drainAmts[dk];
-                if (amt <= 0) continue;
-                long left = distributeEvenOut(world, i, dep, hasOut, id, amt);
-                if (left < amt) moved = true;
-                if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
-            }
-            lampAfterDrain(i, moved, held, false); // 蓝本：动了才点绿，没动保持上拍灯
-            return true;
-        }
-        if (isF) { // 过滤器：清运输入缓存——放行的沿出线下游，拦下的直落产出仓（蓝本 targets=null 同义）
-            if (own.isEmpty()) return true;
-            StorageCore120 dep = depositTarget(world, i);
-            boolean moved = false; long held = 0;
-            final int dn = fillDrain(own); own.clear();
-            for (int dk = 0; dk < dn; dk++) {
-                String id = drainIds[dk]; long amt = drainAmts[dk];
-                if (amt <= 0) continue;
-                long left = routeOut(world, i, dep, hasOut && com.sdzjz.node.NodeTags.filterPasses(st, id), id, amt);
-                if (left < amt) moved = true;
-                if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
-            }
-            lampAfterDrain(i, moved, held, false);
-            return true;
-        }
-        if (isT) { // m150 垃圾桶：吞光输入缓存并累计 tc（白名单在收料侧 accepts 把关，吞侧不设卡=蓝本同构）
-            if (own.isEmpty()) return true;
-            long ate = 0;
-            final int dn = fillDrain(own); own.clear();
-            for (int dk = 0; dk < dn; dk++) if (drainAmts[dk] > 0) ate += drainAmts[dk];
-            if (ate > 0) {
-                com.sdzjz.node.NodeTags.addTrashCount(st, ate); // m353 三段式写读（丢写="已吞"死数血案）
-                setChanged();
-                stat(i, 1, "");
-            }
-            return true;
-        }
-        if (isX) { // m154/m157/m160 抽取节点：开=推缓存给收的目标+搬仓，残量持料背压；感应暂停持料；关=退料
-            boolean on = com.sdzjz.node.NodeTags.extractorOn(st);
-            if (on && !extractorLive(world, i, st)) { stat(i, 2, "感应暂停：持料待命（监测条件一到自动续跑）"); return true; }
-            StorageCore120 dep = depositTarget(world, i);
-            if (!on) { // m157 歇工退料：缓存退回产出仓（本世代无默认路由；没接仓=持料不丢）
-                boolean movedO = false; long heldO = 0;
-                if (!own.isEmpty()) {
-                    final int dnO = fillDrain(own); own.clear();
-                    for (int dk = 0; dk < dnO; dk++) {
-                        String id = drainIds[dk]; long amt = drainAmts[dk];
-                        if (amt <= 0) continue;
-                        long left = routeOut(world, i, dep, false, id, amt);
-                        if (left < amt) movedO = true;
-                        if (left > 0) { own.merge(id, left, StorageCore120::satAdd); heldO += left; }
-                    }
-                    if (movedO) setChanged();
-                }
-                stat(i, 2, heldO > 0 ? "抽取已停止；退料没处放，持料待命（接一条产出仓绿线即退清）" : "抽取已停止");
-                return true;
-            }
-            if (own.isEmpty()) { stat(i, 0, ""); return true; }
-            boolean moved = false;
-            final int dn = fillDrain(own); own.clear(); // 蓝本"转存不清+残量 put/remove"的等价式：清后回灌残量
-            for (int dk = 0; dk < dn; dk++) {
-                String id = drainIds[dk]; long amt = drainAmts[dk];
-                if (amt <= 0) continue;
-                long left = routeOut(world, i, dep, hasOut, id, amt); // 两轮垫底+m157 搬仓（定向存储=明确目的地）
-                if (left < amt) moved = true;
-                if (left > 0) own.merge(id, left, StorageCore120::satAdd); // 残量留缓存=背压（蓝本原样，不亮黄）
-            }
-            stat(i, moved ? 1 : 0, "");
-            return true;
-        }
-        if (isSw && !com.sdzjz.node.NodeTags.switchOn(st)) { stat(i, 2, "开关已关：持料待命"); return true; }
-        if (isSe && !sensorOpen(world, i)) { stat(i, 2, "传感器关闸：持料待命（监测条件未满足）"); return true; }
-        // 开关（开）/传感器（开闸）：直通转发自己的缓存（蓝本两段同构）
-        if (own.isEmpty()) { stat(i, 0, ""); return true; }
-        StorageCore120 dep = depositTarget(world, i);
-        boolean moved = false; long held = 0;
-        final int dn = fillDrain(own); own.clear();
-        for (int dk = 0; dk < dn; dk++) {
-            String id = drainIds[dk]; long amt = drainAmts[dk];
-            if (amt <= 0) continue;
-            long left = routeOut(world, i, dep, hasOut, id, amt);
-            if (left < amt) moved = true;
-            if (left > 0) { own.merge(id, left, StorageCore120::satAdd); held += left; }
-        }
-        lampAfterDrain(i, moved, held, true); // 蓝本开关/传感器：stat(moved?1:0)
-        return true;
+        return com.sdzjz.node.LogicNodeTicker.tick(logicHost, world, i, st, hasOut);
     }
+
+    private final com.sdzjz.node.LogicNodeTicker.Host logicHost = new com.sdzjz.node.LogicNodeTicker.Host() {
+        @Override public long ticks() { return ticks; }
+        @Override public java.util.Map<String, Long> nodeBuf(int i) { return StructureCore120.this.nodeBuf(i); }
+        @Override public int fillDrain(java.util.Map<String, Long> m) { return StructureCore120.this.fillDrain(m); }
+        @Override public String drainId(int k) { return drainIds[k]; }
+        @Override public long drainAmt(int k) { return drainAmts[k]; }
+        @Override public long route(Object level, int i, boolean hasOut, String id, long amt) {
+            net.minecraft.world.level.Level w = (net.minecraft.world.level.Level) level;
+            return routeOut(w, i, depositTarget(w, i), hasOut, id, amt);
+        }
+        @Override public long routeEven(Object level, int i, boolean hasOut, String id, long amt) {
+            net.minecraft.world.level.Level w = (net.minecraft.world.level.Level) level;
+            return distributeEvenOut(w, i, depositTarget(w, i), hasOut, id, amt);
+        }
+        @Override public boolean sensorOpen(Object level, int i) {
+            return StructureCore120.this.sensorOpen((net.minecraft.world.level.Level) level, i);
+        }
+        @Override public void lampAfterDrain(int i, boolean moved, long held, boolean zeroWhenIdle) {
+            StructureCore120.this.lampAfterDrain(i, moved, held, zeroWhenIdle);
+        }
+        @Override public void lamp(int i, int code, String why) { stat(i, code, why); }
+        @Override public void markChanged() { setChanged(); }
+        @Override public long satAdd(long a, long b) { return StorageCore120.satAdd(a, b); }
+    };
 
     /** m473 清运后灯表收口：持料>0 亮黄说人话（世代取舍④：本世代无输出缓存，货在缓存没丢）；
      *  否则按蓝本口径——动了点绿，没动的分配器/过滤器保持上拍灯、开关/传感器/抽取归零待机。 */

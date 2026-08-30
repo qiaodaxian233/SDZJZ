@@ -55,8 +55,9 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "DataPanelScreen120.java": (True, False, "面板屏：同上"),
 
     # ===== 待合一的双写件：业务逻辑两边各写一份，欠账 =====
-    "StructureCore120.java": (False, False, "对位 block/StructureCoreBlockEntity 的业务核心"
-                                            "（路由/拉料/accepts/chainWants/tick 编排/灯表）——C 阶段主刀"),
+    "StructureCore120.java": (True, False, "结构核心**世代壳**：m486/m495/m496/m498/m499 起"
+                                          "路由脑·分发·均分·拉料·逻辑节点六分支全部走共用件；"
+                                          "本文件只剩 BE 注册/存档签名/tick 编排骨架/宿主面/机器生产分支"),
     "StorageCore120.java": (False, False, "对位 block/StorageCoreBlockEntity 的账本核心"
                                           "（普通账/精确账/类型闸/修订号）——B 阶段"),
     "DataCable120.java": (False, False, "对位数据线 BE 的 BFS 与端点缓存——B 阶段之后"),
