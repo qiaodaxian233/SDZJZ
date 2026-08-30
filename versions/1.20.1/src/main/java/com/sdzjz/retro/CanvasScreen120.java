@@ -246,13 +246,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             ctx.renderTooltip(font, List.of(Component.translatable("block.sdzjz.storage_core"),
                     Component.literal(bp.getX() + ", " + bp.getY() + ", " + bp.getZ())), Optional.empty(), mouseX, mouseY);
         }
-        Integer hover = nodeAt(mouseX, mouseY); // 悬停详情（机器名+状态原因）
+        Integer hover = nodeAt(mouseX, mouseY); // m493 悬停详情走共用件（与主线同一份：状态/周期/基础产量/产出表）
         if (hover != null) {
             ItemStack st = g.machineNodes.get(hover);
+            java.util.List<Component> tip = new java.util.ArrayList<>(
+                    com.sdzjz.client.NodeTooltip.lines(st, cardHost.nodeStatus(hover), cardHost.running()));
             String why = hover < g.nodeReason.size() ? g.nodeReason.get(hover) : "";
-            Component line2 = why.isEmpty() ? Component.translatable("sdzjz.canvas.hint")
-                    : Component.literal(why);
-            ctx.renderTooltip(font, List.of(st.getHoverName(), line2), Optional.empty(), mouseX, mouseY);
+            if (!why.isEmpty()) tip.add(Component.literal(why)); // 本世代特有：阻塞原因整句（m464 灯表词条）
+            ctx.renderTooltip(font, tip, Optional.empty(), mouseX, mouseY);
         }
     }
 

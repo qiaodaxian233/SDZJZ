@@ -1260,26 +1260,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 int nx = (int) (panX + wnx(be, nodes, i) * zoom), ny = (int) (panY + wny(be, nodes, i) * zoom);
                 if (mouseX < nx || mouseX > nx + (int) (NW * zoom) || mouseY < ny || mouseY > ny + (int) (NH * zoom)) continue;
                 ItemStack st = nodes.get(i);
-                java.util.List<net.minecraft.network.chat.Component> tip = new java.util.ArrayList<>();
-                tip.add(Component.literal(st.getHoverName().getString() + " ×" + st.getCount()));
-                int stt = be.nodeStatus(i);
-                tip.add(Component.literal("状态: " + (!this.menu.isRunning() ? "核心停机"
-                        : switch (stt) { case 1 -> "运行中"; case 2 -> "阻塞/关闸"; case 3 -> "缺料"; default -> "待机"; })));
-                if (st.getItem() instanceof com.sdzjz.item.MachineItem mi2) {
-                    var def = mi2.def();
-                    double avg = 0;
-                    for (var d : def.outputs()) avg += d.chance() * (d.min() + d.max()) / 2.0;
-                    double perMin = avg * (1200.0 / Math.max(1, def.baseIntervalTicks())) * st.getCount();
-                    tip.add(Component.literal(String.format("周期 %.1f 秒 · 基础产出 ~%.0f/分", def.baseIntervalTicks() / 20.0, perMin)));
-                    StringBuilder sb = new StringBuilder("产出: ");
-                    for (int k2 = 0; k2 < def.outputs().size() && k2 < 3; k2++) {
-                        if (k2 > 0) sb.append("、");
-                        sb.append(new ItemStack(BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(def.outputs().get(k2).item()))).getHoverName().getString());
-                    }
-                    if (def.outputs().size() > 3) sb.append("…");
-                    tip.add(Component.literal(sb.toString()));
-                    if (def.consumesInputs()) tip.add(Component.literal("消耗输入（对齐原版）"));
-                }
+                // m493（真移植）：详情行组装已下沉共用（NodeTooltip，两代同一份代码）
+                java.util.List<net.minecraft.network.chat.Component> tip =
+                        NodeTooltip.lines(st, be.nodeStatus(i), this.menu.isRunning());
                 ctx.renderComponentTooltip(this.font, tip, mouseX, mouseY);
                 break;
             }
