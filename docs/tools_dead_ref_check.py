@@ -45,5 +45,27 @@ for rel, 名单 in 目标.items():
             行=码[:真用[0]].count("\n")+1
             print(f"❌ {rel}: 已删符号 `{n}` 仍被引用（首处约第 {行} 行，共 {len(真用)} 处）")
             坏+=1
-print("✅ 悬空引用普查干净" if not 坏 else f"\n❌ {坏} 个悬空引用——Gradle 真编译会红")
+# m488 并入括号配平普查：按行号切段搬代码时漏带闭括号已经犯了三次（m487 StorageCore120、
+# m488 WireRenderer 各一次），它在纯语法冒烟里会报成一堆莫名其妙的 "illegal start of expression"，
+# 而括号一数就知道。全库扫，零成本。
+括号坏 = 0
+for rel in sorted(set(list(目标) + [str(x.relative_to(ROOT)) for x in
+        list((ROOT / "xplat/src/main/java/com/sdzjz").rglob("*.java"))
+        + list((ROOT / "versions/1.20.1/src/main/java/com/sdzjz").rglob("*.java"))])):
+    p = ROOT / rel
+    if not p.exists():
+        continue
+    t = p.read_text(encoding="utf-8")
+    t = re.sub(r"/\*.*?\*/", " ", t, flags=re.S)
+    t = re.sub(r"//[^\n]*", " ", t)
+    t = re.sub(r"'(?:\\.|[^'\\])'", "' '", t)
+    t = re.sub(r'"(?:\\.|[^"\\])*"', '""', t)
+    d = t.count("{") - t.count("}")
+    if d:
+        print(f"❌ {rel}: 花括号不配平（多 {d} 个开括号）——多半是按行号切段时漏带闭括号")
+        括号坏 += 1
+if not 括号坏:
+    print("✅ 括号配平普查干净")
+坏 += 括号坏
+print("✅ 悬空引用普查干净" if not 坏 else f"\n❌ {坏} 个问题——Gradle 真编译会红")
 sys.exit(1 if 坏 else 0)

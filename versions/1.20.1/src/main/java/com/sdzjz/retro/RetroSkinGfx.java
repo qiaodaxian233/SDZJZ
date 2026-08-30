@@ -43,4 +43,22 @@ final class RetroSkinGfx implements SciSkin.Gfx {
                 .color((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, (argb >>> 24) & 0xFF)
                 .endVertex();
     }
+
+    @Override
+    public void quadVC(Object vc, Object mat, float x1, float y1, int c1, float x2, float y2, int c2,
+                       float x3, float y3, int c3, float x4, float y4, int c4) {
+        var v = (com.mojang.blaze3d.vertex.VertexConsumer) vc;
+        var m = (org.joml.Matrix4f) mat;
+        vtx(v, m, x1, y1, c1); // 绕序与 1.21 侧逐位一致（错了整条缎带会被背面剔除）
+        vtx(v, m, x2, y2, c2);
+        vtx(v, m, x3, y3, c3);
+        vtx(v, m, x4, y4, c4);
+    }
+
+    private static void vtx(com.mojang.blaze3d.vertex.VertexConsumer v, org.joml.Matrix4f m,
+                            float x, float y, int argb) {
+        v.vertex(m, x, y, 0)
+                .color((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, (argb >>> 24) & 0xFF)
+                .endVertex();
+    }
 }

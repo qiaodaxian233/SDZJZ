@@ -22,6 +22,11 @@ public final class SciSkin {
         /** 解析任意物品 id（1.21={@code ResourceLocation.parse}，1.20.1={@code new ResourceLocation}）。 */
         net.minecraft.resources.ResourceLocation id(String s);
 
+        /** m488：往给定顶点缓冲发一个四点各自着色的四边形（连线缎带/端口圆点用）。 */
+        void quadVC(Object vertexConsumer, Object matrix,
+                    float x1, float y1, int c1, float x2, float y2, int c2,
+                    float x3, float y3, int c3, float x4, float y4, int c4);
+
         /** 画一个四角各自着色的矩形（GUI 顶点缓冲，顶点色插值零色带）。 */
         void quad(net.minecraft.client.gui.GuiGraphics ctx,
                   float x1, float y1, float x2, float y2,
@@ -206,6 +211,12 @@ public final class SciSkin {
     public static net.minecraft.resources.ResourceLocation buttonTex() {
         if (buttonTex == null) buttonTex = gfx().tex("textures/gui/button.png");
         return buttonTex;
+    }
+
+    /** m488：连线缎带的顶点发射门面。 */
+    public static void gfxQuad(Object vc, Object mat, float x1, float y1, int c1, float x2, float y2, int c2,
+                               float x3, float y3, int c3, float x4, float y4, int c4) {
+        gfx().quadVC(vc, mat, x1, y1, c1, x2, y2, c2, x3, y3, c3, x4, y4, c4);
     }
 
     /** m484：任意物品 id 解析（节点卡画白名单/传感器目标的小图标要用）。 */

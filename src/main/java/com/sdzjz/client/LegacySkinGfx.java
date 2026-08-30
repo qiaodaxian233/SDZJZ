@@ -32,4 +32,15 @@ public final class LegacySkinGfx implements SciSkin.Gfx {
         vc.addVertex(mat, x2, y2, 0).setColor(c22);
         vc.addVertex(mat, x2, y1, 0).setColor(c21);
     }
+
+    @Override
+    public void quadVC(Object vc, Object mat, float x1, float y1, int c1, float x2, float y2, int c2,
+                       float x3, float y3, int c3, float x4, float y4, int c4) {
+        var v = (com.mojang.blaze3d.vertex.VertexConsumer) vc;
+        var m = (org.joml.Matrix4f) mat;
+        v.addVertex(m, x1, y1, 0).setColor(c1); // 原句照搬（绕序不动）
+        v.addVertex(m, x2, y2, 0).setColor(c2);
+        v.addVertex(m, x3, y3, 0).setColor(c3);
+        v.addVertex(m, x4, y4, 0).setColor(c4);
+    }
 }

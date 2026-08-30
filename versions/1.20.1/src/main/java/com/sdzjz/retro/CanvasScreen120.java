@@ -263,15 +263,22 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             int m = (int) e[0];
             int[] sp = g.storageNodePos.get(e[1]);
             if (m >= g.machineNodes.size() || sp == null) continue;
-            double x1 = sx((m == dragIndex ? dragCx : nodeCx(m)) + 12), y1 = sy((m == dragIndex ? dragCy : nodeCy(m)) + 12);
+            // m488：锚点按 100×52 卡（出口柱在右缘中上、进口柱在右缘中下；存储卡仍是 24×24）
+            int mcx = (m == dragIndex ? dragCx : nodeCx(m)), mcy = (m == dragIndex ? dragCy : nodeCy(m));
+            boolean 产出 = e[2] == 0;
+            double x1 = sx(mcx + NW), y1 = sy(mcy + (产出 ? NH / 2 - 7 : NH / 2 + 7));
             double x2 = sx(stX(e[1], sp) + 12), y2 = sy(stY(e[1], sp) + 12);
-            line(ctx, x1, y1, x2, y2, e[2] == 0 ? SciSkinPalette.ON : SciSkinPalette.GOLD);
+            com.sdzjz.client.WireRenderer.drawWire(ctx, (float) x1, (float) y1, 1f, 0f,
+                    (float) x2, (float) y2, -1f, 0f,
+                    产出 ? SciSkinPalette.ON : SciSkinPalette.GOLD, (float) zoom);
         }
         for (int[] c : g.connections) { // 连线（节点中心→节点中心，真对角）
             if (c[0] >= g.machineNodes.size() || c[1] >= g.machineNodes.size()) continue; // 快照途中拓扑变化防御
-            double x1 = sx(nodeCx(c[0]) + 12), y1 = sy(nodeCy(c[0]) + 12);
-            double x2 = sx(nodeCx(c[1]) + 12), y2 = sy(nodeCy(c[1]) + 12);
-            line(ctx, x1, y1, x2, y2, SciSkinPalette.ACCENT);
+            // m488：出口柱（上游右缘中上）→ 进口柱（下游左缘中下），切线水平——与主线同锚同工艺
+            double x1 = sx(nodeCx(c[0]) + NW), y1 = sy(nodeCy(c[0]) + NH / 2 - 7);
+            double x2 = sx(nodeCx(c[1])), y2 = sy(nodeCy(c[1]) + NH / 2 + 7);
+            com.sdzjz.client.WireRenderer.drawWire(ctx, (float) x1, (float) y1, 1f, 0f,
+                    (float) x2, (float) y2, -1f, 0f, SciSkinPalette.ACCENT, (float) zoom);
         }
         for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡：24×24 框+图标+状态灯环
             int x = (int) sx(i == dragIndex ? dragCx : nodeCx(i)), y = (int) sy(i == dragIndex ? dragCy : nodeCy(i)); // 拖动幽灵位
@@ -365,6 +372,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         @Override public boolean running() { return true; } // 本世代画布无停机开关（世代取舍：核心恒运行）
     };
+
+    private static final int NW = com.sdzjz.client.NodeCardRenderer.NW, NH = com.sdzjz.client.NodeCardRenderer.NH;
 
     private int nodeCx(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("nx") : 0; } // m474 键位归位（原 xc 撞 NodeTags 抽取累计）
     private int nodeCy(int i) { return g.machineNodes.get(i).hasTag() ? g.machineNodes.get(i).getTag().getInt("ny") : 0; }
