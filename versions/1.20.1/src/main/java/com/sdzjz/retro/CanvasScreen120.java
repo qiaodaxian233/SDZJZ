@@ -269,22 +269,41 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             int m = (int) e[0];
             int[] sp = g.storageNodePos.get(e[1]);
             if (m >= g.machineNodes.size() || sp == null) continue;
-            // m488：锚点按 100×52 卡（出口柱在右缘中上、进口柱在右缘中下；存储卡仍是 24×24）
-            double mcx = (m == dragIndex ? dragCx : nodeCx(m)), mcy = (m == dragIndex ? dragCy : nodeCy(m)); // 拖动位是 double
-            boolean 产出 = e[2] == 0;
-            double x1 = sx(mcx + NW), y1 = sy(mcy + (产出 ? NH / 2 - 7 : NH / 2 + 7));
-            double x2 = sx(stX(e[1], sp) + 12), y2 = sy(stY(e[1], sp) + 12);
-            com.sdzjz.client.WireRenderer.drawWire(ctx, (float) x1, (float) y1, 1f, 0f,
-                    (float) x2, (float) y2, -1f, 0f,
-                    产出 ? SciSkinPalette.ON : SciSkinPalette.GOLD, (float) zoom);
+            // m492：锚点算法照主线原文（m184 选缘看几何 + m352 柱心分高 + 存储卡接口在**卡底**）：
+            //  产出=机器近侧缘水平出线 → 垂直向上接卡底左收料口；供料=卡底右供料口垂直下发 → 水平接机器近侧缘。
+            //  m488 我自己推的「机器右缘 → 存储卡中心」是错的：忽略了选缘、也把存储卡接口当成了中心。
+            boolean dualPe = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 机器端锚分高
+            double mnx = (m == dragIndex ? dragCx : nodeCx(m)), mny = (m == dragIndex ? dragCy : nodeCy(m));
+            float mysO = (float) sy(mny + (dualPe ? NH / 2.0 - 7 : NH / 2.0)); // 产出=出口柱心
+            float mysI = (float) sy(mny + (dualPe ? NH / 2.0 + 7 : NH / 2.0)); // 供料=进口柱心
+            float mcxS = (float) sx(mnx + NW / 2.0);                            // 机器中心屏幕 x：选缘看几何
+            float stx = (float) sx(stX(e[1], sp)), sty = (float) sy(stY(e[1], sp));
+            float stW = (float) (24 * zoom), stH = (float) (24 * zoom);         // 存储卡 24×24
+            if (e[2] == 0) { // 机器→存储（产出）
+                boolean er = stx + stW * 0.25f >= mcxS; // 收料口在机器右侧→右缘出线
+                float mxs = (float) sx(mnx + (er ? NW : 0));
+                com.sdzjz.client.WireRenderer.drawWire(ctx, mxs, mysO, er ? 1 : -1, 0,
+                        stx + stW * 0.25f, sty + stH + 2, 0, -1, SciSkinPalette.ON, 1f); // 主线此处传 1f（屏幕坐标层）
+            } else {         // 存储→机器（供料）
+                boolean fr = stx + stW * 0.75f >= mcxS; // 供料口在机器右侧→从右缘进
+                float mxi = (float) sx(mnx + (fr ? NW : 0));
+                com.sdzjz.client.WireRenderer.drawWire(ctx, stx + stW * 0.75f, sty + stH + 2, 0, 1,
+                        mxi, mysI, fr ? -1 : 1, 0, SciSkinPalette.GOLD, 1f); // 同上
+            }
         }
         for (int[] c : g.connections) { // 连线（节点中心→节点中心，真对角）
             if (c[0] >= g.machineNodes.size() || c[1] >= g.machineNodes.size()) continue; // 快照途中拓扑变化防御
-            // m488：出口柱（上游右缘中上）→ 进口柱（下游左缘中下），切线水平——与主线同锚同工艺
-            double x1 = sx(nodeCx(c[0]) + NW), y1 = sy(nodeCy(c[0]) + NH / 2 - 7);
-            double x2 = sx(nodeCx(c[1])), y2 = sy(nodeCy(c[1]) + NH / 2 + 7);
-            com.sdzjz.client.WireRenderer.drawWire(ctx, (float) x1, (float) y1, 1f, 0f,
-                    (float) x2, (float) y2, -1f, 0f, SciSkinPalette.ACCENT, (float) zoom);
+            // m492：照主线原文（m352 柱心分高 + m184 选缘看几何：下游在右=右缘出左缘进，
+            //  在左=左缘出右缘进，不再绕背后大圈）。
+            boolean dual = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts;
+            int dyO = dual ? NH / 2 - 7 : NH / 2, dyI = dual ? NH / 2 + 7 : NH / 2;
+            double ax0 = nodeCx(c[0]), ay0 = nodeCy(c[0]) + dyO;
+            double bx0 = nodeCx(c[1]), by0 = nodeCy(c[1]) + dyI;
+            boolean fwd = bx0 >= ax0;
+            float ax = (float) sx(ax0 + (fwd ? NW : 0)), bx = (float) sx(bx0 + (fwd ? 0 : NW));
+            int dir = fwd ? 1 : -1;
+            com.sdzjz.client.WireRenderer.drawWire(ctx, ax, (float) sy(ay0), dir, 0,
+                    bx, (float) sy(by0), dir, 0, SciSkinPalette.ACCENT, (float) zoom);
         }
         for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡：24×24 框+图标+状态灯环
             int x = (int) sx(i == dragIndex ? dragCx : nodeCx(i)), y = (int) sy(i == dragIndex ? dragCy : nodeCy(i)); // 拖动幽灵位
