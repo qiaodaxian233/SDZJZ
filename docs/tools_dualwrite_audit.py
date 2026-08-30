@@ -62,8 +62,10 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
                                           "（普通账/精确账/类型闸/修订号）——B 阶段"),
     "DataCable120.java": (False, False, "对位数据线 BE 的 BFS 与端点缓存——B 阶段之后"),
     "DataCableBlock120.java": (False, False, "对位 xplat/block/DataCableBlock（endFor 名单已有对表闸看着）"),
-    "DataPanel120.java": (False, False, "对位 block/DataPanelBlockEntity——m500 已下沉聚合/并账/排序/过滤/开窗"
-                         "（PanelAggregator 两代共用），**剩余双写只有 serverTake 取物回账**，B3b 收完即可降世代壳"),
+    "DataPanel120.java": (True, False, "数据面板**世代壳**：m500/m501 起业务全走共用件"
+                         "（PanelAggregator：聚合/精确并账/排序/过滤/开窗/取物回账），本文件只剩 BE 开屏工厂"
+                         "（ExtendedScreenHandlerFactory 两代签名不同）、虚拟列表菜单 PanelMenu120（主线是 54 展示槽+合成网格，协议形状差）、"
+                         "展示栈物化、申报量钳位与 payload 处理——都是本世代协议侧该各写一份的东西"),
 
     # ===== 判官：D 阶段照 RecipeDomainAssertions 的样子合一（断言一份，两代各喂自己的实现）=====
     "RetroTickTests.java": (False, False, "生产/路由判官——D 阶段合一"),

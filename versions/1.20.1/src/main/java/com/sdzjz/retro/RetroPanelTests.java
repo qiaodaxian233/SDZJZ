@@ -130,4 +130,21 @@ public final class RetroPanelTests implements FabricGameTest {
                 "同 id 同量应普通在前精确在后，实得 " + two.size() + " 行");
         ctx.succeed();
     }
+
+    /** m501（真移植 B3b）：**跨核心取物**——取与回账改走共用门面（跨核心累计取）后，
+     *  两台核心各存一半也应一次取满、两边账本合计扣净。合一前本世代是「按核心遍历+一次申报全量」，
+     *  现在是「共用门面累计取+按堆叠上限分块」，**循环形状变了但不变量没变**，这条判官钉的就是不变量。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void panel_take_spans_multiple_cores(GameTestHelper ctx) {
+        StorageCore120 a = core(ctx, new BlockPos(0, 1, 0));
+        StorageCore120 b = core(ctx, new BlockPos(2, 1, 0));
+        a.deposit(new ItemStack(Items.COBBLESTONE, 40));
+        b.deposit(new ItemStack(Items.COBBLESTONE, 24)); // 合计正好一组
+        Player p = ctx.makeMockPlayer();
+        int got = DataPanel120.serverTake(p, List.of(a, b), false, "minecraft:cobblestone", ItemStack.EMPTY, 64);
+        ctx.assertTrue(got == 64, "跨两台核心应一次取满 64，实得 " + got);
+        long left = a.count("minecraft:cobblestone") + b.count("minecraft:cobblestone");
+        ctx.assertTrue(left == 0, "两台账本合计应扣净，实余 " + left);
+        ctx.succeed();
+    }
 }

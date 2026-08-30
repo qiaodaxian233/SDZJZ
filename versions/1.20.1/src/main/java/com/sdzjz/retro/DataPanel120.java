@@ -130,26 +130,11 @@ final class DataPanel120 extends BlockEntity implements ExtendedScreenHandlerFac
             shape = new ItemStack(BuiltInRegistries.ITEM.get(rl));
             if (shape.isEmpty()) return 0; // 未注册 id 落 air 即空
         }
-        int cap = Math.max(1, shape.getMaxStackSize() * 9); // 一请求至多九栈（防天量申报）
+        int cap = Math.max(1, shape.getMaxStackSize() * 9); // 一请求至多九栈（防天量申报）——本世代协议侧的申报策略，刻意留在本处
         int want = Math.max(1, Math.min(amount, cap));
-        int moved = 0;
-        for (StorageCore120 core : cores) {
-            while (moved < want) {
-                int take = exact ? core.withdrawExact(shape, want - moved) : core.withdraw(id, want - moved);
-                if (take <= 0) break;
-                ItemStack out = shape.copyWithCount(take);
-                player.getInventory().add(out);
-                int leftover = out.getCount(); // add 后余量留在 out 里（原版 Inventory.add 语义）
-                if (leftover > 0) { // 背包满：余量回账本绝不落地，本次请求收工
-                    ItemStack back = shape.copyWithCount(leftover);
-                    if (exact) core.depositExact(back); else core.deposit(back);
-                    return moved + (take - leftover);
-                }
-                moved += take;
-            }
-            if (moved >= want) break;
-        }
-        return moved;
+        // m501（真移植 B3b）：取与回账下沉 PanelAggregator.takeInto（与主线 m82/m100 批量取出同一份代码）。
+        // 合一带来两处本世代的加固：①按堆叠上限分块取（原为一次申报全量）②余量回账本后仍非空则 player.drop 双保险。
+        return (int) com.sdzjz.storage.PanelAggregator.takeInto(player, cores, exact, id, shape, want);
     }
 
     /** C2S 共同前验（服务端权威第一道）：菜单确实开在该面板且方块仍在。 */

@@ -377,21 +377,10 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             int maxStack = Math.max(1, disp.getItem().getDefaultMaxStackSize());
             int[] fixed = {1, 8, 16, 32, 64};
             long want = k < 5 ? fixed[k] : (k < 8 ? (long) maxStack * (2L << (k - 5)) : Long.MAX_VALUE); // 5→2组 6→4组 7→8组 8→填满
-            long given = 0;
-            while (want > 0) {
-                int chunk = (int) Math.min(want, maxStack);
-                int got = exact ? panel.withdrawExact(tpl, chunk) : panel.withdraw(idStr, chunk);
-                if (got <= 0) break; // 仓储见底
-                ItemStack give = exact ? tpl.copyWithCount(got) : new ItemStack(disp.getItem(), got);
-                player.getInventory().add(give);
-                given += got - give.getCount();
-                if (!give.isEmpty()) { // 背包满：余量原路回仓，绝不落地/销毁
-                    panel.deposit(give);
-                    if (!give.isEmpty()) player.drop(give, false); // 双保险(刚取出的同类物品，理论回得去)
-                    break;
-                }
-                want -= chunk;
-            }
+            // m501（真移植 B3b）：取与回账的循环下沉 PanelAggregator.takeInto（两代共用一份），
+            // **档位算法留在本处**（客户端发的是档位下标，是本世代协议形状，不进共用件）。
+            // 核心清单走 coresView()（m218 那条 40t 缓存出口，与原先 panel.withdraw 内部同一份）。
+            long given = com.sdzjz.storage.PanelAggregator.takeInto(player, panel.coresView(), exact, idStr, tpl, want);
             if (k >= 5) msg(player, given > 0 ? "已装入 " + given + " 个" : "背包没有空位");
             return true;
         }

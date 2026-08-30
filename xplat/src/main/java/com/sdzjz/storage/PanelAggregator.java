@@ -154,4 +154,40 @@ public final class PanelAggregator {
         for (StorageLedgerProbe core : cores) n = StorageLedger.satAdd(n, core.count(id));
         return n;
     }
+
+    /**
+     * m501（真移植 B3b）：**取物进背包**——账本权威：取多少给多少，`Inventory.add` 塞不下的余量
+     * 原路退回账本**绝不落地**。原文取自主线 {@code DataPanelScreenHandler.clickMenuButton} 的
+     * m82/m100 批量取出循环，两代逐字同源。返回**实进背包**件数。
+     *
+     * <p><b>申报量 want 由各世代自己算，不进本件</b>（m501 定的形状）：主线是按钮档位
+     * （1/8/16/32/64/2组/4组/8组/填满背包），本世代是「一请求至多九栈」钳位——那是**协议形状差**
+     * （主线客户端发档位下标，本世代客户端发数量），不是业务差；共用件只管**取与回账**这条不变量。
+     * 逐句对下来两代这条不变量**完全相同**，差的全在申报策略与循环写法上（m495 教训：先逐句对再下结论）。
+     *
+     * @param shape 取货形状——精确件=模板（保附加数据），普通件=裸件；两路统一成一个形状（m459 修②）
+     * @param id    普通件的账本键（精确件走模板匹配，本参数不用）
+     */
+    public static long takeInto(net.minecraft.world.entity.player.Player player,
+                                List<? extends StorageLedgerProbe> cores,
+                                boolean exact, String id, ItemStack shape, long want) {
+        if (player.level().isClientSide) return 0; // m112 保险丝：账本只在服务端（原住 BE 门面，随循环一起搬）
+        int maxStack = Math.max(1, shape.getMaxStackSize()); // m163c：动态堆叠上限走栈不走 Item（大堆叠模组白捡）
+        long given = 0;
+        while (want > 0) {
+            int chunk = (int) Math.min(want, maxStack);
+            int got = exact ? withdrawExact(cores, shape, chunk) : withdraw(cores, id, chunk);
+            if (got <= 0) break; // 仓储见底
+            ItemStack give = shape.copyWithCount(got);
+            player.getInventory().add(give);
+            given += got - give.getCount();
+            if (!give.isEmpty()) { // 背包满：余量原路回仓，绝不落地/销毁
+                deposit(cores, give); // m130：带附加数据的自动分流回精确账本（不混堆不变裸）
+                if (!give.isEmpty()) player.drop(give, false); // 双保险(刚取出的同类物品，理论回得去)
+                break;
+            }
+            want -= chunk;
+        }
+        return given;
+    }
 }
