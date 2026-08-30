@@ -37,6 +37,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/node/NodeTags.java'         // m472（绞杀者第五刀）节点栈标签纯函数上挂——NBT 走 ItemData 五口（m437/m451）、身份走 Ident 世代口（RetroNodeIdent），剩余 MC 触点=ItemStack/CompoundTag/Tag/ListTag 四个两代同名类型
         include 'com/sdzjz/node/CanvasGraphState.java'  // m477（真移植 A 阶段第一刀）画布图状态两代共用一份——原 CanvasGraphState120 仿写件已删；栈↔NBT 编解码走 StackCodec 世代口（RetroStackCodec），其余 122 行两代逐字同源
         include 'com/sdzjz/storage/StackKey.java'       // m478（真移植 B 阶段第一刀）精确账本身份键两代共用一份——原 TagStackKey 仿写件已删；相等与哈希走 Kind 世代口（RetroStackKind），其余逐字同源
+        include 'com/sdzjz/storage/StorageLedger.java'   // m485（真移植·直接移除仿写件）存储账本核心两代共用一份：逐句取自主线 StorageCoreBlockEntity 139~275 行，只把 setChanged() 换成注入回调；1.20.1 原来那 181 行重写已删
         include 'com/sdzjz/machine/StorageLedgerProbe.java'      // m480 存储域行为契约探针（十三口，两代 BE 本来就有同名方法）
         include 'com/sdzjz/machine/StorageDomainAssertions.java' // m480 存储域跨代行为契约：一套断言两代各喂自己的实现（照 m372 RecipeDomainAssertions 样板）
         include 'com/sdzjz/node/RouteBrainProbe.java'            // m481 路由域判定探针（四口两代签名已对齐）
