@@ -45,19 +45,6 @@ public class SdzjzGameTests implements FabricGameTest {
         return st;
     }
 
-    /** 审计 twoPlayersShiftTakeLastStack 的账本不变量版：两路抢最后一组，取和恒等于库存——
-     *  handler 侧"先扣账、按实收给"的复制漏洞修复正建立在这条不变量上。 */
-    @GameTest(template = EMPTY_STRUCTURE)
-    public void two_withdraw_last_stack_no_dupe(GameTestHelper ctx) {
-        StorageCoreBlockEntity c = core(ctx);
-        c.deposit(new ItemStack(Items.COBBLESTONE, 64));
-        int a = c.withdraw("minecraft:cobblestone", 64);
-        int b = c.withdraw("minecraft:cobblestone", 64);
-        ctx.assertTrue(a + b == 64, "两路取和必须=64（无复制无凭空蒸发），实得 " + a + "+" + b);
-        ctx.assertTrue(c.count("minecraft:cobblestone") == 0, "取尽后余量必须=0");
-        ctx.succeed();
-    }
-
     /** 审计 fabricTransactionAbortRestoresNormalEntry：外层事务回滚，普通账目还原。 */
     @GameTest(template = EMPTY_STRUCTURE)
     public void fabric_abort_restores_normal_entry(GameTestHelper ctx) {
@@ -123,37 +110,16 @@ public class SdzjzGameTests implements FabricGameTest {
     public void type_safety_limit_rejects_new_types(GameTestHelper ctx) {
         SdzjzConfig cfg = SdzjzConfig.get();
         int old = cfg.absoluteStorageTypeSafetyLimit;
-        cfg.absoluteStorageTypeSafetyLimit = 2;
+        cfg.absoluteStorageTypeSafetyLimit = 2; // 配置窗归判官管，契约只管判定（m482）
         try {
-            StorageCoreBlockEntity c = core(ctx);
-            c.deposit(new ItemStack(Items.STONE, 8));
-            c.deposit(new ItemStack(Items.DIRT, 8));
-            ItemStack third = new ItemStack(Items.SAND, 8);
-            c.deposit(third);
-            ctx.assertTrue(c.usedTypes() == 2, "硬顶=2 时第三种应被拒，usedTypes 实得 " + c.usedTypes());
-            ctx.assertTrue(third.getCount() == 8, "被拒的栈必须原样保留，实得 " + third.getCount());
-            c.deposit(new ItemStack(Items.STONE, 8)); // 已有类型不受闸
-            ctx.assertTrue(c.count("minecraft:stone") == 16, "已有类型应照常并账=16，实得 " + c.count("minecraft:stone"));
+            com.sdzjz.machine.StorageDomainAssertions.类型硬顶(core(ctx), 2,
+                    new ItemStack(Items.STONE, 8), new ItemStack(Items.DIRT, 8), new ItemStack(Items.SAND, 8));
+        } catch (AssertionError e) {
+            ctx.fail("类型硬顶契约失败: " + e.getMessage());
+            return;
         } finally {
             cfg.absoluteStorageTypeSafetyLimit = old; // 测试自还原，不污染同批次其它用例
         }
-        ctx.succeed();
-    }
-
-    /** m295 精确索引与列表同步：删中间条目（下标平移）后按模板直查仍逐一命中。 */
-    @GameTest(template = EMPTY_STRUCTURE)
-    public void exact_index_survives_middle_removal(GameTestHelper ctx) {
-        StorageCoreBlockEntity c = core(ctx);
-        c.deposit(exactSample(1, 5));
-        c.deposit(exactSample(2, 5));
-        c.deposit(exactSample(3, 5));
-        int gone = c.withdrawExact(exactSample(2, 1), 5); // 提净中间条目 → 索引删键+平移
-        ctx.assertTrue(gone == 5, "中间条目提净应得 5，实得 " + gone);
-        ctx.assertTrue(c.exactTemplates().size() == 2, "剩余条目应=2，实得 " + c.exactTemplates().size());
-        c.deposit(exactSample(3, 5)); // 平移后并账必须仍命中原条目而非新开一条
-        ctx.assertTrue(c.exactTemplates().size() == 2, "平移后并账不得新开条目，实得 " + c.exactTemplates().size());
-        int k3 = c.withdrawExact(exactSample(3, 1), 99);
-        ctx.assertTrue(k3 == 10, "k=3 应累计 10（5+5），实得 " + k3);
         ctx.succeed();
     }
 

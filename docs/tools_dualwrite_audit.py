@@ -18,6 +18,7 @@ MC API 密集，两代形状本就不同），不算欠账。
 
 **加新文件**：往 登记表 加一行，写清它是世代壳还是待合一的双写件。
 """
+import re
 import pathlib
 import sys
 
@@ -72,6 +73,19 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
 }
 
 
+判官文件 = {"RetroTickTests.java", "RetroStorageTests.java", "RetroCanvasTests.java",
+            "RetroPanelTests.java", "RetroNetTests.java"}
+主线判官 = "src/main/java/com/sdzjz/gametest/SdzjzGameTests.java"
+
+
+def 用例名(路径):
+    """抓 GameTest 用例名（public void xxx(GameTestHelper）。"""
+    p = ROOT / 路径 if isinstance(路径, str) else 路径
+    if not p.exists():
+        return set()
+    return set(re.findall(r"public void (\w+)\s*\(\s*GameTestHelper", p.read_text(encoding="utf-8")))
+
+
 def 主():
     d = ROOT / RETRO
     if not d.exists():
@@ -101,13 +115,24 @@ def 主():
     print("\n【真移植进度】世代壳 %d 个（该各写一份，不算欠账）｜已合一 %d 个｜**待合一 %d 个**"
           % (len(壳), len(合), len(欠)))
     if 欠:
+        主线用例 = 用例名(主线判官)
         总行 = 0
+        同名总数 = 0
         for k in 欠:
             p = d / k
             n = len(p.read_text(encoding="utf-8").split("\n")) if p.exists() else 0
-            总行 += n
-            print("   欠 %4d 行  %s —— %s" % (n, k, 登记表[k][2]))
-        print("   合计欠账 %d 行双写代码。" % 总行)
+            if k in 判官文件:
+                # m482 口径修正：判官文件按**与主线同名的用例数**算双写，不按行数——
+                # 行数会被"本世代独有覆盖"（cable_*/tick_* 等主线没有的用例）冲掉，收了双写反而看着涨，不诚实。
+                同名 = sorted(用例名(p) & 主线用例)
+                同名总数 += len(同名)
+                print("   欠 %2d 条同名用例  %s —— %s%s"
+                      % (len(同名), k, 登记表[k][2],
+                         ("（" + "、".join(同名) + "）") if 同名 else "（本世代独有覆盖，非双写）"))
+            else:
+                总行 += n
+                print("   欠 %4d 行  %s —— %s" % (n, k, 登记表[k][2]))
+        print("   合计欠账 %d 行业务双写 + %d 条判官同名双写用例。" % (总行, 同名总数))
 
     if 坏:
         print("\n❌ 双写闸红：%d 条判据不过。" % 坏)
