@@ -119,38 +119,64 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
         }
     }
 
-    /** 主线四屏形制（SciSkin=唯一色源）：BACKDROP 全不透明底 + FRAME 外框 + 标题栏条 + 槽框。 */
+    /** m489（真移植）：面板工艺换成主线同一份（SciSkin.termPanel/termSlot/termBtn，
+     *  照 xplat DataPanelScreen.renderBg 的形制搬——全屏暗底+窗体大卡+标题紫刻+分隔细线+
+     *  分区卡片+聚焦紫描边+真实比例滚动条）。本世代菜单只有背包 36 槽（无经验库/合成终端/回收），
+     *  那三块不搬——**搬工艺不搬本世代没有的功能区**。 */
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        int x0 = leftPos, y0 = topPos, x1 = leftPos + imageWidth, y1 = topPos + imageHeight;
-        g.fill(x0 - 1, y0 - 1, x1 + 1, y1 + 1, SciSkinPalette.FRAME);    // 外框 1px
-        g.fill(x0, y0, x1, y1, SciSkinPalette.BACKDROP);                  // 全不透明底（m452 透明观感主修）
-        g.fill(x0, y0, x1, y0 + 16, SciSkinPalette.BTN_FACE);             // 标题栏条
-        g.fill(x0, y0 + 16, x1, y0 + 17, SciSkinPalette.FRAME);           // 标题栏底缘线
-        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 14, SciSkinPalette.CELL);  // 搜索区底
-        g.fill(x0 + 96, y0 + 2, x0 + 187, y0 + 3, SciSkinPalette.CELL_FRM); // 搜索区细边（上/下两线足够，主线搜索框 m161b 去黑壳同风）
-        g.fill(x0 + 96, y0 + 13, x0 + 187, y0 + 14, search != null && search.isFocused() ? SciSkinPalette.ACCENT : SciSkinPalette.CELL_FRM);
+        int x = leftPos, y = topPos;
+        com.sdzjz.client.SciSkin.scopeCanvas(false); // 终端配色域（与主线 termXxx 同源）
+        g.fill(0, 0, this.width, this.height, com.sdzjz.client.SciSkin.termInk()); // 全屏暗底（设计稿背景色）
+        com.sdzjz.client.SciSkin.termPanel(g, x, y, imageWidth, imageHeight);      // 窗体大卡
+        g.fill(x + 2, y + 20, x + imageWidth - 2, y + 21,
+                com.sdzjz.client.SciSkin.withAlpha(com.sdzjz.client.SciSkin.termFrame(), 0.6f)); // 分隔细线
+        g.fill(x + 7, y + 5, x + 19, y + 17, com.sdzjz.client.SciSkin.termAccentDeep());        // 图标：紫方块+受光角
+        g.fill(x + 8, y + 6, x + 18, y + 16, com.sdzjz.client.SciSkin.termAccent());
+        g.fill(x + 8, y + 6, x + 12, y + 10, com.sdzjz.client.SciSkin.withAlpha(com.sdzjz.client.SciSkin.termHi(), 0.55f));
+
+        // ===== 搜索卡：m489 挪到网格上方独占一行（原来钉在标题栏右上角，与 IPN/REI 这类
+        // 整理模组默认放按钮的位置抢地盘，作者实机截到过按钮压在搜索框上）=====
+        com.sdzjz.client.SciSkin.termPanel(g, x + 4, y + 24, imageWidth - 8, 20);
+        if (search != null && search.getValue().isEmpty())
+            g.drawString(font, net.minecraft.network.chat.Component.translatable("sdzjz.panel.search_hint"),
+                    x + 12, y + 30, com.sdzjz.client.SciSkin.termSub(), false);
+        if (search != null && search.isFocused()) { // 聚焦=紫描边（四边 1px，主线同款）
+            int a = com.sdzjz.client.SciSkin.termAccent();
+            g.fill(x + 5, y + 25, x + imageWidth - 5, y + 26, a);
+            g.fill(x + 5, y + 42, x + imageWidth - 5, y + 43, a);
+            g.fill(x + 5, y + 25, x + 6, y + 43, a);
+            g.fill(x + imageWidth - 6, y + 25, x + imageWidth - 5, y + 43, a);
+        }
+
+        // ===== 存储网格卡 + 真实比例滚动条（主线 m107b 同款）=====
+        com.sdzjz.client.SciSkin.termPanel(g, x + 4, y + GRID_Y - 6, imageWidth - 8, ROWS * CELL_PX + 12);
         for (int r = 0; r < ROWS; r++)
             for (int c = 0; c < COLS; c++) {
-                int x = x0 + GRID_X + c * CELL_PX, y = y0 + GRID_Y + r * CELL_PX;
-                boolean hover = mouseX >= x && mouseX < x + 18 && mouseY >= y && mouseY < y + 18;
-                cell(g, x, y, hover);
+                int sx = x + GRID_X + c * CELL_PX, sy = y + GRID_Y + r * CELL_PX;
+                com.sdzjz.client.SciSkin.termSlot(g, sx + 1, sy + 1); // 主线槽（18×18 贴图，传物品区左上角）
                 int idx = r * COLS + c;
                 if (idx < data.rows().size()) {
                     PanelPayloads120.Row rw = data.rows().get(idx);
-                    g.renderItem(rw.display(), x + 1, y + 1);
-                    g.renderItemDecorations(font, rw.display(), x + 1, y + 1, shortCount(rw.n()));
+                    g.renderItem(rw.display(), sx + 1, sy + 1);
+                    g.renderItemDecorations(font, rw.display(), sx + 1, sy + 1, shortCount(rw.n()));
                 }
             }
-        for (net.minecraft.world.inventory.Slot slot : menu.slots) // 背包槽同款槽框（槽内物品 super 画）
-            cell(g, x0 + slot.x - 1, y0 + slot.y - 1, false);
-        if (data.totalRows() > ROWS) { // 滚动条：轨道 CELL、滑块 FRAME
-            int trackX = x1 - 6, trackY0 = y0 + GRID_Y, track = ROWS * CELL_PX;
-            g.fill(trackX, trackY0, trackX + 3, trackY0 + track, SciSkinPalette.CELL);
-            int thumb = Math.max(8, track * ROWS / data.totalRows());
+        if (data.totalRows() > ROWS) {
+            int sbx = x + imageWidth - 11, track = ROWS * CELL_PX;
+            g.fill(sbx, y + GRID_Y, sbx + 6, y + GRID_Y + track, com.sdzjz.client.SciSkin.termBaseDeep());
+            g.fill(sbx, y + GRID_Y, sbx + 6, y + GRID_Y + 1,
+                    com.sdzjz.client.SciSkin.withAlpha(com.sdzjz.client.SciSkin.termInk(), 0.28f)); // 轨内顶阴影
+            int thumb = Math.max(12, track * ROWS / data.totalRows());
             int off = (track - thumb) * scrollRow / Math.max(1, data.totalRows() - ROWS);
-            g.fill(trackX, trackY0 + off, trackX + 3, trackY0 + off + thumb, SciSkinPalette.FRAME);
+            g.fill(sbx, y + GRID_Y + off, sbx + 6, y + GRID_Y + off + thumb, com.sdzjz.client.SciSkin.termAccent());
         }
+
+        // ===== 背包卡（本世代只有这一块，经验库/合成终端/回收随各族到序）=====
+        int invTop = y + inventoryLabelY - 6;
+        com.sdzjz.client.SciSkin.termPanel(g, x + 4, invTop, imageWidth - 8, imageHeight - (invTop - y) - 4);
+        for (net.minecraft.world.inventory.Slot slot : menu.slots)
+            com.sdzjz.client.SciSkin.termSlot(g, x + slot.x, y + slot.y);
     }
 
     /** 18px 槽框：CELL_FRM 边 + CELL 底，悬停=ACCENT 边 + HOVER 底（主线格子形制）。 */
@@ -161,8 +187,8 @@ public final class DataPanelScreen120 extends AbstractContainerScreen<DataPanel1
 
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
-        g.drawString(font, title, titleLabelX, 5, SciSkinPalette.TXT_HI, false); // 标题进标题栏条
-        g.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, SciSkinPalette.SUB, false);
+        g.drawString(font, title, 24, 7, com.sdzjz.client.SciSkin.termInk(), false); // m489 主线同位（图标右侧）
+        g.drawString(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, com.sdzjz.client.SciSkin.termSub(), false);
     }
 
     private boolean overGrid(double mx, double my) {

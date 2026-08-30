@@ -66,6 +66,19 @@ for rel in sorted(set(list(目标) + [str(x.relative_to(ROOT)) for x in
         括号坏 += 1
 if not 括号坏:
     print("✅ 括号配平普查干净")
-坏 += 括号坏
+# m489 并入：**共用件引用的资源，本世代资源目录里有没有**。
+# SciSkin.slotTex()/buttonTex() 会 blit textures/gui/{slot,button}.png——主线有，1.20.1 原来没有，
+# 挂上共用件之后槽位会画成紫黑格。编译器管不着（是运行期资源），冒烟也管不着，只有开屏才看得见。
+资源坏 = 0
+共用要的资源 = ["assets/sdzjz/textures/gui/slot.png", "assets/sdzjz/textures/gui/button.png"]
+资源根 = {"主线": ROOT / "src/main/resources", "1.20.1": ROOT / "versions/1.20.1/src/main/resources"}
+for 代, 根 in 资源根.items():
+    for r in 共用要的资源:
+        if not (根 / r).exists():
+            print(f"❌ {代} 缺共用件要用的资源：{r}（SciSkin 会 blit 它，缺了画成紫黑格）")
+            资源坏 += 1
+if not 资源坏:
+    print("✅ 共用件资源普查干净")
+坏 += 括号坏 + 资源坏
 print("✅ 悬空引用普查干净" if not 坏 else f"\n❌ {坏} 个问题——Gradle 真编译会红")
 sys.exit(1 if 坏 else 0)
