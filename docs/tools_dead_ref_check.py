@@ -79,6 +79,35 @@ for 代, 根 in 资源根.items():
             资源坏 += 1
 if not 资源坏:
     print("✅ 共用件资源普查干净")
-坏 += 括号坏 + 资源坏
+# m497 并入：**用到了却没 import**。作者的 Gradle 报 `找不到符号: 变量 Items`——
+# 我的筛选器把 cannot find symbol 一律归噪音（m491 判据，缺 MC jar 时噪音上千条），
+# 而本闸原来只查「已删符号还有没有人用」，查不到「新写的代码引用了本文件没 import 的类型」。
+# 判据：只认下面这张**常用 MC 类型白名单**（准，零误报）——用了 `Xxx.` 或 `new Xxx(` 却
+# 既没 import、又不是全限定名、又不在同包，即红。
+常用类 = ["Items", "Blocks", "ItemStack", "BlockPos", "BlockState", "Block", "Component",
+          "CompoundTag", "ListTag", "StringTag", "Tag", "Direction", "ChunkPos",
+          "BuiltInRegistries", "ResourceLocation", "GameTestHelper", "GuiGraphics",
+          "Minecraft", "Level", "ServerLevel", "Slot", "EditBox", "Optional", "List", "Map"]
+导入坏 = 0
+for 根 in [ROOT / "versions/1.20.1/src/main/java/com/sdzjz", ROOT / "xplat/src/main/java/com/sdzjz"]:
+    for p2 in sorted(根.rglob("*.java")):
+        原 = p2.read_text(encoding="utf-8")
+        码 = re.sub(r"/\*.*?\*/", " ", 原, flags=re.S)
+        码 = re.sub(r"//[^\n]*", " ", 码)
+        码 = re.sub(r'"(?:\\.|[^"\\])*"', '""', 码)
+        导入 = set(re.findall(r"^import\s+(?:static\s+)?[\w.]*?(\w+);", 原, re.M))
+        本包 = {q.stem for q in p2.parent.glob("*.java")}
+        自定义 = set(re.findall(r"\b(?:class|interface|enum|record)\s+(\w+)", 码))
+        for c in 常用类:
+            if c in 导入 or c in 本包 or c in 自定义:
+                continue
+            # 用了 `C.` 或 `new C(`，且前面不是 `.`（排除全限定名 a.b.C.）
+            if re.search(r"(?<![\w.])" + c + r"\s*(?:\.|\b\s*\w+\s*=)|new\s+" + c + r"\s*\(", 码):
+                行 = 码[:re.search(r"(?<![\w.])" + c + r"\s*(?:\.|\b)", 码).start()].count("\n") + 1
+                print(f"❌ {p2.relative_to(ROOT)}:{行} 用到 `{c}` 却没 import（Gradle 会报「找不到符号」）")
+                导入坏 += 1
+if not 导入坏:
+    print("✅ import 完整性普查干净")
+坏 += 括号坏 + 资源坏 + 导入坏
 print("✅ 悬空引用普查干净" if not 坏 else f"\n❌ {坏} 个问题——Gradle 真编译会红")
 sys.exit(1 if 坏 else 0)
