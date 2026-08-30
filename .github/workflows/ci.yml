@@ -49,6 +49,8 @@ jobs:
         run: python3 docs/tools_node_key_check.py
       - name: 双写普查(m477 真移植路线看门人,欠账账目上账;拦"随手再写一份仿品")
         run: python3 docs/tools_dualwrite_audit.py
+      - name: 悬空引用闸(m487,补纯语法冒烟盲区:下沉后已删符号是否还有人在用)
+        run: python3 docs/tools_dead_ref_check.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；

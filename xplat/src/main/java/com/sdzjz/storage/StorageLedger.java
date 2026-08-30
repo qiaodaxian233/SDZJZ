@@ -112,7 +112,10 @@ public final class StorageLedger {
      *  m130：带组件的物品自动分流进精确账本，组件原样保存——附魔书/药水/损耗工具/带阶位机器全部可入仓。 */
     public void deposit(ItemStack stack) {
         if (stack.isEmpty()) return;
-        if (!stack.getComponentsPatch().isEmpty()) { depositExact(stack); return; }
+        // m487 世代口：原文是 1.21 的 stack.getComponentsPatch().isEmpty()（组件世代专属）。
+        // 「有没有附加数据」两代口径不同（1.21=组件补丁非空，1.20.1=有 tag），走 ItemData 五口的 has()
+        // ——它本来就是为这件事建的门面（m437/m451），两代实现各自判各自的。
+        if (com.sdzjz.item.ItemData.has(stack)) { depositExact(stack); return; }
         String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         if (!store.containsKey(id) && usedTypes() >= typeGate()) return; // m293 安全硬顶同闸
         store.merge(id, (long) stack.getCount(), StorageLedger::satAdd); // m273 饱和加法

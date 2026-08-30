@@ -43,6 +43,44 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
     /** m98：类型上限走配置（common 同源，不抄数字）——storageTypesPerTier 0=无限(默认)，>0=每级该数。 */
     private static int typesPerTier() { return com.sdzjz.config.SdzjzConfig.get().storageTypesPerTier; }
+    public StorageCore120(BlockPos pos, BlockState state) {
+        super(RetroBlocks.STORAGE_CORE_BE, pos, state);
+    }
+
+    // ===== m444 网络连通（蓝本 connectedCores/loadedCoreAt 的本世代裁剪版：CORES 登记表/桶索引
+    // 属机器消费面随 P-C，loadedCoreAt 去掉幽灵剔除支路——没有登记表就没有幽灵；m233 linkBlocked
+    // 按面断开随 P-C 链接器，BFS 暂无断边闸，到期在 seen 之前插同位）=====
+
+    /** BFS：从某位置经数据线/相邻找到所有存储核心（4096 上限同蓝本）。 */
+    public static List<StorageCore120> connectedCores(net.minecraft.world.level.Level world, BlockPos from) {
+        List<StorageCore120> out = new ArrayList<>();
+        if (world == null) return out;
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(from); seen.add(from);
+        int limit = 4096;
+        while (!queue.isEmpty() && limit-- > 0) {
+            BlockPos p = queue.poll();
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                BlockPos np = p.relative(d);
+                if (!seen.add(np)) continue;
+                BlockEntity be = world.getBlockEntity(np);
+                if (be instanceof StorageCore120 core) { out.add(core); queue.add(np); }
+                else if (world.getBlockState(np).getBlock() instanceof DataCableBlock120) queue.add(np);
+            }
+        }
+        return out;
+    }
+
+    /** 安全查找：只查已加载区块（getBlockEntity 在服务端会强制加载区块，缓存位置解引用时绝不能裸用）。 */
+    public static StorageCore120 loadedCoreAt(net.minecraft.world.level.Level world, BlockPos p) {
+        if (!world.getChunkSource().hasChunk(p.getX() >> 4, p.getZ() >> 4)) return null;
+        return world.getBlockEntity(p) instanceof StorageCore120 core ? core : null;
+    }
+
+    /** m444 普通类型可收判定（供路由侧问"这仓还收不收这种"）。 */
+    boolean acceptsPlainType(String id) { return ledger.storeView().containsKey(id) || usedTypes() < ledger.typeGate(); }
+
     // ===== m485（真移植·作者点名「是移植不是重做，把以前写的 1.20.1 直接移除」）=====
     // 原来这里是 181 行**按主线重写的账本**（普通账/精确账/哈希索引/类型闸/饱和加法/修订号/经验库）。
     // 整段删除，改用与主线**同一份** com.sdzjz.storage.StorageLedger——那份代码逐句来自主线
@@ -184,7 +222,7 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
                 if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
                 views.add(new View(v, id));
             }
-            for (ItemStack tpl : new ArrayList<>(exactTpl)) views.add(new View(ItemVariant.of(tpl), null));
+            for (ItemStack tpl : new ArrayList<>(ledger.exactTemplates())) views.add(new View(ItemVariant.of(tpl), null));
             return views.iterator();
         }
 
@@ -236,7 +274,7 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
             ex.add(c);
         }
         nbt.put("exact", ex);
-        nbt.putLong("xpBank", xpBank);
+        nbt.putLong("xpBank", ledger.xpBank());
     }
 
     @Override

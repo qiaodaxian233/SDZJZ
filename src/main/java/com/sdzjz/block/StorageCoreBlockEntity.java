@@ -287,7 +287,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
                 if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
                 views.add(new View(v, id));
             }
-            for (ItemStack tpl : new ArrayList<>(exactTpl)) views.add(new View(ItemVariant.of(tpl), null));
+            for (ItemStack tpl : new ArrayList<>(ledger.exactTemplates())) views.add(new View(ItemVariant.of(tpl), null));
             return views.iterator();
         }
 
