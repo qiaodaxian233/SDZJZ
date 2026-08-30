@@ -18,9 +18,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * m447（P-C1 刀②）：数据面板 1.20.1 服务端半——BE（开屏工厂）+菜单（虚拟列表制，无网络槽位）。
@@ -83,10 +81,7 @@ final class DataPanel120 extends BlockEntity implements ExtendedScreenHandlerFac
             if (!slot.hasItem()) return ItemStack.EMPTY;
             ItemStack moving = slot.getItem();
             List<StorageCore120> cores = StorageCore120.connectedCores(player.level(), panelPos);
-            for (StorageCore120 core : cores) {
-                if (moving.isEmpty()) break;
-                core.deposit(moving); // 收下即置 0（deposit 语义）；拒收=原样保留试下一核心
-            }
+            com.sdzjz.storage.PanelAggregator.deposit(cores, moving); // m500 下沉：收下即置 0（deposit 语义）；拒收=原样保留试下一核心
             slot.setChanged();
             return ItemStack.EMPTY;
         }
@@ -94,40 +89,32 @@ final class DataPanel120 extends BlockEntity implements ExtendedScreenHandlerFac
 
     // ===== 可测逻辑（payload 接线在 RetroBootstrap，薄包一层）=====
 
-    /** 聚合快照：全核心 普通账本(id 求和)+精确账本(模板逐条) → id 串过滤（大小写不敏；精确件按
-     *  物品 id 匹配）→ 排序（账面数降序，同数按 id 升序稳定）→ 按 scrollRow 开 9 列窗。
-     *  返回 Rows（totalRows=匹配总行数=ceil(条目/9)，scrollRow 服务端钳位回传防客户端越界）。 */
+    /** 聚合快照：**聚合/合并/排序/过滤/开窗全走共用件**（m500 真移植 B3：与主线
+     *  {@code DataPanelBlockEntity.masterEntries} + {@code DataPanelScreenHandler.repage} 同一份代码），
+     *  本方法只剩本世代协议侧的**展示栈物化**（虚拟列表包按行发，主线那侧是写 54 个真槽位）。
+     *  返回 Rows（totalRows=匹配总行数=ceil(条目/9)，scrollRow 服务端钳位回传防客户端越界）。
+     *
+     *  <p>合一带来的三处行为变化（皆为本世代**补上主线原有的加固**，见 DEVLOG m500）：
+     *  ①精确条目跨核心按「物品+tag」合并（原来每核心每模板各占一行，多核心网络下同款附魔书会分行）；
+     *  ②排序尾键补齐（同量同 id 时普通在前、精确件按 tag 串稳定，防同款书刷新抖动）；
+     *  ③搜索词命中集通道预留（本世代暂无本地化名索引，传空集即退化为纯 id 子串匹配，行为同旧）。 */
     static PanelPayloads120.Rows snapshot(List<StorageCore120> cores, String query, int scrollRow) {
-        String q = query == null ? "" : query.toLowerCase(java.util.Locale.ROOT);
-        Map<String, Long> plain = new LinkedHashMap<>();
-        List<PanelPayloads120.Row> all = new ArrayList<>();
-        for (StorageCore120 core : cores) {
-            for (Map.Entry<String, Long> e : core.storeView().entrySet())
-                plain.merge(e.getKey(), e.getValue(), StorageCore120::satAdd); // m273 跨核心求和同饱和
-            for (int i = 0; i < core.exactTemplates().size(); i++) {
-                ItemStack tpl = core.exactTemplates().get(i);
-                String id = BuiltInRegistries.ITEM.getKey(tpl.getItem()).toString();
-                if (!q.isEmpty() && !id.toLowerCase(java.util.Locale.ROOT).contains(q)) continue;
-                all.add(new PanelPayloads120.Row(tpl.copyWithCount(1), core.exactCount(i), true));
+        var page = com.sdzjz.storage.PanelAggregator.page(
+                com.sdzjz.storage.PanelAggregator.entriesOf(cores),
+                query, java.util.Set.of(), scrollRow, PanelPayloads120.Rows.WINDOW);
+        List<PanelPayloads120.Row> rows = new ArrayList<>();
+        for (com.sdzjz.storage.PanelAggregator.DispEnt d : page.rows()) {
+            if (d.tpl != null) { // 精确件：模板已 copyWithCount(1)，原样发（不混堆不变裸）
+                rows.add(new PanelPayloads120.Row(d.tpl, d.n, true));
+                continue;
             }
-        }
-        for (Map.Entry<String, Long> e : plain.entrySet()) {
-            if (!q.isEmpty() && !e.getKey().toLowerCase(java.util.Locale.ROOT).contains(q)) continue;
-            ResourceLocation rl = ResourceLocation.tryParse(e.getKey()); // m443 同款防御
+            ResourceLocation rl = ResourceLocation.tryParse(d.id); // m443 同款防御
             if (rl == null) continue;
             Item it = BuiltInRegistries.ITEM.get(rl);
             ItemStack st = new ItemStack(it);
-            if (!st.isEmpty()) all.add(new PanelPayloads120.Row(st, e.getValue(), false));
+            if (!st.isEmpty()) rows.add(new PanelPayloads120.Row(st, d.n, false));
         }
-        all.sort(java.util.Comparator
-                .comparingLong((PanelPayloads120.Row r) -> -r.n())
-                .thenComparing(r -> BuiltInRegistries.ITEM.getKey(r.display().getItem()).toString()));
-        int totalRows = (all.size() + 8) / 9;
-        int maxStart = Math.max(0, totalRows - PanelPayloads120.Rows.WINDOW / 9);
-        int row = Math.max(0, Math.min(scrollRow, maxStart)); // 服务端钳位（客户端数字不可信）
-        int from = row * 9;
-        int to = Math.min(all.size(), from + PanelPayloads120.Rows.WINDOW);
-        return new PanelPayloads120.Rows(totalRows, row, new ArrayList<>(all.subList(Math.min(from, all.size()), to)));
+        return new PanelPayloads120.Rows(page.totalRows(), page.scrollRow(), rows);
     }
 
     /** 取物进背包：amount 服务端钳位（1..maxStack×9=至多九栈一请求，防天量申报）；withdraw 后

@@ -18,7 +18,10 @@ import java.util.List;
 public final class RetroPanelTests implements FabricGameTest {
 
     private static StorageCore120 core(GameTestHelper ctx) {
-        BlockPos rel = new BlockPos(0, 1, 0);
+        return core(ctx, new BlockPos(0, 1, 0));
+    }
+
+    private static StorageCore120 core(GameTestHelper ctx, BlockPos rel) { // m500：多核心用例要第二台
         ctx.setBlock(rel, RetroBlocks.STORAGE_CORE.defaultBlockState());
         if (ctx.getBlockEntity(rel) instanceof StorageCore120 c) return c;
         ctx.fail("存储核心方块实体未生成");
@@ -99,6 +102,32 @@ public final class RetroPanelTests implements FabricGameTest {
         ctx.assertTrue(p.getInventory().getItem(9).isEmpty(), "槽应清空");
         ctx.assertTrue(c.exactTemplates().size() == 1 && c.exactCount(0) == 8,
                 "tag 件应入精确账本 1 条 ×8，实得 " + c.exactTemplates().size() + " 条 ×" + c.exactCount(0));
+        ctx.succeed();
+    }
+
+    /** m500（真移植 B3）：**同款精确件跨核心合并成一行**——合一前本世代每核心每模板各占一行
+     *  （两台核心里各有一本同款附魔书 = 面板上分两行、各显各的数），下沉主线 masterEntries 后
+     *  按「物品+tag」并成一行合计。同刀验排序尾键：同量同 id 时普通条目排在精确件之前。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void panel_snapshot_merges_exact_entries_across_cores(GameTestHelper ctx) {
+        StorageCore120 a = core(ctx, new BlockPos(0, 1, 0));
+        StorageCore120 b = core(ctx, new BlockPos(2, 1, 0)); // 不贴邻：snapshot 吃的是显式核心列表，与 BFS 无关
+        a.deposit(tagged(7, 5));
+        b.deposit(tagged(7, 6));  // 同款 tag → 应与 a 那条并账 =11
+        b.deposit(tagged(8, 2));  // 异款 tag → 另起一行
+        var rows = DataPanel120.snapshot(List.of(a, b), "", 0).rows();
+        int exactRows = 0; long merged = 0;
+        for (var r : rows) if (r.exact()) { exactRows++; if (r.display().hasTag() && r.display().getTag().getInt("k") == 7) merged = r.n(); }
+        ctx.assertTrue(exactRows == 2, "两款 tag 应恰好两行（同款并账），实得 " + exactRows + " 行");
+        ctx.assertTrue(merged == 11, "同款 tag 跨核心应并账=11，实得 " + merged);
+
+        // 排序尾键：同 id 同量下「普通在前，精确在后」（合一前本世代无此级，同量时序不定）
+        StorageCore120 c = core(ctx, new BlockPos(4, 1, 0));
+        c.deposit(new ItemStack(Items.COBBLESTONE, 4));
+        c.deposit(tagged(9, 4)); // 同 id 同量
+        var two = DataPanel120.snapshot(List.of(c), "cobble", 0).rows();
+        ctx.assertTrue(two.size() == 2 && !two.get(0).exact() && two.get(1).exact(),
+                "同 id 同量应普通在前精确在后，实得 " + two.size() + " 行");
         ctx.succeed();
     }
 }

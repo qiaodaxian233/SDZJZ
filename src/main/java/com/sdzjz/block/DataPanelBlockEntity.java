@@ -71,11 +71,7 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public LinkedHashMap<String, Long> aggregate() {
         List<StorageCoreBlockEntity> cs = cores();
         refreshMeta(cs); // m322 拆出（口径逐行同旧版；副作用语义不变，多调无害）
-        LinkedHashMap<String, Long> agg = new LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cs)
-            for (Map.Entry<String, Long> e : core.storeView().entrySet())
-                agg.merge(e.getKey(), e.getValue(), Long::sum);
-        return agg;
+        return com.sdzjz.storage.PanelAggregator.merged(cs); // m500：合并循环下沉共用件（两代同一份）
     }
 
     /** m322 从 aggregate() 拆出：类型用量/上限/经验三缓存刷新（O(核心数) 纯读 getter）。
@@ -102,19 +98,13 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public int typesCap()  { return typesCapCache; }
 
     public long count(String id) {
-        long n = 0;
-        for (StorageCoreBlockEntity core : cores()) n += core.count(id);
-        return n;
+        return com.sdzjz.storage.PanelAggregator.count(cores(), id); // m500 下沉
     }
 
     /** 存入：塞进第一个收得下的存储核心。 */
     public void deposit(ItemStack stack) {
         if (this.level != null && this.level.isClientSide) return; // m112 保险丝：账本只在服务端
-        if (stack.isEmpty()) return;
-        for (StorageCoreBlockEntity core : cores()) {
-            core.deposit(stack);
-            if (stack.isEmpty()) return;
-        }
+        com.sdzjz.storage.PanelAggregator.deposit(cores(), stack); // m500 下沉
     }
 
     /** 取出：跨核心累计取，返回实际取出数量。 */
@@ -153,21 +143,14 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public java.util.Map<String, Long> storeView() { // 聚合快照：万能熔炉"接什么烧什么"扫描/逻辑节点拉料用
         List<StorageCoreBlockEntity> cs = cores();
         if (!com.sdzjz.config.SdzjzConfig.get().panelViewCache) {
-            java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();
-            for (StorageCoreBlockEntity core : cs)
-                for (var e : core.storeView().entrySet())
-                    merged.merge(e.getKey(), e.getValue(), Long::sum);
-            return merged;
+            return com.sdzjz.storage.PanelAggregator.merged(cs); // m500 下沉
         }
         long now = (this.level != null) ? this.level.getGameTime() : 0;
         long rs = 0;
         for (StorageCoreBlockEntity core : cs) rs += core.storeRev();
         if (viewCache != null && (now == viewCacheTime || (rs == viewCacheRevSum && cs.size() == viewCacheCoreN)))
             return viewCache;
-        java.util.LinkedHashMap<String, Long> merged = new java.util.LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cs)
-            for (var e : core.storeView().entrySet())
-                merged.merge(e.getKey(), e.getValue(), Long::sum);
+        java.util.LinkedHashMap<String, Long> merged = com.sdzjz.storage.PanelAggregator.merged(cs); // m500 下沉
         viewCache = merged;
         viewCacheTime = now;
         viewCacheRevSum = rs;
@@ -177,23 +160,13 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
 
     public int withdraw(String id, int amount) {
         if (this.level != null && this.level.isClientSide) return 0; // m112 保险丝：账本只在服务端
-        int got = 0;
-        for (StorageCoreBlockEntity core : cores()) {
-            if (got >= amount) break;
-            got += core.withdraw(id, amount - got);
-        }
-        return got;
+        return com.sdzjz.storage.PanelAggregator.withdraw(cores(), id, amount); // m500 下沉
     }
 
     /** m130：精确取出（按物品+组件跨核心累计），返回实际取出。 */
     public int withdrawExact(ItemStack template, int amount) {
         if (this.level != null && this.level.isClientSide) return 0; // m112 保险丝同款
-        int got = 0;
-        for (StorageCoreBlockEntity core : cores()) {
-            if (got >= amount) break;
-            got += core.withdrawExact(template, amount - got);
-        }
-        return got;
+        return com.sdzjz.storage.PanelAggregator.withdrawExact(cores(), template, amount); // m500 下沉
     }
 
     // m267 视图包 DoS 护栏常量（m292：钳制/节流逻辑随视图状态迁 handler，常量留此供两端对齐——
@@ -202,11 +175,8 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     public static final int VIEW_MATCHED_MAX = 256;  // 匹配 id 列表最长
     public static final int VIEW_ID_MAX = 128;       // 单个 id 最长
 
-    /** m130：展示条目——tpl==null 为普通(id账本)，否则为精确件(模板账本，count=1)。 */
-    public static final class DispEnt { // m292 升 public：各 handler 自行过滤/排序/分页
-        public final String id; public final ItemStack tpl; public long n;
-        public DispEnt(String id, ItemStack tpl, long n) { this.id = id; this.tpl = tpl; this.n = n; }
-    }
+    // m500（真移植 B3）：DispEnt 与 MASTER_ORDER 迁 com.sdzjz.storage.PanelAggregator（两代共用一份），
+    // 本类原文逐字带过去；调用点改引 PanelAggregator.DispEnt。
 
     /** m292：全量条目快照（普通聚合 + 精确条目合并），**不含**过滤/排序/分页——那些是每玩家
      *  handler 自己的事（外部审计 P1：共享视图状态=多人搜索互相覆盖）。
@@ -216,11 +186,11 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     // 指纹=普通修订号和+精确修订号和+核心数（m218 viewCache 同工艺：rev 单调只增，和相等⇔全没动；
     // 精确账本此前零修订号，正是本笔给 StorageCore 补 exactRev 的原因）。缓存值全 handler 共享，
     // **调用方只读**：不许改 DispEnt.n、不许增删元素、不持有跨 tick。
-    private java.util.List<DispEnt> masterCache;
+    private java.util.List<com.sdzjz.storage.PanelAggregator.DispEnt> masterCache;
     private long masterNormalRev = -1, masterExactRev = -1;
     private int masterCoreN = -1;
 
-    public java.util.List<DispEnt> masterEntries() {
+    public java.util.List<com.sdzjz.storage.PanelAggregator.DispEnt> masterEntries() {
         if (this.level == null || this.level.isClientSide) return java.util.List.of();
         List<StorageCoreBlockEntity> cs = cores();
         boolean useCache = com.sdzjz.config.SdzjzConfig.get().panelMasterSnapshotCache;
@@ -232,41 +202,11 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
                 return masterCache;
             }
         }
-        java.util.List<DispEnt> all = new java.util.ArrayList<>();
-        LinkedHashMap<String, Long> agg = aggregate();
-        for (Map.Entry<String, Long> e : agg.entrySet()) all.add(new DispEnt(e.getKey(), null, e.getValue()));
-        // m130：精确条目跨核心按「物品+组件」合并（m267 哈希键 O(n)；m404 换加载器中立的 StackKey）
-        java.util.LinkedHashMap<com.sdzjz.storage.StackKey, DispEnt> exactMap = new java.util.LinkedHashMap<>();
-        for (StorageCoreBlockEntity core : cs) {
-            java.util.List<ItemStack> tpls = core.exactTemplates();
-            for (int k = 0; k < tpls.size(); k++) {
-                ItemStack t = tpls.get(k); long n = core.exactCount(k);
-                var key = com.sdzjz.storage.StackKey.of(t);
-                DispEnt d = exactMap.get(key);
-                if (d != null) d.n += n;
-                else exactMap.put(key, new DispEnt(BuiltInRegistries.ITEM.getKey(t.getItem()).toString(), t.copyWithCount(1), n));
-            }
-        }
-        all.addAll(exactMap.values());
-        // m322 排序上移 BE：一次快照一次排序，handler 只过滤/分页。与旧"先筛后排"逐元素同序——
-        // List.sort 稳定（TimSort）+ 过滤是子序列筛选，序关系保持；useCache=false 也走此处（口径唯一）。
-        all.sort(MASTER_ORDER);
+        refreshMeta(cs); // m500：原由 aggregate() 顺手刷（xpBank 变动不进修订号，见 refreshMeta 注）——聚合下沉后显式刷，时点与口径逐位不变
+        java.util.List<com.sdzjz.storage.PanelAggregator.DispEnt> all = com.sdzjz.storage.PanelAggregator.entriesOf(cs);
         if (useCache) { masterCache = all; masterNormalRev = nr; masterExactRev = er; masterCoreN = cs.size(); }
         return all;
     }
-
-    /** m322：m83 存量降序比较器（原 DataPanelScreenHandler.repage 内联体逐行搬来，口径零改）。 */
-    public static final java.util.Comparator<DispEnt> MASTER_ORDER = (x, y) -> {
-        int c = Long.compare(y.n, x.n); // m83：ME 式排序，存量多的排前面；同量按 id 稳定，防止刷新抖动
-        if (c != 0) return c;
-        c = x.id.compareTo(y.id);
-        if (c != 0) return c;
-        c = Boolean.compare(x.tpl != null, y.tpl != null); // 同量同 id：普通在前
-        if (c != 0) return c;
-        String ca = x.tpl == null ? "" : String.valueOf(x.tpl.getComponentsPatch()); // 精确同款全平：按组件串稳定
-        String cb = y.tpl == null ? "" : String.valueOf(y.tpl.getComponentsPatch());
-        return ca.compareTo(cb);
-    };
 
     @Override
     protected void saveAdditional(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider lookup) {

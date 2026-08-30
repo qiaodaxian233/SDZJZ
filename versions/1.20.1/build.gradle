@@ -45,6 +45,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/node/LogicNodeTicker.java'   // m499（B2 收尾）逻辑节点六分支两代共用：分配器/过滤器/垃圾桶/抽取/开关/传感器清运逐句照原文，灯表（真实世代差）收进 Host.lampAfterDrain
         include 'com/sdzjz/storage/StackKey.java'       // m478（真移植 B 阶段第一刀）精确账本身份键两代共用一份——原 TagStackKey 仿写件已删；相等与哈希走 Kind 世代口（RetroStackKind），其余逐字同源
         include 'com/sdzjz/storage/StorageLedger.java'   // m485（真移植·直接移除仿写件）存储账本核心两代共用一份：逐句取自主线 StorageCoreBlockEntity 139~275 行，只把 setChanged() 换成注入回调；1.20.1 原来那 181 行重写已删
+        include 'com/sdzjz/storage/PanelAggregator.java' // m500（真移植 B3）数据面板聚合两代共用：主线 masterEntries（普通聚合+精确跨核心并账+m83 存量降序）与 repage 前半（过滤/钳滚动/开窗）整段搬；核心列表吃 StorageLedgerProbe 不另开接口；展示栈物化与缓存层留各世代自己那侧
         include 'com/sdzjz/machine/StorageLedgerProbe.java'      // m480 存储域行为契约探针（十三口，两代 BE 本来就有同名方法）
         include 'com/sdzjz/machine/StorageDomainAssertions.java' // m480 存储域跨代行为契约：一套断言两代各喂自己的实现（照 m372 RecipeDomainAssertions 样板）
         include 'com/sdzjz/node/RouteBrainProbe.java'            // m481 路由域判定探针（四口两代签名已对齐）

@@ -18,4 +18,9 @@ public final class LegacyStackKind implements StackKey.Kind {
     public int dataHash(ItemStack s) {
         return s.getComponentsPatch().hashCode(); // 原句照搬
     }
+
+    @Override
+    public String dataOrder(ItemStack s) {
+        return String.valueOf(s.getComponentsPatch()); // m500 原句照搬（原住 DataPanelBlockEntity.MASTER_ORDER 尾键）
+    }
 }

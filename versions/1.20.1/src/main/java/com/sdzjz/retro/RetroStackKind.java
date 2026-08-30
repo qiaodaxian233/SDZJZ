@@ -21,4 +21,9 @@ final class RetroStackKind implements StackKey.Kind {
     public int dataHash(ItemStack s) {
         return s.getTag() == null ? 0 : s.getTag().hashCode(); // 原句照搬
     }
+
+    @Override
+    public String dataOrder(ItemStack s) {
+        return String.valueOf(s.getTag()); // m500：与 same/dataHash 同口径（本世代的附加数据就是 tag）；无 tag → "null" 恒定串，稳定即可
+    }
 }

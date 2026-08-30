@@ -680,21 +680,15 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
         if (panel == null || panel.getLevel() == null || panel.getLevel().isClientSide) return;
         viewDirty = false;
         lastRepageTick = panel.getLevel().getGameTime();
-        java.util.List<DataPanelBlockEntity.DispEnt> all = panel.masterEntries();
-        java.util.List<DataPanelBlockEntity.DispEnt> filtered = new java.util.ArrayList<>();
-        String q = searchFilter.toLowerCase();
-        for (DataPanelBlockEntity.DispEnt d : all)
-            if (q.isEmpty() || d.id.toLowerCase().contains(q) || matchedIds.contains(d.id)) filtered.add(d);
         // m322：本地排序撤销——masterEntries 快照已按 MASTER_ORDER（m83 口径原封搬 BE）排好，
         // 稳定排序+子序列筛选 ⇒ 先筛后排与先排后筛逐元素同序；多观众只付一次排序。快照只读，不许改 d.n。
-        filteredCount = filtered.size();
-        int rows = (filteredCount + 8) / 9;
-        int maxRow = Math.max(0, rows - 6);
-        if (scrollRow > maxRow) scrollRow = maxRow;
-        if (scrollRow < 0) scrollRow = 0;
+        // m500（真移植 B3）：过滤/钳滚动/开窗三步下沉 PanelAggregator.page（两代共用一份），本方法只剩展示栈物化。
+        var pg = com.sdzjz.storage.PanelAggregator.page(
+                panel.masterEntries(), searchFilter, matchedIds, scrollRow, DataPanelBlockEntity.PAGE);
+        filteredCount = pg.filteredCount();
+        scrollRow = pg.scrollRow(); // 服务端钳位后的值回写（原为本方法内联钳，口径逐位不变）
         int i = 0;
-        for (int idx = scrollRow * 9; idx < filtered.size() && i < DataPanelBlockEntity.PAGE; idx++, i++) {
-            DataPanelBlockEntity.DispEnt d = filtered.get(idx);
+        for (com.sdzjz.storage.PanelAggregator.DispEnt d : pg.rows()) {
             ItemStack st;
             if (d.tpl == null) {
                 var item = BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(d.id));
@@ -708,6 +702,7 @@ public class DataPanelScreenHandler extends net.minecraft.world.inventory.Recipe
             tag.putLong("amt", d.n);
             com.sdzjz.item.ItemData.write(st, tag);
             display.setItem(i, st);
+            i++;
         }
         for (; i < DataPanelBlockEntity.PAGE; i++) display.setItem(i, ItemStack.EMPTY);
     }

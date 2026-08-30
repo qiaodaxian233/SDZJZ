@@ -26,6 +26,14 @@ public final class StackKey {
         boolean same(ItemStack a, ItemStack b);
         /** 附加数据的内容哈希（与 same 同口径：same 为真必然哈希相等）。 */
         int dataHash(ItemStack s);
+
+        /**
+         * m500：附加数据的**稳定排序串**（1.21=组件补丁串，1.20.1=tag 串）。
+         * 面板展示排序的最后一级尾键用它（{@code PanelAggregator.MASTER_ORDER}）——同物品同存量的
+         * 精确条目全平时靠它定序，只要求**稳定**不要求可读；与 {@link #same} 同口径：
+         * same 为真必然本串相等，故排序结果与相等判定不打架。
+         */
+        String dataOrder(ItemStack s);
     }
 
     private static Kind kind;
@@ -50,6 +58,9 @@ public final class StackKey {
     }
 
     public static StackKey of(ItemStack stack) { return new StackKey(stack); }
+
+    /** m500：附加数据稳定排序串的静态出口（面板排序用；同 {@link Kind#dataOrder} 口径）。 */
+    public static String dataOrder(ItemStack stack) { return kind().dataOrder(stack); }
 
     public ItemStack template() { return tpl; }
 

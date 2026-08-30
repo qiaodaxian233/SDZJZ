@@ -61,7 +61,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
     /** m430 mA1：渲染子集 12+1 字段搬家进状态对象（清单与语义见 CanvasGraphState），编解码 mA2 迁。 */
-    final com.sdzjz.node.CanvasGraphState g = new com.sdzjz.node.CanvasGraphState();
+    public final com.sdzjz.node.CanvasGraphState g = new com.sdzjz.node.CanvasGraphState(); // m500：原为包私有，而 m481 的 route_domain_contract 判官在 com.sdzjz.gametest 包里直接 be.g.machineNodes（9 处）——主线真编译错，冒烟筛选器抓获；与邻居 prof 同口径放开
     public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
     // m179 编译执行计划：拓扑派生结构(hasOut/hasIn/outT)只在图变更时重建，普通 tick 直接复用缓存
     // ——修订号失配才编译；长度兜底防漏 bump；派生列表运行期只读(已核)所以可跨 tick 共享。
