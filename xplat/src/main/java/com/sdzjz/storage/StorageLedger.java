@@ -196,4 +196,114 @@ public final class StorageLedger {
     public void setXpBank(long v) { xpBank = Math.max(0, v); }
     public void bumpStoreRev() { storeRev++; }
     public void bumpExactRev() { exactRev++; }
+
+    // ===== m503（真移植 B5）：FTA 事务包装的**业务核对面**两代共用一份 =====
+    // 本节业务判定整段取自主线 StorageCoreBlockEntity 的 FabricLedger.insert/extract（1.20.1 的
+    // FabricLedger120 同功能重写同刀删除）。**这三个方法刻意不出现任何 Fabric Transfer API 类型**
+    // （Storage/ItemVariant/TransactionContext/SnapshotParticipant 等）——m406 分层硬闸（layer_gate，
+    // 第 13 道）钉死"xplat 见 MC、不见加载器"，FTA 接口本身就是加载器类型，实现它这层"薄皮"
+    // （extends SnapshotParticipant/implements Storage/快照回调时机 updateSnapshots）没法下沉，
+    // 必须留在两代各自源集里的 FabricLedger 壳（本文件旁的 block/StorageCoreBlockEntity.java 与
+    // retro/StorageCore120.java）。壳只剩：FTA 生命周期钩子、ItemVariant↔ItemStack 类型转换、
+    // 一行转发调用本节方法——业务判断（分流判据/类型闸/undo 前像/索引维护）全在这一份代码里。
+    //
+    // undo 日志与快照时机作为参数跨边界传入：{@code undo} 是调用方（各世代壳）持有的
+    // {@code ArrayList<Runnable>}（java.util 标准类型，非加载器类型，可以安全跨这条边界）；
+    // {@code beforeMutate} 对应原 {@code updateSnapshots(tx)}——必须在"确定真的要修改状态"那一刻
+    // 精确调用一次（早了会创建不必要的快照，晚了 undo 记录会失真），这个决策点天然长在业务判断
+    // 内部，所以设计成回调而不是让调用方自己猜时机。
+    //
+    // 【分流判据世代口】：与 deposit() 同款替换，两代原文（组件补丁非空 / hasTag）统一走
+    // com.sdzjz.item.ItemData.has()（m437/m451 两代早已装好实现）。
+    //
+    // 【顺手修的真编译错】：主线原 FabricLedger 里 exactIndexOf/exactIdxAppended/exactIdxRemoved
+    // 六处调用点全部漏了 ledger. 前缀——这几个方法从 m485 账本下沉起就整段搬来了本类，但调用点
+    // 忘了跟着改（当年只顾着改 store/exactTemplates()/exactCounts() 这类字段访问，唯独漏了这三个
+    // "索引维护"方法）。javac 缺 MC jar 冒烟时这类"cannot find symbol"被筛选器（m491）故意当噪音
+    // 滤掉——它把这类"自家符号找不到"整体让位给第 19 闸盯，但当年第 19 闸的登记表里没有这个文件/
+    // 这几个符号，两层网都没接住，一路潜伏到现在（基线核对：git log 显示这个文件从很早的提交起
+    // 就没人再碰过，非本刀引入）。现在这三个方法体就在本类里，调用天然合法，本刀顺手修正。
+    // 本世代此前用 markIndexDirty() 全量置脏重建侥幸绕开了这个坑（逻辑结果等价，性能是退化）。
+
+    /** m503：FTA insert 业务核对面（不含 FTA 类型）。返回实际插入量；
+     *  {@code beforeMutate} 恰在"确定要修改"的那一刻调用一次（对应各世代壳的 updateSnapshots）。 */
+    public long ftaInsert(ItemStack one, long maxAmount, List<Runnable> undo, Runnable beforeMutate) {
+        if (!com.sdzjz.item.ItemData.has(one)) { // 与 deposit 同一分流：无附加数据走普通账本（世代口）
+            String id = BuiltInRegistries.ITEM.getKey(one.getItem()).toString();
+            if (!store.containsKey(id) && usedTypes() >= typeGate()) return 0; // m293
+            long cur = store.getOrDefault(id, 0L);
+            long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
+            if (accept <= 0) return 0;
+            beforeMutate.run();
+            final boolean had = store.containsKey(id); // m278 前像：键此前是否存在
+            undo.add(() -> { if (had) store.put(id, cur); else store.remove(id); });
+            store.put(id, cur + accept);
+            bumpStoreRev(); // m218
+            return accept;
+        }
+        int hit = exactIndexOf(one); // m295 索引直查（带附加数据走精确账本，m130 同款口径）
+        if (hit >= 0) {
+            long cur = exactN.get(hit);
+            long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
+            if (accept <= 0) return 0;
+            beforeMutate.run();
+            final int idx = hit; // m278 前像
+            undo.add(() -> exactN.set(idx, cur));
+            exactN.set(hit, cur + accept);
+            bumpExactRev(); // m322
+            return accept;
+        }
+        if (usedTypes() >= typeGate()) return 0; // m293
+        beforeMutate.run();
+        undo.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）；m295 动列表即置脏索引
+            int last = exactTpl.size() - 1; exactTpl.remove(last); exactN.remove(last); markIndexDirty(); });
+        exactTpl.add(one); // toStack(1) 即模板规格（count=1，附加数据原样，转换在壳层做）
+        exactN.add(maxAmount);
+        exactIdxAppended(); // m295
+        bumpExactRev(); // m322
+        return maxAmount;
+    }
+
+    /** m503：FTA extract 业务核对面（不含 FTA 类型）。返回实际取出量。 */
+    public long ftaExtract(ItemStack one, long maxAmount, List<Runnable> undo, Runnable beforeMutate) {
+        if (!com.sdzjz.item.ItemData.has(one)) {
+            String id = BuiltInRegistries.ITEM.getKey(one.getItem()).toString();
+            long have = store.getOrDefault(id, 0L);
+            long take = Math.min(have, maxAmount);
+            if (take <= 0) return 0;
+            beforeMutate.run();
+            undo.add(() -> store.put(id, have)); // m278 前像（take>0 ⇒ 键此前必存在）
+            if (have - take <= 0) store.remove(id); else store.put(id, have - take);
+            bumpStoreRev(); // m218
+            return take;
+        }
+        int i = exactIndexOf(one); // m295 索引直查
+        if (i >= 0) {
+            long have = exactN.get(i);
+            long take = Math.min(have, maxAmount);
+            if (take <= 0) return 0;
+            beforeMutate.run();
+            final int idx = i;
+            if (have - take <= 0) {
+                final ItemStack ptpl = exactTpl.get(i); // m278 结构前像：原下标插回（模板从不被原地改，存引用即安全）
+                undo.add(() -> { exactTpl.add(idx, ptpl); exactN.add(idx, have); markIndexDirty(); }); // m295 动列表即置脏
+                exactTpl.remove(i); exactN.remove(i);
+                exactIdxRemoved(i, ptpl); // m295
+            } else {
+                undo.add(() -> exactN.set(idx, have));
+                exactN.set(i, have - take);
+            }
+            bumpExactRev(); // m322
+            return take;
+        }
+        return 0;
+    }
+
+    /** m503：FTA 游标视图的金额直查（不含 FTA 类型）——{@code plainId} 非空=普通账本键，
+     *  为空=精确账本按 {@code exactProbe} 模板匹配（壳层 View.getAmount 转发到此）。 */
+    public long ftaAmount(String plainId, ItemStack exactProbe) {
+        if (plainId != null) return store.getOrDefault(plainId, 0L);
+        int i = exactIndexOf(exactProbe); // m295 索引直查（管道每 tick 模拟就打它，收益最大的一处）
+        return i >= 0 ? exactN.get(i) : 0;
+    }
 }

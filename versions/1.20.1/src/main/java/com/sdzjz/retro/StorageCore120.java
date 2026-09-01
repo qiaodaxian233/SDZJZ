@@ -17,9 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -108,10 +106,15 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
     public long storeRev() { return ledger.storeRev(); }
     public long exactRev() { return ledger.exactRev(); }
 
-    // ===== m161c 跨模组直连：Fabric Transfer API（0.92 同包同形，m440 清单④）=====
-    // Create（Fabric 移植）/管道模组怼在存储核心任意面即可存取——你要的机械动力对接的物理基础，
-    // 传送带实机验收随刀③（m444）。事务安全=m278 增量 undo 日志；markDirty 推迟 onFinalCommit；
-    // 管道惯用 Long.MAX_VALUE 试探性 insert，累加前先钳余量——三条语义与蓝本逐位对齐。
+    // ===== m161c 跨模组直连：Fabric Transfer API =====
+    // m503（真移植 B5）：业务判断整段迁 xplat/storage/StorageLedger 两代共用（原
+    // FabricLedger120.insert/extract 内脏搬去 StorageLedger.ftaInsert/ftaExtract）。**本类只剩薄壳**：
+    // FTA 生命周期钩子 + ItemVariant↔ItemStack 类型转换 + iterator 物化——这层皮不能再往下沉
+    // （m406 分层硬闸：xplat 见 MC、不见加载器，FTA 类型本身就是加载器符号，详见 StorageLedger
+    // 里三个 fta 前缀方法的类注）。分流判据统一走 ItemData.has 世代口（本世代实现即原
+    // !one.hasTag()，逐位不变）；索引维护恢复走增量的 exactIdxAppended/exactIdxRemoved
+    // （原此处退化成 markIndexDirty() 全量置脏重建——语义结果等价，现在 StorageLedger.ftaInsert/
+    // ftaExtract 内部天然能访问这两个 private 方法，恢复了应有的 O(1)）。
     private FabricLedger120 fabricLedger;
 
     public Storage<ItemVariant> fabricStorage() {
@@ -121,9 +124,8 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
     public class FabricLedger120 extends SnapshotParticipant<Integer> implements Storage<ItemVariant> {
 
-        // m278 增量事务日志：快照=日志位点(int)，回滚=从尾到位点逆序重放 undo（逆序保证精确账本
-        // add/remove 的按下标前像恢复正确）。嵌套事务天然支持：每层快照各记自己的位点。
-        // 日志不变量：事务外恒为空（最外层 commit 走 onFinalCommit 清空 / 最外层 abort 截断回位点 0）。
+        // m278 增量事务日志：本类只管这份日志的生命周期（快照=位点/回滚=逆序重放/commit 清空），
+        // 日志*内容*（撤销动作）由 StorageLedger.ftaInsert/ftaExtract 追加，蓝本同款注释见主线。
         private final ArrayList<Runnable> undoJournal = new ArrayList<>();
 
         @Override protected Integer createSnapshot() { return undoJournal.size(); }
@@ -139,77 +141,12 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
         @Override public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
             if (resource.isBlank() || maxAmount <= 0) return 0;
-            ItemStack one = resource.toStack(1);
-            if (!one.hasTag()) { // 与 deposit 同一分流：无 tag 走普通账本（1.20.1 口径，类注①）
-                String id = BuiltInRegistries.ITEM.getKey(one.getItem()).toString();
-                if (!ledger.storeView().containsKey(id) && usedTypes() >= ledger.typeGate()) return 0; // m293
-                long cur = ledger.storeView().getOrDefault(id, 0L);
-                long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
-                if (accept <= 0) return 0;
-                updateSnapshots(tx);
-                final boolean had = ledger.storeView().containsKey(id); // m278 前像：键此前是否存在
-                undoJournal.add(() -> { if (had) ledger.storeView().put(id, cur); else ledger.storeView().remove(id); });
-                ledger.storeView().put(id, cur + accept);
-                ledger.bumpStoreRev(); // m218
-                return accept;
-            }
-            int hit = ledger.exactIndexOf(one); // m295 索引直查（带 tag 走精确账本，m130 同款口径）
-            if (hit >= 0) {
-                long cur = ledger.exactCounts().get(hit);
-                long accept = Math.min(maxAmount, Long.MAX_VALUE - cur);
-                if (accept <= 0) return 0;
-                updateSnapshots(tx);
-                final int idx = hit; // m278 前像
-                undoJournal.add(() -> ledger.exactCounts().set(idx, cur));
-                ledger.exactCounts().set(hit, cur + accept);
-                ledger.bumpExactRev(); // m322
-                return accept;
-            }
-            if (usedTypes() >= ledger.typeGate()) return 0; // m293
-            updateSnapshots(tx);
-            undoJournal.add(() -> { // m278 undo=撤尾（逆序重放保证撤到的必是本条 add）；m295 动列表即置脏索引
-                int last = ledger.exactTemplates().size() - 1; ledger.exactTemplates().remove(last); ledger.exactCounts().remove(last); ledger.markIndexDirty(); });
-            ledger.exactTemplates().add(one); // toStack(1) 即模板规格（count=1，tag 原样）
-            ledger.exactCounts().add(maxAmount);
-            ledger.markIndexDirty(); // m295
-            ledger.bumpExactRev(); // m322
-            return maxAmount;
+            return ledger.ftaInsert(resource.toStack(1), maxAmount, undoJournal, () -> updateSnapshots(tx));
         }
 
         @Override public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
             if (resource.isBlank() || maxAmount <= 0) return 0;
-            ItemStack one = resource.toStack(1);
-            if (!one.hasTag()) {
-                String id = BuiltInRegistries.ITEM.getKey(one.getItem()).toString();
-                long have = ledger.storeView().getOrDefault(id, 0L);
-                long take = Math.min(have, maxAmount);
-                if (take <= 0) return 0;
-                updateSnapshots(tx);
-                undoJournal.add(() -> ledger.storeView().put(id, have)); // m278 前像（take>0 ⇒ 键此前必存在）
-                if (have - take <= 0) ledger.storeView().remove(id); else ledger.storeView().put(id, have - take);
-                ledger.bumpStoreRev(); // m218
-                return take;
-            }
-            int i = ledger.exactIndexOf(one); // m295 索引直查
-            if (i >= 0) {
-                long have = ledger.exactCounts().get(i);
-                long take = Math.min(have, maxAmount);
-                if (take <= 0) return 0;
-                updateSnapshots(tx);
-                final int idx = i;
-                if (have - take <= 0) {
-                    final ItemStack ptpl = ledger.exactTemplates().get(i); // m278 结构前像：原下标插回（模板从不被原地改，存引用即安全）
-                    undoJournal.add(() -> { ledger.exactTemplates().add(idx, ptpl); ledger.exactCounts().add(idx, have); ledger.markIndexDirty(); }); // m295 动列表即置脏
-                    ledger.exactTemplates().remove(i); ledger.exactCounts().remove(i);
-                    ledger.markIndexDirty(); //i, ptpl); // m295
-                } else {
-                    undoJournal.add(() -> ledger.exactCounts().set(idx, have));
-                    ledger.exactCounts().set(i, have - take);
-                }
-                ledger.bumpExactRev(); // m322
-                return take;
-            }
-            return 0;
+            return ledger.ftaExtract(resource.toStack(1), maxAmount, undoJournal, () -> updateSnapshots(tx));
         }
 
         @Override public Iterator<StorageView<ItemVariant>> iterator() {
@@ -240,14 +177,7 @@ public final class StorageCore120 extends BlockEntity implements com.sdzjz.machi
 
             @Override public boolean isResourceBlank() { return variant.isBlank(); }
             @Override public ItemVariant getResource() { return variant; }
-
-            @Override public long getAmount() {
-                if (plainId != null) return ledger.storeView().getOrDefault(plainId, 0L);
-                ItemStack one = variant.toStack(1);
-                int i = ledger.exactIndexOf(one); // m295 索引直查
-                return i >= 0 ? ledger.exactCounts().get(i) : 0;
-            }
-
+            @Override public long getAmount() { return ledger.ftaAmount(plainId, variant.toStack(1)); }
             @Override public long getCapacity() { return Long.MAX_VALUE; }
         }
     }

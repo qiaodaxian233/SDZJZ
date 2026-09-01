@@ -60,8 +60,14 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "StructureCore120.java": (True, False, "结构核心**世代壳**：m486/m495/m496/m498/m499 起"
                                           "路由脑·分发·均分·拉料·逻辑节点六分支全部走共用件；"
                                           "本文件只剩 BE 注册/存档签名/tick 编排骨架/宿主面/机器生产分支"),
-    "StorageCore120.java": (False, False, "对位 block/StorageCoreBlockEntity 的账本核心"
-                                          "（普通账/精确账/类型闸/修订号）——B 阶段"),
+    "StorageCore120.java": (True, False, "存储核心账本**世代壳**：普通账/精确账/类型闸/修订号早在 m485 就"
+                                          "共用（xplat/storage/StorageLedger），m503（B5）起 FTA 事务包装"
+                                          "（insert/extract/iterator/View，原 FabricLedger120）也整段迁共用件"
+                                          "——本文件只剩 connectedCores/loadedCoreAt（BFS 返回值是世代专属 BE"
+                                          "类型，Java 泛型系统逼着各写，跟 override 签名差同一类道理）、"
+                                          "NBT 存档签名（1.20.1 无 HolderLookup.Provider 参）、BE 注册。"
+                                          "主线专属的全局 CORES 桶索引（m279）/漏斗对接 WorldlyContainer"
+                                          "（m460）本世代未做，随 P-C，非漏抄"),
     "DataCable120.java": (True, False, "数据线 BE **世代壳**：m502 起抽取口业务全走共用件"
                          "（ExtractPort：逐模板抽/游标轮转/回收拍/六面视图/核心 40t 缓存）+ RetroXfer 五口内脏；"
                          "本文件只剩 BE 注册与 1.20.1 存档签名、tick 相位闸与 m469 端点自愈、m449 持物右键过滤器交互"),

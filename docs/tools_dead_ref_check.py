@@ -32,6 +32,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
  "versions/1.20.1/src/main/java/com/sdzjz/retro/DataCable120.java":
    ["filter","rrCursor","opTargetsFull","coresScanTick","coresCache","extractOn","pullMode",
     "extractSpec","extractAll","doPull","pullWants","insertInto","collectView","scanAdjacent","cores"],
+ "src/main/java/com/sdzjz/block/StorageCoreBlockEntity.java":
+   ["FabricLedger", "fabricLedger", "exactIndexOf", "exactIdxAppended", "exactIdxRemoved"],
+ "versions/1.20.1/src/main/java/com/sdzjz/retro/StorageCore120.java":
+   ["FabricLedger120", "fabricLedger"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java": [],
 }
 坏=0

@@ -10371,3 +10371,61 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   该面缩回不伸插头，恢复后立即伸回；贴 ProjectEF 转化桌伸插头；⑤本世代旧档自愈：读入名单修好
   之前存的陈旧 NONE 态，进档后邻居不变也应在首拍自动补插头；⑥本世代空手右键循环三态、
   持物右键增删白名单、潜行空手清空白名单，三种交互 actionbar 反馈文案不变。
+
+## m504 B5（B 线收官）：FTA 事务包装两代共用 —— 顺手修一个潜伏在 m485 的真编译错，外加一次分层闸返工
+
+- **逐句对起点**：`StorageCore120.java` 账目上"剩 309 行"，但普通账/精确账/类型闸/修订号其实
+  m485 就已经共用（`StorageLedger`，两代 BE 早就只转发）。真正还双写的只有 `FabricLedger`/
+  `FabricLedger120`——两代给 Fabric Transfer API 的 `insert`/`extract`/`iterator`/`View` 实现。
+  逐句对下来又是熟悉的结论：业务逐位相同，差异只有分流判据（组件补丁 vs tag，`ItemData.has`
+  世代口 m437/m451 早就装好）与 id 物化的防御写法（本世代 `tryParse` 更安全，`deposit()` 早已示范）。
+- **意外挖出一个潜伏的真编译错**：主线 `FabricLedger` 内部类里 `exactIndexOf`/`exactIdxAppended`/
+  `exactIdxRemoved` 六处调用点全部漏了 `ledger.` 前缀。这三个方法在 m485 账本下沉时被整段搬进了
+  `StorageLedger`（`exactIdxAppended`/`exactIdxRemoved` 还降成了 private），但 `FabricLedger`
+  里的调用点没跟着改——当年显然只顾着把 `store`/`exactTemplates()`/`exactCounts()` 这类字段访问
+  加上前缀，唯独漏了这三个"索引维护"方法。**孤立编译验证**（`-Xmaxerrs 100000` 绕开截断）
+  实锤：`error: cannot find symbol: method exactIdxAppended()`。
+  **为什么一路没人发现**：两层安全网都没接住——冒烟筛选器（m491）明确把"自家符号找不到"这类
+  错误让位给第 19 闸盯（避免和缺 MC jar 的噪音混在一起），但第 19 闸的登记表里从来没登记过
+  这个文件/这几个符号，两层网之间有个真空地带，这个 bug 就从这条缝里溜了整整十几刀
+  （git log 显示这个文件从很早的提交起就没人碰过，不是本会话引入）。
+  本世代那边侥幸没事，因为它改走了 `ledger.markIndexDirty()`（全量置脏重建索引，逻辑结果等价，
+  只是性能从 O(1) 退化成下次查询 O(n) 重建一次）——这也是为什么两代长期表现一致、谁都没触发过
+  这条路径的原因：判官测试只验证 `exactIndexOf` 最终查到的值对不对，从不关心索引怎么维护的。
+- **返工一次：xplat 不是"随便塞共用代码"的地方**。第一版实现直接把整个 `FabricLedger`
+  （含 `extends SnapshotParticipant<Integer> implements Storage<ItemVariant>`）搬进了
+  `xplat/storage/StorageLedger.java`——`layer_gate`（第 13 道分层硬闸）当场报红：**xplat 的存在
+  意义就是"见 MC、不见加载器"**，FTA 的 `Storage`/`ItemVariant`/`TransactionContext`/
+  `SnapshotParticipant` 本身就是加载器类型，哪怕两代目前恰好都是 Fabric loader（只是 MC 版本不同），
+  这条纪律也不因此松动——`Xfer.java`（m434）早就是先例：真正跨版本共用的是"零 FTA 符号"的
+  Impl 接口 + Object 句柄，不是"直接把 FTA 实现搬过去"。**重新设计**：`StorageLedger` 新增
+  `ftaInsert`/`ftaExtract`/`ftaAmount` 三个**不出现任何 FTA 类型**的业务核对方法（用 `ItemStack` +
+  `List<Runnable>` undo 日志 + `Runnable beforeMutate` 回调跨这条边界——`beforeMutate` 对应原来的
+  `updateSnapshots(tx)`，必须在"确定真的要修改"那一刻精确调用一次，这个决策点天然长在业务判断
+  内部，所以设计成回调而不是让调用方自己猜时机）；两代各自的 `FabricLedger`/`FabricLedger120`
+  退回**真正的薄壳**——FTA 生命周期钩子（快照/回滚/最终提交）+ `ItemVariant`↔`ItemStack` 类型转换 +
+  `iterator()` 物化，全部一行转发业务判断给 `ledger.fta*`。**教训**：判断"能不能下沉"不能只看
+  "两代代码长得像不像"，还要看"这段代码依赖的类型属于哪一层"——业务逻辑和它依赖的具体接口类型
+  要分开看，前者可以下沉，后者（如果是加载器类型）不行，哪怕两者写在同一个方法里。
+- **两代壳收尾**：主线 291→371 行（薄壳比原 442 行少了 71 行，业务判断挪去了共用件）；
+  本世代 166→238 行（薄壳比原 308 行少了 70 行）。**双写闸账目：业务双写 309 → 0 行**——
+  **B 线（数据面板 B3 / 数据线 B4 / 存储核心 B5）三大块业务代码层面全部真移植完成**，只剩
+  4 条判官同名用例本身（`fabric_abort_restores_normal_entry` 等）留给 D 阶段合一，不影响
+  业务代码账目。开工时（m477）账上是 2226 行业务双写，现在归零。
+- **顺手**：`hopperDockAccepts`（m460 漏斗对接，主线专属）里同一批漏前缀的第七处裸调用
+  一并补上 `ledger.` 前缀；本世代 `extract` 删除分支那段死代码残留注释（`//i, ptpl); // m295`，
+  上次编辑留下的半成品痕迹）随整段重写一并清除。第 19 闸补登记两文件本刀删除的符号
+  （`FabricLedger`/`fabricLedger`/`exactIndexOf`/`exactIdxAppended`/`exactIdxRemoved` 及
+  `FabricLedger120`/`fabricLedger`），防止未来又出现裸调用回归到同一个坑。
+- **验证**：孤立编译精确复核（六处裸调用全部消失，只剩 `StorageLedger` 内部合法定义/调用）；
+  两代全量源集冒烟经筛选器复查零真错；分层硬闸绿（139 个 xplat 文件零加载器符号）；
+  第 19 闸四项全绿；双写闸账目 0 行；20 闸全绿（0.1.504 对表）。零配置零资源改动，
+  **动了两代存储核心的 FTA 直连路径（第三方管道模组存取）**，事务判断逻辑本身未改变
+  （只是搬了地方，`beforeMutate` 回调保真了原有的快照时机）。
+- **实机验证脚本**：①管道模组（Create/Modern Industrialization 等）怼存储核心任意面照常存取，
+  普通件按 id 计、精确件（附魔书等）连附加数据按模板计；②管道每 tick 高频小额存取（典型场景）
+  性能应不劣于合一前（主线恢复了 O(1) 增量索引，之前若真跑过反而是变相性能修复）；③事务中途
+  出错回滚：普通/精确账目均应还原（两代 4 条 `fabric_*`/`ledger_nbt_roundtrip*` 判官覆盖这条）；
+  ④嵌套事务（内层提交、外层回滚）精确账目应整体还原且索引置脏后懒重建仍能命中；⑤天量长整
+  试探性 insert（管道惯用 `Long.MAX_VALUE` 探测余量）不溢出；⑥主线专属：漏斗贴核心底面照常
+  存入、禁止抽取；⑦本世代旧档读入 tier/xpBank/普通账/精确账逐条恢复，非法条目静默丢弃不炸档。
