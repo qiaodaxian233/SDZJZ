@@ -143,6 +143,34 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         return Math.max(-COORD_LIMIT, Math.min(COORD_LIMIT, v));
     }
 
+    // ===== m506（真移植 A5a）：画布分组两包——主线 Sdzjz.onInitialize 里 m191 两个接收器的世代对位
+    // （总开关把门→伪造包尺寸熔断→菜单前验→分派→本世代拉取式即时反馈直推快照）；业务六方法住在共用件
+    // CanvasGraphState（两代同一份），本处零业务逻辑。=====
+
+    /** 一包三义分派（主线接收器原文）：gid<0=建组；name 非空=重命名；否则=解散。可测操作核。 */
+    static void groupOp(StructureCore120 core, int gid, String name, java.util.List<Integer> members) {
+        if (gid < 0) core.g.createGroup(members, name);
+        else if (!name.isEmpty()) core.g.renameGroup(gid, name);
+        else core.g.dissolveGroup(gid);
+    }
+
+    static void handleGroup(NodePayloads120.NodeGroup packet, net.minecraft.server.level.ServerPlayer player) {
+        if (!com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled) return;                // 总开关把门
+        if (packet.name().length() > 64 || packet.members().size() > 512) return;            // 伪造包尺寸熔断（正常组远小于此）
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        groupOp(core, packet.gid(), packet.name(), packet.members());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleGroupMove(NodePayloads120.NodeGroupMove packet, net.minecraft.server.level.ServerPlayer player) {
+        if (!com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled) return;
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.g.moveGroup(packet.gid(), packet.dx(), packet.dy());
+        pushSnapshot(player, core, packet.pos());
+    }
+
     // ===== m458（④c）：机器↔存储连线 =====
 
     /** 端点扫描（可测，force=真忽略缓存）：BFS 可达存储核心=端点（kind=0，蓝本口径首位）；

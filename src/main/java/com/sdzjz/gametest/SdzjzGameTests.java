@@ -1220,6 +1220,65 @@ public class SdzjzGameTests implements FabricGameTest {
         com.sdzjz.item.ItemData.write(s, n);
     }
 
+    /** m506（真移植 A5a）：画布分组域跨代行为契约——与 1.20.1 侧
+     *  RetroCanvasTests.canvas_group_domain_contract_retro 跑的是**同一套断言**（xplat CanvasGroupAssertions）；
+     *  分组六方法本身已下沉为 CanvasGraphState 里的同一份代码，本侧喂组件栈、那侧喂 tag 栈，
+     *  两代同绿=「同一份代码 × 两套栈数据实现」在两个世代上仍是同一个东西。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_group_domain_contract(GameTestHelper ctx) {
+        int[] changes = {0};
+        var g = new com.sdzjz.node.CanvasGraphState(() -> changes[0]++);
+        net.minecraft.world.item.Item[] kinds = {com.sdzjz.registry.ModItems.FILTER_NODE, com.sdzjz.registry.ModItems.SWITCH_NODE,
+                com.sdzjz.registry.ModItems.TRASH_NODE, com.sdzjz.registry.ModItems.EXTRACTOR_NODE};
+        for (int i = 0; i < 4; i++) {
+            ItemStack s = new ItemStack(kinds[i]);
+            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
+            n.putInt("nx", 10 + i * 10);
+            n.putInt("ny", 10);
+            com.sdzjz.item.ItemData.write(s, n);
+            g.machineNodes.add(s);
+        }
+        try {
+            com.sdzjz.node.CanvasGroupAssertions.runAll(g, changes);
+        } catch (AssertionError e) {
+            ctx.fail("分组域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
+
+    /** m506：SCBE 转发壳（四公开方法一行转发进共用件）+ detachNode 顺手清扫走公开路径 removeNodeAt
+     *  （摘走成员后组剩 1 台自动解散并剥 gp，m191 原位语义在下沉后不变；detachNode 本身 private，
+     *  判官只走玩家真会走的路）。变更回调（setChanged+syncToClient）的触发次数由契约判官的计数器压着。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_group_be_forwarding_and_detach_sweep(GameTestHelper ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0);
+        ctx.setBlock(rel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
+            ctx.fail("结构核心方块实体未生成");
+            return;
+        }
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE));
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.SWITCH_NODE));
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.TRASH_NODE));
+        be.createGroup(java.util.List.of(0, 1, 2), "");
+        ctx.assertTrue("组1".equals(be.groupsView().get(1)), "BE 转发建组该落到共用件，实得 " + be.groupsView());
+        be.renameGroup(1, "刷怪线");
+        ctx.assertTrue("刷怪线".equals(be.groupsView().get(1)), "BE 转发重命名该生效");
+        be.moveGroup(1, 3, 4);
+        ctx.assertTrue(be.nodeX(be.g.machineNodes.get(0), 0) == 3 && be.nodeY(be.g.machineNodes.get(0), 0) == 4,
+                "BE 转发位移该生效，实得 " + be.nodeX(be.g.machineNodes.get(0), 0) + "," + be.nodeY(be.g.machineNodes.get(0), 0));
+        var p = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL); // 1.21.1 签名带 GameType（同文件先例）
+        be.removeNodeAt(p, 2);
+        ctx.assertTrue(be.groupsView().containsKey(1) && be.g.machineNodes.size() == 2, "摘走 1 台还剩 2 台，组该保留");
+        be.removeNodeAt(p, 1);
+        ctx.assertTrue(be.groupsView().isEmpty() && com.sdzjz.node.NodeTags.nodeGroup(be.g.machineNodes.get(0)) == -1,
+                "组只剩 1 台该被 detachNode 顺手解散并剥 gp，实得 " + be.groupsView());
+        be.dissolveGroup(1);
+        ctx.assertTrue(be.groupsView().isEmpty(), "解散已不存在的组该静默");
+        ctx.succeed();
+    }
+
     /** m481（真移植 D 阶段先行·第二域）：路由域跨代行为契约——与 1.20.1 侧
      *  RetroTickTests.route_domain_contract_retro 跑的是**同一套断言**（xplat RouteDomainAssertions）。
      *  两代同绿=路由判定语义在两个世代上确实是同一个东西。 */

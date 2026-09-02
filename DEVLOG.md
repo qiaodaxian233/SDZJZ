@@ -10468,3 +10468,66 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：零代码改动，20 闸全绿（0.1.505 对表，纯文档+作业表变更）。
 - **下一刀**：A5a——分组服务端下沉（六方法进共用件+网络包对位+接收器），先逐句对
   `createGroup` 等六方法确认真的零专属 API（普查已初判，动手前照流程再核一遍）。
+
+## m506 A5a：画布分组服务端下沉 —— 六方法两代共用 + 1.20.1 写通路 + 顺手修第 19 闸两处坏尺子
+
+- **按作业表取活**（A5a，m505 普查稿分片①）。开工先照流程逐句对主线 `StructureCoreBlockEntity`
+  2467~2540 六方法（`createGroup`/`dissolveGroup`/`renameGroup`/`moveGroup`/`setNodeGroupTag`/
+  `sweepGroups`）与 `clampCanvas`：**零 1.21 专属 API**（只碰 `ItemData.copyOf/write`、`NodeTags.nodeGroup`、
+  `CompoundTag` 四口、`java.util`），普查初判成立。**整段搬进 xplat `node/CanvasGraphState`**（数据
+  `groupNames`/`machineNodes` 本来就住这儿），机械替换只三类：①`g.` 前缀去掉 ②`setChanged(); syncToClient();`
+  → `onChange.run()`（m485 StorageLedger 同一手法，构造器注入；无参构造=空回调保住客户端像/判官零改动）
+  ③`sweepGroups` 放开 public（两代 `detachNode` 都要调）。**归一这三类后与原文 diff=0 行**（脚本对拍，
+  不是肉眼）。主线 SCBE：四公开方法退役为一行转发、两私有助手删除、`g` 字段初始化传
+  `() -> { setChanged(); syncToClient(); }`、`detachNode` 改调 `g.sweepGroups()`、`clampCanvas` 留同签名垫片
+  （m180 家法零调用点改动）；切段前**先断言区间成员恰好是那 7 个**（m487 血案：行号盲切前看区间里有什么）。
+  SCBE 3906→3847 行。
+- **1.20.1 写通路**（m505 结论：服务端真正缺的只有"客户端发起写请求"这一条）：`NodePayloads120` 追加
+  `NodeGroup`（一包三义，主线 `NodeGroupPayload` 语义注释原文照搬）/`NodeGroupMove` 两包，有界红线走
+  `Net120.readBoundedUtf(64)`/`readBoundedCount(4096)`（m291 对位，写侧声明数与实写数同顶）；
+  `StructureCoreMenu120` 加 `handleGroup`/`handleGroupMove`（主线 `Sdzjz` m191 接收器原文顺序：总开关
+  `canvasGroupsEnabled` → 伪造包尺寸熔断 name>64/members>512 → 菜单前验 `coreFor` → 分派 → 本世代拉取式
+  即时反馈直推快照）+ 可测操作核 `groupOp`（gid<0 建组 / name 非空重命名 / 否则解散）；`RetroBootstrap`
+  注册两接收器；`StructureCore120` 的 `g` 传 `this::setChanged`（只落盘——本世代无观众推送，客户端
+  `CanvasQuery` 拉取，**执行面差非数据差**，m505/m480 同律），`detachNode` 补 `g.sweepGroups()` 与主线同位同句。
+  **零新数据结构、零读协议**：`groupNames` 与栈上 `gp` 随两代现有快照通道原样到客户端（1.20.1 客户端
+  读/渲染随 A5b）。
+- **第四张跨代契约 `xplat/node/CanvasGroupAssertions`**（配方 m372→存储 m480→路由 m481→分组）：八条判定
+  （建组/门槛零回调/重命名裁空白·空名拒·超长钳 24/位移含 m269 单包 ±1e5+终值 ±1e6 钳幅/挖人后旧组剩 1 台
+  自动解散/解散与重复解散零回调/孤儿标记与 <2 台组清扫/gid=现有最大+1 不复用空洞）。**分组六方法本身已是
+  同一份代码，契约压的是「同一份代码 × 两套栈数据实现」**（主线组件栈 / 本世代 tag 栈，`ItemData`/`NodeTags`
+  两代各装各的）。判官 +5（实数按 @GameTest 计：主线 45 条 / 1.20.1 64 条，历史条目的"累计"口径有漂移不再沿用）：主线 `canvas_group_domain_contract`（喂组件栈）+
+  `canvas_group_be_forwarding_and_detach_sweep`（转发壳+走公开路径 `removeNodeAt` 验顺手清扫）；1.20.1
+  `canvas_group_domain_contract_retro`（同一套断言喂 tag 栈）+ `canvas_group_ops_dispatch_and_detach_sweep`
+  （一包三义分派+存档往返+清扫）+ `canvas_group_payloads_roundtrip_and_bounds`（两包往返+**声明 4097 条/
+  组名 200 字解码期即拒**）。
+- **顺手修第 19 闸两处坏尺子（本刀最该记的）**：给本刀登记删除符号时自证，接连撞出两个洞——
+  ①**登记表是 Python dict，`StorageCoreBlockEntity`/`StorageCore120` 两键各登记了两次**（m485 一次、m504
+  一次），后一行静默覆盖前一行，`exactTpl/xpBank/tier` 那批 m485 已删符号**自 m504 起其实没在查**；合并成一行
+  并加「重复键自检」（从源码文本数键，重复即红）。②**声明正则太松**：`(?:修饰符|\s)+[\w<>,.\[\]\s]+\s(\w+)\s*[=;(]`
+  里 `\s` 既在修饰符组又在类型字符类，行首**裸调用** `        sweepGroups();` 被切成「换行+6 空格｜1 空格当类型｜
+  1 空格｜名字(」误判为"声明"——**语句级裸调用已删方法恒不红，正是 m504 那条 `exactIdxAppended()` 潜伏十几刀
+  的形状**（m504 记档说第 19 闸"当年没登记这个文件"，其实登记了也抓不到）。改成「类型 名字」必须成对
+  （类型=点分标识符可带泛型/数组，排除 return/new/else/throw 等关键字）+ 认 `class/interface/enum/record X`
+  声明（m504 留的 `FabricLedger` 薄壳内部类靠旧正则把 `new FabricLedger()` 当声明才一直绿）。**三步自证**：
+  正常态绿；行首塞 `sweepGroups();` 红；**在 StorageCoreBlockEntity 塞一行 `exactIdxAppended();` 重放 m504 血案
+  当场红**；还原复绿。合并后的 m485 名单跑一遍无真悬空引用。
+- **教训**：**闸的"自证"要用它声称能防的那次血案来重放，而不是随便捏一个错**——m487 立闸时自证用的是
+  字段裸用（`new ArrayList<>(exactTpl)`），那一类它确实能抓；m504 的血案是语句级方法裸调用，是另一个形状，
+  闸从没被这个形状考过。**一把尺子"绿了"只说明它认得的那几种错不在场**（m491 教训的第 19 闸版本）。
+  另：**登记表越长越要防重复键**——dict 字面量重复键连 Python 都不警告。
+- **验证**：两代全量源集冒烟（主线 188 文件 / 1.20.1 白名单现读 84 文件）经筛选器复查零真错，自家新符号
+  symbol 级报错两代各 0，`this::setChanged` 那条 invalid method reference 与 `StorageCore120:86` 既有先例同形
+  （缺 BlockEntity 父类的已登记底噪）；搬入体归一后 diff=0；第 19 闸三步自证；20 闸全绿（0.1.506 对表）。
+  零配置零资源改动。**动了两代 `detachNode`（摘节点路径）与主线全部分组操作路径（存档写 `gp` 键与 `groups` 表）**。
+- **实机验证脚本**：①主线：框选 3 台按 G 建组 → 组框标题"组N"、退出重进不丢；②主线：拖组框整体移动，
+  松手后成员相对位置不变、只同步一次不卡；③主线：右键组重命名（含首尾空格、超 24 字）/解散，与 m191 之前
+  手感一致；④主线：**摘走成员只剩 1 台时组自动消失、剩下那台不再带组标记**（detachNode 顺手清扫走共用件）；
+  ⑤主线：关配置 `canvasGroupsEnabled` 后服务端拒收组操作；⑥1.20.1：本刀客户端还没有分组 UI，
+  实机只需确认画布/摘节点/存档读写照旧不炸（`gp`/`groups` 键两代同名同布局，存档双向兼容）；服务端逻辑由
+  五条判官压着。
+- **观察到一处世代差留给作者**：1.20.1 单节点拖动钳 ±1e5（`StructureCoreMenu120.clampCoord`），下沉后的组
+  整体位移钳 ±1e6（主线 `clampCanvas` 口径）——不影响正确性（int 内、渲染乘 zoom 不溢出），要不要把单节点
+  钳幅也统一到 ±1e6 属跨代行为取舍，本刀不动，记在阻塞区。
+- **下一刀**：A5b——1.20.1 `CanvasScreen120` 分组客户端读+组框渲染（只读不写：读 `groupNames` 与每节点 `gp`
+  算组框矩形+标题带；参照主线 `StructureCoreScreen` 590~800 渲染段逐句对，边界先看清再切）。

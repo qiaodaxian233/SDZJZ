@@ -20,6 +20,10 @@ import net.minecraft.world.item.ItemStack;
  * 已收进 {@link StackCodec} 世代口。lookup 形参改为**不透明代际句柄** {@code Object}
  * ——与 {@code platform.RecipeAccess} 的 level 句柄同一约法（Common/共用层只透传绝不触碰），
  * 主线调用点传 {@code registryAccess()} 自动向上转型，零改动。
+ *
+ * <p><b>m506（真移植 A5a）：「纯状态容器」的说法自此过期</b>——m191 画布分组六个业务方法
+ * （createGroup/dissolveGroup/renameGroup/moveGroup/setNodeGroupTag/sweepGroups）自主线 SCBE
+ * 整段搬入本类两代共用，BE 生命周期触点走构造器注入的 {@link #onChange}（m485 StorageLedger 手法）。
  */
 public final class CanvasGraphState {
 
@@ -43,6 +47,18 @@ public final class CanvasGraphState {
         if (codec == null) throw new IllegalStateException("CanvasGraphState 栈编解码未安装：加载器入口须先调 CanvasGraphState.installCodec(...)（1.21=Sdzjz.onInitialize 首段，1.20.1=RetroBootstrap 同位）");
         return codec;
     }
+
+    /** m506（真移植 A5a）：状态变更回调——分组六方法（下方 m191 段）原在 SCBE 里以
+     *  {@code setChanged(); syncToClient();} 收尾，下沉后只做一处机械替换 → {@code onChange.run()}
+     *  （{@code StorageLedger} m485 同一手法）。两代 BE 各传自己的：主线=落盘+推观众快照，
+     *  1.20.1=只落盘（客户端拉取式快照，无观众态——执行面差不是数据差，m505 普查记档）。 */
+    private final Runnable onChange;
+
+    /** 无参=空回调：客户端快照像（CanvasScreen120 / applyRenderSnapshot）与判官对拍用，零改动。 */
+    public CanvasGraphState() { this(() -> { }); }
+
+    /** @param onChange 图状态被分组操作改动后回调（BE 侧的 setChanged/同步）。 */
+    public CanvasGraphState(Runnable onChange) { this.onChange = onChange; }
 
     public final java.util.List<ItemStack> machineNodes = new java.util.ArrayList<>();
     public final java.util.List<int[]> connections = new java.util.ArrayList<>(); // {from, to} 节点下标
@@ -184,5 +200,89 @@ public final class CanvasGraphState {
             busTopCounts.add(btr.getCompound(i).getLong("n"));
         }
         prodPerMin = nbt.getLong("prodPM"); // m86
+    }
+
+    // ===== m191 画布分组：成员归属在节点栈 NBT "gp"（随栈走，detachNode 的下标移位天然无关），
+    // 这里只管 id→名元数据 + 组操作；配置 canvasGroupsEnabled 总开关在接收器侧把门。 =====
+    // m506（真移植 A5a）：本段自主线 StructureCoreBlockEntity 2464~2540 整段搬入，两代共用一份；
+    // 机械替换只有三类：①`g.machineNodes/g.groupNames` → 本类字段 ②`setChanged(); syncToClient();`
+    // → `onChange.run()` ③`sweepGroups` 放开为 public（两代 detachNode 都要调）。其余一个字未改，
+    // 含 m269 long 加法、±100000 单包钳幅、24 字组名钳长与 sweepGroups 的 m431b 注。
+
+    /** m265 画布落位坐标钳制（±1,000,000，防伪造包写极端值进 NBT/参与几何运算溢出）。
+     *  m269 升 long 入参：moveGroup 用 long 加法防 int 溢出后直接喂进来；原 int 调用点自动拓宽零改动。
+     *  m506：自 SCBE 搬入本类（moveGroup 随行），SCBE 原位留同签名垫片零调用点改动。 */
+    public static int clampCanvas(long v) { return (int) Math.max(-1_000_000L, Math.min(1_000_000L, v)); }
+
+    /** 建组：≥2 个合法下标才成组；成员先脱旧组再入新组（一台机器只能在一个组）。name 空=自动"组N"。 */
+    public void createGroup(java.util.List<Integer> members, String name) {
+        java.util.LinkedHashSet<Integer> ms = new java.util.LinkedHashSet<>();
+        for (int i : members) if (i >= 0 && i < machineNodes.size()) ms.add(i);
+        if (ms.size() < 2) return;
+        int gid = 1;
+        for (int k : groupNames.keySet()) gid = Math.max(gid, k + 1);
+        String nm = name == null ? "" : name.trim();
+        if (nm.length() > 24) nm = nm.substring(0, 24);
+        groupNames.put(gid, nm.isEmpty() ? "组" + gid : nm);
+        for (int i : ms) setNodeGroupTag(machineNodes.get(i), gid);
+        sweepGroups(); // 成员被挖走的旧组可能只剩0/1台，顺手清
+        onChange.run();
+    }
+
+    /** 解散组：成员脱组标记 + 元数据删除。机器/连线原样不动（分组纯视觉，不碰拓扑）。 */
+    public void dissolveGroup(int gid) {
+        if (groupNames.remove(gid) == null) return;
+        for (ItemStack s : machineNodes) if (com.sdzjz.node.NodeTags.nodeGroup(s) == gid) setNodeGroupTag(s, -1);
+        onChange.run();
+    }
+
+    /** 重命名组（长度钳 24，空名不接受）。 */
+    public void renameGroup(int gid, String name) {
+        String nm = name == null ? "" : name.trim();
+        if (nm.isEmpty() || !groupNames.containsKey(gid)) return;
+        if (nm.length() > 24) nm = nm.substring(0, 24);
+        groupNames.put(gid, nm);
+        onChange.run();
+    }
+
+    /** 组整体位移：全成员坐标加同一增量，改完只同步一次（防 m128F3 式 N 连发全量同步）。 */
+    public void moveGroup(int gid, int dx, int dy) {
+        if (!groupNames.containsKey(gid)) return;
+        dx = Math.max(-100000, Math.min(100000, dx)); // 防伪造包把整组甩进天文坐标
+        dy = Math.max(-100000, Math.min(100000, dy));
+        boolean any = false;
+        for (ItemStack s : machineNodes) {
+            if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
+            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
+            // m269 long 加法+终值钳幅：单次 dx 虽已钳 ±1e5，但反复发包每次+1e5 累加 int 会溢出（审计点名）
+            n.putInt("nx", clampCanvas((n.contains("nx") ? (long) n.getInt("nx") : 0L) + dx));
+            n.putInt("ny", clampCanvas((n.contains("ny") ? (long) n.getInt("ny") : 0L) + dy));
+            com.sdzjz.item.ItemData.write(s, n);
+            any = true;
+        }
+        if (!any) return;
+        onChange.run();
+    }
+
+    /** 写/清节点栈上的组标记（gid<0=清除）。 */
+    private void setNodeGroupTag(ItemStack s, int gid) {
+        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
+        if (gid < 0) n.remove("gp"); else n.putInt("gp", gid);
+        com.sdzjz.item.ItemData.write(s, n);
+    }
+
+    /** 组一致性清扫：成员<2 的组解散（1 台不成组）+ 无元数据的孤儿 gp 标记剥除。detachNode 与组操作后调用。
+     *  不自带 onChange——调用方（detachNode/组操作）自己收尾，与主线原文同律。 */
+    public void sweepGroups() {
+        java.util.HashMap<Integer, Integer> cnt = new java.util.HashMap<>();
+        for (ItemStack s : machineNodes) {
+            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
+            if (g >= 0) cnt.merge(g, 1, Integer::sum);
+        }
+        groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
+        for (ItemStack s : machineNodes) {
+            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
+            if (g >= 0 && !groupNames.containsKey(g)) setNodeGroupTag(s, -1); // m431b：主线时局部 int g 遮蔽字段 g 须 this. 限定；m506 下沉后本类无字段 g，限定词随之去掉，局部名原样保留
+        }
     }
 }

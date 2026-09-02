@@ -16,13 +16,19 @@ FabricLedger120 内部类还在用 exactTpl，存档还在写 xpBank。
 import re, sys, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 目标 = {
+ # m506 修尺子：本表是 Python dict，StorageCoreBlockEntity/StorageCore120 两键各登记了两次（m485 一次、m504 一次），
+ # 后一行**覆盖**前一行——exactTpl/xpBank/tier 那批 m485 已删符号自 m504 起其实没在查。两表合并成一行，键唯一；
+ # 文件尾另加「重复键自检」，再登记一次同名文件当场红（m109 家法：校验器自身先怀疑）。
  "src/main/java/com/sdzjz/block/StorageCoreBlockEntity.java":
    ["exactTpl","exactN","exactIdx","store","xpBank","tier","exactIndexOf","typeGate","satAdd",
-    "exactIdxAppended","exactIdxRemoved","storeRev","exactRev"],
+    "exactIdxAppended","exactIdxRemoved","storeRev","exactRev",
+    "FabricLedger", "fabricLedger"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StorageCore120.java":
    ["exactTpl","exactN","exactIdx","store","xpBank","exactIndexOf","typeGate",
-    "exactIdxAppended","exactIdxRemoved","storeRev","exactRev"],
- "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java": [],
+    "exactIdxAppended","exactIdxRemoved","storeRev","exactRev",
+    "FabricLedger120", "fabricLedger"],
+ # m506（真移植 A5a）：分组六方法下沉 CanvasGraphState，SCBE 删掉两个私有助手（公开四方法留转发壳）
+ "src/main/java/com/sdzjz/block/StructureCoreBlockEntity.java": ["setNodeGroupTag", "sweepGroups"],
  "xplat/src/main/java/com/sdzjz/block/DataCableBlock.java": ["SHAPES", "CORE", "ARMS"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/DataCableBlock120.java":
    ["NORTH", "SOUTH", "EAST", "WEST", "UP", "DOWN", "END_PROPS", "SHAPES", "CORE", "ARMS"],
@@ -32,12 +38,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
  "versions/1.20.1/src/main/java/com/sdzjz/retro/DataCable120.java":
    ["filter","rrCursor","opTargetsFull","coresScanTick","coresCache","extractOn","pullMode",
     "extractSpec","extractAll","doPull","pullWants","insertInto","collectView","scanAdjacent","cores"],
- "src/main/java/com/sdzjz/block/StorageCoreBlockEntity.java":
-   ["FabricLedger", "fabricLedger", "exactIndexOf", "exactIdxAppended", "exactIdxRemoved"],
- "versions/1.20.1/src/main/java/com/sdzjz/retro/StorageCore120.java":
-   ["FabricLedger120", "fabricLedger"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java": [],
 }
+# m506 重复键自检：dict 字面量里同名键会静默覆盖，这里从源码文本数一遍键，重复即红。
+import collections as _c
+_keys=re.findall(r'^\s*"([^"]+\.java)"\s*:', pathlib.Path(__file__).read_text(encoding="utf-8"), flags=re.M)
+_dup=[k for k,c in _c.Counter(_keys).items() if c>1]
+if _dup:
+    print("❌ 第 19 闸登记表有重复键（后者覆盖前者，前者的符号名单等于没登记）：", _dup)
+    sys.exit(1)
 坏=0
 for rel, 名单 in 目标.items():
     src=(ROOT/rel).read_text(encoding="utf-8")
@@ -45,7 +54,19 @@ for rel, 名单 in 目标.items():
     码=re.sub(r"//[^\n]*", " ", 码)                          # 行注释（含行尾）
     码=re.sub(r'"(?:\\.|[^"\\])*"', '""', 码)                # 字符串字面量（NBT 键名等）
     # 本文件里声明了哪些字段/方法
-    声明=set(re.findall(r"(?:private|public|protected|static|final|transient|\s)+[\w<>,.\[\]\s]+\s(\w+)\s*[=;(]", 码))
+    # m506 修尺子（第二次，自证时抓到）：原正则 `(?:修饰符|\s)+[\w<>,.\[\]\s]+\s(\w+)\s*[=;(]` 里 `\s` 既在修饰符组
+    # 又在类型字符类里，行首的**裸调用** `        sweepGroups();` 会被切成「\n+6空格 | 1空格(当类型) | 1空格 | 名字(」
+    # 而误判为"声明"——于是**语句级裸调用已删方法**（m504 那条 exactIdxAppended() 的形状）恒不红。
+    # 改成「类型 名字」必须成对：类型=点分标识符(可带泛型/数组)，且类型不是 return/new/else/throw 这类关键字。
+    声明=set()
+    for 类型, 名 in re.findall(r"(?<![\w.])([\w.]+(?:<[^;{}()]*?>)?(?:\[\])*)\s+(\w+)\s*[=;(]", 码):
+        if 类型.split("<")[0].split("[")[0] in {"return","new","else","throw","case","instanceof","extends","implements",
+                                                  "import","package","assert","yield","break","continue","do","goto"}:
+            continue
+        声明.add(名)
+    # 内部类/接口/枚举/record 也是声明（m504 留下的 FabricLedger/FabricLedger120 薄壳就是内部类——
+    # 旧正则把 `new FabricLedger()` 误当声明才一直没红，修尺子后要用正路认出来）
+    声明.update(re.findall(r"\b(?:class|interface|enum|record)\s+(\w+)", 码))
     for n in 名单:
         if n in 声明: continue          # 还声明着=没删，不管
         # m487 修尺子：原正则只认 `名.` / `名(` / `名[`，漏掉了**裸标识符**用法

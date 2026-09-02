@@ -262,4 +262,86 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(com.sdzjz.node.NodeTags.extractorCount(x) == 777, "抽取累计该读回自己的键");
         ctx.succeed();
     }
+
+    // ===== m506（真移植 A5a）：画布分组服务端下沉 =====
+
+    /** m506①分组域跨代行为契约——与主线 SdzjzGameTests.canvas_group_domain_contract 跑的是**同一套断言**
+     *  （xplat CanvasGroupAssertions），本侧喂 tag 栈（TagItemData/RetroNodeIdent），两代同绿=分组六方法
+     *  在两套栈数据实现上确实是同一个东西。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_group_domain_contract_retro(GameTestHelper ctx) {
+        int[] changes = {0};
+        CanvasGraphState g = new CanvasGraphState(() -> changes[0]++);
+        g.machineNodes.add(node("wither_farm", 10, 10));
+        g.machineNodes.add(node("auto_crafter", 20, 10));
+        g.machineNodes.add(node("super_smelter", 30, 10));
+        g.machineNodes.add(node("brewing_tower", 40, 10));
+        try {
+            com.sdzjz.node.CanvasGroupAssertions.runAll(g, changes);
+        } catch (AssertionError e) {
+            ctx.fail("分组域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
+
+    /** m506②接收器操作核分派（一包三义，主线 Sdzjz m191 接收器原文）+ BE 侧 detachNode 顺手清扫
+     *  （摘走成员后组剩 1 台该自动解散，与主线 detachNode 同位同句）+ 分组随存档往返。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_group_ops_dispatch_and_detach_sweep(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("wither_farm", 10, 10));
+        c.addNode(node("auto_crafter", 20, 10));
+        c.addNode(node("super_smelter", 30, 10));
+        StructureCoreMenu120.groupOp(c, -1, "", java.util.List.of(0, 1, 2));           // 建组
+        ctx.assertTrue(c.g.groupNames.size() == 1 && "组1".equals(c.g.groupNames.get(1)), "gid<0 该走建组，实得 " + c.g.groupNames);
+        StructureCoreMenu120.groupOp(c, 1, "刷怪线", java.util.List.of());                // 重命名
+        ctx.assertTrue("刷怪线".equals(c.g.groupNames.get(1)), "name 非空该走重命名，实得 " + c.g.groupNames.get(1));
+        CompoundTag nbt = c.saveWithoutMetadata();                                       // 分组随存档往返（groups 键 + 栈上 gp，键在 BE 根层）
+        CanvasGraphState back = new CanvasGraphState();
+        back.readRenderNbt(nbt, null, java.util.Map.of(), () -> { });
+        ctx.assertTrue("刷怪线".equals(back.groupNames.get(1))
+                && com.sdzjz.node.NodeTags.nodeGroup(back.machineNodes.get(2)) == 1, "组名与成员标记该随存档往返");
+        c.detachNode(2);                                                                // 摘 1 台：剩 2 台仍成组
+        ctx.assertTrue(c.g.groupNames.containsKey(1) && com.sdzjz.node.NodeTags.nodeGroup(c.g.machineNodes.get(1)) == 1,
+                "摘走 1 台还剩 2 台，组该保留");
+        c.detachNode(1);                                                                // 再摘：只剩 1 台 → 顺手清
+        ctx.assertTrue(c.g.groupNames.isEmpty(), "组只剩 1 台该被 detachNode 顺手解散，实得 " + c.g.groupNames);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.nodeGroup(c.g.machineNodes.get(0)) == -1, "被解散组的孤儿该剥 gp");
+        c.addNode(node("brewing_tower", 40, 10));
+        StructureCoreMenu120.groupOp(c, -1, "", java.util.List.of(0, 1));
+        StructureCoreMenu120.groupOp(c, 1, "", java.util.List.of());                     // 解散
+        ctx.assertTrue(c.g.groupNames.isEmpty() && com.sdzjz.node.NodeTags.nodeGroup(c.g.machineNodes.get(0)) == -1,
+                "gid>=0 且 name 空该走解散，实得 " + c.g.groupNames);
+        ctx.succeed();
+    }
+
+    /** m506③分组两包编解码往返 + 有界解码红线（m291 对位）：声明超顶的成员表、超长组名在解码期即拒，
+     *  不分配后再裁。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_group_payloads_roundtrip_and_bounds(GameTestHelper ctx) {
+        BlockPos pos = ctx.absolutePos(new BlockPos(0, 1, 0));
+        var out = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeGroup(pos, -1, "产线甲", java.util.List.of(0, 1, 2)).write(out);
+        var back = new NodePayloads120.NodeGroup(out);
+        ctx.assertTrue(back.pos().equals(pos) && back.gid() == -1 && "产线甲".equals(back.name())
+                && back.members().equals(java.util.List.of(0, 1, 2)), "NodeGroup 往返四字段该逐位一致");
+        var out2 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeGroupMove(pos, 3, -5, 7).write(out2);
+        var back2 = new NodePayloads120.NodeGroupMove(out2);
+        ctx.assertTrue(back2.gid() == 3 && back2.dx() == -5 && back2.dy() == 7, "NodeGroupMove 往返该逐位一致");
+        // 有界红线①：成员表声明条数超顶 → 分配前拒
+        var evil = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        evil.writeBlockPos(pos); evil.writeVarInt(-1); evil.writeUtf("x", 64); evil.writeVarInt(NodePayloads120.GROUP_MEMBERS_MAX + 1);
+        boolean rejected = false;
+        try { new NodePayloads120.NodeGroup(evil); } catch (io.netty.handler.codec.DecoderException e) { rejected = true; }
+        ctx.assertTrue(rejected, "成员表声明 " + (NodePayloads120.GROUP_MEMBERS_MAX + 1) + " 条该在解码期拒收");
+        // 有界红线②：组名超长 → 解码期拒（原版 readUtf(max) 自抛）
+        var evil2 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        evil2.writeBlockPos(pos); evil2.writeVarInt(1); evil2.writeUtf("a".repeat(200)); evil2.writeVarInt(0);
+        boolean rejected2 = false;
+        try { new NodePayloads120.NodeGroup(evil2); } catch (io.netty.handler.codec.DecoderException e) { rejected2 = true; }
+        ctx.assertTrue(rejected2, "组名 200 字该在解码期拒收（上限 " + NodePayloads120.GROUP_NAME_MAX + "）");
+        ctx.succeed();
+    }
 }

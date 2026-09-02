@@ -61,7 +61,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     private final NonNullList<ItemStack> items = NonNullList.withSize(SIZE, ItemStack.EMPTY);
     /** m430 mA1：渲染子集 12+1 字段搬家进状态对象（清单与语义见 CanvasGraphState），编解码 mA2 迁。 */
-    public final com.sdzjz.node.CanvasGraphState g = new com.sdzjz.node.CanvasGraphState(); // m500：原为包私有，而 m481 的 route_domain_contract 判官在 com.sdzjz.gametest 包里直接 be.g.machineNodes（9 处）——主线真编译错，冒烟筛选器抓获；与邻居 prof 同口径放开
+    public final com.sdzjz.node.CanvasGraphState g = new com.sdzjz.node.CanvasGraphState(() -> { setChanged(); syncToClient(); }); // m506（A5a）：分组六方法下沉共用，变更回调=落盘+推观众快照（原方法尾两行原文） // m500：原为包私有，而 m481 的 route_domain_contract 判官在 com.sdzjz.gametest 包里直接 be.g.machineNodes（9 处）——主线真编译错，冒烟筛选器抓获；与邻居 prof 同口径放开
     public transient com.sdzjz.debug.CoreProfiler.Stats prof; // m177 性能尺子(纯内存,不入NBT)
     // m179 编译执行计划：拓扑派生结构(hasOut/hasIn/outT)只在图变更时重建，普通 tick 直接复用缓存
     // ——修订号失配才编译；长度兜底防漏 bump；派生列表运行期只读(已核)所以可跨 tick 共享。
@@ -2425,7 +2425,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
             if (e[0] == index) { g.storageEdges.remove(i); g.storageEdgeDims.remove(i); }
             else if (e[0] > index) e[0]--;
         }
-        sweepGroups(); // m191 组标记随被摘的栈自然离场（returnNodeClean 会剥画布 NBT）；这里只清剩<2台的组
+        g.sweepGroups(); // m191 组标记随被摘的栈自然离场（returnNodeClean 会剥画布 NBT）；这里只清剩<2台的组（m506 下沉共用，见 CanvasGraphState）
         return s;
     }
 
@@ -2462,83 +2462,24 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     // ===== m191 画布分组：成员归属在节点栈 NBT "gp"（随栈走，detachNode 的下标移位天然无关），
     // 这里只管 id→名元数据 + 组操作；配置 canvasGroupsEnabled 总开关在接收器侧把门。 =====
+    // m506（真移植 A5a）：六个业务方法（createGroup/dissolveGroup/renameGroup/moveGroup/setNodeGroupTag/
+    // sweepGroups，原 2467~2540 共 75 行）整段搬进 xplat node/CanvasGraphState 两代共用，本处退役为一行转发；
+    // setChanged()+syncToClient() 收尾走 g 的构造器回调（字段声明处）。私有的 setNodeGroupTag/sweepGroups
+    // 随行删除（第 19 闸已登记），detachNode 改调 g.sweepGroups()。
     /** 分组元数据读取（客户端渲染组框标题用）。 */
     public java.util.Map<Integer, String> groupsView() { return g.groupNames; }
 
     /** 建组：≥2 个合法下标才成组；成员先脱旧组再入新组（一台机器只能在一个组）。name 空=自动"组N"。 */
-    public void createGroup(java.util.List<Integer> members, String name) {
-        java.util.LinkedHashSet<Integer> ms = new java.util.LinkedHashSet<>();
-        for (int i : members) if (i >= 0 && i < g.machineNodes.size()) ms.add(i);
-        if (ms.size() < 2) return;
-        int gid = 1;
-        for (int k : g.groupNames.keySet()) gid = Math.max(gid, k + 1);
-        String nm = name == null ? "" : name.trim();
-        if (nm.length() > 24) nm = nm.substring(0, 24);
-        g.groupNames.put(gid, nm.isEmpty() ? "组" + gid : nm);
-        for (int i : ms) setNodeGroupTag(g.machineNodes.get(i), gid);
-        sweepGroups(); // 成员被挖走的旧组可能只剩0/1台，顺手清
-        setChanged();
-        syncToClient();
-    }
+    public void createGroup(java.util.List<Integer> members, String name) { g.createGroup(members, name); }
 
     /** 解散组：成员脱组标记 + 元数据删除。机器/连线原样不动（分组纯视觉，不碰拓扑）。 */
-    public void dissolveGroup(int gid) {
-        if (g.groupNames.remove(gid) == null) return;
-        for (ItemStack s : g.machineNodes) if (com.sdzjz.node.NodeTags.nodeGroup(s) == gid) setNodeGroupTag(s, -1);
-        setChanged();
-        syncToClient();
-    }
+    public void dissolveGroup(int gid) { g.dissolveGroup(gid); }
 
     /** 重命名组（长度钳 24，空名不接受）。 */
-    public void renameGroup(int gid, String name) {
-        String nm = name == null ? "" : name.trim();
-        if (nm.isEmpty() || !g.groupNames.containsKey(gid)) return;
-        if (nm.length() > 24) nm = nm.substring(0, 24);
-        g.groupNames.put(gid, nm);
-        setChanged();
-        syncToClient();
-    }
+    public void renameGroup(int gid, String name) { g.renameGroup(gid, name); }
 
     /** 组整体位移：全成员坐标加同一增量，改完只同步一次（防 m128F3 式 N 连发全量同步）。 */
-    public void moveGroup(int gid, int dx, int dy) {
-        if (!g.groupNames.containsKey(gid)) return;
-        dx = Math.max(-100000, Math.min(100000, dx)); // 防伪造包把整组甩进天文坐标
-        dy = Math.max(-100000, Math.min(100000, dy));
-        boolean any = false;
-        for (ItemStack s : g.machineNodes) {
-            if (com.sdzjz.node.NodeTags.nodeGroup(s) != gid) continue;
-            CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
-            // m269 long 加法+终值钳幅：单次 dx 虽已钳 ±1e5，但反复发包每次+1e5 累加 int 会溢出（审计点名）
-            n.putInt("nx", clampCanvas((n.contains("nx") ? (long) n.getInt("nx") : 0L) + dx));
-            n.putInt("ny", clampCanvas((n.contains("ny") ? (long) n.getInt("ny") : 0L) + dy));
-            com.sdzjz.item.ItemData.write(s, n);
-            any = true;
-        }
-        if (!any) return;
-        setChanged();
-        syncToClient();
-    }
-
-    /** 写/清节点栈上的组标记（gid<0=清除）。 */
-    private void setNodeGroupTag(ItemStack s, int gid) {
-        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
-        if (gid < 0) n.remove("gp"); else n.putInt("gp", gid);
-        com.sdzjz.item.ItemData.write(s, n);
-    }
-
-    /** 组一致性清扫：成员<2 的组解散（1 台不成组）+ 无元数据的孤儿 gp 标记剥除。detachNode 与组操作后调用。 */
-    private void sweepGroups() {
-        java.util.HashMap<Integer, Integer> cnt = new java.util.HashMap<>();
-        for (ItemStack s : g.machineNodes) {
-            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
-            if (g >= 0) cnt.merge(g, 1, Integer::sum);
-        }
-        g.groupNames.keySet().removeIf(g -> cnt.getOrDefault(g, 0) < 2);
-        for (ItemStack s : g.machineNodes) {
-            int g = com.sdzjz.node.NodeTags.nodeGroup(s);
-            if (g >= 0 && !this.g.groupNames.containsKey(g)) setNodeGroupTag(s, -1); // m431b：局部 int g 遮蔽字段 g，this. 限定
-        }
-    }
+    public void moveGroup(int gid, int dx, int dy) { g.moveGroup(gid, dx, dy); }
 
     // ===== 存储/终端接口节点：扫描 + 定向连线 =====
     /** 扫描本核心可达的存储核心/数据终端端点（绑定>有线>无线>卫星，封顶8个），变化才同步。 */
@@ -2928,7 +2869,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     /** 设置存储节点画布坐标。 */
     /** m265 画布落位坐标钳制（±1,000,000，防伪造包写极端值进 NBT/参与几何运算溢出）。
      *  m269 升 long 入参：moveGroup 用 long 加法防 int 溢出后直接喂进来；原 int 调用点自动拓宽零改动。 */
-    private static int clampCanvas(long v) { return (int) Math.max(-1_000_000L, Math.min(1_000_000L, v)); }
+    private static int clampCanvas(long v) { return com.sdzjz.node.CanvasGraphState.clampCanvas(v); } // m506：本体随 moveGroup 下沉共用，此处留同签名垫片零调用点改动
 
     /** m265 语义升级：写入即"放置到画布"——值升三元 {x, y, 1}，第三位=放置标记。
      *  历史二元值（m80 前遗留 + 旧整理布局写入的死数据）没有标记位=仍视为停靠，老档不惊动。 */

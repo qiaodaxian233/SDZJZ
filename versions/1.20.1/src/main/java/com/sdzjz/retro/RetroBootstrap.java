@@ -44,6 +44,8 @@ public final class RetroBootstrap implements ModInitializer {
         Net120.onServer(NodePayloads120.NodeLink.TYPE, StructureCoreMenu120::handleLink);     // m457
         Net120.onServer(StoragePayloads120.StorageLink.TYPE, StructureCoreMenu120::handleStorageLink);         // m458
         Net120.onServer(StoragePayloads120.StorageNodeMove.TYPE, StructureCoreMenu120::handleStorageNodeMove); // m458
+        Net120.onServer(NodePayloads120.NodeGroup.TYPE, StructureCoreMenu120::handleGroup);         // m506（A5a）画布打组一包三义（建组/重命名/解散）
+        Net120.onServer(NodePayloads120.NodeGroupMove.TYPE, StructureCoreMenu120::handleGroupMove); // m506（A5a）组整体位移
 
         LOGGER.info("[sdzjz] 1.20.1 旧世代 bootstrap 在岗：Common 层已挂载（{}/{}/{} 可达）；存储网络+数据面板服务端半已上线（m443/m444/m447），面板客户端屏随 m448",
                 com.sdzjz.machine.CraftPlanner.class.getSimpleName(),

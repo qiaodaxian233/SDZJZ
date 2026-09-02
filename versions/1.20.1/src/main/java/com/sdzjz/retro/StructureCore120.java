@@ -32,7 +32,7 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
     /** m143 合并机映射：1.20.1 无史前存档常态空表（CanvasGraphState 类注），接线点保形。 */
     private static final Map<String, String> MERGED_IDS = Map.of();
 
-    final CanvasGraphState g = new CanvasGraphState(); // 蓝本同名：唯一图实例
+    final CanvasGraphState g = new CanvasGraphState(this::setChanged); // 蓝本同名：唯一图实例。m506（A5a）：分组六方法下沉共用，变更回调=只落盘（本世代快照客户端拉取，无观众推送——执行面差非数据差）
     long endpointScanTick = Long.MIN_VALUE; // m458：端点扫描 40t 缓存戳（m218b 谱系防逐观众裸扫）
 
     /** m471（⑤c1）在途缓存三件：每节点输入缓存（与 machineNodes 同序，懒补齐）+ 遗留共享池
@@ -80,6 +80,7 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
             if (e[0] == index) { g.storageEdges.remove(i); g.storageEdgeDims.remove(i); }
             else if (e[0] > index) e[0]--;
         }
+        g.sweepGroups(); // m191 组标记随被摘的栈自然离场（cleanNode 会剥画布 NBT）；这里只清剩<2台的组（m506 与主线 detachNode 同位同句，走共用件）
         setChanged();
         return s;
     }
