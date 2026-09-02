@@ -265,6 +265,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         int offY = (int) (Math.floorMod(Math.round(-viewY * zoom), step));
         for (int x = offX; x < width; x += step) ctx.fill(x, 0, x + 1, height, SciSkinPalette.CELL);
         for (int y = offY; y < height; y += step) ctx.fill(0, y, width, y + 1, SciSkinPalette.CELL);
+        if (com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled) { // m507 m192 组框（最底层：存储线/机器线/卡片全画其上）——与主线同一份代码
+            var gm = com.sdzjz.client.GroupFrameRenderer.groupMembers(groupView);
+            if (!gm.isEmpty()) {
+                java.util.HashMap<Integer, int[]> gRect = new java.util.HashMap<>();
+                for (var ge : gm.entrySet()) gRect.put(ge.getKey(), com.sdzjz.client.GroupFrameRenderer.groupRect(groupView, ge.getValue()));
+                com.sdzjz.client.GroupFrameRenderer.drawFrames(ctx, this.font, groupView, gm, gRect);
+            }
+        }
         for (int i = 0; i < g.storageEdges.size(); i++) { // m458 机器↔存储边（产出 ON / 供料 GOLD）
             long[] e = g.storageEdges.get(i);
             int m = (int) e[0];
@@ -418,6 +426,22 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         @Override public net.minecraft.world.item.ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
     };
 
+    // ===== m507（真移植·A5b）：画布分组组框两代共用（xplat client/GroupFrameRenderer）=====
+    // 本世代原来完全没有组框；主线 m192 组框段 + groupMembers/groupRect 整段搬，几何走 View 口。
+    // 只读不写：框选/G 键/拖组/组菜单随 A5c 接 m506 建好的 NodeGroup/NodeGroupMove 两包。
+    private final com.sdzjz.client.GroupFrameRenderer.View groupView = new com.sdzjz.client.GroupFrameRenderer.View() {
+        @Override public double viewLeft() { return viewX; }
+        @Override public double viewTop() { return viewY; }
+        @Override public double zoom() { return zoom; }
+        @Override public int nodeCount() { return g.machineNodes.size(); }
+        @Override public net.minecraft.world.item.ItemStack nodeStack(int i) { return g.machineNodes.get(i); }
+        @Override public int nodeX(int i) { return i == dragIndex ? (int) Math.round(dragCx) : nodeCx(i); } // 拖动幽灵位随卡（主线 wnx 的 m196 语义）
+        @Override public int nodeY(int i) { return i == dragIndex ? (int) Math.round(dragCy) : nodeCy(i); }
+        @Override public int cardHeight() { return NH; } // 本世代无升级系统（m464）→卡下无升级格行，主线此处 NH+26
+        @Override public java.util.Map<Integer, String> groupNames() { return g.groupNames; } // 快照像里的组元数据（m506 服务端已下沉，随 CanvasSnapshot 原样到）
+        @Override public int dragGid() { return -1; } // A5c 前无组拖动
+    };
+
     private int mapX() { return width - SIDEBAR_W - com.sdzjz.client.MinimapRenderer.MAP_W - 8; }
     private int mapY() { return height - 6 - com.sdzjz.client.MinimapRenderer.MAP_H; }
 
@@ -434,7 +458,9 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private Integer nodeAt(double mx, double my) {
         for (int i = g.machineNodes.size() - 1; i >= 0; i--) { // 后画在上，倒序命中
             double x = sx(nodeCx(i)), y = sy(nodeCy(i));
-            if (mx >= x && mx < x + 24 && my >= y && my < y + 24) return i;
+            // m507 顺手修：命中框还是 m484 之前的 24×24（卡早已长成 NW×NH=100×52），只有卡左上角一小块能悬停/拖动/右键；
+            // 改成整卡命中（屏幕坐标乘 zoom），与主线 hoveredNode 的 NW×NH 口径一致（主线另有 +26 升级格行，本世代无）。
+            if (mx >= x && mx < x + NW * zoom && my >= y && my < y + NH * zoom) return i;
         }
         return null;
     }

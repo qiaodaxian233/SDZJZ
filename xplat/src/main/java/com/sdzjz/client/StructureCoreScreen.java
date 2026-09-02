@@ -224,7 +224,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private final java.util.HashMap<Integer, int[]> dragGidSnap = new java.util.HashMap<>(); // 成员坐标快照：快照+增量绝对写，中途被服务端全量同步覆盖也自愈
     private int renameGid = -1;                       // 重命名中的组（>=0 = 小窗开着）
     private EditBox renameField;
-    private static final int GPAD = 10, GBAND = 16;   // 组框内边距 / 标题带高（世界单位）
+    private static final int GPAD = GroupFrameRenderer.GPAD, GBAND = GroupFrameRenderer.GBAND; // 组框内边距 / 标题带高（世界单位）——m507 原值随组框渲染下沉共用件，此处留别名零调用点改动
 
     // 右键菜单
     private boolean menuOpen = false;
@@ -588,38 +588,21 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 : 44, botTop());
         ctx.enableScissor(0, bandBot, workRight(), botTop()); // m159 画布剪刀（m263 顶缘 24→带底）
         // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）
+        // m507（真移植 A5b）：几何（groupMembers/groupRect）与组框绘制下沉 xplat client/GroupFrameRenderer 两代共用，
+        // 本处只装配共享表（nGid 还要喂 m193 归并）；视图口 groupView 把 wnx/wny 拖动覆盖、pan/zoom 记法、卡高 NH+26 归一。
+        GroupFrameRenderer.View gv = groupView(be, nodes);
         java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
-                groupsOn() ? groupMembers(be) : new java.util.LinkedHashMap<>();
+                groupsOn() ? GroupFrameRenderer.groupMembers(gv) : new java.util.LinkedHashMap<>();
         java.util.HashMap<Integer, int[]> gRect = new java.util.HashMap<>();
         int[] nGid = new int[nodes.size()];
         java.util.Arrays.fill(nGid, -1);
         for (var ge : gm.entrySet()) {
-            gRect.put(ge.getKey(), groupRect(be, nodes, ge.getValue()));
+            gRect.put(ge.getKey(), GroupFrameRenderer.groupRect(gv, ge.getValue()));
             for (int gi2 : ge.getValue()) if (gi2 < nGid.length) nGid[gi2] = ge.getKey();
         }
         boolean bundleOn = !gm.isEmpty() && com.sdzjz.config.SdzjzConfig.get().canvasGroupBundleWires; // m193 归并开关
-        // m192 组框（最底层：存储线/机器线/卡片全画其上）——世界坐标独立一次变换
-        if (!gm.isEmpty()) {
-            PoseStack mg = ctx.pose();
-            mg.pushPose();
-            mg.translate(panX, panY, 0);
-            mg.scale((float) zoom, (float) zoom, 1);
-            for (var ge : gm.entrySet()) {
-                int[] r = gRect.get(ge.getKey());
-                int fc = dragGid == ge.getKey() ? CYAN : SciSkin.GROUP_FRM; // 拖动中框提亮
-                ctx.fill(r[0], r[1] + GBAND, r[2], r[3], SciSkin.GROUP_FILL);
-                SciSkin.hGrad(ctx, r[0], r[1], r[2], r[1] + GBAND,
-                        SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.50f), SciSkin.withAlpha(SciSkin.GROUP_FRM, 0.08f));
-                ctx.fill(r[0], r[1], r[2], r[1] + 1, fc);
-                ctx.fill(r[0], r[3] - 1, r[2], r[3], fc);
-                ctx.fill(r[0], r[1], r[0] + 1, r[3], fc);
-                ctx.fill(r[2] - 1, r[1], r[2], r[3], fc);
-                ctx.fill(r[0], r[1] + GBAND - 1, r[2], r[1] + GBAND, SciSkin.withAlpha(fc, 0.45f));
-                ctx.drawString(this.font, be.groupsView().getOrDefault(ge.getKey(), "组" + ge.getKey())
-                        + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
-            }
-            mg.popPose();
-        }
+        // m192 组框（最底层：存储线/机器线/卡片全画其上）——世界坐标独立一次变换（m507 共用件内做）
+        GroupFrameRenderer.drawFrames(ctx, this.font, gv, gm, gRect);
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
         // m184 机器端左右缘按几何就近选（卡口在机器哪一侧就从哪缘出入），端口语义（卡底左收料/右供料）不变。
@@ -1337,29 +1320,33 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     // ===== m192 画布分组：几何与操作 =====
     private boolean groupsOn() { return com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled; }
 
-    /** gid → 成员下标（只收 SCBE 元数据在册且 ≥2 台的组；归属读 NodeTags.nodeGroup，m180 新代码直用不走垫片）。 */
+    /** gid → 成员下标（只收 SCBE 元数据在册且 ≥2 台的组；归属读 NodeTags.nodeGroup，m180 新代码直用不走垫片）。
+     *  m507：本体下沉 GroupFrameRenderer.groupMembers 两代共用，此处留转发（groupOfNode/右键带/拖动带三处调用点零改动）。 */
     private java.util.LinkedHashMap<Integer, java.util.List<Integer>> groupMembers(StructureCoreBlockEntity be) {
-        java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm = new java.util.LinkedHashMap<>();
-        List<ItemStack> nodes = be.nodes();
-        for (int i = 0; i < nodes.size(); i++) {
-            int g = com.sdzjz.node.NodeTags.nodeGroup(nodes.get(i));
-            if (g >= 0 && be.groupsView().containsKey(g)) gm.computeIfAbsent(g, k -> new ArrayList<>()).add(i);
-        }
-        gm.values().removeIf(l -> l.size() < 2);
-        return gm;
+        return GroupFrameRenderer.groupMembers(groupView(be, be.nodes()));
     }
 
     /** 组框矩形（世界坐标）：成员卡包围盒（卡体+升级格行，与悬停判定同口径）外扩 GPAD，
-     *  顶上再抬一条 GBAND 标题带。返回 {x1,y1,x2,y2}，标题带=y1..y1+GBAND。 */
+     *  顶上再抬一条 GBAND 标题带。返回 {x1,y1,x2,y2}，标题带=y1..y1+GBAND。m507：本体下沉共用件，此处转发。 */
     private int[] groupRect(StructureCoreBlockEntity be, List<ItemStack> nodes, java.util.List<Integer> members) {
-        int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = Integer.MIN_VALUE, y2 = Integer.MIN_VALUE;
-        for (int i : members) {
-            if (i >= nodes.size()) continue;
-            int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-            x1 = Math.min(x1, nx); y1 = Math.min(y1, ny);
-            x2 = Math.max(x2, nx + NW); y2 = Math.max(y2, ny + NH + 26);
-        }
-        return new int[]{x1 - GPAD, y1 - GPAD - GBAND, x2 + GPAD, y2 + GPAD};
+        return GroupFrameRenderer.groupRect(groupView(be, nodes), members);
+    }
+
+    /** m507 分组视图口：主线状态归一给共用件——坐标走 wnx/wny（含 m196 拖动覆盖）、pan 记法换算成视口左上
+     *  画布坐标（MinimapRenderer.View 同约法）、卡包围盒高 NH+26（卡体+升级格行，与悬停判定同口径）、拖动中的组提亮。 */
+    private GroupFrameRenderer.View groupView(StructureCoreBlockEntity be, List<ItemStack> nodes) {
+        return new GroupFrameRenderer.View() {
+            @Override public double viewLeft() { return (0 - panX) / zoom; }
+            @Override public double viewTop() { return (0 - panY) / zoom; }
+            @Override public double zoom() { return zoom; }
+            @Override public int nodeCount() { return nodes.size(); }
+            @Override public ItemStack nodeStack(int i) { return nodes.get(i); }
+            @Override public int nodeX(int i) { return wnx(be, nodes, i); }
+            @Override public int nodeY(int i) { return wny(be, nodes, i); }
+            @Override public int cardHeight() { return NH + 26; }
+            @Override public java.util.Map<Integer, String> groupNames() { return be.groupsView(); }
+            @Override public int dragGid() { return dragGid; }
+        };
     }
 
     /** m264 连通分量：从 idx 出发沿机器连线（connections 纯 {from,to} 下标、按无向走）BFS 收齐
