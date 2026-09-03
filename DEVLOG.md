@@ -10570,3 +10570,51 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：A5c——1.20.1 分组客户端交互（Shift 框选状态机 / G 键建组 / 右键组标题带菜单：重命名·解散 /
   拖组标题带整体位移松手发 `NodeGroupMove` / 重命名小窗），接 m506 两包；照主线 m192 事件段逐句对，
   这半才是真的"不可共用"（1.20.1 事件签名与 EditBox 差异），在 `CanvasScreen120` 落笔。
+
+## m508 A5c：1.20.1 分组客户端交互落地（框选/G 键/组菜单/拖组/重命名）+ 冒烟第五类盲区：javac 类体归因看文件顺序
+
+- **按作业表取活**（A5c，分组分片收官）。这半是 m505 普查稿说的"真不可共用"部分——1.20.1 的鼠标/键盘事件签名与
+  `EditBox` 挂法与 1.21 不同，只能在 `CanvasScreen120` 落笔；**但落笔方式是照主线 `StructureCoreScreen` m192 事件段
+  逐句对着写，不自己设计**：状态字段（selected/boxSelecting/boxX0..Y1/dragGid/dragGidWx,Wy/dragGidDx,Dy/dragGidSnap/
+  renameGid/renameField）原文原名；`mouseClicked` 三段（Shift+点卡切换选中 / 右键组标题带→组菜单 / 左键标题带=整组
+  拖动起手快照 / 右键空白→画布菜单含「打组所选(N台)」「清除选择」/ Shift+拖空白框选 / 左键点空白清选不吞事件）、
+  `mouseDragged` 两段（组拖动每帧算增量 / 框选拉框）、`mouseReleased` 两段（组拖动松手一包 `NodeGroupMove`+**m196
+  本地定格**写进快照像 / 框选收口矩形∩卡体加选）、`keyPressed`（重命名窗回车 257/335 确认·Esc 256 取消·其余进输入框，
+  **先于 super 否则 E 键关屏**；G=71 打组所选）、`charTyped`、`createGroupFromSelection`/`openGroupMenu`/`openRename`/
+  `closeRename`/`confirmRename`/`renderRename` 六助手——全部主线原文，`be()`/`menu.blockPos()` 换本世代 `g`/`menu.corePos`，
+  `ClientNet.toServer(NodeGroupPayload)` 换 `ClientNet120.toServer(NodePayloads120.NodeGroup)`（m506 建的两包第一次被客户端用上）。
+  1.20.1 API 逐项走 yarn 1.20.1 映射核过：`Screen.hasShiftDown`/`ParentElement.setFocused(Element)`/`Element.setFocused(Z)`/
+  `Widget.setX/setY`/`Drawable.render(GuiGraphics,II,F)`/`TextFieldWidget.setMaxLength`——**查表不猜（m490 规矩）**。
+- **两处本世代填空**（主线有、本世代没有的基础件，最小实现并注明随 A7 换主线工艺）：①右键菜单件（`clearMenu/addMenu/
+  openMenu/menuRowAt/renderMenu`，列表形状照主线 menuLabels/menuActions/menuStyles/menuTitle，画法只有 drawCard+文字行+
+  悬停底+危险项红显，**没有 m148 的弹入动画/行图标/悬停缓动**——那是工艺不是行为，A7 浮层四件到序时整段搬）；
+  ②画布菜单里「整理布局」不加（本世代无 autoLayout），「重置视角」加（三行）。
+- **共用件再进两件**：主线选中描边（原 765~775）与框选矩形（原 776~786）搬进 `GroupFrameRenderer.drawSelection/
+  drawSelectBox`，三件绘制共用同一份 `pushWorld` 世界变换；主线原文在机器层 pose 内画，共用件内自带同一变换，
+  故主线调用点挪到 `m.popPose()` 之后（中间无绘制，像素同位，剪刀仍在）。1.20.1 `groupView.dragGid()` 从恒 -1 改读真状态
+  （拖动中框提亮），`wnx/wny` 拖动覆盖统一（单卡幽灵 + 组成员快照+增量）并让节点卡/存储线/**机器线**/小地图全走它——
+  顺带修了 1.20.1 一处小毛病：机器↔机器连线原读快照坐标，拖卡时线不跟卡（存储线早就跟了，不对称）。
+- **第五类验证盲区（本刀最该记的）**：给 m508 主线两行改动做自证时，把 `gv` 故意改坏成 `gvX`，**冒烟报错数 0**。
+  查下去：javac 无 MC jar 冒烟时，**类体是否被归因取决于源文件在命令行里的先后顺序**——`find` 无序清单下
+  `NodeUpgrades.java` 排在 `StructureCoreScreen.java` 之前，主线屏整个类体（3100 行）一条 Attr 错都不报（只剩 77 条签名级
+  错），不止它：**78 个文件（全部主线屏、大半物品/包类）少归因，总错误 5493 vs 排序后 7633**。`-XDshould-stop.ifError`/
+  `-XDcompilePolicy` 全无效，只有顺序有效（`byfile` 更糟）。**排序后"看着全了"只是碰巧**（1.20.1 那趟清单一直是排过序的，
+  所以本世代改动从未中招——m491~m507 几刀主线屏的改动实际只靠作者本地 Gradle 兜着）。**单文件单编（其余走 -sourcepath）
+  的归因是完整的**（对拍：主线屏单编 572 条 vs 全量无序 77 条；自证：塞 `int x = "x"` 与坏变量名当场红，还原复绿）。
+  固化为 **`docs/tools_smoke.py`**：两代全量（排序清单）+ **git 改动文件逐文件单编**，内部走 m491 筛选器；作业表流程第 6 步与
+  HANDOVER 守则改指向它。**顺手把主线 189 文件全部逐文件单编扫了一遍**（补 m481 以来的历史盲区）：**189/189 经筛选器零必须看的真错**（约 12 分钟）——历史盲区里没有藏着编译错，但那是运气：
+  这段时间主线屏改了 m484/m488/m490/m492/m493/m507 六刀，全靠作者本地 Gradle 兜着。1.20.1 85 文件同法全扫结果见下一刀记档（本刀推送时未跑完）。
+- **教训**：m500 说「源集是冒烟的量程」，本刀补一句——**源文件的顺序也是量程的一部分**。javac 的归因不是"每个文件独立
+  过一遍"，缺依赖时它会因为别的文件的存在而静默跳过某个类的类体；**一把"看起来在跑"的尺子，量到 0 时要先问它有没有量到
+  这里**（探针法：故意放一个已知错进去看红不红，m109 家法第 N 次）。另：探针要放在**独立一行**——第一版探针追在方法头
+  那行末尾，命中的是错误回显的源码行，假阳性骗了我一回。
+- **验证**：`tools_smoke.py` 两代全量零真错 + 三个改动文件单编零真错（主线屏 572 条/CanvasScreen120 127 条/共用件 11 条
+  全噪音）；自家新符号 symbol 级报错 0（`hasShiftDown` 两条与 `width/font` 同属缺父类底噪，改动前同类 28 条）；20 闸全绿
+  （0.1.508）。零配置零协议零存档改动，**纯客户端 UI + 两包首次发出**。
+- **实机验证脚本（1.20.1，本刀是分组第一次完整可玩）**：①Shift+点两张卡→青描边；Shift+拖空白拉框→框内卡加选；
+  ②选中 ≥2 按 G 或右键空白「打组所选」→组框出现、标题「组N ×N」；③右键标题带→菜单：重命名（弹窗、回车确认、
+  E 键不该关屏、Esc 取消、超 24 字被截）/解散；④左键按住标题带拖→整组随动、松手后位置不闪回、服务端记住（退出重进）；
+  ⑤摘走成员只剩 1 台→组框消失；⑥关 `canvasGroupsEnabled`→Shift 点卡不再选中、组框不画；⑦整张卡任意位置可悬停/拖/右键
+  （m507 命中框）、拖卡时连线跟着卡走（本刀顺带）。**主线**：组框/选中描边/框选矩形与之前逐位一致（三件搬进共用件）。
+- **下一刀**：A4——连线归并徽章 m193（主线 renderBg 626~760 的 seBundles/mmBundles 归并段 + 1736~ 归并锚点助手），
+  A5 已完整，依赖解除；先逐句对再定能不能共用（m505 说主线段夹着非归并代码，切前看区间）。

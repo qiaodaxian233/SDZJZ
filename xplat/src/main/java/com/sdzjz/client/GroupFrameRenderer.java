@@ -78,11 +78,7 @@ public final class GroupFrameRenderer {
     public static void drawFrames(GuiGraphics ctx, Font font, View v,
                                   java.util.Map<Integer, java.util.List<Integer>> gm, java.util.Map<Integer, int[]> gRect) {
         if (gm.isEmpty()) return;
-        double zoom = v.zoom();
-        PoseStack mg = ctx.pose();
-        mg.pushPose();
-        mg.translate(-v.viewLeft() * zoom, -v.viewTop() * zoom, 0); // = 主线 translate(panX, panY, 0)
-        mg.scale((float) zoom, (float) zoom, 1);
+        pushWorld(ctx, v); // = 主线 translate(panX, panY, 0) + scale(zoom)
         for (var ge : gm.entrySet()) {
             int[] r = gRect.get(ge.getKey());
             int fc = v.dragGid() == ge.getKey() ? SciSkin.ACCENT : SciSkin.GROUP_FRM; // 拖动中框提亮（主线 CYAN=SciSkin.ACCENT）
@@ -97,6 +93,48 @@ public final class GroupFrameRenderer {
             ctx.drawString(font, v.groupNames().getOrDefault(ge.getKey(), "组" + ge.getKey())
                     + " ×" + ge.getValue().size(), r[0] + 5, r[1] + 4, SciSkin.TXT_HI, false);
         }
-        mg.popPose();
+        ctx.pose().popPose();
+    }
+
+    /** 世界坐标一次变换（= 主线机器层 translate(panX, panY, 0) + scale(zoom)）。 */
+    private static void pushWorld(GuiGraphics ctx, View v) {
+        double zoom = v.zoom();
+        PoseStack mg = ctx.pose();
+        mg.pushPose();
+        mg.translate(-v.viewLeft() * zoom, -v.viewTop() * zoom, 0);
+        mg.scale((float) zoom, (float) zoom, 1);
+    }
+
+    /** m192 选中高亮（青描边；服务端删点后失效下标顺手清）——m508 自主线原 765~775 搬入，
+     *  调用方在机器层之后调（原文位置同）；卡高走 NodeCardRenderer.NH（两代同值，描边只框卡体不含升级格行，原文同）。 */
+    public static void drawSelection(GuiGraphics ctx, View v, java.util.Set<Integer> selected) {
+        if (selected.isEmpty()) return;
+        int n = v.nodeCount();
+        selected.removeIf(i -> i >= n);
+        pushWorld(ctx, v);
+        for (int i : selected) {
+            int nx = v.nodeX(i), ny = v.nodeY(i);
+            int NW = NodeCardRenderer.NW, NH = NodeCardRenderer.NH;
+            int selC = SciSkin.termAccent(); // m203 选中描边随主题
+            ctx.fill(nx - 3, ny - 3, nx + NW + 3, ny - 2, selC);
+            ctx.fill(nx - 3, ny + NH + 2, nx + NW + 3, ny + NH + 3, selC);
+            ctx.fill(nx - 3, ny - 3, nx - 2, ny + NH + 3, selC);
+            ctx.fill(nx + NW + 2, ny - 3, nx + NW + 3, ny + NH + 3, selC);
+        }
+        ctx.pose().popPose();
+    }
+
+    /** m192 框选矩形（淡面+亮边）——m508 自主线原 776~786 搬入；入参=框选两角的世界坐标。 */
+    public static void drawSelectBox(GuiGraphics ctx, View v, double boxX0, double boxY0, double boxX1, double boxY1) {
+        pushWorld(ctx, v);
+        int bx1 = (int) Math.min(boxX0, boxX1), by1 = (int) Math.min(boxY0, boxY1);
+        int bx2 = (int) Math.max(boxX0, boxX1), by2 = (int) Math.max(boxY0, boxY1);
+        int boxC = SciSkin.termAccent(); // m203 框选随主题
+        ctx.fill(bx1, by1, bx2, by2, SciSkin.withAlpha(boxC, 0.10f));
+        ctx.fill(bx1, by1, bx2, by1 + 1, boxC);
+        ctx.fill(bx1, by2 - 1, bx2, by2, boxC);
+        ctx.fill(bx1, by1, bx1 + 1, by2, boxC);
+        ctx.fill(bx2 - 1, by1, bx2, by2, boxC);
+        ctx.pose().popPose();
     }
 }

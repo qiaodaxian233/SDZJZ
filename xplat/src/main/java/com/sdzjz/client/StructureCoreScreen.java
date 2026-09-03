@@ -762,28 +762,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 break; // 只认最顶层命中
             }
         }
-        if (groupsOn() && !selected.isEmpty()) { // m192 选中高亮（青描边；服务端删点后失效下标顺手清）
-            selected.removeIf(i -> i >= nodes.size());
-            for (int i : selected) {
-                int nx = wnx(be, nodes, i), ny = wny(be, nodes, i);
-                int selC = SciSkin.termAccent(); // m203 选中描边随主题
-                ctx.fill(nx - 3, ny - 3, nx + NW + 3, ny - 2, selC);
-                ctx.fill(nx - 3, ny + NH + 2, nx + NW + 3, ny + NH + 3, selC);
-                ctx.fill(nx - 3, ny - 3, nx - 2, ny + NH + 3, selC);
-                ctx.fill(nx + NW + 2, ny - 3, nx + NW + 3, ny + NH + 3, selC);
-            }
-        }
-        if (boxSelecting) { // m192 框选矩形（淡面+亮边）
-            int bx1 = (int) Math.min(boxX0, boxX1), by1 = (int) Math.min(boxY0, boxY1);
-            int bx2 = (int) Math.max(boxX0, boxX1), by2 = (int) Math.max(boxY0, boxY1);
-            int boxC = SciSkin.termAccent(); // m203 框选随主题
-            ctx.fill(bx1, by1, bx2, by2, SciSkin.withAlpha(boxC, 0.10f));
-            ctx.fill(bx1, by1, bx2, by1 + 1, boxC);
-            ctx.fill(bx1, by2 - 1, bx2, by2, boxC);
-            ctx.fill(bx1, by1, bx1 + 1, by2, boxC);
-            ctx.fill(bx2 - 1, by1, bx2, by2, boxC);
-        }
         m.popPose();
+        // m192 选中高亮 + 框选矩形——m508 下沉 GroupFrameRenderer 两代共用（原文在机器层 pose 内，共用件内自带同一变换，
+        // 故挪到 popPose 之后调；中间无任何绘制，像素同位；剪刀仍在）
+        if (groupsOn()) GroupFrameRenderer.drawSelection(ctx, gv, selected);
+        if (boxSelecting) GroupFrameRenderer.drawSelectBox(ctx, gv, boxX0, boxY0, boxX1, boxY1);
         ctx.disableScissor(); // m263 机器层剪刀到此为止（顶缘=带底）
 
         // ===== 存储总线：顶部横排，屏幕坐标绘制（m91：可收起——收起只留一行库存条，拉线时自动展开）=====
