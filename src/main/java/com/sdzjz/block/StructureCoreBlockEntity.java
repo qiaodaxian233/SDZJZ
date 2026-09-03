@@ -3790,7 +3790,25 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
 
     @Override
     public boolean probeChainWants(Object level, int from, String id) {
-        return chainWants0((Level) level, from, id, 0, new java.util.HashSet<>());
+        // m510：修 m481 起潜伏的主线真编译错——chainWants0 自 m355 就是七参（outT 数组化 + m350 crafterNeeds 备忘），
+        // m481 立探针时按 1.20.1 五参口径写了转发，主线 Gradle 自此红着 28 刀（CI「Gradle 编译出包」m481 起恒红，沙箱读不到
+        // artifact 没人看；m510 从 ci-mojmap-errors 分支读出来才发现）。无 MC jar 冒烟抓不到它：`(Level) level` 类型不可解析时
+        // javac 对该调用只报 cannot find symbol、**不再做重载适用性判定**——「依赖 MC 类型才报得出来的错」是冒烟的第六类盲区。
+        // 出线表照 1.20.1 探针同款现算（GameTest 无 tick 也要拿到当前拓扑），备忘表现配。
+        return chainWants0((Level) level, from, id, 0, new java.util.HashSet<>(), probeOutT(), new java.util.HashMap<>());
+    }
+
+    /** m510：探针用出线表——与 tick 编译执行计划（m179/m355）同一份两趟算法但不碰缓存：计划新鲜就直用，否则现算。 */
+    private int[][] probeOutT() {
+        int nSize = g.machineNodes.size();
+        if (planRev == topoRev && planOutT != null && planOutT.length == nSize) return planOutT;
+        int[][] cOutT = new int[nSize][];
+        int[] cCnt = new int[nSize];
+        for (int[] c : connections()) if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) cCnt[c[0]]++;
+        for (int k = 0; k < nSize; k++) if (cCnt[k] > 0) cOutT[k] = new int[cCnt[k]];
+        java.util.Arrays.fill(cCnt, 0);
+        for (int[] c : connections()) if (c[0] >= 0 && c[0] < nSize && c[1] >= 0 && c[1] < nSize) cOutT[c[0]][cCnt[c[0]]++] = c[1];
+        return cOutT;
     }
 
     @Override

@@ -329,8 +329,10 @@ public final class RetroStorageTests implements FabricGameTest {
         a2.getOrCreateTag().putInt("k", 5);
         ItemStack b = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
         b.getOrCreateTag().putInt("k", 6);
-        ItemStack plain = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
-        ItemStack emptyTag = new ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD);
+        // m510：这一对不能用钻石剑——1.20.1 ItemStack 构造器对可损耗物品会 setDamageValue(0) 自带 {Damage:0} tag，
+        // "无 tag"的前提根本不成立（两把裸剑 tag 同为 {Damage:0} → same 恒真，判官自 m478 起恒失败）；换不可损耗的石头验。
+        ItemStack plain = new ItemStack(net.minecraft.world.item.Items.STONE);
+        ItemStack emptyTag = new ItemStack(net.minecraft.world.item.Items.STONE);
         emptyTag.getOrCreateTag(); // 空 tag 在场
         var ka1 = com.sdzjz.storage.StackKey.of(a1);
         var ka2 = com.sdzjz.storage.StackKey.of(a2);

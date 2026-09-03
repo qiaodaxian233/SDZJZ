@@ -40,8 +40,9 @@ public class RetroTickTests implements FabricGameTest {
         ctx.runAfterDelay(20, () -> {
             ctx.assertTrue(c.g.nodeStatus.get(0) == 3, "未连仓生成机应红灯，实得 " + c.g.nodeStatus.get(0));
             ctx.assertTrue(c.g.nodeReason.get(0).contains("未连产出仓"), "红灯原因应说人话，实得 " + c.g.nodeReason.get(0));
-            ctx.assertTrue(c.g.nodeStatus.get(1) == 2 && c.g.nodeStatus.get(2) == 2,
-                    "特种/熔炉族应黄灯待分片，实得 " + c.g.nodeStatus.get(1) + "/" + c.g.nodeStatus.get(2));
+            ctx.assertTrue(c.g.nodeStatus.get(1) == 2, "特种（空产表）应黄灯待分片，实得 " + c.g.nodeStatus.get(1));
+            ctx.assertTrue(c.g.nodeStatus.get(2) == 3 && c.g.nodeReason.get(2).contains("未接"),
+                    "熔炉族 m494 已落地：未接线该红灯说「未接存储/供料线」（smelter 判官同口径），实得 " + rs(c, 2)); // m510 期望随 m494 更新
             ctx.succeed();
         });
     }
@@ -310,6 +311,14 @@ public class RetroTickTests implements FabricGameTest {
 
     // ===== m473（C2-⑤c2）：逻辑节点七分支成对判官（accepts 面经 routeOut 观测，chainWants 面直呼）=====
 
+    /** m510：`addNode` 存的是 `copyWithCount(1)` 的**副本**（生产语义：从背包拿一台上画布，栈 tag 深拷贝），判官要在加节点
+     *  **之后**改栈 NBT（关开关/开抽取/改白名单）必须改图里那份，改本地引用等于改了个孤儿栈——m473 起七条判官就是这么
+     *  恒失败的（CI 1.20.1 GameTest 自 m473 起红着，沙箱读不到 artifact 没人看；m510 从 ci-retro-errors 分支读出来才发现）。 */
+    private static ItemStack add(StructureCore120 c, ItemStack s) {
+        c.addNode(s);
+        return c.g.machineNodes.get(c.g.machineNodes.size() - 1);
+    }
+
     private static void putFilterList(ItemStack s, String... ids) {
         net.minecraft.nbt.ListTag l = new net.minecraft.nbt.ListTag();
         for (String id : ids) l.add(net.minecraft.nbt.StringTag.valueOf(id));
@@ -360,8 +369,7 @@ public class RetroTickTests implements FabricGameTest {
         com.sdzjz.machine.CoreScheduler.clearAll();
         StructureCore120 c = canvas(ctx);
         c.addNode(node("sand_maker", 10, 10));   // 0
-        ItemStack sw = node("switch_node", 20, 10);
-        c.addNode(sw);                            // 1
+        ItemStack sw = add(c, node("switch_node", 20, 10)); // 1（m510：取回图里那份，下面要关/开它）
         c.addNode(node("glass_kiln", 30, 10));   // 2
         ctx.assertTrue(c.connect(0, 1) && c.connect(1, 2), "两段出线应连得上");
         ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 6) == 0
@@ -467,8 +475,9 @@ public class RetroTickTests implements FabricGameTest {
                     "满型目标份额该整额转仓零丢件，实得 4号 " + c.bufAmount(4, "minecraft:wither_skeleton_skull")
                             + "/5号 " + c.bufAmount(5, "minecraft:wither_skeleton_skull")
                             + "/仓 " + dep.count("minecraft:wither_skeleton_skull"));
-            ctx.assertTrue(c.distributeEvenOut(ctx.getLevel(), 6, null, true, "minecraft:wither_skeleton_skull", 3) == 3 - Math.min(3, 0)
-                            ? c.distributeEvenOut(ctx.getLevel(), 6, null, true, "minecraft:blaze_rod", 3) == 3 : false,
+            // m510：原写法先拿骷髅头验"没人收"——但 5 号（wither_killer 输入表含骷髅头，且已持该类型不撞类型顶）本就收它，
+            // 前提不成立；"没人收"只能用两台都不吃的烈焰棒验（accepts 走 RouteBrain 输入表判定）。
+            ctx.assertTrue(c.distributeEvenOut(ctx.getLevel(), 6, null, true, "minecraft:blaze_rod", 3) == 3,
                     "没人收且无仓时应原样回吐 3");
         } finally {
             cfg.maxBufferTypesPerNode = old;
@@ -547,8 +556,7 @@ public class RetroTickTests implements FabricGameTest {
         com.sdzjz.machine.CoreScheduler.clearAll();
         StructureCore120 c = canvas(ctx);
         c.addNode(node("sand_maker", 10, 10));   // 0
-        ItemStack filter = node("filter_node", 20, 10); // 白名单空=全拦
-        c.addNode(filter);                        // 1
+        ItemStack filter = add(c, node("filter_node", 20, 10)); // 1：白名单空=全拦（m510：取回图里那份，下面要给它放行沙）
         ctx.assertTrue(c.connect(0, 1), "出线应连得上");
         ctx.assertTrue(c.routeOut(ctx.getLevel(), 0, null, true, "minecraft:sand", 9) == 9,
                 "白名单空的过滤器该拒收（蓝本口径：空名单=全拦），回吐应 9");
@@ -642,7 +650,7 @@ public class RetroTickTests implements FabricGameTest {
         if (src == null) return;
         ItemStack x = node("extractor_node", 10, 10);
         putFilterList(x, "minecraft:sand"); // m160 抽取白名单：只碰沙
-        c.addNode(x);                        // 0
+        x = add(c, x);                       // 0（m510：取回图里那份，下面要开抽取）
         c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1}); // 仓→抽取（供料）
         c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
         src.deposit(new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM
@@ -672,7 +680,9 @@ public class RetroTickTests implements FabricGameTest {
         StructureCore120 c = canvas(ctx);
         StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
         if (src == null) return;
-        c.addNode(node("filter_node", 10, 10));  // 0：白名单空=普通支路全拦，只留精确支路受检
+        ItemStack f0 = node("filter_node", 10, 10);
+        putFilterList(f0, "minecraft:diamond_sword"); // m510：主线 chainEndsInTrash（m486 下沉）沿途尊重过滤器名单，空名单=全拦→链永远到不了垃圾桶；
+        c.addNode(f0);                           // 0   放行剑 id 只开精确支路的路——普通账本里没有裸剑，普通支路照样一件不动
         c.addNode(node("glass_kiln", 20, 10));   // 1：链尾**不是**垃圾桶
         ctx.assertTrue(c.connect(0, 1), "出线应连得上");
         c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 1});
@@ -758,8 +768,7 @@ public class RetroTickTests implements FabricGameTest {
         StructureCore120 c = canvas(ctx);
         StorageCore120 src = storage(ctx, new BlockPos(1, 1, 0));
         if (src == null) return;
-        ItemStack sm = node("super_smelter", 10, 10);
-        c.addNode(sm); // 0：先什么线都不接
+        ItemStack sm = add(c, node("super_smelter", 10, 10)); // 0：先什么线都不接（m510：取回图里那份，下面要改白名单）
         src.deposit(new ItemStack(Items.RAW_IRON, 20));
         handTick(ctx, c, 30);
         ctx.assertTrue(src.count("minecraft:raw_iron") == 20,
@@ -867,7 +876,7 @@ public class RetroTickTests implements FabricGameTest {
             // ② 开关（关→开）
             ItemStack sw = node("switch_node", 30, 10);
             sw.getOrCreateTag().putBoolean("so", false);
-            c.addNode(sw);                                  // 2
+            sw = add(c, sw);                                // 2（m510：取回图里那份，下面要开闸）
             ctx.assertTrue(c.connect(2, 1), "开关出线应连得上");
             com.sdzjz.node.RouteDomainAssertions.开关关着(c, lvl, 2, "minecraft:sand");
             sw.getOrCreateTag().putBoolean("so", true);
@@ -878,7 +887,7 @@ public class RetroTickTests implements FabricGameTest {
             se.getOrCreateTag().putString("si", "minecraft:iron_ingot");
             se.getOrCreateTag().putLong("sv", 10);
             se.getOrCreateTag().putBoolean("sl", false); // 溢出型：库存 > 阈值才开；未连线按 0 计 → 关闸
-            c.addNode(se);                                  // 3
+            se = add(c, se);                                // 3（m510：取回图里那份，下面要切补货型）
             ctx.assertTrue(c.connect(3, 1), "传感器出线应连得上");
             com.sdzjz.node.RouteDomainAssertions.传感器关闸时两面刻意不同(c, lvl, 3, "minecraft:sand");
             se.getOrCreateTag().putBoolean("sl", true);  // 补货型：库存 < 阈值就开 → 开闸
