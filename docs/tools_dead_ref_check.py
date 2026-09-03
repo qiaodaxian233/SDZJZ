@@ -39,6 +39,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
    ["filter","rrCursor","opTargetsFull","coresScanTick","coresCache","extractOn","pullMode",
     "extractSpec","extractAll","doPull","pullWants","insertInto","collectView","scanAdjacent","cores"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java": [],
+ # m509（真移植·A5c 补刀）：右键菜单机制下沉 CanvasMenu——主线屏删掉菜单状态十一件与三常量（open/clear/add/render 留同签名转发壳）；
+ # 1.20.1 屏 m508 那份"最小菜单件"（七字段+两常量+menuH/menuRowAt）整段退役换共用件
+ "xplat/src/main/java/com/sdzjz/client/StructureCoreScreen.java":
+   ["menuOpen","menuX","menuY","menuLabels","menuActions","menuIcons","menuTexs","menuStyles",
+    "menuTitle","menuOpenMs","menuHoverP","MENU_W","MENU_H","MENU_TITLE_H"],
+ "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java":
+   ["menuOpen","menuX","menuY","menuLabels","menuActions","menuStyles","menuTitle","MENU_W","MENU_ROW","menuH","menuRowAt"],
 }
 # m506 重复键自检：dict 字面量里同名键会静默覆盖，这里从源码文本数一遍键，重复即红。
 import collections as _c
@@ -111,8 +118,26 @@ for 代, 根 in 资源根.items():
         if not (根 / r).exists():
             print(f"❌ {代} 缺共用件要用的资源：{r}（SciSkin 会 blit 它，缺了画成紫黑格）")
             资源坏 += 1
+# m509 并入：**菜单贴图路径普查**——右键菜单机制（CanvasMenu）两代共用后，屏里每一句 mt("xxx") 都会让共用件去 blit
+# assets/sdzjz/textures/gui/menu/xxx.png；主线 8 张都在，1.20.1 只拷了用到的几张，谁在屏里多写一句 mt 而没拷图，
+# 开菜单那行就是紫黑格（m489 同族，编译器与冒烟都管不着）。按世代扫各自屏源码里的 mt("…") 字面，逐张对资源目录。
+屏源 = {"主线": [ROOT / "xplat/src/main/java/com/sdzjz/client/StructureCoreScreen.java"],
+        "1.20.1": [ROOT / "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java"]}
+mt命中 = 0
+for 代, 文件们 in 屏源.items():
+    for f in 文件们:
+        码 = re.sub(r"//[^\n]*", " ", f.read_text(encoding="utf-8"))
+        for name in sorted(set(re.findall(r'\bmt\("([\w\-]+)"\)', 码))):
+            mt命中 += 1
+            r = f"assets/sdzjz/textures/gui/menu/{name}.png"
+            if not (资源根[代] / r).exists():
+                print(f"❌ {代} {f.name} 用了 mt(\"{name}\") 但资源目录里没有 {r}（CanvasMenu 会 blit 它，缺了画成紫黑格）")
+                资源坏 += 1
+if not mt命中:
+    print("❌ 菜单贴图路径普查抓到 0 句 mt(\"…\")——先怀疑正则（主线节点菜单至少有 m313 那 8 句）")
+    资源坏 += 1
 if not 资源坏:
-    print("✅ 共用件资源普查干净")
+    print(f"✅ 共用件资源普查干净（含菜单贴图 {mt命中} 句 mt 逐张对表）")
 # m497 并入：**用到了却没 import**。作者的 Gradle 报 `找不到符号: 变量 Items`——
 # 我的筛选器把 cannot find symbol 一律归噪音（m491 判据，缺 MC jar 时噪音上千条），
 # 而本闸原来只查「已删符号还有没有人用」，查不到「新写的代码引用了本文件没 import 的类型」。

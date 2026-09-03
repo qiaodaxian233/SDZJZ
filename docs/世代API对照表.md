@@ -18,7 +18,7 @@
 | `RecipeAccess`（四域八口） | 配方/熔炼/酿造/附魔查询 | m368/m373 |
 | `CanvasGraphState.StackCodec` | 整栈 ↔ NBT 编解码 | m477 |
 | `StackKey.Kind` | 栈身份相等与哈希 | m478 |
-| `SciSkin.Gfx` | 纹理 id、任意物品 id、顶点四边形（两种） | m483/m484/m488 |
+| `SciSkin.Gfx` | 纹理 id（`gfxTex` 门面 m509）、任意物品 id（`gfxItem`）、顶点四边形（两种） | m483/m484/m488/m509 |
 | `RouteBrain.Host` | 路由脑要的画布状态与传感器库存源 | m486 |
 | `ProductRouter.Tail` | 产物分发的**兜底**（主线输出缓存+断网喷射 vs 本世代落仓回吐） | m495 |
 | `NodeCardRenderer.Host` | 节点卡要的状态灯/阻塞原因/出线数/运行态 | m484 |
@@ -51,6 +51,13 @@
 | `vc.addVertex(mat,x,y,z).setColor(c)` | `vc.vertex(mat,x,y,z).color(r,g,b,a).endVertex()` | 走 `Gfx.quad` / `Gfx.quadVC` | m483/m488 |
 | `GuiGraphics.bufferSource()` / `RenderType.gui()` | 同名可用 | 直接用 | m483 编译核过 |
 | `ctx.blit(tex,...)` | 同名（重载略有差异，用四参与十参那两种） | 直接用 | m489 |
+| `Util.getMillis()` | 同名（yarn `getMeasuringTimeMs`） | 直接用 | m509 核过 |
+| `SimpleSoundInstance.forUI(Holder<SoundEvent>,float)` + `SoundEvents.UI_BUTTON_CLICK` | 同名同签名（yarn 1.20.1 `PositionedSoundInstance.master(RegistryEntry,float)` method_47978；`UI_BUTTON_CLICK` 两代同为 `Holder.Reference`） | 直接用 | m509 核过 |
+| `new EditBox(font,x,y,w,h,Component)` / `setMaxLength/setValue/getValue` | 同签名（yarn `TextFieldWidget`） | 直接用 | m508/m509 核过 |
+| `widget.setX(int)/setY(int)` | 同名（1.19.4+ `Widget`/`LayoutElement` 接口，method_46421/46419） | 直接用 | m508/m509 核过 |
+| `screen.setFocused(GuiEventListener)` / `widget.setFocused(boolean)` | 同名（yarn `ParentElement.setFocused(Element)` / `Element.setFocused(Z)`） | 直接用 | m508/m509 核过 |
+| `Screen.hasShiftDown()` | 同名 | 直接用 | m508/m509 核过 |
+| `mouseScrolled(x,y,dx,dy)` 四参 / `renderBackground(ctx,mx,my,delta)` 四参 | 三参 / 单参（1.20.1 客户端签名差） | **屏是世代壳各写**，不下沉 | m448/m456 |
 
 ### 方块实体与存档
 | 1.21 | 1.20.1 | 处理 | 出处 |

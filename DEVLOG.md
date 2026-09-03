@@ -10618,3 +10618,54 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   （m507 命中框）、拖卡时连线跟着卡走（本刀顺带）。**主线**：组框/选中描边/框选矩形与之前逐位一致（三件搬进共用件）。
 - **下一刀**：A4——连线归并徽章 m193（主线 renderBg 626~760 的 seBundles/mmBundles 归并段 + 1736~ 归并锚点助手），
   A5 已完整，依赖解除；先逐句对再定能不能共用（m505 说主线段夹着非归并代码，切前看区间）。
+
+## m509 A5c 补刀：画布右键菜单机制两代共用（xplat CanvasMenu）—— m508 那份 1.20.1"最小菜单件"退役 + 第 19 闸并入菜单贴图路径普查
+
+- **来路（如实记）**：本会话按作业表取 A5c 开工时 HEAD=m507，逐句对主线 m192 事件段发现组菜单/「打组所选」都要右键菜单
+  机制而 1.20.1 完全没有，于是先把机制搬成共用件、准备第二刀落交互；推送时被拒——**另一会话已并行把 A5c 推成 m508**
+  （交互面照主线逐句落进 `CanvasScreen120`，菜单则写了一份"最小件"并记档"工艺随 A7"）。两边撞在同一项作业上，各做了
+  对方没做的那半：对方做了交互面，我做了菜单机制。处理=rebase 到对方 m508 之上，本刀改成"补刀"：**机制共用件落地 +
+  把对方那份最小菜单件整段退役换共用件**（m485 家法：仿写件直接删，不留第二份要维护的菜单），A7 记的"菜单工艺"欠账
+  当场清掉。**教训（协作面）**：多会话并行取活时，作业表上的「下一刀」不是锁——开工前 fetch 一次不够，**推送前必须再
+  fetch 对表**（这次靠 git 的非快进拒绝兜住，不是靠流程）；作业表本刀加一条「取活先 fetch，push 前再 fetch」。
+- **共用件 `xplat/client/CanvasMenu`**：主线机制**整段搬**——状态十一件（`menuOpen/menuX/menuY/menuLabels/menuActions/
+  menuIcons/menuTexs/menuStyles/menuTitle/menuOpenMs/menuHoverP`）+ 三常量 `MENU_W/MENU_H/MENU_TITLE_H` + `openMenu`/
+  `clearMenu`/`addMenu` 四重载/`mt` 贴图路径 + m148 3A 化 `renderMenu`（110ms 弹入/逐行悬停缓动/标题带/组分隔线/行图标
+  （物品 0.8× 与 m313 贴图两种）/危险项红系/m316 抬 z=400）+ `mouseClicked` 里 `if (menuOpen) {...}` 点选分派块（含 m148
+  点选音）。机械替换**只四类**：①`workRight()`/`this.height` → `openMenu` 两形参（屏尺寸是宿主的事）②`this.font` →
+  `renderMenu` 形参 ③屏内别名 `NODEFRM/CYAN/TXT` → 它们的定义 `SciSkin.FRAME/ACCENT/TXT` ④`mt` 的
+  `ResourceLocation.fromNamespaceAndPath`（1.20.5+ 静态工厂，对照表在册）→ 新增 `SciSkin.gfxTex` 走 Gfx 世代口。
+  **四段归一后与原文 diff=0**（字段/机制/渲染/点选逐段脚本对拍）。
+- **主线屏**：机制退役为**同签名转发壳**（`openMenu/clearMenu/addMenu×4/mt/renderMenu` 名字签名不变，节点菜单/画布菜单/
+  组菜单/存储连线菜单几十处 `addMenu(...)` 装配点**零改动**，m180 家法），`menuOpen` 七处读→`cmenu.isOpen()`、
+  `menuTitle = …` 四处写→`cmenu.title(…)`、`menuLabels.isEmpty()` 一处→`cmenu.isEmpty()`，点选块换一行
+  `if (cmenu.isOpen()) { cmenu.click(...); return true; }`。`mi()` 刻意留在主线（`new ItemStack(it)` 是装配点的事不是机制）。
+  3164→3038 行（m508 对方那 -25 行另计）。
+- **1.20.1 屏**：m508 最小菜单件（七字段+两常量+`clearMenu/addMenu(三参)/openMenu/menuH/menuRowAt/renderMenu` 约 50 行）
+  **整段删除**，换成与主线**同名同签名**的转发壳（A7 装节点菜单条目时可直接粘主线 `addMenu` 原文，不用再改形状）；
+  组菜单改成主线 `openGroupMenu` 原文形态（`mt("group_rename")`/`mt("group_disband")` 贴图图标 + 危险项 + 取消组首），
+  画布菜单改成主线原文形态（`mi(Items.LEAD)`/`mi(GLASS_PANE)`/`mi(SPYGLASS)` 行图标；「重置视角」保留 m508 的三行=
+  主线 `setViewInstant(0,0,1.0)` 本世代记法；「整理布局」仍不加，本世代无 autoLayout）；`openMenu` 右缘钳在侧栏左
+  （`width - SIDEBAR_W`，主线 `workRight()` 对位）。**顺带补三处主线 modal 口径**：菜单开着时 `mouseScrolled`/`mouseDragged`
+  吞事件（主线同一行的本世代两项：菜单/重命名窗）、悬停详情（节点+存储两种）菜单开着不画（主线 `menuLabels.isEmpty()` 口）。
+  **两张贴图 `group_rename/group_disband.png` 从主线原样拷进 1.20.1 资源目录**（m489 同法；节点菜单那几张随 A7 再拷）。
+- **第 19 闸并入「菜单贴图路径普查」**：机制共用后，屏里每一句 `mt("xxx")` 都会让共用件去 blit `textures/gui/menu/xxx.png`，
+  主线 8 张都在、1.20.1 只拷了用到的——谁多写一句 `mt` 没拷图，开菜单那行就是紫黑格，编译器与冒烟都管不着（m489 同族）。
+  判据=按世代扫各自屏源码 `mt("…")` 字面逐张对资源目录，抓到 0 句先怀疑正则（m475 家法）。**自证两路**：①挪走 1.20.1
+  `group_disband.png` 当场红点名；②1.20.1 屏塞一句 `mt("pause_node")`（本世代没拷）当场红；还原复绿。另登记两屏本刀
+  删掉的符号（主线 14 个 / 1.20.1 11 个），悬空引用绿。
+- **世代差核对**（对照表+yarn 1.20.1）：机制里除 `mt` 外全是两代同名同签名——`blit` 十参（m489 在册）/`Util.getMillis`
+  （yarn `getMeasuringTimeMs`）/**`SimpleSoundInstance.forUI(Holder<SoundEvent>,float)`**（yarn `PositionedSoundInstance.master
+  (RegistryEntry,float)`=method_47978 在位；`UI_BUTTON_CLICK` 两代同为 `Holder.Reference`，1.20.1 `AbstractWidget.playDownSound`
+  就是这句）。对照表补七行（含 m508 对方也核过的 EditBox/setX/setY/setFocused/hasShiftDown，出处并记）。
+- **验证**：`tools_smoke.py` 两代全量（主线 190 / 1.20.1 86 文件）零真错 + 四个改动文件逐文件单编零真错（CanvasMenu 两代各 19 条/
+  主线屏 559 条/SciSkin 23 条/CanvasScreen120 138 条全噪音）；自家新符号 `CanvasMenu/cmenu/gfxTex/isOpen/isEmpty/click/mt`
+  symbol 级报错两代各 0；四段归一 diff=0；第 19 闸两路自证；20 闸全绿（0.1.509 对表）。零配置零协议零存档改动，**纯 UI**；
+  新增资源两张（1.20.1 侧）。
+- **实机验证脚本**：①主线：右键节点/右键空白/右键组标题带/右键存储连线四种菜单——弹入动画、标题带、行图标（物品与 m313
+  贴图两种）、危险项红条、点选音、点外关、Esc 关、菜单开着时滚轮/拖动/快捷键被吞，**应与 m508 逐位一致**（同一份代码
+  diff=0，但形参多了两个，重点看菜单贴右缘/贴底缘时的位置钳制有没有错位）；②主线：菜单开着时悬停详情不画；
+  ③**1.20.1（本刀可见变化）**：右键组标题带→菜单从"平涂列表"变成主线那套 3A 工艺（弹入、重命名/解散两行带用户贴图图标、
+  解散行红条、点选有音效、点外关/Esc 关）；右键空白→「打组所选/清除选择/重置视角/取消」带物品图标；菜单开着滚轮不缩放、
+  拖动不平移、悬停详情不弹；菜单贴近侧栏/底缘时整体钳回不越界。
+- **下一刀**：A4——连线归并徽章 m193（作业表原文不变）。

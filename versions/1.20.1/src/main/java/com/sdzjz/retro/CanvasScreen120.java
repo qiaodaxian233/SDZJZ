@@ -57,14 +57,9 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private EditBox renameField;
     private static final int GBAND = com.sdzjz.client.GroupFrameRenderer.GBAND; // 组框标题带高（世界单位，共用件原值）
 
-    // 右键菜单（本世代最小实现：标题带+文字行；主线 m148 3A 工艺——弹入动画/行图标/悬停缓动——随 A7 浮层四件到序时整段搬）
-    private boolean menuOpen = false;
-    private int menuX, menuY;
-    private final List<String> menuLabels = new java.util.ArrayList<>();
-    private final List<Runnable> menuActions = new java.util.ArrayList<>();
-    private final List<Integer> menuStyles = new java.util.ArrayList<>();    // m148 0普通 1危险(红) 2组首(上加分隔线)
-    private String menuTitle = null;                                          // m148 标题带
-    private static final int MENU_W = 128, MENU_ROW = 14;
+    // 右键菜单——m509：机制走 xplat CanvasMenu（主线 m148 3A 菜单整段下沉两代共用一份），m508 那份"最小实现"退役；
+    // 本屏只留一行实例与同签名转发壳，条目装配（组菜单/画布菜单）照主线原文 addMenu。
+    private final com.sdzjz.client.CanvasMenu cmenu = new com.sdzjz.client.CanvasMenu();
 
     public CanvasScreen120(StructureCoreMenu120 menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -126,10 +121,11 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     /** 组菜单（右键标题带）：重命名 / 解散（解散纯视觉，机器与连线不动）。 */
     private void openGroupMenu(int gid, int atX, int atY) {
         clearMenu();
-        menuTitle = g.groupNames.getOrDefault(gid, "组" + gid);
-        addMenu("重命名组…", 0, () -> openRename(gid));
-        addMenu("解散该组", 1, () -> { ClientNet120.toServer(new NodePayloads120.NodeGroup(menu.corePos, gid, "", java.util.List.of())); sendQuery(); });
-        addMenu("取消", 2, () -> {});
+        cmenu.title(g.groupNames.getOrDefault(gid, "组" + gid));
+        addMenu("重命名组…", mt("group_rename"), 0, () -> openRename(gid)); // m313 用户图标
+        addMenu("解散该组", mt("group_disband"), 1,
+                () -> { ClientNet120.toServer(new NodePayloads120.NodeGroup(menu.corePos, gid, "", java.util.List.of())); sendQuery(); });
+        addMenu("取消", (ItemStack) null, 2, () -> {});
         openMenu(atX, atY);
     }
 
@@ -167,50 +163,28 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         ctx.pose().popPose();
     }
 
-    // ----- 右键菜单最小件（列表形状照主线 clearMenu/addMenu/openMenu/renderMenu，工艺随 A7）-----
-    private void clearMenu() { menuOpen = false; menuLabels.clear(); menuActions.clear(); menuStyles.clear(); menuTitle = null; }
+    // ================= 右键菜单 =================
+    // m509：机制整段在 xplat CanvasMenu（主线 m148 3A 工艺两代同一份：弹入动画/行图标/悬停缓动/危险项红系/点选音），
+    // 以下全是与主线 StructureCoreScreen 同名同签名的转发壳——A7 装节点菜单条目时可直接粘主线 addMenu 原文。
+    private void openMenu(int x, int y) { cmenu.openMenu(x, y, width - SIDEBAR_W, this.height); } // 右缘钳在侧栏左（主线 workRight()）
 
-    private void addMenu(String label, int style, Runnable action) { menuLabels.add(label); menuStyles.add(style); menuActions.add(action); }
+    private void clearMenu() { cmenu.clearMenu(); }
 
-    private void openMenu(int atX, int atY) {
-        int h = menuH();
-        menuX = Math.max(0, Math.min(width - MENU_W, atX)); // 钳在窗内
-        menuY = Math.max(0, Math.min(height - h, atY));
-        menuOpen = true;
-    }
+    private void addMenu(String label, Runnable action) { cmenu.addMenu(label, action); }
 
-    private int menuH() { return (menuTitle != null ? MENU_ROW : 0) + menuLabels.size() * MENU_ROW + 4; }
+    private void addMenu(String label, ItemStack icon, Runnable action) { cmenu.addMenu(label, icon, action); }
 
-    /** 菜单行命中（屏幕坐标）→ 行号；无=-1。 */
-    private int menuRowAt(double mx, double my) {
-        if (!menuOpen || mx < menuX || mx > menuX + MENU_W) return -1;
-        int top = menuY + 2 + (menuTitle != null ? MENU_ROW : 0);
-        int r = (int) Math.floor((my - top) / MENU_ROW);
-        return r >= 0 && r < menuLabels.size() && my >= top ? r : -1;
-    }
+    /** m148：style 0=普通 1=危险(红字红条) 2=组首(上方分隔线)。 */
+    private void addMenu(String label, ItemStack icon, int style, Runnable action) { cmenu.addMenu(label, icon, style, action); }
 
-    private void renderMenu(GuiGraphics ctx, int mouseX, int mouseY) {
-        int h = menuH();
-        ctx.pose().pushPose();
-        ctx.pose().translate(0, 0, 400); // 压最上层（renderRename 同口径）
-        com.sdzjz.client.SciSkin.drawCard(ctx, menuX, menuY, MENU_W, h, com.sdzjz.client.SciSkin.FRAME);
-        int y = menuY + 2;
-        if (menuTitle != null) {
-            ctx.drawString(this.font, menuTitle, menuX + 6, y + 3, com.sdzjz.client.SciSkin.TXT_HI, false);
-            ctx.fill(menuX + 4, y + MENU_ROW - 1, menuX + MENU_W - 4, y + MENU_ROW, com.sdzjz.client.SciSkin.withAlpha(com.sdzjz.client.SciSkin.FRAME, 0.6f));
-            y += MENU_ROW;
-        }
-        int hov = menuRowAt(mouseX, mouseY);
-        for (int i = 0; i < menuLabels.size(); i++) {
-            int style = menuStyles.get(i);
-            if (style == 2) ctx.fill(menuX + 4, y, menuX + MENU_W - 4, y + 1, com.sdzjz.client.SciSkin.withAlpha(com.sdzjz.client.SciSkin.FRAME, 0.6f)); // 组首分隔线
-            if (i == hov) ctx.fill(menuX + 2, y, menuX + MENU_W - 2, y + MENU_ROW, SciSkinPalette.HOVER);
-            int col = style == 1 ? SciSkinPalette.RED : (i == hov ? com.sdzjz.client.SciSkin.TXT_HI : SciSkinPalette.TXT); // 危险项红显（m148）
-            ctx.drawString(this.font, menuLabels.get(i), menuX + 8, y + 3, col, false);
-            y += MENU_ROW;
-        }
-        ctx.pose().popPose();
-    }
+    /** m313：贴图图标行（作者设计的 8 张按钮图，32² 源画 16×16；本世代资源目录里只放已用到的几张，第 19 闸 mt 路径普查看着）。 */
+    private void addMenu(String label, net.minecraft.resources.ResourceLocation tex, int style, Runnable action) { cmenu.addMenu(label, tex, style, action); }
+
+    private static ItemStack mi(net.minecraft.world.item.Item it) { return new ItemStack(it); }
+
+    private static net.minecraft.resources.ResourceLocation mt(String name) { return com.sdzjz.client.CanvasMenu.mt(name); } // m313 菜单贴图路径唯一口径
+
+    private void renderMenu(GuiGraphics ctx, int mouseX, int mouseY) { cmenu.renderMenu(ctx, this.font, mouseX, mouseY); }
 
     private void sendQuery() {
         ClientNet120.toServer(new CanvasPayloads120.CanvasQuery(menu.corePos));
@@ -237,6 +211,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) { // 1.20.1 三参
+        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞滚轮（主线 mouseScrolled 同一行的本世代两项：菜单/重命名窗）
         float next = Math.max(0.35f, Math.min(2.5f, zoom * (delta > 0 ? 1.15f : 1 / 1.15f)));
         if (next != zoom) { // 指针为锚：缩放前后指针下画布点不动（m103 谱系体验口径）
             double anchorCx = viewX + mouseX / zoom, anchorCy = viewY + mouseY / zoom;
@@ -255,13 +230,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             if (mouseX < rpx || mouseX > rpx + rw || mouseY < rpy || mouseY > rpy + rh) closeRename();
             return true;
         }
-        if (menuOpen) { // 右键菜单 modal：点行=执行，点外=关（m103 吞穿透口径）
-            int r = menuRowAt(mouseX, mouseY);
-            Runnable act = r >= 0 && button == 0 ? menuActions.get(r) : null;
-            clearMenu();
-            if (act != null) act.run();
-            return true;
-        }
+        if (cmenu.isOpen()) { cmenu.click(mouseX, mouseY, button); return true; } // 右键菜单 modal：左键点行=执行（点选音），其余=关（m103 吞穿透口径，主线同一份 CanvasMenu.click）
         if (button == 0 && overMap(mouseX, mouseY)) { // m490 小地图跳转：点中的画布点移到工作区中心
             double[] w = com.sdzjz.client.MinimapRenderer.jumpTarget(mapView, mapX(), mapY(), mouseX, mouseY);
             viewX = w[0] - (width - SIDEBAR_W) / 2.0 / zoom;
@@ -356,13 +325,13 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         if (button == 1 && mouseY >= 16) { // 右键空白 → 画布菜单（主线同款；本世代无整理布局）
             clearMenu();
-            menuTitle = "画布"; // m148
+            cmenu.title("画布"); // m148
             if (groupsOn() && selected.size() >= 2) // m192 框选后从这里成组（另有 G 键快捷）
-                addMenu("打组所选(" + selected.size() + "台)", 0, this::createGroupFromSelection);
+                addMenu("打组所选(" + selected.size() + "台)", mi(net.minecraft.world.item.Items.LEAD), this::createGroupFromSelection);
             if (groupsOn() && !selected.isEmpty())
-                addMenu("清除选择", 0, selected::clear);
-            addMenu("重置视角", 0, () -> { viewX = 0; viewY = 0; zoom = 1.0f; });
-            addMenu("取消", 2, () -> {});
+                addMenu("清除选择", mi(net.minecraft.world.item.Items.GLASS_PANE), selected::clear);
+            addMenu("重置视角", mi(net.minecraft.world.item.Items.SPYGLASS), () -> { viewX = 0; viewY = 0; zoom = 1.0f; }); // 主线 setViewInstant(0,0,1.0) 的本世代记法
+            addMenu("取消", (ItemStack) null, 2, () -> {});
             openMenu((int) mouseX, (int) mouseY);
             return true;
         }
@@ -427,6 +396,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞拖动（主线 mouseDragged 同一行的本世代两项）
         if (button == 0 && dragGid >= 0) { // m192 组拖动：每帧快照+增量绝对写（渲染读 wnx/wny 的快照+增量，快照回来也自愈）
             dragGidDx = (int) (wmx(mouseX) - dragGidWx);
             dragGidDy = (int) (wmy(mouseY) - dragGidWy);
@@ -473,13 +443,13 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
         renderBackground(ctx); // 1.20.1 单参
         super.render(ctx, mouseX, mouseY, delta);
-        Long stHover = storageAt(mouseX, mouseY); // m458 存储节点悬停：名称+方位
+        Long stHover = cmenu.isEmpty() ? storageAt(mouseX, mouseY) : null; // m458 存储节点悬停：名称+方位（m509 菜单开着不画，主线 menuLabels.isEmpty() 口）
         if (stHover != null) {
             var bp = net.minecraft.core.BlockPos.of(stHover);
             ctx.renderTooltip(font, List.of(Component.translatable("block.sdzjz.storage_core"),
                     Component.literal(bp.getX() + ", " + bp.getY() + ", " + bp.getZ())), Optional.empty(), mouseX, mouseY);
         }
-        Integer hover = nodeAt(mouseX, mouseY); // m493 悬停详情走共用件（与主线同一份：状态/周期/基础产量/产出表）
+        Integer hover = cmenu.isEmpty() ? nodeAt(mouseX, mouseY) : null; // m493 悬停详情走共用件（与主线同一份：状态/周期/基础产量/产出表）；m509 菜单开着不画
         if (hover != null) {
             ItemStack st = g.machineNodes.get(hover);
             java.util.List<Component> tip = new java.util.ArrayList<>(
@@ -488,7 +458,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             if (!why.isEmpty()) tip.add(Component.literal(why)); // 本世代特有：阻塞原因整句（m464 灯表词条）
             ctx.renderTooltip(font, tip, Optional.empty(), mouseX, mouseY);
         }
-        if (menuOpen) renderMenu(ctx, mouseX, mouseY);
+        if (cmenu.isOpen()) renderMenu(ctx, mouseX, mouseY);
         if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
     }
 
@@ -500,8 +470,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             renameField.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
-        if (menuOpen && keyCode == 256) { clearMenu(); return true; }
-        if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !menuOpen) { // m192 G=打组所选（无输入框聚焦时才到这）
+        if (cmenu.isOpen() && keyCode == 256) { clearMenu(); return true; }
+        if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !cmenu.isOpen()) { // m192 G=打组所选（无输入框聚焦时才到这）
             createGroupFromSelection();
             return true;
         }

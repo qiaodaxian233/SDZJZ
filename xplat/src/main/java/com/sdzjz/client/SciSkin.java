@@ -222,6 +222,9 @@ public final class SciSkin {
     /** m484：任意物品 id 解析（节点卡画白名单/传感器目标的小图标要用）。 */
     public static net.minecraft.resources.ResourceLocation gfxItem(String id) { return gfx().id(id); }
 
+    /** m509：本模组纹理 id 门面（右键菜单贴图图标 m313 要用；1.21=fromNamespaceAndPath，1.20.1=构造器，见 Gfx.tex）。 */
+    public static net.minecraft.resources.ResourceLocation gfxTex(String path) { return gfx().tex(path); }
+
     /** 18×18 槽位贴图；x,y 传 16×16 物品区左上角（贴图向外扩 1px，与旧程序槽同占位）。 */
     public static void drawSlot(net.minecraft.client.gui.GuiGraphics ctx, int x, int y) {
         ctx.blit(slotTex(), x - 1, y - 1, 0.0F, 0.0F, 18, 18, 18, 18);

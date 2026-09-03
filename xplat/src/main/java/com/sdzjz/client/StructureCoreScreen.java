@@ -226,22 +226,12 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     private EditBox renameField;
     private static final int GPAD = GroupFrameRenderer.GPAD, GBAND = GroupFrameRenderer.GBAND; // 组框内边距 / 标题带高（世界单位）——m507 原值随组框渲染下沉共用件，此处留别名零调用点改动
 
-    // 右键菜单
-    private boolean menuOpen = false;
-    private int menuX, menuY;
-    private final List<String> menuLabels = new ArrayList<>();
-    private final List<Runnable> menuActions = new ArrayList<>();
-    private final List<ItemStack> menuIcons = new ArrayList<>();   // m148 行图标（可空）
-    private final List<net.minecraft.resources.ResourceLocation> menuTexs = new ArrayList<>(); // m313 用户设计贴图图标（可空，优先于物品图标）
+    // 右键菜单——m509 机制（状态/开合/装配/渲染/点选）整段下沉 xplat CanvasMenu 两代共用，本屏只留一行实例与同签名转发壳（m180 家法零调用点改动）
+    private final CanvasMenu cmenu = new CanvasMenu();
     private double lastMouseX, lastMouseY; // m313 快捷键悬停命中用（render 每帧缓存）
-    private final List<Integer> menuStyles = new ArrayList<>();    // m148 0普通 1危险(红) 2组首(上加分隔线)
-    private String menuTitle = null;                               // m148 标题带（节点菜单=机器名）
-    private long menuOpenMs = 0;                                   // m148 开合动画时钟
-    private float[] menuHoverP = new float[0];                     // m148 逐行悬停缓动进度
     private long pickerOpenMs = 0;                                 // m148 选择器淡入时钟
     private List<Item> pickerSrcOverride = null;                   // m149 机器加工过滤的候选源（null=常规）
     private String pickerTitleOverride = null;                     // m149 机器加工过滤的窗题
-    private static final int MENU_W = 144, MENU_H = 18, MENU_TITLE_H = 14; // m148 加宽容图标+标题带；m316 136→144 容图标间距加宽后的最长行（抽取量挡位）
 
     // ===== m199 画布设置面板（游戏内可调画布客户端项；modal 照 renameField 在树写法）=====
     private boolean settingsOpen = false;
@@ -1220,7 +1210,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
 
         // ===== m85：节点悬停详情（状态/周期/基础产量/产出表）=====
-        if (menuLabels.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 80 && mouseX < workRight()) {
+        if (cmenu.isEmpty() && be != null && mouseY > 20 && mouseY < this.height - 80 && mouseX < workRight()) {
             List<ItemStack> nodes = be.nodes();
             for (int i = 0; i < nodes.size(); i++) {
                 int nx = (int) (panX + wnx(be, nodes, i) * zoom), ny = (int) (panY + wny(be, nodes, i) * zoom);
@@ -1242,7 +1232,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             libScroll -= (int) Math.signum(verticalAmount);
             return true;
         }
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
+        if (pickerNode >= 0 || cmenu.isOpen() || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
         if (inMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布
         if (mouseY > 34) {
             zoomToward(verticalAmount > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪
@@ -1252,52 +1242,24 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     // ================= 右键菜单 =================
-    private void openMenu(int x, int y) {
-        menuOpen = true;
-        menuOpenMs = net.minecraft.Util.getMillis(); // m148 开合动画从零起
-        menuHoverP = new float[menuLabels.size()];
-        int th = menuTitle != null ? MENU_TITLE_H : 0;
-        menuX = Math.min(x, workRight() - MENU_W - 4);
-        menuY = Math.min(y, this.height - (menuLabels.size() * MENU_H + th) - 4);
-    }
+    // m509：机制整段下沉 xplat CanvasMenu（两代共用一份），以下全是同签名转发壳——调用点零改动。
+    private void openMenu(int x, int y) { cmenu.openMenu(x, y, workRight(), this.height); }
 
-    private void clearMenu() {
-        menuLabels.clear();
-        menuActions.clear();
-        menuIcons.clear();
-        menuTexs.clear(); // m313
-        menuStyles.clear();
-        menuTitle = null;
-        menuOpen = false;
-    }
+    private void clearMenu() { cmenu.clearMenu(); }
 
-    private void addMenu(String label, Runnable action) { addMenu(label, (ItemStack) null, 0, action); }
+    private void addMenu(String label, Runnable action) { cmenu.addMenu(label, action); }
 
-    private void addMenu(String label, ItemStack icon, Runnable action) { addMenu(label, icon, 0, action); }
+    private void addMenu(String label, ItemStack icon, Runnable action) { cmenu.addMenu(label, icon, action); }
 
     /** m148：style 0=普通 1=危险(红字红条) 2=组首(上方分隔线)。 */
-    private void addMenu(String label, ItemStack icon, int style, Runnable action) {
-        menuLabels.add(label);
-        menuActions.add(action);
-        menuIcons.add(icon);
-        menuTexs.add(null);
-        menuStyles.add(style);
-    }
+    private void addMenu(String label, ItemStack icon, int style, Runnable action) { cmenu.addMenu(label, icon, style, action); }
 
     /** m313：贴图图标行（作者设计的 8 张按钮图，32² 源画 16×16）。 */
-    private void addMenu(String label, net.minecraft.resources.ResourceLocation tex, int style, Runnable action) {
-        menuLabels.add(label);
-        menuActions.add(action);
-        menuIcons.add(null);
-        menuTexs.add(tex);
-        menuStyles.add(style);
-    }
+    private void addMenu(String label, net.minecraft.resources.ResourceLocation tex, int style, Runnable action) { cmenu.addMenu(label, tex, style, action); }
 
     private static ItemStack mi(net.minecraft.world.item.Item it) { return new ItemStack(it); }
 
-    private static net.minecraft.resources.ResourceLocation mt(String name) { // m313 菜单贴图路径唯一口径
-        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/menu/" + name + ".png");
-    }
+    private static net.minecraft.resources.ResourceLocation mt(String name) { return CanvasMenu.mt(name); } // m313 菜单贴图路径唯一口径（m509 归共用件）
 
     /** m110b 节点设置菜单：右键节点与标题栏齿轮共用同一构建（含单节点启停）。 */
     // ===== m192 画布分组：几何与操作 =====
@@ -1409,7 +1371,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
         clearMenu();
-        menuTitle = be.groupsView().getOrDefault(gid, "组" + gid);
+        cmenu.title(be.groupsView().getOrDefault(gid, "组" + gid));
         addMenu("重命名组…", mt("group_rename"), 0, () -> openRename(gid)); // m313 用户图标
         addMenu("解散该组", mt("group_disband"), 1,
                 () -> com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodeGroupPayload(p, gid, "", java.util.List.of())));
@@ -1454,7 +1416,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     // ===== m199 画布设置面板（六项画布客户端配置 + 恢复默认；机器数值项仍走 config/sdzjz.json）=====
     private void openSettings() {
-        if (menuOpen) clearMenu();
+        if (cmenu.isOpen()) clearMenu();
         if (pickerNode >= 0) closePicker();
         if (renameGid >= 0) closeRename();
         wireOutField.setValue(com.sdzjz.config.SdzjzConfig.get().canvasWireOutColor); // 开窗对齐配置现值（可能被恢复默认/改文件动过）
@@ -1748,7 +1710,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         final ItemStack st = be.nodes().get(idx);
         BlockPos p = this.menu.blockPos();
         clearMenu();
-        menuTitle = st.getHoverName().getString(); // m148 标题带=机器名
+        cmenu.title(st.getHoverName().getString()); // m148 标题带=机器名
         if (com.sdzjz.node.NodeTags.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
             addMenu("恢复运行", mi(net.minecraft.world.item.Items.LIME_DYE),
                     () -> { if (p != null) com.sdzjz.client.ClientNet.toServer(new com.sdzjz.net.NodePausePayload(p, idx)); });
@@ -1934,79 +1896,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         ctx.fill(x + 1, y + 6, x + 3, y + 9, TXT);
     }
 
-    /** m148 菜单 3A 化：110ms 弹入（缩放+淡入 easeOutCubic）、逐行悬停指数缓动（底色渐显+
-     *  强调条滑出+文字右移 2px+颜色插值）、标题带（机器名+青下划线）、组分隔线、行图标（0.8×物品）、
-     *  危险项红系。全程 GuiGraphics 原语，零贴图零 shader。 */
-    private void renderMenu(GuiGraphics ctx, int mouseX, int mouseY) {
-        int th = menuTitle != null ? MENU_TITLE_H : 0;
-        int h = menuLabels.size() * MENU_H + th;
-        float ease = SciSkin.easeOut((net.minecraft.Util.getMillis() - menuOpenMs) / 110f);
-        if (menuHoverP.length != menuLabels.size()) menuHoverP = new float[menuLabels.size()];
-        ctx.pose().pushPose(); // 弹入：以菜单左上角为锚 0.92→1.0
-        // m316 整体抬 z=400（m202/m283 同病同刀）：画布节点的物品图标/升级角标由 drawItem 画在
-        // z100~200 带深度测试，菜单 z0 平面填充画得再晚也被穿透（作者截图实锤：节点端口图标叠在
-        // 菜单标题带上）。重命名/设置/帮助/选择器四浮层早已各自抬 400，唯菜单漏网，本笔补齐。
-        ctx.pose().translate(0, 0, 400);
-        ctx.pose().translate(menuX, menuY, 0);
-        float sc = 0.92f + 0.08f * ease;
-        ctx.pose().scale(sc, sc, 1f);
-        ctx.pose().translate(-menuX, -menuY, 0);
-        ctx.fill(menuX + 3, menuY + 4, menuX + MENU_W + 3, menuY + h + 4, SciSkin.withAlpha(0x66000000, ease));
-        ctx.fill(menuX - 1, menuY - 1, menuX + MENU_W + 1, menuY + h + 1, SciSkin.withAlpha(NODEFRM, ease));
-        ctx.fill(menuX, menuY, menuX + MENU_W, menuY + h, SciSkin.withAlpha(SciSkin.withAlpha8(SciSkin.CELL, 0xF0), ease)); // m207 归队
-        if (th > 0) {
-            ctx.fill(menuX, menuY, menuX + MENU_W, menuY + th, SciSkin.withAlpha(0xF00E2438, ease));
-            ctx.fill(menuX, menuY + th - 1, menuX + MENU_W, menuY + th, SciSkin.withAlpha(CYAN, ease * 0.9f));
-            String tt = menuTitle;
-            while (tt.length() > 1 && this.font.width(tt) > MENU_W - 12) tt = tt.substring(0, tt.length() - 1);
-            ctx.drawString(this.font, tt, menuX + 6, menuY + 3,
-                    SciSkin.withAlpha(SciSkin.TXT_HI, Math.max(0.3f, ease)), false);
-        }
-        int tick = SciSkin.lighten(NODEFRM); // 四角刻与卡片语言呼应
-        ctx.fill(menuX, menuY, menuX + 4, menuY + 1, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX, menuY, menuX + 1, menuY + 4, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX + MENU_W - 4, menuY, menuX + MENU_W, menuY + 1, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX + MENU_W - 1, menuY, menuX + MENU_W, menuY + 4, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX, menuY + h - 1, menuX + 4, menuY + h, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX, menuY + h - 4, menuX + 1, menuY + h, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX + MENU_W - 4, menuY + h - 1, menuX + MENU_W, menuY + h, SciSkin.withAlpha(tick, ease));
-        ctx.fill(menuX + MENU_W - 1, menuY + h - 4, menuX + MENU_W, menuY + h, SciSkin.withAlpha(tick, ease));
-        for (int i = 0; i < menuLabels.size(); i++) {
-            int y0 = menuY + th + i * MENU_H;
-            boolean hov = mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= y0 && mouseY < y0 + MENU_H;
-            menuHoverP[i] += ((hov ? 1f : 0f) - menuHoverP[i]) * 0.35f; // 指数趋近（~60fps 手感）
-            float pv = menuHoverP[i];
-            boolean danger = menuStyles.get(i) == 1;
-            if (menuStyles.get(i) == 2)
-                ctx.fill(menuX + 6, y0, menuX + MENU_W - 6, y0 + 1, SciSkin.withAlpha(SciSkin.withAlpha8(SciSkin.ACCENT, 0x55), ease)); // m207 归队
-            if (pv > 0.02f)
-                ctx.fill(menuX, y0 + 1, menuX + MENU_W, y0 + MENU_H - 1,
-                        SciSkin.withAlpha(danger ? 0xFF3A1420 : SciSkin.HOVER, ease * pv));
-            int barW = Math.round(3 * pv);
-            if (barW > 0)
-                ctx.fill(menuX, y0 + 1, menuX + barW, y0 + MENU_H - 1,
-                        SciSkin.withAlpha(danger ? SciSkin.RED : CYAN, ease));
-            int tx = menuX + 6 + Math.round(2 * pv);
-            net.minecraft.resources.ResourceLocation tex = menuTexs.get(i); // m313 贴图图标优先
-            if (tex != null) {
-                ctx.blit(tex, tx, y0 + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
-                tx += 20; // m316：贴图满幅 16px，原 +16 零间隙文字贴脸（作者截图点名），补 4px 呼吸位
-            }
-            ItemStack ic = menuIcons.get(i);
-            if (ic != null && !ic.isEmpty()) {
-                ctx.pose().pushPose();
-                ctx.pose().translate(tx, y0 + 2, 0);
-                ctx.pose().scale(0.8f, 0.8f, 1f);
-                ctx.renderItem(ic, 0, 0);
-                ctx.pose().popPose();
-                tx += 18; // m316：0.8×实占 12.8px，原 +16 只剩 3px，与贴图行对齐补到约 5px
-            }
-            int col = danger ? SciSkin.mix(SciSkin.RED_SOFT, SciSkin.RED, pv) : SciSkin.mix(TXT, SciSkin.TXT_MAX, pv);
-            ctx.drawString(this.font, menuLabels.get(i), tx, y0 + 5,
-                    SciSkin.withAlpha(col, Math.max(0.3f, ease)), false);
-        }
-        ctx.pose().popPose();
-    }
+    /** m148 菜单 3A 化（m509 整段下沉 CanvasMenu.renderMenu 两代共用，此处转发）。 */
+    private void renderMenu(GuiGraphics ctx, int mouseX, int mouseY) { cmenu.renderMenu(ctx, this.font, mouseX, mouseY); }
 
     /** 断开某机器节点的全部连线（机器边 + 存储边，逐条 toggle）。 */
     private void clearLinksOfMachine(int idx) {
@@ -2096,24 +1987,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             }
             return true;
         }
-        if (menuOpen) {
-            int thM = menuTitle != null ? MENU_TITLE_H : 0; // m148 标题带占位
-            int h = menuLabels.size() * MENU_H + thM;
-            if (button == 0 && mouseX >= menuX && mouseX < menuX + MENU_W && mouseY >= menuY + thM && mouseY < menuY + h) {
-                int idx = (int) ((mouseY - menuY - thM) / MENU_H);
-                Runnable act = idx >= 0 && idx < menuActions.size() ? menuActions.get(idx) : null;
-                clearMenu();
-                if (act != null) {
-                    Minecraft.getInstance().getSoundManager().play( // m148 点选音（原版按钮同款）
-                            net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                                    net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                    act.run();
-                }
-                return true;
-            }
-            clearMenu();
-            return true;
-        }
+        if (cmenu.isOpen()) { cmenu.click(mouseX, mouseY, button); return true; } // m509 点选分派块整段下沉 CanvasMenu.click（左键点行=执行，其余=关）
         if (pickerNode >= 0) {
             int px = (this.width - PICK_W) / 2, py = (this.height - PICK_H) / 2;
             if (pickerField.mouseClicked(mouseX, mouseY, button)) return true;
@@ -2246,7 +2120,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         int sx = snx(be, pl, j), sy = sny(be, pl, j);
                         if (mouseX >= sx && mouseX <= sx + bw() && mouseY >= sy && mouseY <= sy + bh()) {
                             clearMenu();
-                            menuTitle = "存储连线"; // m148
+                            cmenu.title("存储连线"); // m148
                             if (endPlaced(be, pl) && endsPlaceableOn()) { // m265 放置卡多一条：收回总线（拖回带内同义）
                                 BlockPos pDock = this.menu.blockPos();
                                 addMenu("收回总线", mi(net.minecraft.world.item.Items.ENDER_PEARL), () -> {
@@ -2282,7 +2156,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                     }
                     // 右键空白 → 画布菜单
                     clearMenu();
-                    menuTitle = "画布"; // m148
+                    cmenu.title("画布"); // m148
                     if (groupsOn() && selected.size() >= 2) // m192 框选后从这里成组（另有 G 键快捷）
                         addMenu("打组所选(" + selected.size() + "台)", mi(net.minecraft.world.item.Items.LEAD), this::createGroupFromSelection);
                     if (groupsOn() && !selected.isEmpty())
@@ -2428,7 +2302,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         if (settingsOpen && settSlDrag >= 0) { settApplySlider(mouseX); return true; } // m223 设置面板 RGB 滑杆拖动（必须先于下方 settingsOpen 吞穿透）
         if (busScaleDrag) { busScaleFromMouse(mouseX); return true; } // m93 总线大小滑块
         if (mapDragging) { mapJump(mouseX, mouseY); return true; }    // m110a 小地图拖拽跳转
-        if (pickerNode >= 0 || menuOpen || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
+        if (pickerNode >= 0 || cmenu.isOpen() || renameGid >= 0 || settingsOpen || helpOpen) return true; // m199 设置窗并入；m219 帮助卡并入
         if (linking) return true;
         if (button == 0 && dragEnd != Long.MIN_VALUE) { // m265 端点卡拖拽：本地覆盖坐标（m196 口径）
             dragEndX = (int) (mouseX - dragEndOffX);
@@ -2616,7 +2490,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         try {
             super.render(ctx, mouseX, mouseY, delta);
             if (pickerNode >= 0) renderPicker(ctx, mouseX, mouseY, delta);
-            if (menuOpen) renderMenu(ctx, mouseX, mouseY);
+            if (cmenu.isOpen()) renderMenu(ctx, mouseX, mouseY);
             if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
             if (settingsOpen) renderSettings(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（与重命名互斥，openSettings 已清场）
         if (helpOpen) renderHelp(ctx); // m219 帮助卡
@@ -3103,13 +2977,13 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
             renameField.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
-        if (menuOpen && keyCode == 256) { clearMenu(); return true; }
+        if (cmenu.isOpen() && keyCode == 256) { clearMenu(); return true; }
         if (pickerNode >= 0) {
             if (keyCode == 256) { closePicker(); return true; }
             pickerField.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
-        if (!menuOpen) { // m313 画布快捷键（作者点名"要支持快捷键"）：悬停节点即生效；各 modal 已在上方截前
+        if (!cmenu.isOpen()) { // m313 画布快捷键（作者点名"要支持快捷键"）：悬停节点即生效；各 modal 已在上方截前
             int hv = hoveredNode();
             BlockPos kp = this.menu.blockPos();
             if (keyCode == 71 && hasShiftDown() && hv >= 0 && kp != null) { // Shift+G=解散悬停节点所属组（解散纯视觉，先于普通 G）
@@ -3129,7 +3003,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                 }
             }
         }
-        if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !menuOpen) { // m192 G=打组所选（无输入框聚焦时才到这）
+        if (keyCode == 71 && groupsOn() && selected.size() >= 2 && !cmenu.isOpen()) { // m192 G=打组所选（无输入框聚焦时才到这）
             createGroupFromSelection();
             return true;
         }
