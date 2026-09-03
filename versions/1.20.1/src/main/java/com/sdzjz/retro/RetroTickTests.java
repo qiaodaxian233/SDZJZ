@@ -663,11 +663,18 @@ public class RetroTickTests implements FabricGameTest {
         handTick(ctx, c, 10);
         ctx.assertTrue(src.count("minecraft:sand") == 100 && c.bufAmount(0, "minecraft:sand") == 0,
                 "开了但没去处（无出线无产出仓）也不该抽——m157 修的就是这个失踪案，实抽 " + c.bufAmount(0, "minecraft:sand"));
-        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(1, 1, 0)).asLong(), 0}); // 补 kind0=搬仓模式
+        // m510（CI 首跑实锤）：原写法把 kind0 产出仓也指回 src——泵与清运同拍（pullSupply 在生产循环之前、清运 5t 同拍），
+        // 同一拍里先从 src 抽进缓存、再原样清运回 src，拍末账面恒 100，"搬仓"判据永远不成立；搬仓要有**另一个**仓当去处。
+        StorageCore120 dst = storage(ctx, new BlockPos(2, 1, 0));
+        if (dst == null) return;
+        c.g.storageEdges.add(new long[]{0, ctx.absolutePos(new BlockPos(2, 1, 0)).asLong(), 0}); // 补 kind0=搬仓模式（去处=dst）
         c.g.storageEdgeDims.add(ctx.getLevel().dimension().location().toString());
         handTick(ctx, c, 10);
         ctx.assertTrue(src.count("minecraft:dirt") == 50, "白名单外的泥土永远碰都不碰，实剩 " + src.count("minecraft:dirt"));
         ctx.assertTrue(src.count("minecraft:sand") < 100, "搬仓模式该开抽，仓里还剩 " + src.count("minecraft:sand"));
+        long moved = dst.count("minecraft:sand"), inBuf = c.bufAmount(0, "minecraft:sand"), left = src.count("minecraft:sand");
+        ctx.assertTrue(moved + inBuf + left == 100, "搬仓守恒：去处 " + moved + " + 在途 " + inBuf + " + 源仓 " + left + " 该等于 100");
+        ctx.assertTrue(dst.count("minecraft:dirt") == 0, "泥土在白名单外，去处仓一件都不该有");
         com.sdzjz.machine.CoreScheduler.clearAll();
         ctx.succeed();
     }
