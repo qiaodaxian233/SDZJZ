@@ -11139,3 +11139,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ④普查稿防过期→作业表加规矩「SB 线每收官一刀 / 两代缺口有变化，顺手更新 m521 稿状态段」，本刀先补一段（CraftGridInventory "0 MC import" 量错处如实记）。
 - **教训**：①**"很可能有 default"这种写在注释里的猜测，是留给下一个人的雷**——m201 那句注释在树里躺了三百多个里程碑，直到 1.20.1 构建才逼人去核；共用层里的每一句"很可能/应该"都该当场核成"核过"或"待核"。②**默认关的口必须配一条会红的判官**：default 方法让 1.20.1 零成本接入，但同一份默认在主线漏装时也零成本地把功能吞了——ExtractPort.Host 样板天生有这个影子，宿主口每立一个就配一条"装了没"判官。③评审点出的"验收顺序倒置"其实是闸的**入口**问题：第 20 闸辖区=白名单，不写白名单就量不到，所以人会先写再量；候选模式把"量"挪到"写"之前，顺序才立得住。
 - **下一刀**：读 m523 CI（1.20.1 job 必须绿）→ **SB3**：`SuperBenchBlock120` 世代壳（`use`、无 codec，对位主线 55 行）+ BE + `BlockEntityType`/`MenuType(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET)` 注册进 RetroBootstrap（注册后 `installType`）+ `RetroBlocks` 登记/创造栏 + 资源六件套从主线原样拷 → SB4 屏。**开工先跑 21 闸**。
+## m523b 热修（m523 CI 1.20.1 红）：`CraftGridInventory` 补 `getItems()` 自声明 —— 接口抽象方法不许靠 1.21 父类兜底；第 20 闸加第三类判据「抽象必自声」；第七类冒烟盲区
+
+- **现象**：m523 推完 CI 八 job 七绿一红——**1.20.1 旧世代：编译+GameTest 红**，`ci-retro-errors` 分支回推的清单只有一条真错（第二条是它的连带）：
+  `CraftGridInventory.java:8: CraftGridInventory is not abstract and does not override abstract method getItems() in CraftingContainer`
+  `CraftGridInventory.java:19: cannot find symbol method getItems()`。作者当轮说「现在报错了」没贴内容，按 m510 规矩从 CI 三分支读出来的。
+- **根因**：m523 删 `asCraftInput` 覆写时注释写了一句"getHeldStacks 由 SimpleInventory 协变满足"——**这句只对 1.21.1 成立**。yarn 官方映射两代对表（不猜）：
+  1.21.1 `SimpleInventory` 有 `method_54454 getHeldStacks()→DefaultedList`（Mojmap `SimpleContainer.getItems()→NonNullList`），协变满足接口 `RecipeInputInventory.method_51305 getHeldStacks()→List`；
+  **1.20.1 `SimpleInventory` 没有 method_54454**（`items` 字段私有、无 getter），而 `method_51305`（1.20.1 名 `getInputStacks`，Mojmap 同为 `getItems`）是**抽象**的——于是本类必须自己实现，1.20.1 编译器如实报"does not override abstract"。
+  **m522/m523 我量 API 面量的是"文件里出现了哪些 1.21 专属符号"，这次的坑是"文件里没出现、靠父类顺手给的方法"——量程外的第三种形状**（m522b 是"整类符号"、m487 是"方法名"）。
+- **修法（最小恢复构建，主线结果零变化）**：`CraftGridInventory` 加 `@Override public NonNullList<ItemStack> getItems()`——`NonNullList.withSize(getContainerSize(), EMPTY)`（两代同名 method_10213，Mojmap `withSize`）逐格 `set(i, getItem(i))`。
+  **返回型钉 `NonNullList` 不是 `List`**：1.21.1 要与父类 `SimpleContainer.getItems()` 同签名才算覆写（写 `List` 会红"返回类型不兼容"），1.20.1 靠协变满足接口的 `List`。
+  **主线行为**：全库对 grid 调 `getItems()` 的只有本类 `fillStackedContents`（即取即用）与 1.21 接口 default `asPositionedCraftInput`（无调用者，EMI 才会问；它会立刻拷成 CraftingInput），handler 全走 `input.getItem(i)`（普通 `Slot`，无 `ResultSlot`）——
+  与父类原实现的唯一差别是返回的不再是"活列表"（`setItem` 换栈不反映到已取出的那份），**全库无人持有这份列表**，逐位同结果。m523 那句错注释原地改掉并指向本刀。
+- **验证（这次不敢只报"冒烟零真错"）**：
+  ①`tools_smoke.py` 两代全量+单编零真错——**但它对这条错本来就是盲的**（缺 MC jar 解析不了父类，`does not override abstract` 永远报不出，m523 当刀同样绿）→ **第七类冒烟盲区**（m510 六类之后；前六类是"报了没人看/没归因"，这类是"根本不报"）；
+  ②**桩类血案重放**（临时，不入库）：按 yarn 两代真实签名写 6 个最小桩（`SimpleContainer` 1.20.1 版无 `getItems`/1.21.1 版有、`CraftingContainer` 抽象 `getItems`、`NonNullList.withSize`……），
+  m523 原文 × 1.20.1 桩 = **红且两条报错逐字同 CI**；修后 × 1.20.1 桩绿、× 1.21.1 桩绿（顺带证明 `NonNullList` 返回型在 1.21.1 能覆写父类）；
+  ③**第 20 闸第三类判据「抽象必自声」**：白名单 xplat 文件 `implements` 表列 MC 接口时，表列方法必须在本文件有 `名(...) {` 形声明；首条 `CraftingContainer.getItems`。自证=修后绿→换回 m523 原文当场红点名文件与方法→还原复绿；
+  ④21 闸全绿；版本仍 0.1.523（热修不抬数字段 m317）。零协议零存档零配置零资源；1.20.1 仍只编译进去玩家开不到（SB3 才有方块）。
+  **作者判据：CI 1.20.1 job 转绿**（沙箱轮询）；作者本地 1.20.1 重构建应 BUILD SUCCESSFUL。
+- **教训**：①"两代同名 API"要连**继承链**一起量——同名接口方法在两代都抽象，但父类是不是替你实现了，两代可以不同；对照表新增一行专记这一格。
+  ②冒烟的第七类盲区是结构性的（没 MC jar 就永远看不见父类），补法只能是"闸表"或"桩重放"，不是改筛选器；今后 xplat 白名单文件凡 `extends MC类 implements MC接口`，上挂前对着 yarn 1.20.1 数一遍接口抽象方法谁来实现（作业表 5b 补一句）。
+  ③m523 注释里那句"由 X 协变满足"是**在 1.21.1 源码里看出来的结论直接写成了两代通用**——引 1.21 源码得出的"不用写"，落到共用层前要再问一次 1.20.1。
+- **下一刀**：读 m523b CI（1.20.1 job 必须绿）→ **SB3**：`SuperBenchBlock120` 世代壳 + BE + `BlockEntityType`/`MenuType` 注册进 RetroBootstrap（注册后 `installType`）+ `RetroBlocks` 登记/创造栏 + 资源六件套从主线原样拷 → SB4 屏。**开工先跑 21 闸**。
+

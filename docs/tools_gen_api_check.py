@@ -47,6 +47,28 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
     r"\bStreamCodec\b|\bRegistryFriendlyByteBuf\b|\bCustomPacketPayload\b": ("FriendlyByteBuf + FabricPacket", "包类各代各写（协议层是世代壳）"),
 }
 
+# m523b 第三件血案：接口抽象方法靠 **1.21 父类"顺手"满足**，1.20.1 父类没那个方法——
+# CraftGridInventory extends SimpleContainer implements CraftingContainer：`getItems()` 1.21.1 由 SimpleContainer（method_54454）兜底，
+# 1.20.1 SimpleInventory 根本没有（yarn 核过），CI 1.20.1 报 "is not abstract and does not override abstract method getItems()"。
+# 纯语法冒烟（缺 MC jar）解析不了父类所以永远报不出这一类（第七类盲区，m510 六类之后）。
+# 判据：白名单 xplat 文件 implements 下表接口时，表列方法必须在**本文件**有声明（`名(...) {` 形），不许靠继承。
+# 表只登记"两代父类兜底不一致"的方法；加条目同时更新 docs/世代API对照表.md。
+抽象必自声 = {
+    r"\bCraftingContainer\b": {
+        "getItems": "1.21.1 SimpleContainer.getItems()→NonNullList 兜底；1.20.1 SimpleInventory 无此方法 → 本类自声明 `NonNullList<ItemStack> getItems()`（返回型钉 NonNullList 才能同时覆写 1.21 父类）",
+    },
+}
+
+def 缺自声(码, 接口表):
+    坏 = []
+    for 接口, 方法表 in 接口表.items():
+        if not re.search(r"\bimplements\b[^{]*" + 接口, 码):
+            continue
+        for 名, 说明 in 方法表.items():
+            if not re.search(r"\b" + 名 + r"\s*\([^)]*\)\s*(?:throws[^{]*)?\{", 码):
+                坏.append((接口.replace("\\b", ""), 名, 说明))
+    return 坏
+
 # m522b 第二件血案：白名单 xplat 文件 import/内联 FQN 引用了 1.20.1 源集里没有的自家类
 # （SuperBenchScreenHandler 引 src 的 registry.ModScreenHandlers / registry.ModItems、非白名单的 item.CompressedPackItem）——
 # 编译器在作者机上才报"程序包 com.sdzjz.registry 不存在"。判据：白名单 xplat 文件里出现的 com.sdzjz.a.b.C 必须能在
@@ -116,6 +138,10 @@ def 主(候选=()):
                 print("❌ %s 引用了 1.20.1 源集里没有的自家类 `%s`（不在白名单/common/versions/1.20.1）" % (名, ref))
                 print("     该走：功能区本世代没有→带默认的宿主口（ExtractPort.Host 样板）；注册表类→静态安装口（ItemData.install 样板）")
                 坏 += 1
+        for 接口, 方法, 说明 in 缺自声(码, 抽象必自声):  # m523b：接口抽象方法不许靠 1.21 父类兜底
+            print("❌ %s implements %s 但没自己声明 `%s(...)`——1.20.1 父类不兜底，构建报 does not override abstract method" % (名, 接口, 方法))
+            print("     %s" % 说明)
+            坏 += 1
     if 坏:
         print("\n❌ 世代 API 闸红：%d 处。共用层里留 1.21 专属调用，1.20.1 构建必挂（m487 血案）。" % 坏)
         return 1
