@@ -41,9 +41,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StructureCore120.java": [],
  # m509（真移植·A5c 补刀）：右键菜单机制下沉 CanvasMenu——主线屏删掉菜单状态十一件与三常量（open/clear/add/render 留同签名转发壳）；
  # 1.20.1 屏 m508 那份"最小菜单件"（七字段+两常量+menuH/menuRowAt）整段退役换共用件
+ # m511（真移植·A4）：m193 连线归并下沉 WireBundler——主线屏删掉 GROUP_ENC 常量、mmAnchorGeom/drawBundleBadge 两助手与
+ # seBundles/mmBundles 两张局部表（分流与绘制改调共用件）
  "xplat/src/main/java/com/sdzjz/client/StructureCoreScreen.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuIcons","menuTexs","menuStyles",
-    "menuTitle","menuOpenMs","menuHoverP","MENU_W","MENU_H","MENU_TITLE_H"],
+    "menuTitle","menuOpenMs","menuHoverP","MENU_W","MENU_H","MENU_TITLE_H",
+    "GROUP_ENC","mmAnchorGeom","drawBundleBadge","seBundles","mmBundles"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuStyles","menuTitle","MENU_W","MENU_ROW","menuH","menuRowAt"],
 }

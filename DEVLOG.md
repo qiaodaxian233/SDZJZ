@@ -10723,3 +10723,67 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **修法**：另建 dst 仓当去处（kind0 指 dst），断言改成三条=源仓减少 / **搬仓守恒**（去处+在途+源仓=100）/ 白名单外的泥土去处仓
   一件都没有。版本号不抬（热修字母尾号，m317 规矩）。
 - **验证**：tools_smoke 两代全量+单编零真错、21 闸全绿。看 CI：1.20.1 job 应全绿——**那将是 m472 以来 CI 第一次三 job 全绿**。
+## m511 A4：连线归并徽章 m193 两代共用（xplat WireBundler）—— 世代差为零 + 顺手扶正 1.20.1 机器线层的矩阵/线色/配色作用域
+
+- **来路**：m510b 推后读 CI（作业表第 11 步）——badge passing，三个错误分支最新回推 sha 都早于 m510b（`ci-mojmap-errors`/
+  `ci-gametest-report` 停在 1cbf7c4=m509、`ci-retro-errors` 停在 dcb989d=m510），m510b 无新失败报告 → **三 job 全绿，m472 以来第一次**。
+  按作业表「下一刀」取 A4。**对接文档里那枚 PAT 对 api 与 `git push --dry-run` 均 401**，本刀按规矩本地提交 + `format-patch` 交付，
+  沙箱亦拿不到 `actions/runs`（未认证限流），m511 的 CI 读数留给作者推后（或下一会话带可用 PAT）。
+- **逐句对**（切前先看区间，m487 家法）：主线 `StructureCoreScreen` renderBg 里 m193 是四块——存储线循环内分流计数（6 行）/
+  `seBundles` 绘制循环（原 629~654）/机器线循环内分流计数（8 行）/`mmBundles` 绘制循环（原 686~698），外加 `// ===== m193 连线归并 =====`
+  助手区（`GROUP_ENC`/`mmAnchorGeom`/`drawBundleBadge`，原 1668~1693）。**世代差为零**：输入是 m507 已共用的分组共享表（gm/gRect/nGid）
+  与两代同一份 `WireRenderer`，输出是 `drawWire` 调用 + `ctx.fill`/`drawString` 的 ×N 徽章，其余全是 LinkedHashMap 计数与算术；
+  1.21 专属 API 命中 0（对照表第二节左列过了一遍）。**唯一参数化的真世代差住在调用点**（m492 教训：调用点的参数怎么算才是刀号住的地方）：
+  存储端卡片的接口位置——主线是总线带上的放置卡（`snx/sny`，收料口 x+14 / 供料口 x+bw()-14，卡底 +2，`bw()/bh()` 随 busScale），
+  1.20.1 是画布上 24×24×zoom 的存储节点卡（0.25w / 0.75w，卡底 +2）。收进 `WireBundler.StoragePorts`（一口回四个屏幕坐标），
+  选缘（m184 看几何 `p[0] >= gcx`）与走线留在共用件——原文 `sx + 14 >= gcx` 与 `p[0] >= gcx` 同值同型（int 提升 float）。
+- **共用件 `xplat/client/WireBundler`**（实例，一帧一个）：`takeStorageEdge(mi, 端点, 向, lit)`/`takeConnection(a, b, lit)` 两口
+  =分流判定+计数（返回 true 调用方 `continue`；**分流留在两代各自的绘制循环里**，m505 普查记着归并与非归并线本就同循环分流，不能把普通
+  连线绘制切走）；`drawStorageBundles(ctx, font, View, gRect, StoragePorts)` 屏幕坐标层（pxScale=1f，主线原文在世界矩阵 push 之前画）；
+  `drawMachineBundles(ctx, font, View, gRect)` 世界坐标层——**调用方须已处于世界矩阵下**（主线原文就在自己 push 的 translate+scale 里、
+  紧跟非归并机器线之后、拖线预览之前；共用件若自己再 push 主线就双重变换，故不 push）；`mmAnchorGeom`/`drawBundleBadge`/`GROUP_ENC`
+  原文照搬。机械替换只六类：`panX + X*zoom`→`screenX(v, X)`（换算口径同 m507 pushWorld，panX = -viewLeft*zoom，亚像素级浮点差）、
+  `endpointIndex/snx/sny/bw/bh`→`ports.ports(pl)`、`wnx/wny/nodes.size()`→`View` 三口、`GBAND/NW/NH`→共用件常量、`this.font`→形参、
+  `SUB`→`SciSkin.SUB`。**六段归一后与原文 diff=0**（存储归并 24/24 句、机器归并 13/13、锚点几何 10/10、徽章 8/8、两处分流 4/4 与 6/6；
+  脚本对拍，`bx2/by2` 那两句 `p[1]`/`p[3]` 同值单核）。`takeStorageEdge` 多一句 `mi < nGid.length` 越界护栏（两代调用点都已先判 `mi < size`，
+  永不触发，写明）。
+- **主线屏**：两处分流各改一行 `if (bundler.takeXxx(...)) continue;`，两段绘制循环各换一行共用件调用（`StoragePorts` 用 lambda 装
+  `endpointIndex/snx/sny/bw/bh` 原文），`GROUP_ENC/mmAnchorGeom/drawBundleBadge` 删除（无外部调用点，m506 同法）、两张局部表随之消失；
+  第 19 闸登记五个已删符号。3021→2957 行（1.20.1 屏 709→731：装配表+两分流+两绘制+作用域 try/finally 多于删掉的 line()）。`GroupFrameRenderer.pushWorld` 放开 public（给 1.20.1 机器线层用，见下）。
+- **1.20.1 屏**：分组共享表照主线原文装配（gm/gRect/nGid/bundleOn，m507 那份"只画框"的装配退役），存储边循环与 connections 循环
+  各加同一行分流（本世代无 m164b 悬停聚焦，lit 恒真），循环后各接一行共用件绘制；`WireBundler` 进 1.20.1 白名单。
+  **顺手四件（都是这刀对拍时暴露的半搬，各是一处可单独回退）**：
+  ①**机器线层包进世界矩阵**——主线机器↔机器线在 `translate(panX,panY)+scale(zoom)` 下画、pxScale=zoom（m197 线宽封顶按世界单位算，
+  m492 那句"节点线才传 zoom"就是这个意思）；本世代 m488 起在屏幕坐标层（sx/sy）传 zoom 是**半搬**：`pd = zoom/min(zoom,cap)`，屏幕层
+  等于线宽随放大变细、脉冲间距（88 世界单位）不随缩放，与主线相反。共用件的机器归并线约法就是"世界矩阵下"，本世代若不改，归并线与
+  非归并线在 zoom≠1 时粗细两套——故用 `GroupFrameRenderer.pushWorld(groupView)` 把非归并循环 + `drawMachineBundles` 包成主线同一形状，
+  循环体改成主线原文（int 世界坐标直传）。
+  ②**三处线色改 `SciSkin.wireOut()/wireIn()`**——本世代 m458 起写死 Palette `ON/GOLD/ACCENT`（产出线绿、供料线金），主线 m198 起走
+  配置色（m207 默认薰衣草紫/柔绿）；共用件归并线用主线原文的 `wireOut()/wireIn()`，单线不改就一根线两种色。ACCENT 恰=wireOut 默认值，
+  机器线色不变；产出线由绿变紫、供料线由金变柔绿，与主线同源同默认。
+  ③**`render()` 整帧 `SciSkin.scopeCanvas(true)`**（主线 m214 主题分家 try/finally 原形）——本世代此前没开画布作用域，m483 起挂上的
+  共用件（卡面/菜单/小地图/悬停/本刀徽章底衬 `termInk()`）在 1.20.1 一直读的是**终端**配色而非画布 7 色；同一份代码在两代画出不同的色，
+  这是"共用件挂上去了但取色域没切"（m489 资源缺失同族，编译器与冒烟都管不着）。开了之后 1.20.1 整个画布屏切到画布配色（默认暗夜）。
+  ④m488 起被 `WireRenderer` 取代的 `line()`（pose 旋转 fill 直线段，12 行）死代码与其 `Axis` 死 import 拔除（m472：死 import 也是世代触点）。
+- **对照表**：第一节补 `GroupFrameRenderer.View`/`WireBundler.StoragePorts` 两口；第三节非 API 类世代差补五行（存储端卡片形状/
+  机器线层的矩阵/画布配色作用域/悬停聚焦/线色）。
+- **验证**：`tools_smoke.py` 两代全量（主线 191 / 1.20.1 87 文件）零真错 + 四改动文件逐文件单编零真错（WireBundler 两代各 8 条、
+  GroupFrameRenderer 各 11、主线屏 557、CanvasScreen120 137 全是 GuiGraphics/Font 缺 jar 噪音）；自家新/删符号
+  `WireBundler/takeStorageEdge/takeConnection/drawStorageBundles/drawMachineBundles/StoragePorts/pushWorld/screenX/screenY/
+  mmAnchorGeom/drawBundleBadge/GROUP_ENC/seBundles/mmBundles/bundler` symbol 级报错两代各 0；六段归一 diff=0；
+  `drawWire` 十一参/`drawBundleBadge` 六参/`mmAnchorGeom` 三参逐处手数（第 21 闸不数 `obj.name(`，第六类盲区自己补数）；
+  21 闸全绿（0.1.511 对表）。零配置零协议零存档改动，**纯客户端渲染**，零资源改动。**CI 未读（推不上去）**——作者推后三 job 若红，
+  先读 `ci-mojmap-errors`（本刀主线只动 xplat 三文件）/`ci-retro-errors`（1.20.1 编译）；判官零新增（client 类服务端判官不可载，m507 同）。
+- **实机验证脚本**：①主线：两台以上机器打组并各接同一存储端点/同一外部机器 → 组框缘只出一条线 + 线中点 `×N` 徽章，悬停组内节点徽章亮字、
+  悬停无关节点线与徽章压暗——**应与 m510 逐位一致**（同一份代码 diff=0；重点看归并线两端是否仍落在组框缘中高 `(y1+GBAND+y2)/2`
+  与总线卡底口，徽章是否仍在线中点）；②主线关 `canvasGroupBundleWires` → 每条线照旧各画各的；③**1.20.1（本刀可见变化）**：
+  Shift 选两台→G 建组→组外一台机器分别连组内两台 → 两条线并成一条组框缘出发的线 + `×2`；组内两台各接同一存储节点卡 → 同样归并，
+  产出线落卡底 0.25w、供料线落卡底 0.75w；④1.20.1 缩放 0.4~2.5：机器线粗细应随缩放变化到封顶后恒定（改前是放大反而变细）、脉冲间距随
+  缩放；⑤1.20.1 产出线应为薰衣草紫（与机器线同色）、供料线柔绿，改 config `canvasWireOutColor/InColor` 两代同时变；⑥1.20.1 整个画布屏
+  配色应与主线同（节点卡/菜单/小地图底色由终端配色切到画布暗夜），数据面板屏不受影响（自己 scope false）；⑦两代拖动组/单卡时归并线跟随。
+- **教训**：**"世代差为零"要连坐标系与取色域一起查**——这刀代码层面确实零差异，但对拍时冒出三处"同一份代码在两代画得不一样"
+  （矩阵/线色/作用域），它们都不在代码 diff 里，在调用它的那层：pxScale 传给谁、颜色从哪读、静态作用域谁开的。共用件搬完之后
+  要多问一句：**它读到的环境两代一样吗**（m489 问的是资源，m509 问的是贴图路径，这刀问的是矩阵与配色域）。
+- **下一刀**：作者推后先读 m511 CI 三 job（红即修）→ **A6 缩放平滑动效 m186**。新登记 **A9 悬停聚焦 m164b**（1.20.1 无，
+  本刀 lit 恒真处即接口）。
+

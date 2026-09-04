@@ -596,19 +596,16 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         // m136 存储定向连线（屏幕坐标）提前到节点卡片之前——线走卡片下层不再盖脸；
         // 总线端切线改垂直（线从下方垂直接入卡底端口，不再横着怼），机器端保持水平出入。
         // m184 机器端左右缘按几何就近选（卡口在机器哪一侧就从哪缘出入），端口语义（卡底左收料/右供料）不变。
-        java.util.LinkedHashMap<String, int[]> seBundles = new java.util.LinkedHashMap<>(); // m193 (组|端点|向)→{数,亮}
+        // m511（真移植·A4）：m193 归并（分流计数 + 归并线绘制 + 锚点几何 + ×N 徽章）下沉 xplat client/WireBundler 两代共用，
+        // 本处只留分流调用点；存储端接口位置（本世代=总线放置卡 snx/sny+bw/bh）走 StoragePorts 口。
+        WireBundler bundler = new WireBundler(bundleOn, nGid);
         if (busVisible()) for (long[] e : be.storageEdgesView()) {
             int mi = (int) e[0];
             if (mi >= nodes.size()) continue;
             int j = endpointIndex(ends, e[1]);
             if (j < 0) continue; // 端点不在列表=不画，杜绝悬空线
             boolean lit = !hovAny || mi == hovN || e[1] == hovEnd; // m164b 悬停聚焦
-            if (bundleOn && nGid[mi] >= 0) { // m193 组成员的存储线→归并，后面按组框画一条
-                int[] acc = seBundles.computeIfAbsent(nGid[mi] + "|" + e[1] + "|" + e[2], k -> new int[]{0, 0});
-                acc[0]++;
-                if (lit) acc[1] = 1;
-                continue;
-            }
+            if (bundler.takeStorageEdge(mi, e[1], e[2], lit)) continue; // m193 组成员的存储线→归并，后面按组框画一条
             int sx = snx(be, e[1], j), sy = sny(be, e[1], j);
             boolean dualPe = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 机器端锚分高
             float mysO = (float) (panY + (wny(be, nodes, mi) + (dualPe ? NH / 2.0 - 7 : NH / 2.0)) * zoom); // 产出=出口柱心
@@ -626,33 +623,13 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
             }
         }
-        for (var en : seBundles.entrySet()) { // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条
-            String[] kp = en.getKey().split("\\|");
-            int[] r = gRect.get(Integer.parseInt(kp[0]));
-            long pl = Long.parseLong(kp[1]);
+        // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条（m511 共用件；端点口=收料口 x+14 / 供料口 x+bw-14，卡底 +2，原文数值）
+        bundler.drawStorageBundles(ctx, this.font, gv, gRect, pl -> {
             int j = endpointIndex(ends, pl);
-            if (r == null || j < 0) continue;
+            if (j < 0) return null;
             int sx = snx(be, pl, j), sy = sny(be, pl, j);
-            float gys = (float) (panY + ((r[1] + GBAND + r[3]) / 2.0) * zoom);
-            float gcx = (float) (panX + ((r[0] + r[2]) / 2.0) * zoom);
-            boolean lit = en.getValue()[1] != 0;
-            float bx2, by2;
-            if (kp[2].equals("0")) { // 组→存储（产出）
-                boolean er = sx + 14 >= gcx;
-                float gxs = (float) (panX + (er ? r[2] : r[0]) * zoom);
-                bx2 = sx + 14; by2 = sy + bh() + 2;
-                drawWire(ctx, gxs, gys, er ? 1 : -1, 0, bx2, by2, 0, -1,
-                        lit ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), 1f); // m198 出线配置色
-                drawBundleBadge(ctx, (gxs + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
-            } else {                 // 存储→组（供料）
-                boolean fr = sx + bw() - 14 >= gcx;
-                float gxi = (float) (panX + (fr ? r[2] : r[0]) * zoom);
-                bx2 = sx + bw() - 14; by2 = sy + bh() + 2;
-                drawWire(ctx, bx2, by2, 0, 1, gxi, gys, fr ? -1 : 1, 0,
-                        lit ? SciSkin.wireIn() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireIn(), 0.30f), 1f); // m198 进线配置色
-                drawBundleBadge(ctx, (gxi + bx2) / 2, (gys + by2) / 2, en.getValue()[0], lit);
-            }
-        }
+            return new float[]{sx + 14, sy + bh() + 2, sx + bw() - 14, sy + bh() + 2};
+        });
 
         PoseStack m = ctx.pose();
         m.pushPose();
@@ -660,19 +637,11 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         m.scale((float) zoom, (float) zoom, 1);
 
         // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）
-        // m193 归并：端点属组→锚到组框缘，同锚对折并成一条+×N徽章；同组内部线照旧各画各的
-        java.util.LinkedHashMap<Long, int[]> mmBundles = new java.util.LinkedHashMap<>(); // 锚对→{数,亮}
+        // m193 归并：端点属组→锚到组框缘，同锚对折并成一条+×N徽章；同组内部线照旧各画各的（m511 分流计数走共用件）
         for (int[] c : be.connections()) {
             if (c[0] < nodes.size() && c[1] < nodes.size()) {
-                int ga = bundleOn ? nGid[c[0]] : -1, gb = bundleOn ? nGid[c[1]] : -1;
                 boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
-                if ((ga >= 0 || gb >= 0) && ga != gb) { // 跨组界→归并（组内部线不归并）
-                    int se = ga >= 0 ? (GROUP_ENC | ga) : c[0], de = gb >= 0 ? (GROUP_ENC | gb) : c[1];
-                    int[] acc = mmBundles.computeIfAbsent(((long) se << 32) | (de & 0xFFFFFFFFL), k -> new int[]{0, 0});
-                    acc[0]++;
-                    if (lit2) acc[1] = 1;
-                    continue;
-                }
+                if (bundler.takeConnection(c[0], c[1], lit2)) continue; // 跨组界→归并（组内部线不归并）
                 int dyO = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 - 7 : NH / 2; // m352 出口柱心
                 int dyI = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 + 7 : NH / 2; // m352 进口柱心
                 int ax0 = wnx(be, nodes, c[0]), ay = wny(be, nodes, c[0]) + dyO;
@@ -683,19 +652,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
                         lit2 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), (float) zoom); // m198
             }
         }
-        for (var en : mmBundles.entrySet()) { // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条
-            long k3 = en.getKey();
-            double[] A = mmAnchorGeom(be, nodes, gRect, (int) (k3 >>> 32));
-            double[] B = mmAnchorGeom(be, nodes, gRect, (int) k3);
-            if (A == null || B == null) continue;
-            boolean fwd = B[0] >= A[0];
-            float ax = (float) (fwd ? A[3] : A[2]), bx = (float) (fwd ? B[2] : B[3]);
-            int dir = fwd ? 1 : -1;
-            boolean lit3 = en.getValue()[1] != 0;
-            drawWire(ctx, ax, (float) A[1], dir, 0, bx, (float) B[1], dir, 0,
-                    lit3 ? SciSkin.wireOut() : SciSkin.mix(SciSkin.termInk(), SciSkin.wireOut(), 0.30f), (float) zoom); // m198
-            drawBundleBadge(ctx, (ax + bx) / 2, (float) ((A[1] + B[1]) / 2), en.getValue()[0], lit3);
-        }
+        // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条（m511 共用件；此处仍在上方 push 的世界矩阵下，共用件不再 push）
+        bundler.drawMachineBundles(ctx, this.font, gv, gRect);
         if (linking && linkInto >= 0 && linkInto < nodes.size()) { // m342 进口起手预览：进线色，锚随口位
             boolean dualPv = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 双侧=随鼠标选缘（与出口预览同 m184 口径）
             boolean swPv = !dualPv && com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
@@ -1666,30 +1624,8 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     // ===== m193 连线归并 =====
-    private static final int GROUP_ENC = 0x40000000; // 归并锚编码高位：置位=组(低位gid)，否则=节点下标
-
-    /** 归并锚点几何（世界坐标）：组=组框，节点=卡。返回 {中心x, 出线y, 左缘x, 右缘x}；查不到=null 跳过。 */
-    private double[] mmAnchorGeom(StructureCoreBlockEntity be, List<ItemStack> nodes,
-                                  java.util.Map<Integer, int[]> gRect, int enc) {
-        if ((enc & GROUP_ENC) != 0) {
-            int[] r = gRect.get(enc & ~GROUP_ENC);
-            if (r == null) return null;
-            return new double[]{(r[0] + r[2]) / 2.0, (r[1] + GBAND + r[3]) / 2.0, r[0], r[2]};
-        }
-        if (enc < 0 || enc >= nodes.size()) return null;
-        int nx = wnx(be, nodes, enc), ny = wny(be, nodes, enc);
-        return new double[]{nx + NW / 2.0, ny + NH / 2.0, nx, nx + NW};
-    }
-
-    /** 归并线 ×N 徽章：线中点小字（N<2 不画；底衬走 BACKDROP 半透，零新色字面量）。 */
-    private void drawBundleBadge(GuiGraphics ctx, float midX, float midY, int n, boolean lit) {
-        if (n < 2) return;
-        String bt = "×" + n;
-        int tw = this.font.width(bt);
-        int bx = (int) midX - tw / 2, by = (int) midY - 5;
-        ctx.fill(bx - 2, by - 2, bx + tw + 2, by + 9, SciSkin.withAlpha(SciSkin.termInk(), 0.78f));
-        ctx.drawString(this.font, bt, bx, by, lit ? SciSkin.TXT_HI : SUB, false);
-    }
+    // m511（真移植·A4）：GROUP_ENC / mmAnchorGeom / drawBundleBadge 整段下沉 xplat client/WireBundler 两代共用（原文逐句），
+    // 本屏调用点只剩 renderBg 里的两处分流 + 两处归并线绘制。
 
     /** m235 配方摘要：按配方格序取前两种材料"N×名+N×名+…"。 */
     private static String planLabel(com.sdzjz.machine.CraftPlanner.Plan pl) {

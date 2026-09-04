@@ -1,7 +1,6 @@
 package com.sdzjz.retro;
 
 import com.sdzjz.node.CanvasGraphState;
-import com.mojang.math.Axis;
 import com.sdzjz.client.SciSkinPalette;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -441,25 +440,32 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public void render(GuiGraphics ctx, int mouseX, int mouseY, float delta) {
-        renderBackground(ctx); // 1.20.1 单参
-        super.render(ctx, mouseX, mouseY, delta);
-        Long stHover = cmenu.isEmpty() ? storageAt(mouseX, mouseY) : null; // m458 存储节点悬停：名称+方位（m509 菜单开着不画，主线 menuLabels.isEmpty() 口）
-        if (stHover != null) {
-            var bp = net.minecraft.core.BlockPos.of(stHover);
-            ctx.renderTooltip(font, List.of(Component.translatable("block.sdzjz.storage_core"),
-                    Component.literal(bp.getX() + ", " + bp.getY() + ", " + bp.getZ())), Optional.empty(), mouseX, mouseY);
+        // m511 顺手修：主线 m214 主题分家——本帧 term*() 全族改读画布 7 色（默认暗夜），finally 必关防漏染别屏。
+        // 本世代此前整帧没开画布作用域，m483 起挂上的共用件（卡面/菜单/徽章底衬…）在 1.20.1 一直读的是终端配色。
+        com.sdzjz.client.SciSkin.scopeCanvas(true);
+        try {
+            renderBackground(ctx); // 1.20.1 单参
+            super.render(ctx, mouseX, mouseY, delta);
+            Long stHover = cmenu.isEmpty() ? storageAt(mouseX, mouseY) : null; // m458 存储节点悬停：名称+方位（m509 菜单开着不画，主线 menuLabels.isEmpty() 口）
+            if (stHover != null) {
+                var bp = net.minecraft.core.BlockPos.of(stHover);
+                ctx.renderTooltip(font, List.of(Component.translatable("block.sdzjz.storage_core"),
+                        Component.literal(bp.getX() + ", " + bp.getY() + ", " + bp.getZ())), Optional.empty(), mouseX, mouseY);
+            }
+            Integer hover = cmenu.isEmpty() ? nodeAt(mouseX, mouseY) : null; // m493 悬停详情走共用件（与主线同一份：状态/周期/基础产量/产出表）；m509 菜单开着不画
+            if (hover != null) {
+                ItemStack st = g.machineNodes.get(hover);
+                java.util.List<Component> tip = new java.util.ArrayList<>(
+                        com.sdzjz.client.NodeTooltip.lines(st, cardHost.nodeStatus(hover), cardHost.running()));
+                String why = hover < g.nodeReason.size() ? g.nodeReason.get(hover) : "";
+                if (!why.isEmpty()) tip.add(Component.literal(why)); // 本世代特有：阻塞原因整句（m464 灯表词条）
+                ctx.renderTooltip(font, tip, Optional.empty(), mouseX, mouseY);
+            }
+            if (cmenu.isOpen()) renderMenu(ctx, mouseX, mouseY);
+            if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
+        } finally {
+            com.sdzjz.client.SciSkin.scopeCanvas(false);
         }
-        Integer hover = cmenu.isEmpty() ? nodeAt(mouseX, mouseY) : null; // m493 悬停详情走共用件（与主线同一份：状态/周期/基础产量/产出表）；m509 菜单开着不画
-        if (hover != null) {
-            ItemStack st = g.machineNodes.get(hover);
-            java.util.List<Component> tip = new java.util.ArrayList<>(
-                    com.sdzjz.client.NodeTooltip.lines(st, cardHost.nodeStatus(hover), cardHost.running()));
-            String why = hover < g.nodeReason.size() ? g.nodeReason.get(hover) : "";
-            if (!why.isEmpty()) tip.add(Component.literal(why)); // 本世代特有：阻塞原因整句（m464 灯表词条）
-            ctx.renderTooltip(font, tip, Optional.empty(), mouseX, mouseY);
-        }
-        if (cmenu.isOpen()) renderMenu(ctx, mouseX, mouseY);
-        if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
     }
 
     @Override
@@ -492,19 +498,30 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         int offY = (int) (Math.floorMod(Math.round(-viewY * zoom), step));
         for (int x = offX; x < width; x += step) ctx.fill(x, 0, x + 1, height, SciSkinPalette.CELL);
         for (int y = offY; y < height; y += step) ctx.fill(0, y, width, y + 1, SciSkinPalette.CELL);
-        if (com.sdzjz.config.SdzjzConfig.get().canvasGroupsEnabled) { // m507 m192 组框（最底层：存储线/机器线/卡片全画其上）——与主线同一份代码
-            var gm = com.sdzjz.client.GroupFrameRenderer.groupMembers(groupView);
-            if (!gm.isEmpty()) {
-                java.util.HashMap<Integer, int[]> gRect = new java.util.HashMap<>();
-                for (var ge : gm.entrySet()) gRect.put(ge.getKey(), com.sdzjz.client.GroupFrameRenderer.groupRect(groupView, ge.getValue()));
-                com.sdzjz.client.GroupFrameRenderer.drawFrames(ctx, this.font, groupView, gm, gRect);
-            }
+        // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）——m511（A4）照主线原文装配，
+        // m507 那份"只画框"的装配退役：nGid 还要喂 m193 归并。
+        java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
+                groupsOn() ? com.sdzjz.client.GroupFrameRenderer.groupMembers(groupView) : new java.util.LinkedHashMap<>();
+        java.util.HashMap<Integer, int[]> gRect = new java.util.HashMap<>();
+        int[] nGid = new int[g.machineNodes.size()];
+        java.util.Arrays.fill(nGid, -1);
+        for (var ge : gm.entrySet()) {
+            gRect.put(ge.getKey(), com.sdzjz.client.GroupFrameRenderer.groupRect(groupView, ge.getValue()));
+            for (int gi2 : ge.getValue()) if (gi2 < nGid.length) nGid[gi2] = ge.getKey();
         }
-        for (int i = 0; i < g.storageEdges.size(); i++) { // m458 机器↔存储边（产出 ON / 供料 GOLD）
+        boolean bundleOn = !gm.isEmpty() && com.sdzjz.config.SdzjzConfig.get().canvasGroupBundleWires; // m193 归并开关
+        // m507 m192 组框（最底层：存储线/机器线/卡片全画其上）——与主线同一份代码（gm 空时共用件内直接返回）
+        com.sdzjz.client.GroupFrameRenderer.drawFrames(ctx, this.font, groupView, gm, gRect);
+        // m511（真移植·A4）：m193 连线归并两代共用（xplat client/WireBundler），本处只留两处分流调用点；
+        // 存储端接口位置（本世代=画布上 24×24×zoom 的存储节点卡：收料口 x+0.25w / 供料口 x+0.75w，卡底 +2）走 StoragePorts 口。
+        // 本世代无 m164b 悬停聚焦，lit 恒真。
+        com.sdzjz.client.WireBundler bundler = new com.sdzjz.client.WireBundler(bundleOn, nGid);
+        for (int i = 0; i < g.storageEdges.size(); i++) { // m458 机器↔存储边（产出 / 供料，色走 m198 配置 wireOut/wireIn，m511 起与主线同源）
             long[] e = g.storageEdges.get(i);
             int m = (int) e[0];
             int[] sp = g.storageNodePos.get(e[1]);
             if (m >= g.machineNodes.size() || sp == null) continue;
+            if (bundler.takeStorageEdge(m, e[1], e[2], true)) continue; // m193 组成员的存储线→归并，后面按组框画一条
             // m492：锚点算法照主线原文（m184 选缘看几何 + m352 柱心分高 + 存储卡接口在**卡底**）：
             //  产出=机器近侧缘水平出线 → 垂直向上接卡底左收料口；供料=卡底右供料口垂直下发 → 水平接机器近侧缘。
             //  m488 我自己推的「机器右缘 → 存储卡中心」是错的：忽略了选缘、也把存储卡接口当成了中心。
@@ -519,28 +536,44 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 boolean er = stx + stW * 0.25f >= mcxS; // 收料口在机器右侧→右缘出线
                 float mxs = (float) sx(mnx + (er ? NW : 0));
                 com.sdzjz.client.WireRenderer.drawWire(ctx, mxs, mysO, er ? 1 : -1, 0,
-                        stx + stW * 0.25f, sty + stH + 2, 0, -1, SciSkinPalette.ON, 1f); // 主线此处传 1f（屏幕坐标层）
+                        stx + stW * 0.25f, sty + stH + 2, 0, -1, com.sdzjz.client.SciSkin.wireOut(), 1f); // 主线此处传 1f（屏幕坐标层）；m198 出线配置色
             } else {         // 存储→机器（供料）
                 boolean fr = stx + stW * 0.75f >= mcxS; // 供料口在机器右侧→从右缘进
                 float mxi = (float) sx(mnx + (fr ? NW : 0));
                 com.sdzjz.client.WireRenderer.drawWire(ctx, stx + stW * 0.75f, sty + stH + 2, 0, 1,
-                        mxi, mysI, fr ? -1 : 1, 0, SciSkinPalette.GOLD, 1f); // 同上
+                        mxi, mysI, fr ? -1 : 1, 0, com.sdzjz.client.SciSkin.wireIn(), 1f); // 同上；m198 进线配置色
             }
         }
-        for (int[] c : g.connections) { // 连线（节点中心→节点中心，真对角）
+        // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条（m511 共用件；屏幕坐标层，与上面单线同层）
+        bundler.drawStorageBundles(ctx, this.font, groupView, gRect, pl -> {
+            int[] sp = g.storageNodePos.get(pl);
+            if (sp == null) return null;
+            float stx = (float) sx(stX(pl, sp)), sty = (float) sy(stY(pl, sp));
+            float stW = (float) (24 * zoom), stH = (float) (24 * zoom); // 存储卡 24×24
+            return new float[]{stx + stW * 0.25f, sty + stH + 2, stx + stW * 0.75f, sty + stH + 2};
+        });
+        // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）——m511 照主线机器层包进世界矩阵：
+        // m488/m492 这段在屏幕坐标层（sx/sy）传 zoom 是半搬——WireRenderer 的 m197 线宽封顶与脉冲间距按 pxScale 除，
+        // 屏幕层传 zoom 等于线宽随放大变细、脉冲间距不随缩放，与主线相反；世界矩阵下传 zoom 才是主线那句注释的本义。
+        com.sdzjz.client.GroupFrameRenderer.pushWorld(ctx, groupView);
+        // m193 归并：端点属组→锚到组框缘，同锚对折并成一条+×N徽章；同组内部线照旧各画各的（m511 分流计数走共用件）
+        for (int[] c : g.connections) { // 连线（出口柱→进口柱）
             if (c[0] >= g.machineNodes.size() || c[1] >= g.machineNodes.size()) continue; // 快照途中拓扑变化防御
+            if (bundler.takeConnection(c[0], c[1], true)) continue; // 跨组界→归并（组内部线不归并）
             // m492：照主线原文（m352 柱心分高 + m184 选缘看几何：下游在右=右缘出左缘进，
             //  在左=左缘出右缘进，不再绕背后大圈）。
             boolean dual = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts;
             int dyO = dual ? NH / 2 - 7 : NH / 2, dyI = dual ? NH / 2 + 7 : NH / 2;
-            double ax0 = wnx(c[0]), ay0 = wny(c[0]) + dyO; // m508：机器线随拖动幽灵/组拖动走（原读快照坐标，拖时线不跟卡）
-            double bx0 = wnx(c[1]), by0 = wny(c[1]) + dyI;
-            boolean fwd = bx0 >= ax0;
-            float ax = (float) sx(ax0 + (fwd ? NW : 0)), bx = (float) sx(bx0 + (fwd ? 0 : NW));
-            int dir = fwd ? 1 : -1;
-            com.sdzjz.client.WireRenderer.drawWire(ctx, ax, (float) sy(ay0), dir, 0,
-                    bx, (float) sy(by0), dir, 0, SciSkinPalette.ACCENT, (float) zoom);
+            int ax0 = wnx(c[0]), ay = wny(c[0]) + dyO; // m508：机器线随拖动幽灵/组拖动走（原读快照坐标，拖时线不跟卡）
+            int bx0 = wnx(c[1]), by = wny(c[1]) + dyI;
+            boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
+            int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
+            com.sdzjz.client.WireRenderer.drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
+                    com.sdzjz.client.SciSkin.wireOut(), (float) zoom); // m198 出线配置色（主线机器线同色）
         }
+        // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条（m511 共用件；仍在上面 push 的世界矩阵下）
+        bundler.drawMachineBundles(ctx, this.font, groupView, gRect);
+        ctx.pose().popPose(); // 世界矩阵结束（卡片层照旧走 sx/sy 屏幕坐标）
         for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡：24×24 框+图标+状态灯环
             int x = (int) sx(wnx(i)), y = (int) sy(wny(i)); // 拖动幽灵位（m508 组成员快照+增量同走 wnx/wny）
             if (x < -32 || y < -32 || x > width + 8 || y > height + 8) continue; // 视口裁剪
@@ -694,16 +727,5 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         return null;
     }
 
-    /** 真对角线：pose 平移+Z 轴旋转后 fill 一条 len×2 横带（Axis 1.20.1 在位，蓝本 addVertex
-     *  助手是 1.21 API 不可用——m452b 普查结论的落地对位）。 */
-    private static void line(GuiGraphics ctx, double x1, double y1, double x2, double y2, int color) {
-        double dx = x2 - x1, dy = y2 - y1;
-        float len = (float) Math.sqrt(dx * dx + dy * dy);
-        if (len < 1) return;
-        ctx.pose().pushPose();
-        ctx.pose().translate((float) x1, (float) y1, 0);
-        ctx.pose().mulPose(Axis.ZP.rotation((float) Math.atan2(dy, dx)));
-        ctx.fill(0, -1, Math.round(len), 1, color);
-        ctx.pose().popPose();
-    }
+    // m511 顺手：m488 起被 WireRenderer 取代的 line()（pose 旋转 fill 直线段）死代码与其 Axis 死 import 一并拔除（m472：死 import 也是世代触点）。
 }

@@ -37,6 +37,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/client/NodeTooltip.java'     // m493（真移植·画布视觉第六件）节点悬停详情两代共用：主线 m85 段整段搬（状态/周期/基础产量/产出表/消耗提示），两处世代差走 defOf 与 Gfx.id
         include 'com/sdzjz/client/GroupFrameRenderer.java' // m507（真移植·A5b）画布分组组框两代共用：主线 m192 组框段+groupMembers/groupRect 整段搬，世代差为零（fill/hGrad/drawString+算术），拖动覆盖/pan 记法/卡高归一在 View 口
         include 'com/sdzjz/client/CanvasMenu.java'         // m509（真移植·A5c 补刀）画布右键菜单机制两代共用：主线 m148 3A 菜单（状态/开合/装配/渲染/点选）整段搬，唯一世代差=贴图 id 构造走 SciSkin.gfxTex；m508 那份 1.20.1 最小菜单件已退役
+        include 'com/sdzjz/client/WireBundler.java'        // m511（真移植·A4）画布连线归并 m193 两代共用：主线 seBundles/mmBundles 两段+GROUP_ENC/mmAnchorGeom/drawBundleBadge 整段搬，世代差为零（LinkedHashMap 计数+算术+fill/drawString），唯一参数化=存储端卡接口位置走 StoragePorts 口（总线放置卡 vs 24×24 存储节点卡）
         include 'com/sdzjz/machine/DropRolls.java'     // m464（C2-⑤a）掉落表掷点（依赖仅 RandomSource+MachineDef，闭包干净）
         include 'com/sdzjz/machine/StorageAccess.java' // m464（C2-⑤a）存储访问契约（依赖仅 ItemStack+Map；StorageCore120 补 implements 与主线辅件同型）
         include 'com/sdzjz/node/NodeTags.java'         // m472（绞杀者第五刀）节点栈标签纯函数上挂——NBT 走 ItemData 五口（m437/m451）、身份走 Ident 世代口（RetroNodeIdent），剩余 MC 触点=ItemStack/CompoundTag/Tag/ListTag 四个两代同名类型

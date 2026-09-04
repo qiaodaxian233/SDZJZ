@@ -23,6 +23,8 @@
 | `ProductRouter.Tail` | 产物分发的**兜底**（主线输出缓存+断网喷射 vs 本世代落仓回吐） | m495 |
 | `NodeCardRenderer.Host` | 节点卡要的状态灯/阻塞原因/出线数/运行态 | m484 |
 | `StorageLedgerProbe` | 账本十三口（测试用宽面） | m480 |
+| `GroupFrameRenderer.View` | 画布屏状态归一：pan/zoom 记法、节点坐标（含拖动覆盖）、卡高、组元数据；`pushWorld` 世界矩阵（m511 放开给机器线层） | m507/m511 |
+| `WireBundler.StoragePorts` | m193 归并的存储端接口位置（主线总线放置卡 x+14 / x+bw-14 vs 1.20.1 24×24×zoom 存储节点卡 0.25w/0.75w，卡底+2） | m511 |
 
 ## 二、API 逐项对照（**1.21 专属 → 1.20.1 对位**）
 
@@ -82,6 +84,11 @@
 | **Java 版本** | 1.20.1 用 JDK 17，共用层不许出现 Java 21 独有语法 | `tools_common_gate` |
 | **输出缓存 / 断网喷射** | 主线有，本世代无（改回灌持料）。**m495 起已收进 `ProductRouter.Tail` 口**——真去对了才发现两代只差最后三行，循环体逐字相同 | m473/m475→m495 |
 | **默认主存储** | 主线 `resolveInputSource` 有，本世代无（未连线按 0 计） | m486 |
+| **存储端卡片形状** | 主线是总线带上的放置卡（屏幕坐标 `snx/sny`，`bw()/bh()` 随 busScale），本世代是画布上的 24×24 存储节点卡（世界坐标乘 zoom）——接口位置不同，画线共用件只吃四个屏幕坐标（`WireBundler.StoragePorts`） | m511 |
+| **机器线层的矩阵** | 主线机器↔机器线在 `translate(panX,panY)+scale(zoom)` 世界矩阵下画、pxScale=zoom（m197 线宽封顶按世界单位）；本世代 m488~m510 在屏幕坐标层（sx/sy）传 zoom 是半搬——线宽随放大变细、脉冲间距不随缩放。m511 起本世代机器线层用 `GroupFrameRenderer.pushWorld` 包成同一形状 | m511 |
+| **画布配色作用域** | 主线 `render()` 整帧 `SciSkin.scopeCanvas(true)`（m214 主题分家，term*() 读画布 7 色）；本世代 m483~m510 没开，共用件在 1.20.1 一直读终端配色。m511 起同开 | m511 |
+| **悬停聚焦** | 主线 m164b：悬停某节点时无关线压暗（`lit` 假→`mix(termInk, wire, 0.30)`）；本世代无悬停聚焦，lit 恒真 | m511 记 |
+| **线色** | 主线走 m198 配置 `wireOut()/wireIn()`（默认薰衣草紫/柔绿 m207）；本世代 m458~m510 写死 Palette ON/GOLD/ACCENT（产出线绿、供料线金）。m511 起同走配置 | m511 |
 
 ## 四、用法
 

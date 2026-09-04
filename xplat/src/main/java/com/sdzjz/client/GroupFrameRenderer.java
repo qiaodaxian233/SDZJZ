@@ -96,8 +96,11 @@ public final class GroupFrameRenderer {
         ctx.pose().popPose();
     }
 
-    /** 世界坐标一次变换（= 主线机器层 translate(panX, panY, 0) + scale(zoom)）。 */
-    private static void pushWorld(GuiGraphics ctx, View v) {
+    /** 世界坐标一次变换（= 主线机器层 translate(panX, panY, 0) + scale(zoom)）。
+     *  m511 放开 public：1.20.1 机器线层（非归并线 + {@link WireBundler#drawMachineBundles}）也包进同一形状的世界矩阵——
+     *  主线机器线本就在世界矩阵下传 pxScale=zoom（m197 线宽封顶按世界单位算），1.20.1 m488 起在屏幕坐标层传 zoom 是半搬；
+     *  调用方用完自己 {@code ctx.pose().popPose()}。 */
+    public static void pushWorld(GuiGraphics ctx, View v) {
         double zoom = v.zoom();
         PoseStack mg = ctx.pose();
         mg.pushPose();
