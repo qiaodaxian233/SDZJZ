@@ -1332,4 +1332,44 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m523（SB2b）：超大工作台物品宿主口装配判官——handler 挂 1.20.1 白名单后压缩包/抓物笼改走 Host 口，主线 Sdzjz.onInitialize
+     *  装 LegacySuperBenchHost；**漏装=十口全走默认关**：认包恒否、压缩钮只报"此版本没有压缩材料包"，静默得像功能没了（m99 律：
+     *  静默无效比报错更伤）。这条把静默变红：网格 64 圆石→压缩钮→应出 1 只装圆石的一级包且散件清零→拆开钮→64 圆石回网格且包清零（守恒连背包一起数）。
+     *  菜单类型安装口由构造器 reqType() 顺带判（ModScreenHandlers 静态段漏装=构造当场抛）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void super_bench_host_pack_roundtrip(GameTestHelper ctx) {
+        var p = ctx.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var h = new com.sdzjz.screen.SuperBenchScreenHandler(1, p.getInventory()); // 两参构造=ContainerLevelAccess.NULL，关屏不散落
+        final int G = com.sdzjz.screen.SuperBenchScreenHandler.GRID_SLOTS;
+        h.getSlot(0).set(new ItemStack(Items.COBBLESTONE, 64));
+        ctx.assertTrue(h.clickMenuButton(p, com.sdzjz.screen.SuperBenchScreenHandler.BTN_COMPRESS), "压缩钮该被 handler 认领");
+        int packs = 0, plain = 0;
+        for (int i = 0; i < G; i++) {
+            ItemStack s = h.getSlot(i).getItem();
+            if (s.isEmpty()) continue;
+            if (s.getItem() == com.sdzjz.registry.ModItems.COMPRESSED_PACK) {
+                String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+                ctx.assertTrue("minecraft:cobblestone".equals(in), "一级包内容物该是圆石，实得 " + in);
+                packs += s.getCount();
+            } else if (s.is(Items.COBBLESTONE)) plain += s.getCount();
+            else ctx.fail("压缩后网格出现意外物品 " + s);
+        }
+        ctx.assertTrue(packs == 1 && plain == 0,
+                "64 圆石压缩后网格该是 1 只一级包 + 0 散件（宿主口漏装时钮只报不可用、散件原样 64），实得 包=" + packs + " 散=" + plain);
+        ctx.assertTrue(h.clickMenuButton(p, com.sdzjz.screen.SuperBenchScreenHandler.BTN_UNPACK), "拆开钮该被 handler 认领");
+        packs = 0; plain = 0;
+        for (int i = 0; i < G; i++) {
+            ItemStack s = h.getSlot(i).getItem();
+            if (s.getItem() == com.sdzjz.registry.ModItems.COMPRESSED_PACK) packs += s.getCount();
+            else if (s.is(Items.COBBLESTONE)) plain += s.getCount();
+        }
+        int inv = 0; // m246 拆包产物先落网格、溢出进背包——这里 143 空格容得下不该溢，守恒断言仍连背包一起数
+        for (int i = 0; i < p.getInventory().getContainerSize(); i++) {
+            ItemStack s = p.getInventory().getItem(i);
+            if (s.is(Items.COBBLESTONE)) inv += s.getCount();
+        }
+        ctx.assertTrue(packs == 0 && plain + inv == 64, "拆开后包清零、圆石守恒 64，实得 包=" + packs + " 网格散=" + plain + " 背包=" + inv);
+        ctx.succeed();
+    }
+
 }

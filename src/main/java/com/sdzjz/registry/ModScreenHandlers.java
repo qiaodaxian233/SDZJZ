@@ -30,6 +30,7 @@ public class ModScreenHandlers {
     public static final MenuType<SuperBenchScreenHandler> SUPER_BENCH =
             Registry.register(BuiltInRegistries.MENU, Sdzjz.id("super_bench"),
                     new MenuType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET));
+    static { SuperBenchScreenHandler.installType(SUPER_BENCH); } // m523（SB2b）菜单类型安装口：handler 挂 1.20.1 白名单后不能再引本类（1.20.1 只编白名单子集，registry 包不可见——m522b 血案），注册完当场装
 
     public static final MenuType<TradeCenterScreenHandler> TRADE_CENTER =
             Registry.register(BuiltInRegistries.MENU, Sdzjz.id("trade_center"),

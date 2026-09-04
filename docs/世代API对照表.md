@@ -27,6 +27,7 @@
 | `WireBundler.StoragePorts` | m193 归并的存储端接口位置（主线总线放置卡 x+14 / x+bw-14 vs 1.20.1 24×24×zoom 存储节点卡 0.25w/0.75w，卡底+2） | m511 |
 | `ZoomAnim.Host` | 画布视图状态（pan 记法读三口 + `view(panX,panY,zoom)` 一次落写）：主线 panX/panY/zoom 直存直取，1.20.1 由 viewX/viewY+float zoom 换算 | m512 |
 | `CanvasSettingsPanel`（无 Host，三参 init） | 画布设置面板整件：宿主只给字体/屏幕尺寸（init）与开窗前清场；`EditBox` 两代同签名 | m515 |
+| `SuperBenchScreenHandler.installType` / `.Host` | 超大工作台菜单 handler 的两件出户：菜单类型（注册住各世代注册表类，注册完 `installType`）；压缩材料包/抓物笼两族主线专属物品的十口 default 宿主（`packsAvailable/isPack/tier1/tier2/packInnerId/packRawCount/packRatio/packOf/cagedType`，默认=本世代没有这件东西；主线 `LegacySuperBenchHost` 原句照搬，1.20.1 空宿主）。**默认关的口配「装了没」判官**（`super_bench_host_pack_roundtrip`） | m523 |
 
 ## 二、API 逐项对照（**1.21 专属 → 1.20.1 对位**）
 
@@ -39,6 +40,9 @@
 | `ItemStack.parse(lookup, tag)` | `ItemStack.of(tag)` | 走 `StackCodec.load` | m477 |
 | `stack.save(lookup)` | `stack.save(new CompoundTag())` | 走 `StackCodec.save` | m477 |
 | `stack.copyWithCount(n)` | 同名同签名 | 直接用 | m475 核过 |
+| `CraftingContainer.asCraftInput()` 覆写（返回 `CraftingInput`） | 1.20.1 **无 `CraftingInput` 类、接口无此方法** | **不覆写**——1.21.1 源码核过：接口 default `asCraftInput()=asPositionedCraftInput().input()`，`asPositionedCraftInput()=CraftingInput.ofPositioned(w,h,items)`，`CraftingInput.of(w,h,items)=ofPositioned(...).input()`，删覆写逐位同义 | m522b 血案→m523 核 |
+| `Slot.setByPlayer(ItemStack)` 单参 / `Slot.tryRemove(min,max,player)` / `AbstractContainerMenu.clickMenuButton/canTakeItemForPickAll/clearContainer` / `MenuType(MenuSupplier,FeatureFlagSet)` | 同名同签名（yarn 1.20.1 `Slot.setStack` method_48931 / `tryTakeStackRange` / `onButtonClick` / `canInsertIntoSlot(ItemStack,Slot)` / `dropInventory`；1.21 另有双参 `setByPlayer(ItemStack,ItemStack)` 1.20.1 无，别用） | 直接用（菜单 handler 可整文件共用） | m523 核过 |
+| 白名单 xplat 文件引 `com.sdzjz.registry.*`（注册表类）/ 非白名单 xplat 物品类 | 1.20.1 只编白名单子集，**包不可见** | 注册表类→静态安装口（`installType` / `ItemData.install` 样板）；功能区物品→带默认值的宿主口（`Host` / `ExtractPort.Host` 样板）；第 20 闸自家类可见性判据（m522b）+ `--candidate` 先闸后挂（m523） | m522b 血案→m523 |
 
 ### 资源与注册表
 | 1.21 | 1.20.1 | 处理 | 出处 |

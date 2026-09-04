@@ -1,7 +1,6 @@
 package com.sdzjz.screen;
 
 import com.sdzjz.machine.SuperBenchRecipes;
-import com.sdzjz.registry.ModScreenHandlers;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ResultContainer;
@@ -12,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.resources.ResourceLocation;
 
@@ -25,6 +25,64 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     public static final int GRID_SLOTS = GRID * GRID; // 144
     public static final int RESULT_INDEX = GRID_SLOTS;
 
+    // ===== m523（SB2b）世代口两件：菜单类型安装口 + 物品宿主口 =====
+    // m522b 血案：本类挂 1.20.1 白名单后作者 1.20.1 构建当场红——`super(ModScreenHandlers.SUPER_BENCH, id)` 引 src 的注册表类
+    // （"程序包 com.sdzjz.registry 不存在"），`ModItems.COMPRESSED_PACK/SUPER_COMPRESSED_PACK`×6 与 `CompressedPackItem`/`CaptureCageItem`
+    // 引非白名单 xplat 物品类。根构建 src+xplat 一起编从来不报，1.20.1 只编白名单子集才炸（第 20 闸 m522b 起查自家类可见性）。
+    // 收法：注册表类→静态安装口（ItemData.install 样板：重复装抛、未装用抛）；功能区物品→带默认值的宿主口（ExtractPort.Host 样板：
+    // 默认值=本世代没有这件东西）。主线 Sdzjz.onInitialize 装 LegacySuperBenchHost（原表达式原句照搬），1.20.1 RetroBootstrap 装空宿主=全关。
+
+    /** 菜单类型：注册住在各世代注册表类（主线 ModScreenHandlers 静态段 / 1.20.1 RetroBootstrap 随 SB3），注册完即装；本类不引注册表类。 */
+    private static MenuType<SuperBenchScreenHandler> type;
+
+    public static void installType(MenuType<SuperBenchScreenHandler> t) {
+        if (type != null) throw new IllegalStateException("SuperBenchScreenHandler 菜单类型重复安装");
+        type = t;
+    }
+
+    private static MenuType<SuperBenchScreenHandler> reqType() {
+        if (type == null) throw new IllegalStateException("SuperBenchScreenHandler 菜单类型未安装：注册 MenuType 后须调 installType(...)（主线=ModScreenHandlers 静态段）");
+        return type;
+    }
+
+    /** 物品宿主口：压缩材料包（m241 两件通用包 + of/innerId/rawCount/ratio）与抓物笼（cagedType）——两族都是主线专属物品类。
+     *  默认值=本世代没有这件东西：认包一律"不是包"（rawCount 0 / innerId null / tier 为 null——`s.getItem()` 永不为 null，`== null` 自然假，
+     *  pullPacked 前两轮扫空只搬散件）；压缩区两钮报"此版本没有压缩材料包"零动作（不许静默吞件）；刷怪类配方 mobOk 恒假（没有笼子合不出刷怪机）。 */
+    public interface Host {
+        /** 本世代有没有压缩材料包（压缩区两钮的总闸）。 */
+        default boolean packsAvailable() { return false; }
+        /** 是不是包物品（含裸包）——原句 `s.getItem() instanceof CompressedPackItem`。 */
+        default boolean isPack(ItemStack s) { return false; }
+        /** 一级包（64:1）物品；无=null。 */
+        default Item tier1() { return null; }
+        /** 二级包（4096:1）物品；无=null。 */
+        default Item tier2() { return null; }
+        /** 包的内容物物品 id（非包/裸包=null）——原 CompressedPackItem.innerId。 */
+        default String packInnerId(ItemStack s) { return null; }
+        /** 该栈折算成原版计数的量（非包/裸包=0）——原 CompressedPackItem.rawCount。 */
+        default long packRawCount(ItemStack s) { return 0L; }
+        /** 包物品的倍率（调用方已判 isPack）——原 `((CompressedPackItem) s.getItem()).ratio`。 */
+        default int packRatio(ItemStack s) { return 0; }
+        /** 造一个装着 innerId 的包（调用方已判 packsAvailable）——原 CompressedPackItem.of。 */
+        default ItemStack packOf(Item packItem, String innerId, int count) {
+            throw new UnsupportedOperationException("本世代没有压缩材料包，packOf 不该被调到（调用方先问 packsAvailable）");
+        }
+        /** 抓物笼里装的生物类型 id（不是笼子/空笼=null）——原句 `s.getItem() instanceof CaptureCageItem && mob.equals(CaptureCageItem.cagedType(s))` 的后半。 */
+        default String cagedType(ItemStack s) { return null; }
+    }
+
+    private static Host hostImpl;
+
+    public static void installHost(Host h) {
+        if (hostImpl != null) throw new IllegalStateException("SuperBenchScreenHandler 物品宿主口重复安装");
+        hostImpl = h;
+    }
+
+    private static Host host() {
+        if (hostImpl == null) throw new IllegalStateException("SuperBenchScreenHandler 物品宿主口未安装：加载器入口须先调 installHost(...)（主线=Sdzjz.onInitialize 首段 LegacySuperBenchHost；1.20.1=RetroBootstrap 空宿主）");
+        return hostImpl;
+    }
+
     private final Container input = new SimpleContainer(GRID_SLOTS) {
         @Override public void setChanged() { super.setChanged(); slotsChanged(this); }
     };
@@ -37,7 +95,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     }
 
     public SuperBenchScreenHandler(int syncId, Inventory playerInv, ContainerLevelAccess context) {
-        super(ModScreenHandlers.SUPER_BENCH, syncId);
+        super(reqType(), syncId); // m523：菜单类型走安装口（原 ModScreenHandlers.SUPER_BENCH）
         this.context = context;
 
         int gx = 8, gy = 18;
@@ -82,9 +140,9 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             // m242 认包：压缩包按 内容物×倍率 折算成原版计数入集，包自身 id 不入集（裸包=0 不参与）。
             // 折算溢出防护：单格上限 64×4096=262144 远小于 int，但 144 格合计可到 3775 万仍在 int 内；
             // 工程款 BOM 最大单项 13 万级（litematic 实测 json），口径安全。
-            long raw = com.sdzjz.item.CompressedPackItem.rawCount(s);
-            if (raw > 0) m.merge(com.sdzjz.item.CompressedPackItem.innerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
-            else if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem))
+            long raw = host().packRawCount(s); // m523：认包三处走宿主口（原 CompressedPackItem.rawCount/innerId + instanceof）
+            if (raw > 0) m.merge(host().packInnerId(s), (int) Math.min(raw, Integer.MAX_VALUE), Integer::sum);
+            else if (!host().isPack(s))
                 m.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         return m;
@@ -105,8 +163,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             boolean found = false;
             for (int i = 0; i < GRID_SLOTS && !found; i++) {
                 ItemStack s = input.getItem(i);
-                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) found = true;
+                if (mob.equals(host().cagedType(s))) found = true; // m523：笼子判定走宿主口（原 instanceof CaptureCageItem && cagedType）
             }
             if (!found) return false;
         }
@@ -123,8 +180,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                 for (String mob : r.mobs()) {
                     for (int i = 0; i < GRID_SLOTS; i++) {
                         ItemStack s = input.getItem(i);
-                        if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                                && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                        if (mob.equals(host().cagedType(s))) { // m523：走宿主口
                             com.sdzjz.item.ItemData.clear(s);
                             com.sdzjz.item.ItemData.clearCustomName(s);
                             break;
@@ -137,7 +193,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             // 总量==需求，理论无找零；防御性找零（need 非倍率整除）拆成散件回网格不白丢。
             for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
                 ItemStack s = input.getItem(i);
-                if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+                if (s.isEmpty() || host().isPack(s)) continue; // m523：走宿主口
                 if (BuiltInRegistries.ITEM.getKey(s.getItem()).toString().equals(e.getKey())) {
                     int take = Math.min(need, s.getCount());
                     s.shrink(take);
@@ -146,20 +202,21 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             }
             for (int i = 0; i < GRID_SLOTS && need > 0; i++) {
                 ItemStack s = input.getItem(i);
-                if (!(s.getItem() instanceof com.sdzjz.item.CompressedPackItem pk)) continue;
-                if (!e.getKey().equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+                if (!host().isPack(s)) continue; // m523：走宿主口（原 `instanceof CompressedPackItem pk`）
+                if (!e.getKey().equals(host().packInnerId(s))) continue;
+                int ratio = host().packRatio(s); // m523：原 pk.ratio——pattern 变量在循环前绑定一次，这里同样只取一次（shrink 到空后 getItem 变 AIR）
                 while (need > 0 && !s.isEmpty()) {
                     s.shrink(1);
-                    if (pk.ratio > need) { // 防御性找零：多出来的拆成散件回网格
+                    if (ratio > need) { // 防御性找零：多出来的拆成散件回网格
                         ItemStack change = new ItemStack(com.sdzjz.item.ItemData.itemById(e.getKey()), 1);
-                        int left = pk.ratio - need;
+                        int left = ratio - need;
                         while (left > 0) {
                             int chunk = Math.min(left, change.getMaxStackSize());
                             insertToGrid(change.copyWithCount(chunk));
                             left -= chunk;
                         }
                         need = 0;
-                    } else need -= pk.ratio;
+                    } else need -= ratio;
                 }
                 if (s.isEmpty()) input.setItem(i, ItemStack.EMPTY);
             }
@@ -210,8 +267,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             Inventory pinv = player.getInventory();
             for (int i = 0; i < pinv.getContainerSize(); i++) {
                 ItemStack s = pinv.getItem(i);
-                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
+                if (mob.equals(host().cagedType(s))) { // m523：走宿主口
                     cages.add(s.copyWithCount(1)); // 只搬 1 只（多重集精确匹配要求 每生物×1）
                     s.shrink(1);
                     if (s.isEmpty()) pinv.setItem(i, ItemStack.EMPTY);
@@ -267,16 +323,16 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
      *  离线断言过）按倍率回账并还背包不落地。 */
     private void pullPacked(Player player, String id, int need) {
         Inventory pinv = player.getInventory();
-        Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
+        Item t2 = host().tier2(), t1 = host().tier1(); // m523：走宿主口（原 ModItems.SUPER_COMPRESSED_PACK / COMPRESSED_PACK）；默认关=null，前两轮 `getItem() != null` 恒真只搬散件
         for (int pass = 0; pass < 3 && need > 0; pass++) {
             int ratio = pass == 0 ? 4096 : pass == 1 ? 64 : 1;
             Item want = pass == 0 ? t2 : pass == 1 ? t1 : null;
             for (int i = 0; i < pinv.getContainerSize() && need >= ratio; i++) {
                 ItemStack s = pinv.getItem(i);
                 if (pass < 2) {
-                    if (s.getItem() != want || !id.equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+                    if (s.getItem() != want || !id.equals(host().packInnerId(s))) continue;
                 } else {
-                    if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+                    if (s.isEmpty() || host().isPack(s)) continue;
                     if (com.sdzjz.item.ItemData.has(s)) continue; // 组件件不当散料搬（附魔书等）
                     if (!BuiltInRegistries.ITEM.getKey(s.getItem()).toString().equals(id)) continue;
                 }
@@ -311,8 +367,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             boolean found = false;
             for (int i = 0; i < GRID_SLOTS && !found; i++) {
                 ItemStack s = input.getItem(i);
-                if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
-                        && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) found = true;
+                if (mob.equals(host().cagedType(s))) found = true; // m523：走宿主口
             }
             if (!found) {
                 String mn;
@@ -352,13 +407,23 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     // ===== m241 压缩引擎（方案A，服务端权威）。口径：包=原版物品的数量压缩（作者拍板），
     // 只压"无组件差异的普通物品"（附魔书/药水等跳过，防压包抹组件——精确条目教训同源）。 =====
 
+    /** m523：宿主口默认关（本世代无压缩材料包）时两钮零动作并明说——压缩会把 64 件散件换成一只不存在的包，
+     *  静默吞件比"钮没反应"伤得多（m99 同律）。服务端权威：钮 id 来自客户端，屏上不画钮也得在这儿拦。返回真=已拦。 */
+    private boolean packsUnavailable(Player player) {
+        if (host().packsAvailable()) return false;
+        player.displayClientMessage(net.minecraft.network.chat.Component.literal("此版本没有压缩材料包，压缩区不可用")
+                .withStyle(net.minecraft.ChatFormatting.GRAY), false);
+        return true;
+    }
+
     /** 压缩：网格里同种普通物品每满 64 → 1 一级包；同内容一级包每满 64 → 1 二级包（一次点击级联）。 */
     private void compressGrid(Player player) {
+        if (packsUnavailable(player)) return; // m523
         long rawPacked = 0; int t1Made = 0, t2Made = 0;
         Map<String, Integer> plain = new HashMap<>();
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getItem(i);
-            if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+            if (s.isEmpty() || host().isPack(s)) continue; // m523：走宿主口
             if (com.sdzjz.item.ItemData.has(s)) continue;
             plain.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
@@ -366,15 +431,14 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             int k = e.getValue() / 64;
             if (k <= 0) continue;
             takePlainFromGrid(e.getKey(), k * 64);
-            giveToGridOrPlayer(player, com.sdzjz.item.CompressedPackItem.of(
-                    com.sdzjz.registry.ModItems.COMPRESSED_PACK, e.getKey(), k));
+            giveToGridOrPlayer(player, host().packOf(host().tier1(), e.getKey(), k)); // m523：走宿主口（原 CompressedPackItem.of(ModItems.COMPRESSED_PACK,…)）
             rawPacked += (long) k * 64; t1Made += k;
         }
         Map<String, Integer> packs = new HashMap<>();
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getItem(i);
-            if (s.getItem() == com.sdzjz.registry.ModItems.COMPRESSED_PACK) {
-                String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+            if (s.getItem() == host().tier1()) { // m523：走宿主口
+                String in = host().packInnerId(s);
                 if (in != null) packs.merge(in, s.getCount(), Integer::sum);
             }
         }
@@ -382,8 +446,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             int k = e.getValue() / 64;
             if (k <= 0) continue;
             takePacksFromGrid(e.getKey(), k * 64);
-            giveToGridOrPlayer(player, com.sdzjz.item.CompressedPackItem.of(
-                    com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, e.getKey(), k));
+            giveToGridOrPlayer(player, host().packOf(host().tier2(), e.getKey(), k)); // m523：走宿主口（原 CompressedPackItem.of(ModItems.SUPER_COMPRESSED_PACK,…)）
             t2Made += k;
         }
         input.setChanged();
@@ -403,9 +466,10 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
      *  溢出进背包**（旧版只落网格，网格一满整体罢工=看着像拆不了），两边都装不下才停；
      *  每次点击必报账（拆了多少/剩多少/为什么停），网格没包但背包有包时明说"把包放进网格"。 */
     private void unpackGrid(Player player) {
+        if (packsUnavailable(player)) return; // m523
         long t2Opened = 0, t1Opened = 0;
         boolean spaceOut = false;
-        Item t2 = com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK, t1 = com.sdzjz.registry.ModItems.COMPRESSED_PACK;
+        Item t2 = host().tier2(), t1 = host().tier1(); // m523：走宿主口（原 ModItems.SUPER_COMPRESSED_PACK / COMPRESSED_PACK）
         // m260 卡顿主治：旧版逐包循环——每拆 1 包全扫一遍网格144+背包36做容量账（含 NBT 组件比较）再全扫插入，
         // 一次点击拆几百包=十几万次 ItemStack/NBT 比较，单人内置服一卡客户端就顿。改槽级批量：
         // 容量一次结算整批开包 + insertBulk 单趟灌装，每击总开销 O(槽位数×轮数)，轮数受物理容量约束（腾槽才续轮）。
@@ -417,10 +481,10 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                 for (int i = 0; i < GRID_SLOTS; i++) {
                     ItemStack s = input.getItem(i);
                     if (s.getItem() != packItem) continue;
-                    String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+                    String in = host().packInnerId(s); // m523：走宿主口
                     if (in == null) continue;
                     ItemStack proto = pass == 0
-                            ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
+                            ? host().packOf(t1, in, 1) // m523：走宿主口
                             : new ItemStack(com.sdzjz.item.ItemData.itemById(in), 1);
                     int can = (int) Math.min(s.getCount(), capacityAll(player, proto) / 64); // 一包出64件
                     if (can <= 0) { spaceOut = true; continue; }
@@ -438,7 +502,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         long t2Left = 0, t1Left = 0;
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getItem(i);
-            if (com.sdzjz.item.CompressedPackItem.innerId(s) == null) continue; // 裸包拆不了，不进"剩×N"账（m260）
+            if (host().packInnerId(s) == null) continue; // 裸包拆不了，不进"剩×N"账（m260）；m523 走宿主口
             if (s.getItem() == t2) t2Left += s.getCount();
             else if (s.getItem() == t1) t1Left += s.getCount();
         }
@@ -524,7 +588,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     private void takePlainFromGrid(String id, int n) {
         for (int i = 0; i < GRID_SLOTS && n > 0; i++) {
             ItemStack s = input.getItem(i);
-            if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
+            if (s.isEmpty() || host().isPack(s)) continue; // m523：走宿主口
             if (com.sdzjz.item.ItemData.has(s)) continue;
             if (!BuiltInRegistries.ITEM.getKey(s.getItem()).toString().equals(id)) continue;
             int take = Math.min(n, s.getCount());
@@ -537,8 +601,8 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     private void takePacksFromGrid(String innerId, int n) {
         for (int i = 0; i < GRID_SLOTS && n > 0; i++) {
             ItemStack s = input.getItem(i);
-            if (s.getItem() != com.sdzjz.registry.ModItems.COMPRESSED_PACK) continue;
-            if (!innerId.equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
+            if (s.getItem() != host().tier1()) continue; // m523：走宿主口（原 ModItems.COMPRESSED_PACK）
+            if (!innerId.equals(host().packInnerId(s))) continue;
             int take = Math.min(n, s.getCount());
             s.shrink(take); n -= take;
             if (s.isEmpty()) input.setItem(i, ItemStack.EMPTY);

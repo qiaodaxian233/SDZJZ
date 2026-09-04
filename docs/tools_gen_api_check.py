@@ -14,6 +14,10 @@
 名单出处=docs/世代API对照表.md 第二节，每条都踩过或核过。
 
 **加新条目**：往 专属 加一行，同时更新对照表。
+
+**m523 先闸后挂（评审意见：SB2 的教训是验收顺序倒置——先上挂、构建红、再补闸）**：
+`python3 docs/tools_gen_api_check.py --candidate com/sdzjz/screen/X.java ...` 把还没写进白名单的 xplat 文件当作
+"已挂"一起量（两类判据都过：1.21 专属符号 + 自家类可见性，候选彼此可见）。上挂顺序自此固定=候选先过闸→再写 build.gradle→再跑一次。
 """
 import pathlib
 import re
@@ -76,10 +80,14 @@ def 剥(src):
     return re.sub(r'"(?:\\.|[^"\\])*"', '""', src)
 
 
-def 主():
+def 主(候选=()):
     wl = 白名单()
     if not wl:
         raise SystemExit("世代 API 闸：白名单一条都没抓到——先怀疑正则不是先怀疑代码")
+    for c in 候选:  # m523：候选文件按"已挂"量，缺文件当场报
+        if not (ROOT / "xplat/src/main/java" / c).exists():
+            raise SystemExit("世代 API 闸：候选文件不存在 xplat/src/main/java/%s" % c)
+        wl.add(c)
     辖区 = []
     for rel in sorted(wl):
         p = ROOT / "xplat/src/main/java" / rel
@@ -87,7 +95,7 @@ def 主():
             辖区.append((f"xplat/{rel}", p))
     for p in sorted((ROOT / "common/src/main/java").rglob("*.java")):
         辖区.append((str(p.relative_to(ROOT)), p))
-    print("辖区 %d 个文件（1.20.1 白名单 %d 条 + common 全层）" % (len(辖区), len(wl)))
+    print("辖区 %d 个文件（1.20.1 白名单 %d 条%s + common 全层）" % (len(辖区), len(wl) - len(候选), "，含候选 %d 条" % len(候选) if 候选 else ""))
 
     坏 = 0
     for 名, p in 辖区:
@@ -116,4 +124,10 @@ def 主():
 
 
 if __name__ == "__main__":
-    sys.exit(主())
+    args = sys.argv[1:]
+    候选 = []
+    if args and args[0] == "--candidate":
+        候选 = [a.replace("xplat/src/main/java/", "") for a in args[1:]]
+    elif args:
+        raise SystemExit("用法：tools_gen_api_check.py [--candidate com/sdzjz/x/Y.java ...]")
+    sys.exit(主(候选))

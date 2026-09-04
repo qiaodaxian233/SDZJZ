@@ -19,8 +19,8 @@ public class CraftGridInventory extends net.minecraft.world.SimpleContainer
         for (net.minecraft.world.item.ItemStack st : this.getItems()) finder.accountSimpleStack(st);
     }
 
-    /** 接口很可能已有同签名 default（1.21 便捷法），显式覆写两头保险；getHeldStacks 由 SimpleInventory 协变满足。 */
-    @Override public net.minecraft.world.item.crafting.CraftingInput asCraftInput() {
-        return net.minecraft.world.item.crafting.CraftingInput.of(3, 3, this.getItems());
-    }
+    // m523（SB2b）：原 asCraftInput() 覆写删除——1.21.1 源码核过（CraftingContainer）：接口 default
+    // `asCraftInput() = asPositionedCraftInput().input()`、`asPositionedCraftInput() = CraftingInput.ofPositioned(getWidth(), getHeight(), getItems())`，
+    // 而 `CraftingInput.of(w,h,items) = ofPositioned(w,h,items).input()`——与被删的覆写体逐位同义，主线行为零变化；
+    // 1.20.1 没有 CraftingInput 类、接口也没有此方法（m522b 作者构建"找不到符号 CraftingInput"），删了才能上白名单。getHeldStacks 由 SimpleInventory 协变满足。
 }
