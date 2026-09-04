@@ -1831,19 +1831,19 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         StructureCoreBlockEntity be = be();
         BlockPos p = this.menu.blockPos();
         if (be == null || p == null) return;
-        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get(); // m221 间距收紧+进配置（作者截图点名"离得有点远"）：
-        int rows = Math.max(1, c.canvasLayoutRows);                          // 旧 150/130 定值退役；步距=卡实占+间隙
-        int stepX = NW + Math.max(0, c.canvasLayoutGapX);                    // 卡宽 100 + 默认间隙 30 = 130
-        int stepY = NH + 28 + Math.max(0, c.canvasLayoutGapY);               // 卡高 52+28(升级格/徽章带，fitView 同口径) + 默认间隙 24 = 104
-        for (int i = 0; i < be.nodes().size(); i++) // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
-            com.sdzjz.client.ClientNet.toServer(new NodeMovePayload(p, i, 20 + (i / rows) * stepX, 20 + (i % rows) * stepY));
+        // m514（真移植·A7b）：落位几何（m149 竖排 / m221 间距配置 / 存储右列）下沉 xplat client/CanvasLayout 两代共用，本处只剩发包与 m265 预测
+        for (int i = 0; i < be.nodes().size(); i++) { // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
+            int[] q = CanvasLayout.machinePos(i);
+            com.sdzjz.client.ClientNet.toServer(new NodeMovePayload(p, i, q[0], q[1]));
+        }
         List<long[]> ends = endsOf(be);
         for (int j = 0; j < ends.size(); j++) { // m265 只整理已放置的卡（右列竖排）；停靠卡不被强行拖下画布
             long pl = ends.get(j)[0];
             if (!endPlaced(be, pl)) continue;
-            holdHome(pl, new int[]{760, 20 + j * 72});
-            be.setStorageNodePos(pl, 760, 20 + j * 72);
-            com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(p, pl, 760, 20 + j * 72, false));
+            int[] q = CanvasLayout.storagePos(j);
+            holdHome(pl, new int[]{q[0], q[1]});
+            be.setStorageNodePos(pl, q[0], q[1]);
+            com.sdzjz.client.ClientNet.toServer(new StorageNodeMovePayload(p, pl, q[0], q[1], false));
         }
     }
 

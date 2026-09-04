@@ -243,6 +243,23 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         openMenu(atX, atY);
     }
 
+    /** 整理布局：机器排网格，存储排右列。m514（A7b）：主线 autoLayout 原文骨架，几何走两代同一份 CanvasLayout；世代口=包名
+     *  （NodeMove/StorageNodeMove，本世代无 m265 holdHome 客户端预测与停靠卡——端点列表按序取位、无位置的端点跳过但占行号，与主线
+     *  `if (!endPlaced) continue` 同形）。 */
+    private void autoLayout() {
+        for (int i = 0; i < g.machineNodes.size(); i++) { // m149 竖排（用户点名照截图：单列往下码，满 rows 台换列）
+            int[] q = com.sdzjz.client.CanvasLayout.machinePos(i);
+            ClientNet120.toServer(new NodePayloads120.NodeMove(menu.corePos, i, q[0], q[1]));
+        }
+        for (int j = 0; j < g.storageEndpoints.size(); j++) { // 右列竖排；服务端只动 storageNodePos 里有的端点（handleStorageNodeMove 口径）
+            long pl = g.storageEndpoints.get(j)[0];
+            if (!g.storageNodePos.containsKey(pl)) continue;
+            int[] q = com.sdzjz.client.CanvasLayout.storagePos(j);
+            ClientNet120.toServer(new StoragePayloads120.StorageNodeMove(menu.corePos, pl, q[0], q[1]));
+        }
+        sendQuery();
+    }
+
     /** 主线 clearLinksOfMachine 同形：机器线逐对发断（NodeLink cut=true）；存储边走本世代三态循环包（无→产出0→供料1→断）：
      *  产出态要转两格、供料态转一格才到"断"，同一包连发两次即到位（服务端按序处理，每包各推一次快照，中间那帧短暂显示为供料线）。 */
     private void clearLinksOfMachine(int idx) {
@@ -401,6 +418,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 addMenu("打组所选(" + selected.size() + "台)", mi(net.minecraft.world.item.Items.LEAD), this::createGroupFromSelection);
             if (groupsOn() && !selected.isEmpty())
                 addMenu("清除选择", mi(net.minecraft.world.item.Items.GLASS_PANE), selected::clear);
+            addMenu("整理布局", mi(net.minecraft.world.item.Items.COMPASS), this::autoLayout); // m514（A7b）主线原文条目
             addMenu("重置视角", mi(net.minecraft.world.item.Items.SPYGLASS), () -> za.setViewInstant(0, 0, 1.0)); // 主线原文（m512 起 setViewInstant 两代同一份，顺手终止缩放动效）
             addMenu("取消", (ItemStack) null, 2, () -> {});
             openMenu((int) mouseX, (int) mouseY);

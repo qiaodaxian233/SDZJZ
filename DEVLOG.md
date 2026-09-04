@@ -10878,3 +10878,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：读 m513 CI → **A7b 整理布局 autoLayout**（主线 `autoLayout` 原 1844~：机器排网格、存储排右列——先看它发的是逐节点 NodeMove
   还是专用布局包；本世代有 `NodeMove/StorageNodeMove`，若主线逐节点发则原文可直接搬） → A7c 设置面板/帮助卡 → A10 卡片层随缩放。
 
+## m514 A7b：整理布局 autoLayout 两代共用（xplat CanvasLayout 几何 + 各代发包）—— 1.20.1 画布菜单补「整理布局」
+
+- **来路**：作业表 A7b。开工先 fetch，origin/main=af90dad（m513 CI 八 job 全绿）。
+- **逐句对**：主线 `autoLayout`（m149 竖排 / m221 间距进配置 / m265 只整理已放置存储卡）= 读配置算 rows/stepX/stepY → 逐机器发
+  `NodeMovePayload(p, i, 20+(i/rows)*stepX, 20+(i%rows)*stepY)` → 端点列表按序、未放置跳过但占行号、`holdHome` 客户端预测 +
+  客户端 BE 同写 + `StorageNodeMovePayload(p, pl, 760, 20+j*72, false)`。**发的是逐节点/逐端点普通移动包，不是专用布局包**——世代口=包名：
+  本世代 `NodeMove(pos, index, xc, yc)` / `StorageNodeMove(pos, endpoint, x, y)` 两包在，服务端 `handleStorageNodeMove` 只动
+  `storageNodePos` 里有的端点（与主线"未放置跳过"同义）、坐标过 `clampCoord`（±COORD_LIMIT，右列 760 在内）。
+- **共用件 `xplat/client/CanvasLayout`**：`machinePos(i)`（配置读取 + 三步距 + 网格算式原文逐句）、`storagePos(j)`（760 / 20+j*72）——
+  **世代差为零**（NW/NH 与 common 配置两代同一份；无 MC jar 单编 0 错，第二个零 MC 符号 client 共用件）。差住在调用点：
+  主线 `holdHome` 预测/客户端 BE 同写/停靠卡过滤是总线机制，本世代无；两代各自循环发包。
+- **主线屏**：`autoLayout` 两循环的算术换成 `CanvasLayout.machinePos/storagePos`，发包/预测/过滤原句不动（`holdHome` 仍传新数组）。
+- **1.20.1 屏**：`autoLayout()` 主线骨架（机器循环 + 端点列表循环 `containsKey` 过滤 + `sendQuery`）；画布空白右键菜单按主线顺序补
+  「整理布局」（COMPASS）于「清除选择」与「重置视角」之间。`CanvasLayout` 进白名单。
+- **验证**：`tools_smoke.py` 两代全量（193/89）零真错 + 三改动文件单编零真错（CanvasLayout 两代 0 条）；自家 6 个新符号 0；`NodeMove` 四参/
+  `StorageNodeMove` 四参逐字段核；21 闸全绿（0.1.514）。零协议零存档零配置，纯客户端。
+- **实机验证脚本**：①主线「整理布局」应与 m513 逐位一致（同一算式：默认 5 台一列、列距 130、行距 104，存储右列 x=760 行距 72）；
+  ②1.20.1 摆散 7 台机器 + 2 张存储卡 → 空白处右键「整理布局」→ 机器两列（5+2）、存储卡右列两行；改 config `canvasLayoutRows=3` 两代同变；
+  ③1.20.1 整理后拖动/连线/分组照常（NodeMove 走的是 m457 同一包）。
+- **下一刀**：读 m514 CI → **A7c 设置面板 m199 / 帮助卡 m219**（先量 EditBox/滑块 1.21 专属 API 面）→ A10 卡片层随缩放。
+
