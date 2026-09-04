@@ -123,7 +123,6 @@
   "sdzjz.machine.wip": "Canvas machine - canvas system port in progress (P-C2), collectible for now",
   "block.sdzjz.structure_core": "Structure Core",
   "sdzjz.canvas.nodes": "Nodes %s",
-  "sdzjz.canvas.link": "Link",
   "sdzjz.canvas.hint": "Drag=move · RMB=take back · Link: node↔node; to vault cycles out/feed/cut",
   "sdzjz.canvas.settings": "Settings",
   "sdzjz.canvas.help": "Help"

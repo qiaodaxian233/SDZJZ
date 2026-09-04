@@ -11013,3 +11013,30 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：读 m518 CI → **A8 升级槽 drawUpgradeSlots**：先核本世代有无升级系统（m464 记档：无）→ 无则不搬，作业表销项记"本世代无机制"；
   A 线至此按表清空，之后按取活规则第 4 条转 D-判官合一（非阻塞）或等作者拍板 C2 附魔定价。
 
+## m519 作者点名：1.20.1 连线改拖线（出口柱/进口柱/存储卡供料口按下→拖到目标松手）—— 点击式「连线模式」退役；A8 升级槽核实不搬
+
+- **来路**：作者问「连接为什么不是拖动的而是点击才能连线」。1.20.1 的连线自 m456 起是**顶栏「连线」钮切模式 + 两次点击**（我当年仿写自造的交互），
+  主线从来是**拖线**：机器出口柱起手（m122 抓取半径随缩放）/ 进口柱起手反向拉（m342）/ 总线放置卡供料口起手（m265），拖到目标松手落靶。取活规则第 2 条，插队。
+- **逐句对**：主线 `mouseClicked` 三段起手（供料口 12px 抓取 → 出口柱 `pR=max(7,10/zoom)`、双侧柱 `pRy=min(pR,6)` → 进口柱同式）、`mouseDragged` 首句 `if (linking) return true`、
+  `mouseReleased` 三支落靶（linkFrom→仓卡=产出 / 机器=NodeLink；linkInto→仓卡=供料 / 机器=对方出→我进；linkStor→机器=供料），落点外扩 `6/zoom`、仓卡 `-6/+6/-4/+10`，
+  预览线三条（进口/出口在世界矩阵下 `drawWireFree(..., zoom)`，供料口在屏幕层传 1f）。API 面：全是本世代已有助手 + 共用 `WireRenderer`，1.21 专属为零。
+- **1.20.1 屏**：以上全部照原文搬，机械替换只 `wnx(be,nodes,i)→wnx(i)`、`nodes.size()→g.machineNodes.size()`、`ends/snx/sny/bw()/bh()→storageEndpoints/storageNodePos/stX/stY + 24`。
+  **真世代差三处，各收进一个口**：①存储卡几何——本世代 24×24 存储节点卡，供料口在卡底 `x+0.75w`（m511 `StoragePorts` 同口），抓取半径按卡宽收成 6×8（主线 12 会连收料口与整张卡体一起抓走）；
+  ②存储边协议——主线 `StorageLinkPayload(dir)` 直达 + 服务端 `toggleStorageEdge`（同向已有=断，否则加一条，产出/供料可并存），本世代 `StorageLink` 三态循环包 + 一对只存一条边
+  → 新助手 `linkStorageTo(machine, endpoint, want)` 按快照当前态算连发 1~2 次到目标态（m513「断开全部连线」同一手法，中间帧可能短暂显另一向线），**不改协议不改服务端**；
+  ③机器边——主线服务端 `toggleConnection`，本世代包带 `cut` 由客户端按快照判（原点击式那句原样收进 `linkNodes`）。
+  **退役**：`linkMode` 字段、顶栏「连线」钮（点击+绘制）、两次点击落线、首端高亮描边（主线无此件，预览线即反馈）、平移起手里的 linkFrom 收尾；lang 两键 `sdzjz.canvas.link` 删除。
+  `linking/linkInto/linkFrom/linkStor` 四件照主线原名。事件序：存储卡供料口 → 存储卡体 → 机器出口柱 → 机器进口柱 → 机器卡体（主线同序；本世代存储卡画在最上所以先判）。
+- **A8 升级槽核实（作业表下一刀）**：1.20.1 源集与白名单里无 `NodeUpgrades`/升级包，`StructureCore120` 记档「本世代无并发/数量升级（m464）」，主线 `drawUpgradeSlots` 依赖
+  `nodeSpeed/nodeCount/nodePar` 三级数与升级物品——整套机制本世代不存在 → **不搬**（m489 律：搬工艺不搬本世代没有的功能区），作业表销项。**A 线清空。**
+- **对照表**：「存储连线包语义」行补 m519 拖线落靶走连发；新增「连线交互」行。
+- **验证**：`tools_smoke.py` 两代全量零真错 + CanvasScreen120 单编零真错（154 条噪音）；自家 12 符号（linking/linkInto/linkStor/linkFrom/linkStorageTo/linkNodes/stX/stY/
+  storageNodePos/storageEndpoints/nodePortsSwapped + drawWireFree 调用）两份日志各 0（唯一命中是 WireRenderer 声明处缺 GuiGraphics 的底噪）；花括号 210/210、圆括号 986/986；
+  `drawWireFree` 九参三处/`drawWire` 十一参三处手数；两 lang 过 json.load；21 闸全绿（0.1.519）。零协议零存档零配置；资源=lang 两键删除；纯客户端；主线零改动。
+- **实机验证脚本**（1.20.1）：①顶栏不再有「连线」钮；②按住机器右缘出口柱（约 10px 半径）拖出紫色预览线，松在另一台机器上=建线，再拖一次同一对=断；
+  松在存储卡上=绿色产出线（再拖一次=断）；③按住机器左缘进口柱拖到存储卡=金/柔绿供料线；拖到另一台机器=对方出→我进；
+  ④按住存储卡**底边右侧**（供料口）拖出预览线到机器=供料线；已是产出线的对再从供料口拖=改成供料（连发两包，中间一帧可见产出线闪过属 m513 记档同款）；
+  ⑤按住卡体（非柱）拖动=移卡照旧，Shift+点=选中照旧，右键菜单照旧；⑥双侧口配置开时左右两缘都能起手（上下柱 6px 分开）；⑦缩放 5%~800% 起手半径屏幕上恒 ~10px；⑧主线无改动。
+- **下一刀**：读 m519 CI → 作者第二问「合成的那个没做吗」：自动合成机 1.20.1 未落地（作业表 C2/C4）；C2 拆分——合成域不依赖附魔定价拍板，可先做 C2a
+  `RetroRecipeAccess` 合成/余料两域（m476 量：低成本，差 RecipeHolder/getId/ResourceLocation 三处）→ C4 目标选择 UI + 自动合成机 tick（`ct` 键）。
+

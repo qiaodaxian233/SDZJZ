@@ -50,8 +50,12 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private int dragIndex = -1;        // 左键按住的节点（本地幽灵位，松手才发 NodeMove）
     private double dragCx, dragCy;
     private boolean dragMoved = false;
-    private boolean linkMode = false;  // 顶栏按钮切换
-    private int linkFrom = -1;         // 连线模式第一端（机器下标）
+    // m519（真移植·作者点名"为什么是点击不是拖动"）：点击式「连线模式」（顶栏钮+两次点击）退役，换主线拖线——
+    // 从出口柱/进口柱/存储卡供料口按下起手，拖到目标松手落靶（主线 mouseClicked/mouseReleased/预览线原文）。四件状态照主线原名。
+    private boolean linking = false;
+    private int linkInto = -1;                        // m342 机器进口起手（拖到仓卡=供料线，拖到机器=反向建线）
+    private int linkFrom = -1;                        // 机器输出口起点
+    private long linkStor = Long.MIN_VALUE;           // 存储供料口起点
     private long dragStorage = Long.MIN_VALUE; // m458 拖动中的存储节点（posLong）
     private double dragStX, dragStY;
     private int sidebarScroll = 0; // m459 修③：侧栏首可见行（滚轮区域化 m103）
@@ -347,11 +351,6 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             viewY = w[1] - (height - 16) / 2.0 / zoom;
             return true;
         }
-        if (button == 0 && mouseY < 16 && mouseX >= width - SIDEBAR_W - 64 && mouseX < width - SIDEBAR_W - 8) {
-            linkMode = !linkMode; // 顶栏连线按钮（区域化，m103 口径）
-            linkFrom = -1;
-            return true;
-        }
         if (mouseX >= width - SIDEBAR_W) { // m457 机器库侧栏：点选进放置模式
             if (button == 0 && mouseY >= 20) {
                 int row = (int) ((mouseY - 20) / 26);
@@ -375,16 +374,23 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             placingIcon = ItemStack.EMPTY;
             return true;
         }
-        Long stHit = storageAt(mouseX, mouseY); // m458 存储节点：连线第二端 / 普通拖动 / 右键菜单（m513）
+        if (button == 0) {
+            // 存储卡优先（屏幕坐标）：供料口(绿) → 存储→机器 供料连线（主线 m122 抓取半径放宽；本世代卡 24×24，供料口在卡底 x+0.75w（m511 StoragePorts 同口），
+            // 半径按卡宽收成 6×8——12 会连收料口与整张卡体一起抓走）
+            for (int j = g.storageEndpoints.size() - 1; j >= 0; j--) {
+                long pl = g.storageEndpoints.get(j)[0];
+                int[] sp = g.storageNodePos.get(pl);
+                if (sp == null) continue;
+                double oxp = sx(stX(pl, sp)) + 24 * 0.75, oyp = sy(stY(pl, sp)) + 24 + 2;
+                if (Math.abs(mouseX - oxp) <= 6 && Math.abs(mouseY - oyp) <= 8) {
+                    linking = true; linkStor = pl; linkFrom = -1; return true;
+                }
+            }
+        }
+        Long stHit = storageAt(mouseX, mouseY); // m458 存储节点：普通拖动 / 右键菜单（m513）；m519 起连线走拖线落靶（mouseReleased）
         if (stHit != null) {
             if (button == 1) { openStorageMenu(stHit, (int) mouseX, (int) mouseY); return true; } // m513（A7a）主线"存储连线"菜单
-            if (linkMode && linkFrom >= 0 && button == 0) {
-                ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, linkFrom, stHit));
-                sendQuery();
-                linkFrom = -1;
-                return true;
-            }
-            if (button == 0 && !linkMode) {
+            if (button == 0) {
                 dragStorage = stHit;
                 int[] sp = g.storageNodePos.get(stHit);
                 dragStX = sp[0];
@@ -394,22 +400,38 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             }
             return true;
         }
+        if (button == 0) { // m519：主线原文（机器输出口/进口起手拖线），只换 wnx(be,nodes,i)→wnx(i)
+            double wx = wmx(mouseX), wy = wmy(mouseY);
+            // 机器输出口(绿) → 连线（m341 口位随 nodePortsSwapped；m352 双侧=左右两锚都可抓）
+            boolean dualPc = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts;
+            boolean swPc = com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
+            double pR = Math.max(7, 10 / zoom); // m122 抓取半径随缩放反比——屏幕上恒 ~10px，低倍率下也点得中
+            double pRy = dualPc ? Math.min(pR, 6) : pR; // m352 纵向收紧：柱心距14，6+6<14 上下柱不抢点
+            for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                int nxH = wnx(i), oyp = wny(i) + (dualPc ? NH / 2 - 7 : NH / 2);
+                boolean hitO = dualPc
+                        ? Math.abs(wy - oyp) <= pRy && (Math.abs(wx - nxH) <= pR || Math.abs(wx - (nxH + NW)) <= pR)
+                        : Math.abs(wx - (nxH + (swPc ? 0 : NW))) <= pR && Math.abs(wy - oyp) <= pRy;
+                if (hitO) {
+                    linking = true; linkFrom = i; linkStor = Long.MIN_VALUE; return true;
+                }
+            }
+            // m342 机器进口(青) → 反向拉线（拖到仓卡=供料线，拖到机器=对方出→我进；m352 同双侧）
+            for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                int nxH = wnx(i), iyp = wny(i) + (dualPc ? NH / 2 + 7 : NH / 2);
+                boolean hitI = dualPc
+                        ? Math.abs(wy - iyp) <= pRy && (Math.abs(wx - nxH) <= pR || Math.abs(wx - (nxH + NW)) <= pR)
+                        : Math.abs(wx - (nxH + (swPc ? NW : 0))) <= pR && Math.abs(wy - iyp) <= pRy;
+                if (hitI) {
+                    linking = true; linkInto = i; linkFrom = -1; linkStor = Long.MIN_VALUE; return true;
+                }
+            }
+        }
         Integer hit = nodeAt(mouseX, mouseY);
         if (hit != null) {
             if (button == 1) { openNodeMenu(hit, (int) mouseX, (int) mouseY); return true; } // m513（A7a）右键→节点菜单（主线 m148 口径；原"右键一键摘回"退役，取出机器进菜单垫底红显）
             if (button == 0 && groupsOn() && hasShiftDown()) { // m192 Shift+点卡=切换选中
                 if (!selected.remove(Integer.valueOf(hit))) selected.add(hit);
-                return true;
-            }
-            if (linkMode) { // 连线模式：A→B（已有同向对=断，toggle 语义）
-                if (linkFrom < 0) { linkFrom = hit; return true; }
-                if (linkFrom != hit) {
-                    boolean cut = false;
-                    for (int[] c : g.connections) if (c[0] == linkFrom && c[1] == hit) { cut = true; break; }
-                    ClientNet120.toServer(new NodePayloads120.NodeLink(menu.corePos, linkFrom, hit, cut));
-                    sendQuery();
-                }
-                linkFrom = -1;
                 return true;
             }
             dragIndex = hit; // 普通模式：按住拖动（本地幽灵，松手结算）
@@ -448,13 +470,77 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             return true;
         }
         if (button == 0) selected.clear(); // m192 左键点空白=清选（不吞事件，随后拖动=平移照旧）
-        if (button == 0) { panning = true; if (linkMode) linkFrom = -1; return true; }
+        if (button == 0) { panning = true; return true; }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (settings.released()) return true; // m223 设置面板 RGB 滑杆收拖（m515 共用件；主线首句）
+        if (button == 0 && linking) { // m519：主线拖线落靶原文；世代差三处=存储卡几何 24×24（主线 bw()/bh() 放置卡）、
+            // 存储边走 linkStorageTo（主线 StorageLinkPayload(dir) 直达，本世代三态循环包连发）、机器边 NodeLink 带 cut（主线服务端 toggleConnection）
+            double wx = wmx(mouseX), wy = wmy(mouseY);
+            if (linkFrom >= 0) {
+                // 优先看是否落在存储节点上 → 机器→存储 定向产出
+                boolean done = false;
+                for (int j = g.storageEndpoints.size() - 1; j >= 0; j--) {
+                    long pl = g.storageEndpoints.get(j)[0];
+                    int[] sp = g.storageNodePos.get(pl);
+                    if (sp == null) continue;
+                    double sxs = sx(stX(pl, sp)), sys = sy(stY(pl, sp));
+                    if (mouseX >= sxs - 6 && mouseX <= sxs + 24 + 6 && mouseY >= sys - 4 && mouseY <= sys + 24 + 10) { // m122 覆盖下缘凸出的收料口
+                        linkStorageTo(linkFrom, pl, 0);
+                        done = true;
+                        break;
+                    }
+                }
+                if (!done) {
+                    double pad = 6 / zoom; // m122 落点外扩（屏幕恒定 ~6px）
+                    for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                        int nx = wnx(i), ny = wny(i);
+                        if (wx >= nx - pad && wx <= nx + NW + pad && wy >= ny - pad && wy <= ny + NH + pad) {
+                            if (i != linkFrom) linkNodes(linkFrom, i);
+                            break;
+                        }
+                    }
+                }
+            } else if (linkInto >= 0) { // m342 进口起手落靶
+                boolean doneI = false;
+                for (int j = g.storageEndpoints.size() - 1; j >= 0; j--) {
+                    long pl = g.storageEndpoints.get(j)[0];
+                    int[] sp = g.storageNodePos.get(pl);
+                    if (sp == null) continue;
+                    double sxs = sx(stX(pl, sp)), sys = sy(stY(pl, sp));
+                    if (mouseX >= sxs - 6 && mouseX <= sxs + 24 + 6 && mouseY >= sys - 4 && mouseY <= sys + 24 + 10) {
+                        linkStorageTo(linkInto, pl, 1); // 供料线：仓→我
+                        doneI = true;
+                        break;
+                    }
+                }
+                if (!doneI) {
+                    double padI = 6 / zoom;
+                    for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                        int nx = wnx(i), ny = wny(i);
+                        if (wx >= nx - padI && wx <= nx + NW + padI && wy >= ny - padI && wy <= ny + NH + padI) {
+                            if (i != linkInto) linkNodes(i, linkInto); // 对方出→我进
+                            break;
+                        }
+                    }
+                }
+            } else if (linkStor != Long.MIN_VALUE) {
+                // 存储→机器 定向供料
+                double pad2 = 6 / zoom; // m122 落点外扩
+                for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                    int nx = wnx(i), ny = wny(i);
+                    if (wx >= nx - pad2 && wx <= nx + NW + pad2 && wy >= ny - pad2 && wy <= ny + NH + pad2) {
+                        linkStorageTo(i, linkStor, 1);
+                        break;
+                    }
+                }
+            }
+            linking = false; linkFrom = -1; linkStor = Long.MIN_VALUE; linkInto = -1; // m342
+            return true;
+        }
         if (button == 0 && dragGid >= 0) { // m192 组拖动松手：一包发总增量（服务端批量改+单次同步，防N连发全量同步）
             for (var en : dragGidSnap.entrySet()) // m196 覆盖失效前按快照+增量本地定格——否则松手到快照回来之间闪回旧位置
                 if (en.getKey() < g.machineNodes.size()) {
@@ -506,6 +592,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (settings.dragged(mouseX)) return true; // m223 设置面板 RGB 滑杆拖动（必须先于下方 modal 吞穿透；m515 共用件）
         if (cmenu.isOpen() || renameGid >= 0 || settings.isOpen() || helpOpen) return true; // m509 modal 吞拖动（本世代四项，m515 并入设置窗/帮助卡）
+        if (linking) return true; // m519 拖线中（主线同句）：预览线在 renderBg 跟鼠标画，不平移不拖卡
         if (button == 0 && dragGid >= 0) { // m192 组拖动：每帧快照+增量绝对写（渲染读 wnx/wny 的快照+增量，快照回来也自愈）
             dragGidDx = (int) (wmx(mouseX) - dragGidWx);
             dragGidDy = (int) (wmy(mouseY) - dragGidWy);
@@ -711,6 +798,21 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条（m511 共用件；仍在上面 push 的世界矩阵下）
         bundler.drawMachineBundles(ctx, this.font, groupView, gRect);
+        if (linking && linkInto >= 0 && linkInto < g.machineNodes.size()) { // m342 进口起手预览：进线色，锚随口位（m519 主线原文）
+            boolean dualPv = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts; // m352 双侧=随鼠标选缘（与出口预览同 m184 口径）
+            boolean swPv = !dualPv && com.sdzjz.config.SdzjzConfig.get().nodePortsSwapped;
+            int nxI = wnx(linkInto);
+            boolean lrI = dualPv ? wmx(mouseX) >= nxI + NW / 2.0 : swPv;
+            int axI = nxI + (lrI ? NW : 0), ayI = wny(linkInto) + (dualPv ? NH / 2 + 7 : NH / 2);
+            com.sdzjz.client.WireRenderer.drawWireFree(ctx, axI, ayI, lrI ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), com.sdzjz.client.SciSkin.wireIn(), (float) zoom);
+        }
+        if (linking && linkFrom >= 0 && linkFrom < g.machineNodes.size()) {
+            int nx0 = wnx(linkFrom);
+            boolean lr = wmx(mouseX) >= nx0 + NW / 2.0; // m184 预览线同看几何：鼠标在节点左侧就从左缘出
+            int ax = nx0 + (lr ? NW : 0), ay = wny(linkFrom)
+                    + (com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts ? NH / 2 - 7 : NH / 2); // m352 出口柱心
+            com.sdzjz.client.WireRenderer.drawWireFree(ctx, ax, ay, lr ? 1 : -1, 0, (float) wmx(mouseX), (float) wmy(mouseY), com.sdzjz.client.SciSkin.wireOut(), (float) zoom); // m198 预览随出线色
+        }
         // m517（真移植·A10）：节点卡层留在世界矩阵里画（主线机器层同形：卡尺寸随 zoom，缩放不再只挤位置不缩卡、5% 档不再互叠）。
         // 主线 drawNode 就是在 translate+scale 下调的，共用件里阶位图标放大（142 行 pose.scale 后 renderItem）在矩阵下有先例。
         // 世界矩阵沿用上面机器线层 push 的那一份（中间无别的绘制，帧序不变）。
@@ -722,16 +824,17 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             // 卡面工艺+分类配色顶条+标题底带+进出口柱与「进」「出」字标+阶位图标放大与前缀变色+
             // 机器名(自动截断)+状态灯点(绿灯呼吸)+六族逻辑节点各自的读数行。m483 我自己编的灯点画法退役（m517 顺手拔掉遗留的死 ring 取色）。
             com.sdzjz.client.NodeCardRenderer.drawNode(ctx, this.font, cardHost, i, x, y, g.machineNodes.get(i));
-            if (linkMode && i == linkFrom) { // 连线首端高亮：卡外描一圈强调色（不覆盖卡面工艺；世界单位，随卡同缩）
-                ctx.fill(x - 2, y - 2, x + NW + 2, y - 1, SciSkinPalette.ACCENT);
-                ctx.fill(x - 2, y + NH + 1, x + NW + 2, y + NH + 2, SciSkinPalette.ACCENT);
-                ctx.fill(x - 2, y - 1, x - 1, y + NH + 1, SciSkinPalette.ACCENT);
-                ctx.fill(x + NW + 1, y - 1, x + NW + 2, y + NH + 1, SciSkinPalette.ACCENT);
-            }
         }
         ctx.pose().popPose(); // 世界矩阵结束（m517：卡片层已在其内；选中高亮/框选共用件自带同一变换，主线同在 pop 之后调；存储卡照主线放置卡走屏幕坐标定尺寸）
         if (groupsOn()) com.sdzjz.client.GroupFrameRenderer.drawSelection(ctx, groupView, selected); // m192 选中高亮（m508 共用件）
         if (boxSelecting) com.sdzjz.client.GroupFrameRenderer.drawSelectBox(ctx, groupView, boxX0, boxY0, boxX1, boxY1); // m192 框选矩形
+        if (linking && linkStor != Long.MIN_VALUE) { // m519 主线原文：拖线预览压最上层（屏幕坐标层）；卡几何=本世代 24×24，供料口 x+0.75w 卡底 +2（StoragePorts 同口）
+            int[] spL = g.storageNodePos.get(linkStor);
+            if (spL != null) {
+                float sxl = (float) sx(stX(linkStor, spL)), syl = (float) sy(stY(linkStor, spL));
+                com.sdzjz.client.WireRenderer.drawWireFree(ctx, sxl + 24 * 0.75f, syl + 24 + 2, 0, 1, mouseX, mouseY, com.sdzjz.client.SciSkin.wireIn(), 1f); // m198 预览随进线色
+            }
+        }
         for (int i = 0; i < g.storageEndpoints.size(); i++) { // m458 存储节点卡（图标=存储核心）
             long pl = g.storageEndpoints.get(i)[0];
             int[] sp = g.storageNodePos.get(pl);
@@ -757,7 +860,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             int off = (track - thumb) * sidebarScroll / Math.max(1, lib.size() - visCap());
             ctx.fill(width - 2, 20 + off, width, 20 + off + thumb, SciSkinPalette.FRAME);
         }
-        ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+连线按钮+节点计数
+        ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+设置/帮助钮+节点计数（m519 点击式连线钮退役，连线走拖线）
         ctx.fill(0, 15, width, 16, SciSkinPalette.FRAME);
         ctx.drawString(font, title, 6, 4, SciSkinPalette.TXT_HI, false);
         for (int b = 0; b < 2; b++) { // m515 顶栏「设置」「帮助」两钮（照下方连线钮同工艺；开着=强调色描边）
@@ -768,11 +871,6 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             ctx.drawString(font, Component.translatable(b == 0 ? "sdzjz.canvas.settings" : "sdzjz.canvas.help"), bx + 5, 3,
                     on ? SciSkinPalette.ACCENT : SciSkinPalette.TXT, false);
         }
-        int btnX = width - SIDEBAR_W - 64;
-        ctx.fill(btnX, 2, btnX + 56, 13, linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.BTN_FRM);
-        ctx.fill(btnX + 1, 3, btnX + 55, 12, SciSkinPalette.BTN_FACE);
-        ctx.drawString(font, Component.translatable("sdzjz.canvas.link"), btnX + 5, 3,
-                linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.TXT, false);
         ctx.drawString(font, Component.translatable("sdzjz.canvas.nodes", g.machineNodes.size()),
                 width - SIDEBAR_W - 160, 4, SciSkinPalette.SUB, false);
         if (mapOpen) com.sdzjz.client.MinimapRenderer.render(ctx, this.font, mapView, mapX(), mapY()); // m490 小地图
@@ -789,6 +887,27 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private double stY(long pl, int[] sp) { return pl == dragStorage ? dragStY : sp[1]; }
 
     /** 命中存储节点（倒序无关，端点无遮叠序）。 */
+    /** m519：存储边按主线 toggleStorageEdge 语义落靶——同向已有=断，否则连成 want 向（产出0/供料1）。
+     *  本世代包是三态循环（无→产出→供料→断，服务端 storageLinkCycle），按当前快照态算连发次数 1~2 次（m513"断开全部连线"同一手法），
+     *  中间帧可能短暂显另一向线（m513 记档同款）；本世代一对机器↔仓只存一条边，主线可产出+供料并存，这是数据模型世代差（对照表「存储连线包语义」）。 */
+    private void linkStorageTo(int machine, long endpoint, int want) {
+        int cur = -1;
+        for (long[] e : g.storageEdges) if (e[0] == machine && e[1] == endpoint) { cur = (int) e[2]; break; }
+        int target = cur == want ? -1 : want;
+        int pc = cur < 0 ? 2 : cur, pt = target < 0 ? 2 : target; // 环序：产出0 → 供料1 → 无2
+        int sends = (pt - pc + 3) % 3;
+        for (int k = 0; k < sends; k++) ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, machine, endpoint));
+        if (sends > 0) sendQuery();
+    }
+
+    /** m519：机器边落靶——主线服务端 toggleConnection（已有=断），本世代包带 cut 标志由客户端按快照判（原点击式那句原样）。 */
+    private void linkNodes(int from, int to) {
+        boolean cut = false;
+        for (int[] c : g.connections) if (c[0] == from && c[1] == to) { cut = true; break; }
+        ClientNet120.toServer(new NodePayloads120.NodeLink(menu.corePos, from, to, cut));
+        sendQuery();
+    }
+
     private Long storageAt(double mx, double my) {
         for (long[] e : g.storageEndpoints) {
             int[] sp = g.storageNodePos.get(e[0]);
