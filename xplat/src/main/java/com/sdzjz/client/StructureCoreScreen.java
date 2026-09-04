@@ -62,11 +62,14 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     private double panX = 0, panY = 0, zoom = 1.0;
     // ===== m186 缩放平滑动效（anime.js easeOutExpo 思路移植：速度∝剩余距离，帧率无关）=====
-    private double zoomTarget = 1.0;           // 缓动目标缩放
-    private boolean zoomAnim = false;          // 动效进行中
-    private double zoomAnchorSx, zoomAnchorSy; // 锚点屏幕坐标（指哪缩哪）
-    private double zoomAnchorWx, zoomAnchorWy; // 锚点世界坐标
-    private long zoomAnimNs = 0;               // 上帧时间戳
+    // m512（真移植·A6）：状态六件 + clampZoom/setViewInstant/zoomToward/tickZoomAnim 整段下沉 xplat client/ZoomAnim 两代共用，
+    // 视图状态走 Host 口（本世代 panX/panY/zoom 直存直取）；下方同名私有方法留同签名转发壳，调用点零改动（m180 家法）。
+    private final ZoomAnim za = new ZoomAnim(new ZoomAnim.Host() {
+        @Override public double panX() { return panX; }
+        @Override public double panY() { return panY; }
+        @Override public double zoom() { return zoom; }
+        @Override public void view(double px, double py, double z) { panX = px; panY = py; zoom = z; }
+    });
     private boolean libOpen = false; // m88 机器库侧栏
     private int libScroll = 0;
     private boolean busCollapsed = false; // m91：总线收起（拉线时自动展开）
@@ -362,7 +365,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
 
     @Override
     public void removed() {
-        if (zoomAnim) { zoom = zoomTarget; panX = zoomAnchorSx - zoomAnchorWx * zoom; panY = zoomAnchorSy - zoomAnchorWy * zoom; zoomAnim = false; } // m186 结算未完动效再存视图
+        za.settle(); // m186 结算未完动效再存视图（m512 共用件）
         BlockPos p = this.menu.blockPos();
         if (p != null) VIEW.put(p, new double[]{panX, panY, zoom});
         if (settingsOpen) com.sdzjz.config.SdzjzConfig.save(); // m199 设置窗开着直接关屏也把颜色改动落盘
@@ -437,44 +440,17 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         return t + "…";
     }
 
-    /** m185 缩放钳位统一出口：范围走配置（默认 5%~800%），下限兜底 0.01 防除零；配置写反自动纠序。 */
-    private double clampZoom(double z) {
-        com.sdzjz.config.SdzjzConfig c = com.sdzjz.config.SdzjzConfig.get();
-        double lo = Math.max(0.01, Math.min(c.canvasZoomMin, c.canvasZoomMax));
-        double hi = Math.max(lo, Math.max(c.canvasZoomMin, c.canvasZoomMax));
-        return Math.max(lo, Math.min(hi, z));
-    }
+    /** m185 缩放钳位统一出口：范围走配置（默认 5%~800%），下限兜底 0.01 防除零；配置写反自动纠序。m512：本体下沉共用件，此处转发。 */
+    private double clampZoom(double z) { return ZoomAnim.clampZoom(z); }
 
-    /** m186 视图直设：重置/适应/恢复等瞬时路径统一走这里，顺手终止缩放动效防隔帧抢写。 */
-    private void setViewInstant(double px, double py, double z) {
-        panX = px; panY = py; zoom = z; zoomTarget = z; zoomAnim = false;
-    }
+    /** m186 视图直设：重置/适应/恢复等瞬时路径统一走这里，顺手终止缩放动效防隔帧抢写。m512：转发共用件。 */
+    private void setViewInstant(double px, double py, double z) { za.setViewInstant(px, py, z); }
 
-    /** m186 朝目标缩放：锚点 (sx,sy) 屏幕点始终指着同一世界点；连滚累积在目标上；配置关平滑=瞬时跳变（旧行为）。 */
-    private void zoomToward(double factor, double sx, double sy) {
-        double nz = clampZoom((zoomAnim ? zoomTarget : zoom) * factor);
-        double wx = (sx - panX) / zoom, wy = (sy - panY) / zoom;
-        if (!com.sdzjz.config.SdzjzConfig.get().canvasSmoothZoom) {
-            zoom = nz; zoomTarget = nz; zoomAnim = false;
-            panX = sx - wx * nz; panY = sy - wy * nz;
-            return;
-        }
-        zoomAnchorSx = sx; zoomAnchorSy = sy; zoomAnchorWx = wx; zoomAnchorWy = wy;
-        zoomTarget = nz;
-        if (!zoomAnim) { zoomAnim = true; zoomAnimNs = System.nanoTime(); }
-    }
+    /** m186 朝目标缩放：锚点 (sx,sy) 屏幕点始终指着同一世界点；连滚累积在目标上；配置关平滑=瞬时跳变（旧行为）。m512：转发共用件。 */
+    private void zoomToward(double factor, double sx, double sy) { za.zoomToward(factor, sx, sy); }
 
-    /** m186 每帧推进：指数趋近（1-e^{-14·dt}，半衰≈50ms），收敛吸附；锚点公式保证屏幕锚点纹丝不动。 */
-    private void tickZoomAnim() {
-        if (!zoomAnim) return;
-        long now = System.nanoTime();
-        double dt = Math.min(0.1, (now - zoomAnimNs) / 1.0e9);
-        zoomAnimNs = now;
-        zoom += (zoomTarget - zoom) * (1 - Math.exp(-14.0 * dt));
-        if (Math.abs(zoomTarget - zoom) < zoomTarget * 0.002) { zoom = zoomTarget; zoomAnim = false; }
-        panX = zoomAnchorSx - zoomAnchorWx * zoom;
-        panY = zoomAnchorSy - zoomAnchorWy * zoom;
-    }
+    /** m186 每帧推进：指数趋近（1-e^{-14·dt}，半衰≈50ms），收敛吸附；锚点公式保证屏幕锚点纹丝不动。m512：转发共用件。 */
+    private void tickZoomAnim() { za.tick(); }
 
     /** m86 视图控制：围绕工作区中心缩放。 */
     private void zoomBy(double f) {
@@ -498,7 +474,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         zoom = clampZoom(Math.min(zw, zh)); // m185 范围走配置
         panX = left + ((right - left) - (maxX - minX) * zoom) / 2 - minX * zoom;
         panY = top + ((bottom - top) - (maxY - minY) * zoom) / 2 - minY * zoom;
-        zoomTarget = zoom; zoomAnim = false; // m186 直设视图终止动效
+        za.stop(); // m186 直设视图终止动效（m512 共用件）
     }
 
     // m80：端点按用户点名改为顶部「存储总线」横排（屏幕坐标，永远可见），行满向下换行。
@@ -835,7 +811,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     /** 点中的世界点移到工作区中心；拖拽期间用快照几何。 */
     private void mapJump(double mouseX, double mouseY) {
         if (mapGeomDrag == null) return;
-        zoomAnim = false; zoomTarget = zoom; // m186 手动跳转终止缩放动效防隔帧抢写
+        za.stop(); // m186 手动跳转终止缩放动效防隔帧抢写（m512 共用件）
         double wx = mapGeomDrag[0] + (mouseX - mapX() - 5) / mapGeomDrag[2];
         double wy = mapGeomDrag[1] + (mouseY - mapY() - 5) / mapGeomDrag[2];
         panX = workRight() / 2.0 - wx * zoom;
@@ -2267,7 +2243,7 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
         }
         if (boxSelecting) { boxX1 = wmx(mouseX); boxY1 = wmy(mouseY); return true; } // m192 框选拉框
         if (button == 0 && mouseY > 34) {
-            zoomAnim = false; zoomTarget = zoom; // m186 手动平移终止缩放动效防隔帧抢写
+            za.stop(); // m186 手动平移终止缩放动效防隔帧抢写（m512 共用件）
             panX += deltaX;
             panY += deltaY;
             return true;

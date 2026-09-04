@@ -10795,3 +10795,53 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   1.20.1 javac 都过了真编译（第 20 闸的"共用层零 1.21 专属符号"在 1.20.1 真编译上兑现）。判官零新增，零业务改动，实机脚本仍是 m511 那七条。
 - 本刀只改 HANDOVER 当前状态与作业表两处"CI 未读/PAT 401 推不上去"的过时表述；版本不抬（热修字母尾号，m317 规矩）。
 
+## m512 A6：缩放平滑动效 m186 两代共用（xplat ZoomAnim）—— 世代差为零 + 1.20.1 侧栏滚轮那一支 m459 记档说修了、代码里从没有过
+
+- **来路**：按作业表取 A6（m511 CI 八 job 全绿已于 m511b 记档）。开工先 fetch，origin/main=6bb30e6。
+- **逐句对**（切前先看区间——原 64~70 字段区紧接 `libOpen/libScroll/busCollapsed` 三个不相干字段，只切六件）：主线 m186 块=状态六件
+  （`zoomTarget/zoomAnim/zoomAnchorSx,Sy/zoomAnchorWx,Wy/zoomAnimNs`）+ m185 `clampZoom`（范围走 common 配置，下限兜底 0.01）+
+  `setViewInstant` + `zoomToward`（锚点世界点不动、连滚累积在目标上、`canvasSmoothZoom` 关=瞬时跳变）+ `tickZoomAnim`（每帧
+  `zoom += (target-zoom)*(1-e^{-14·dt})`，dt 钳 0.1s，0.2% 吸附，锚点公式回写 pan）+ 三处"手动跳转/平移/适应终止动效"两句
+  （原 501/838/2270）+ `removed()` 里"结算未完动效再存视图"一句（原 365）。**世代差为零**：全是算术 + `System.nanoTime()` + common
+  配置，1.21 专属 API 命中 0（ZoomAnim 无 MC jar 单编 **0 条报错**，全库第一个零 MC 符号的 client 共用件）。**唯一的记法差住在视图状态**：
+  主线 `panX/panY/zoom`、本世代 `viewX/viewY`（视口左上的画布坐标）+ float zoom——m490/m507 早换算过（`panX = -viewX*zoom`），
+  收进 `ZoomAnim.Host`（读三口 + `view(panX,panY,zoom)` 一次落写），本件按主线原文 pan 记法写。
+- **共用件 `xplat/client/ZoomAnim`**：六字段原文；`clampZoom` 静态原文；`setViewInstant/zoomToward/tick/settle/stop` 五口。**归一后与原文
+  的差只有 Host 读写四句**（脚本对拍：`clampZoom` 4/4 diff=0；`zoomToward` 10→11 句，差=开头 `double zoom = h.zoom(), panX = …` 读一次
+  + 非平滑支路两句赋值合成一句 `h.view(...)`；`tick` 8/8，差=`double zoom = h.zoom()` + 末两句 pan 赋值合成一句 `h.view(...)`）。
+  原文各次赋值之间没有读回，末态逐位相同；`tick` 原文先写 zoom 再用新 zoom 算 pan，本件同序。**写视图只走一口**——两代都不会出现
+  "zoom 改了 pan 还没改"的半帧（主线原来两句分写，同一帧内无读回，行为等价）。
+- **主线屏**：六字段删除 → `za`（Host 匿名类四行，pan 直存直取）；`clampZoom/setViewInstant/zoomToward/tickZoomAnim` 四私有方法退役为
+  **同签名转发壳**（`fitView`/重置视角×2/恢复视图/`zoomBy`/`mouseScrolled`/`renderBg` 七处调用点零改动，m180 家法）；`removed()` 一句→
+  `za.settle()`，`fitView`/`mapJump`/平移三处两句→`za.stop()`。第 19 闸登记六个已删字段。2957→2933 行（1.20.1 屏 731→746）。
+- **1.20.1 屏**：`za` 挂在 `viewX/viewY/zoom` 之后（Host：`panX() = -viewX*zoom`，`view(px,py,z)`→`zoom=(float)z; viewX=-px/z; viewY=-py/z`；
+  **zoom 存 float 是本世代旧形刻意不动**——`Math.round(GRID_STEP*zoom)` 等消费点 float→double 会改返回型（`Math.round(double)` 回 long
+  赋 int 编不过），m366b 六项扫描前不迁；写回窄化一次，收敛判定在共用件按 double 做、锚点公式用同一个 z，亚像素级差）。
+  `mouseScrolled` 改成主线原文结构：机器库滚动 → modal 吞 → 地图区不缩放 → 顶栏以下 `za.zoomToward(delta > 0 ? 1.1 : 0.9, …)`；
+  原"算 next 直改 viewX/viewY"退役（`canvasSmoothZoom=false` 时共用件非平滑支路的数学与它逐位同：`wx = sx/zoom + viewX`、
+  `viewX' = wx - sx/nz`）。`renderBg` 首句 `za.tick()`；「重置视角」换主线原文 `za.setViewInstant(0, 0, 1.0)`（顺手终止动效）；
+  小地图跳转/平移各补 `za.stop()`（主线同句）。本世代无 `removed()` 存视图，无需 settle。
+  **三处对齐主线的手感变化（记档，作者可叫停）**：①滚轮因子 1.15 倍 → 主线 1.1/0.9；②缩放范围 0.35~2.5 硬编码 → 配置 `canvasZoomMin/Max`
+  （默认 5%~800%）；③瞬时跳变 → 指数缓动（`canvasSmoothZoom=false` 回旧行为）。
+  **顺手两件**：④**侧栏滚轮**——m459 修③ 记档写"悬停侧栏滚轮滚清单（画布不缩放）"，但 `mouseScrolled` 从没有过这一支（deepen 到
+  93368df=m459 本身亦无；字段/钳回/开窗绘制都在，唯独滚轮不改 `sidebarScroll`）——背包超一屏的机器永远够不着、悬停侧栏滚轮在缩放画布
+  （违 m103），按主线 m88 机器库滚动那支同形补上 `sidebarScroll -= (int) Math.signum(delta)`；⑤地图区不缩放（主线 m110a `inMap` 口径，
+  m490 小地图上挂时漏带，`overMap` 现成）。
+- **对照表**：第一节补 `ZoomAnim.Host`；第三节补「滚轮缩放手感」与「1.20.1 卡片层不随缩放」（后者**未修**：本世代节点卡/存储卡在屏幕层
+  `sx/sy` 直画，缩放只改位置不改尺寸，范围放开到 5% 后极端档位卡会互叠——登记 A10，属 A 线下一件该搬的：主线卡在世界矩阵下）。
+- **验证**：`tools_smoke.py` 两代全量（主线 192 / 1.20.1 88 文件）零真错 + 三改动文件单编零真错（**ZoomAnim 两代各 0 条**、主线屏 557、
+  CanvasScreen120 139 全噪音）；自家 14 个新/删符号 symbol 级报错两代各 0；归一 diff=Host 四句；`zoomToward` 三参/`setViewInstant` 三参/
+  `view` 三参/1.20.1 `super.mouseScrolled` 三参逐处手数；21 闸全绿（0.1.512）。零协议零存档改动；**配置零新增**（三键 m185/m186 早在
+  common，本刀只是 1.20.1 第一次读它们）；纯客户端。判官零新增（client 类服务端判官不可载，m507 同）。
+- **实机验证脚本**：①主线：滚轮缩放/±按钮/适应视图/重置视角/恢复视图/小地图跳转/拖动平移——**应与 m511 逐位一致**（同一份代码；重点看
+  连滚时锚点纹丝不动、关屏再开视图是终态不是中间帧、拖动中滚轮不抢写）；②主线关 `canvasSmoothZoom` → 瞬时跳变旧行为；
+  ③**1.20.1（本刀可见变化）**：滚轮缩放变成指数缓动、指针下画布点不动、连滚累积；范围 5%~800%（改 config 两代同变）；
+  「重置视角」回 (0,0,1.0) 并打断进行中的缓动；小地图点跳转/拖动平移打断缓动不抢写；④1.20.1 背包塞 20+ 种机器开画布：**悬停侧栏滚轮滚清单
+  且画布不缩放**（改前画布在缩放、清单够不着）、悬停小地图滚轮画布不缩放、悬停顶栏 16px 不缩放；⑤1.20.1 极端缩放（5%）：卡片不缩尺寸
+  只挤位置会互叠——**已知，A10 待搬**，不是本刀回归。
+- **教训**：**记档说"修了"和代码里有是两件事**——m459 的修③写得很具体（滚窗/钳回/滑块条），字段与绘制都落了，唯独入口那一支没写，
+  三十多刀里没人发现是因为验证脚本要"背包塞 20+ 种机器"，谁也没真塞过。凡 DEVLOG 里写"已修/已接"的交互，实机脚本要有一条能**从入口**
+  打到它的操作，光看字段与绘制在不在是不够的。
+- **下一刀**：读 m512 CI → **A7 设置面板/帮助/节点菜单条目/拾取器**（菜单机制 m509 已共用，只剩装条目+拷六张 menu 贴图）；
+  或先 **A10 1.20.1 卡片层随缩放**（新登记，缩放范围放开后更刺眼）——按作业表顺序走 A7，A10 排 A7 之后。
+

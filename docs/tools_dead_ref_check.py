@@ -46,7 +46,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
  "xplat/src/main/java/com/sdzjz/client/StructureCoreScreen.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuIcons","menuTexs","menuStyles",
     "menuTitle","menuOpenMs","menuHoverP","MENU_W","MENU_H","MENU_TITLE_H",
-    "GROUP_ENC","mmAnchorGeom","drawBundleBadge","seBundles","mmBundles"],
+    "GROUP_ENC","mmAnchorGeom","drawBundleBadge","seBundles","mmBundles",
+    "zoomTarget","zoomAnim","zoomAnchorSx","zoomAnchorSy","zoomAnchorWx","zoomAnchorWy","zoomAnimNs"], # m512 m186 状态六件下沉 ZoomAnim
  "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuStyles","menuTitle","MENU_W","MENU_ROW","menuH","menuRowAt"],
 }

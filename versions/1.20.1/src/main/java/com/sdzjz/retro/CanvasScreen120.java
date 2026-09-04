@@ -28,6 +28,16 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private CanvasGraphState g = new CanvasGraphState(); // 最近快照的本地像（只读）
     private double viewX = 0, viewY = 0; // 视口左上对应的画布坐标
     private float zoom = 1.0f;
+    // m512（真移植·A6）：缩放平滑动效走主线同一份 xplat client/ZoomAnim（m186 指数缓动+指哪缩哪+连滚累积；m185 范围走配置）。
+    // 本世代视图记法是 viewX/viewY（视口左上的画布坐标）+ float zoom，主线是 panX/panY——同一件事两种记法（m490/m507 同款换算
+    // panX = -viewX*zoom），Host 里换算一次；zoom 存 float 是本世代旧形（Math.round(float) 等消费点未迁，m366b 六项扫描前不动），
+    // 写回时窄化一次，收敛判定在共用件里按 double 做，锚点公式用的是同一个 z，亚像素级差。
+    private final com.sdzjz.client.ZoomAnim za = new com.sdzjz.client.ZoomAnim(new com.sdzjz.client.ZoomAnim.Host() {
+        @Override public double panX() { return -viewX * zoom; }
+        @Override public double panY() { return -viewY * zoom; }
+        @Override public double zoom() { return zoom; }
+        @Override public void view(double px, double py, double z) { zoom = (float) z; viewX = -px / z; viewY = -py / z; }
+    });
     private int refreshTicker = 0;
     private boolean panning = false;
     // ===== m457 交互态 =====
@@ -210,15 +220,17 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) { // 1.20.1 三参
-        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞滚轮（主线 mouseScrolled 同一行的本世代两项：菜单/重命名窗）
-        float next = Math.max(0.35f, Math.min(2.5f, zoom * (delta > 0 ? 1.15f : 1 / 1.15f)));
-        if (next != zoom) { // 指针为锚：缩放前后指针下画布点不动（m103 谱系体验口径）
-            double anchorCx = viewX + mouseX / zoom, anchorCy = viewY + mouseY / zoom;
-            zoom = next;
-            viewX = anchorCx - mouseX / zoom;
-            viewY = anchorCy - mouseY / zoom;
+        if (mouseX >= width - SIDEBAR_W && mouseY >= 16) { // m459 修③ 侧栏滚轮滚窗（m103 悬停哪响应哪；主线 m88 机器库滚动同形）——
+            sidebarScroll -= (int) Math.signum(delta);         // m459 记档写了"已修"，代码里从没有这一支（回溯到 93368df 亦无），m512 补上；钳回在 renderBg
+            return true;
         }
-        return true;
+        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞滚轮（主线 mouseScrolled 同一行的本世代两项：菜单/重命名窗）
+        if (overMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布（主线 inMap 口径；m490 小地图上挂时漏带）
+        if (mouseY > 16) { // 顶栏以下才缩放（主线 mouseY > 34 的本世代对位：顶栏 16）
+            za.zoomToward(delta > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪（m512 起与主线同一份；原 1.15 倍/0.35~2.5 硬编码退役）
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override
@@ -231,6 +243,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         if (cmenu.isOpen()) { cmenu.click(mouseX, mouseY, button); return true; } // 右键菜单 modal：左键点行=执行（点选音），其余=关（m103 吞穿透口径，主线同一份 CanvasMenu.click）
         if (button == 0 && overMap(mouseX, mouseY)) { // m490 小地图跳转：点中的画布点移到工作区中心
+            za.stop(); // m186 手动跳转终止缩放动效防隔帧抢写（主线 mapJump 首句，m512 共用件）
             double[] w = com.sdzjz.client.MinimapRenderer.jumpTarget(mapView, mapX(), mapY(), mouseX, mouseY);
             viewX = w[0] - (width - SIDEBAR_W) / 2.0 / zoom;
             viewY = w[1] - (height - 16) / 2.0 / zoom;
@@ -329,7 +342,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 addMenu("打组所选(" + selected.size() + "台)", mi(net.minecraft.world.item.Items.LEAD), this::createGroupFromSelection);
             if (groupsOn() && !selected.isEmpty())
                 addMenu("清除选择", mi(net.minecraft.world.item.Items.GLASS_PANE), selected::clear);
-            addMenu("重置视角", mi(net.minecraft.world.item.Items.SPYGLASS), () -> { viewX = 0; viewY = 0; zoom = 1.0f; }); // 主线 setViewInstant(0,0,1.0) 的本世代记法
+            addMenu("重置视角", mi(net.minecraft.world.item.Items.SPYGLASS), () -> za.setViewInstant(0, 0, 1.0)); // 主线原文（m512 起 setViewInstant 两代同一份，顺手终止缩放动效）
             addMenu("取消", (ItemStack) null, 2, () -> {});
             openMenu((int) mouseX, (int) mouseY);
             return true;
@@ -415,6 +428,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             return true;
         }
         if (panning && button == 0) {
+            za.stop(); // m186 手动平移终止缩放动效防隔帧抢写（主线同句，m512 共用件）
             viewX -= dragX / zoom;
             viewY -= dragY / zoom;
             return true;
@@ -492,6 +506,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
+        za.tick(); // m186 缩放动效每帧推进（先于一切使用 view/zoom 的绘制；m512 共用件）
         ctx.fill(0, 0, width, height, SciSkinPalette.BACKDROP); // 满窗不透明（m452 透明教训口径）
         int step = Math.max(6, Math.round(GRID_STEP * zoom));   // 网格
         int offX = (int) (Math.floorMod(Math.round(-viewX * zoom), step));

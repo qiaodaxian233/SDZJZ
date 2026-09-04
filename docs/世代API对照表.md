@@ -25,6 +25,7 @@
 | `StorageLedgerProbe` | 账本十三口（测试用宽面） | m480 |
 | `GroupFrameRenderer.View` | 画布屏状态归一：pan/zoom 记法、节点坐标（含拖动覆盖）、卡高、组元数据；`pushWorld` 世界矩阵（m511 放开给机器线层） | m507/m511 |
 | `WireBundler.StoragePorts` | m193 归并的存储端接口位置（主线总线放置卡 x+14 / x+bw-14 vs 1.20.1 24×24×zoom 存储节点卡 0.25w/0.75w，卡底+2） | m511 |
+| `ZoomAnim.Host` | 画布视图状态（pan 记法读三口 + `view(panX,panY,zoom)` 一次落写）：主线 panX/panY/zoom 直存直取，1.20.1 由 viewX/viewY+float zoom 换算 | m512 |
 
 ## 二、API 逐项对照（**1.21 专属 → 1.20.1 对位**）
 
@@ -89,6 +90,8 @@
 | **画布配色作用域** | 主线 `render()` 整帧 `SciSkin.scopeCanvas(true)`（m214 主题分家，term*() 读画布 7 色）；本世代 m483~m510 没开，共用件在 1.20.1 一直读终端配色。m511 起同开 | m511 |
 | **悬停聚焦** | 主线 m164b：悬停某节点时无关线压暗（`lit` 假→`mix(termInk, wire, 0.30)`）；本世代无悬停聚焦，lit 恒真 | m511 记 |
 | **线色** | 主线走 m198 配置 `wireOut()/wireIn()`（默认薰衣草紫/柔绿 m207）；本世代 m458~m510 写死 Palette ON/GOLD/ACCENT（产出线绿、供料线金）。m511 起同走配置 | m511 |
+| **滚轮缩放手感** | 主线 m185/m186：因子 1.1/0.9、范围走配置 `canvasZoomMin/Max`（默认 5%~800%）、`canvasSmoothZoom` 指数缓动；本世代 m456~m511 硬编码 1.15 倍 / 0.35~2.5 瞬时跳变。m512 起同走共用件与配置 | m512 |
+| **1.20.1 卡片层不随缩放** | 本世代节点卡/存储卡走 `sx/sy` 屏幕坐标直画（NodeCardRenderer 在屏幕层），缩放只改位置不改卡尺寸；主线卡在世界矩阵下随 zoom 缩放。**未修**（A10 登记），缩放范围放开到 5%~800% 后极端档位卡会互叠 | m512 记 |
 
 ## 四、用法
 
