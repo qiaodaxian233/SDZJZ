@@ -78,7 +78,8 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         hostImpl = h;
     }
 
-    private static Host host() {
+    /** m525（SB4）放开 public：屏共用件 SuperBenchView 的 BOM 认包/抓物笼判定走同一份宿主口（m486 sweepGroups / m511 pushWorld 放开同律）。 */
+    public static Host host() {
         if (hostImpl == null) throw new IllegalStateException("SuperBenchScreenHandler 物品宿主口未安装：加载器入口须先调 installHost(...)（主线=Sdzjz.onInitialize 首段 LegacySuperBenchHost；1.20.1=RetroBootstrap 空宿主）");
         return hostImpl;
     }

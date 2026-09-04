@@ -54,6 +54,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
     "FRAME"], # m516 装饰底图常量随底层下沉 CanvasBackdrop（SciSkin.FRAME 带限定名不算裸引用）
  "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuStyles","menuTitle","MENU_W","MENU_ROW","menuH","menuRowAt"],
+ # m525（SB4）：超大工作台屏绘制体+交互体整段下沉 SuperBenchView——主线屏删掉全部常量/状态/助手（只留壳与 Host 七口）；
+ # 1.20.1 最小壳（m524）的四常量随之退役
+ "xplat/src/main/java/com/sdzjz/client/SuperBenchScreen.java":
+   ["PANEL","CELLF","CELLB","CYAN","TXT","SUB","SEL","BG","PX","PW","LIST_Y","ENTRY_H","LIST_ROWS","SEARCH_Y","BH","TEX_H","TEX_SPLIT","TEX_TILE",
+    "BTN_Y","BTN_H","BTN_W","BTN_GAP","bomExpanded","bomScroll","bomOver","bomMoreX","bomMoreY","bomMoreW","bomMoreH","scroll","selected","search",
+    "refilter","sortKey","cell","cnt","countAvailable","hasCagedMob"],
+ "versions/1.20.1/src/main/java/com/sdzjz/retro/SuperBenchScreen120.java": ["GX","GY","W","PY"],
 }
 # m506 重复键自检：dict 字面量里同名键会静默覆盖，这里从源码文本数一遍键，重复即红。
 import collections as _c
@@ -119,7 +126,8 @@ if not 括号坏:
 # SciSkin.slotTex()/buttonTex() 会 blit textures/gui/{slot,button}.png——主线有，1.20.1 原来没有，
 # 挂上共用件之后槽位会画成紫黑格。编译器管不着（是运行期资源），冒烟也管不着，只有开屏才看得见。
 资源坏 = 0
-共用要的资源 = ["assets/sdzjz/textures/gui/slot.png", "assets/sdzjz/textures/gui/button.png"]
+共用要的资源 = ["assets/sdzjz/textures/gui/slot.png", "assets/sdzjz/textures/gui/button.png",
+            "assets/sdzjz/textures/gui/super_bench_gui.png"]  # m525 SuperBenchView.bg() 三段带绘底图
 资源根 = {"主线": ROOT / "src/main/resources", "1.20.1": ROOT / "versions/1.20.1/src/main/resources"}
 for 代, 根 in 资源根.items():
     for r in 共用要的资源:

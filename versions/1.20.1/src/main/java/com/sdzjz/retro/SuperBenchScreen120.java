@@ -1,30 +1,51 @@
 package com.sdzjz.retro;
 
-import com.sdzjz.client.SciSkin;
+import com.sdzjz.client.SuperBenchView;
 import com.sdzjz.screen.SuperBenchScreenHandler;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
 
-/** m524（SB3）超大工作台屏 **1.20.1 最小壳**：只画面板底 + 主线槽位贴图，让"放下方块右键能开屏"可验（作业表 SB3 验收④）。
- *  绘制体（右侧配方浏览器/搜索框/压缩区两钮/合成台工艺 m207/m240）随 **SB4** 下沉共用件后整体换掉——
- *  **本类不许长功能**（m508 最小菜单件→m509 换共用件同律，长了就是仿写件）。
- *  1.20.1 客户端签名差（m448 原注）：{@code renderBackground} 单参；render/renderBg 同名同签名。
- *  尺寸口径照主线 {@code SuperBenchScreen}：高 332（m240 底部越界修复口径），宽只覆盖网格+结果槽（主线 470 含右侧浏览器 PX=270，SB4 到序）。 */
-public final class SuperBenchScreen120 extends AbstractContainerScreen<SuperBenchScreenHandler> {
+/** 超大工作台屏 **1.20.1 世代壳**（m524 SB3 最小壳 → m525 SB4 换共用绘制体 {@link SuperBenchView}，两代同一份）。
+ *  与主线 {@code SuperBenchScreen} 壳逐句对照，世代差三处（m448 原注）：{@code renderBackground} 单参手动调（1.20.2 起框架带坐标自动调）、
+ *  {@code mouseScrolled} 三参（1.20.2 起四参）、EditBox 光标闪烁要 {@code containerTick} 手动 {@code tick()}（1.20.2 起移除）。
+ *  Host 七口全是 AbstractContainerScreen 现成字段/方法的转发，两代同名同签名。 */
+public final class SuperBenchScreen120 extends AbstractContainerScreen<SuperBenchScreenHandler> implements SuperBenchView.Host {
 
-    /** handler 坐标（m201）：网格 gx=8/gy=18，结果槽 x=gx+GRID*18+24，背包 py=gy+GRID*18+12。 */
-    private static final int GX = 8, GY = 18;
-    private static final int W = GX + SuperBenchScreenHandler.GRID * 18 + 24 + 18 + GX; // 网格+结果槽+右边距=274
-    private static final int PY = GY + SuperBenchScreenHandler.GRID * 18 + 12;          // 背包首行 y=246
+    private final SuperBenchView view = new SuperBenchView(this);
 
     public SuperBenchScreen120(SuperBenchScreenHandler menu, Inventory inv, Component title) {
         super(menu, inv, title);
-        this.imageWidth = W;
-        this.imageHeight = 332;
-        this.inventoryLabelY = PY - 10; // 标签压背包槽上一行（DataPanelScreen120 同律）
+        this.imageWidth = SuperBenchView.WIDTH;
+        this.imageHeight = SuperBenchView.HEIGHT;
+    }
+
+    // ===== SuperBenchView.Host =====
+    @Override public int left() { return this.leftPos; }
+    @Override public int top() { return this.topPos; }
+    @Override public int screenW() { return this.width; }
+    @Override public int screenH() { return this.height; }
+    @Override public java.util.List<net.minecraft.world.inventory.Slot> slots() { return this.menu.slots; }
+    @Override public boolean clickButton(int id) {
+        if (this.minecraft != null && this.minecraft.gameMode != null) {
+            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, id);
+            return true;
+        }
+        return false;
+    }
+    @Override public void addBox(net.minecraft.client.gui.components.EditBox box) { this.addRenderableWidget(box); }
+
+    @Override
+    protected void init() {
+        super.init();
+        view.init(this.font);
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (view.search() != null) view.search().tick(); // 1.20.1 光标闪烁需手动 tick（1.20.2 起移除；DataPanelScreen120 同句）
     }
 
     @Override
@@ -36,7 +57,35 @@ public final class SuperBenchScreen120 extends AbstractContainerScreen<SuperBenc
 
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        SciSkin.termPanel(g, leftPos, topPos, imageWidth, imageHeight);
-        for (Slot slot : menu.slots) SciSkin.termSlot(g, leftPos + slot.x, topPos + slot.y); // 主线槽（18×18 贴图，传物品区左上角）
+        view.renderBg(g, mouseX, mouseY);
+    }
+
+    @Override
+    protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+        view.renderLabels(g, mouseX, mouseY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) { // 1.20.1 三参（1.20.2 起四参）
+        if (view.mouseScrolled(mouseX, mouseY, delta)) return true;
+        return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (view.mouseClicked(mouseX, mouseY, button)) return true;
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (view.keyPressed(keyCode, scanCode, modifiers)) return true;
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (view.searchFocused()) return view.search().charTyped(chr, modifiers); // 主线原句：聚焦时直接回 EditBox 结果
+        return super.charTyped(chr, modifiers);
     }
 }

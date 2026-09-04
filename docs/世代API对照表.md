@@ -27,6 +27,7 @@
 | `WireBundler.StoragePorts` | m193 归并的存储端接口位置（主线总线放置卡 x+14 / x+bw-14 vs 1.20.1 24×24×zoom 存储节点卡 0.25w/0.75w，卡底+2） | m511 |
 | `ZoomAnim.Host` | 画布视图状态（pan 记法读三口 + `view(panX,panY,zoom)` 一次落写）：主线 panX/panY/zoom 直存直取，1.20.1 由 viewX/viewY+float zoom 换算 | m512 |
 | `CanvasSettingsPanel`（无 Host，三参 init） | 画布设置面板整件：宿主只给字体/屏幕尺寸（init）与开窗前清场；`EditBox` 两代同签名 | m515 |
+| `SuperBenchView.Host`（七口：left/top/screenW/screenH/slots/clickButton/addBox） | 超大工作台屏绘制体+交互体整件（m525 SB4）：宿主=两代屏壳，口全是 AbstractContainerScreen 现成字段/方法转发；认包/抓物笼复用 `SuperBenchScreenHandler.host()` 十口不另开；**头注带「宿主前提」五条（D5 模板第一份）** | m525 |
 | `SuperBenchScreenHandler.installType` / `.Host` | 超大工作台菜单 handler 的两件出户：菜单类型（注册住各世代注册表类，注册完 `installType`）；压缩材料包/抓物笼两族主线专属物品的十口 default 宿主（`packsAvailable/isPack/tier1/tier2/packInnerId/packRawCount/packRatio/packOf/cagedType`，默认=本世代没有这件东西；主线 `LegacySuperBenchHost` 原句照搬，1.20.1 空宿主）。**默认关的口配「装了没」判官**（`super_bench_host_pack_roundtrip`） | m523 |
 
 ## 二、API 逐项对照（**1.21 专属 → 1.20.1 对位**）
@@ -64,6 +65,7 @@
 | `Util.getMillis()` | 同名（yarn `getMeasuringTimeMs`） | 直接用 | m509 核过 |
 | `SimpleSoundInstance.forUI(Holder<SoundEvent>,float)` + `SoundEvents.UI_BUTTON_CLICK` | 同名同签名（yarn 1.20.1 `PositionedSoundInstance.master(RegistryEntry,float)` method_47978；`UI_BUTTON_CLICK` 两代同为 `Holder.Reference`） | 直接用 | m509 核过 |
 | `new EditBox(font,x,y,w,h,Component)` / `setMaxLength/setValue/getValue` | 同签名（yarn `TextFieldWidget`） | 直接用 | m508/m509 核过 |
+| `EditBox` 光标闪烁 | 1.20.1 要在 `containerTick` 手动 `tick()`（1.20.2 起移除，**1.21 源集里写 `tick()` 不编译**） | 共用件只暴露 `search()` getter，tick 那句留 1.20.1 壳（m448 原注 / m525） | m525 |
 | `widget.setX(int)/setY(int)` | 同名（1.19.4+ `Widget`/`LayoutElement` 接口，method_46421/46419） | 直接用 | m508/m509 核过 |
 | `screen.setFocused(GuiEventListener)` / `widget.setFocused(boolean)` | 同名（yarn `ParentElement.setFocused(Element)` / `Element.setFocused(Z)`） | 直接用 | m508/m509 核过 |
 | `Screen.hasShiftDown()` | 同名 | 直接用 | m508/m509 核过 |

@@ -11184,3 +11184,28 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **评审入账（作业表）**：提醒①「闸别无限补」写进取活规则（维持闸拦大流+CI 兜底双层，新形状先问有没有通用判据）；提醒②已按"先拷再跑闸"消化；旧意见③白名单挂载人工同步点→D4 登记（先量主线专属 xplat 文件数再定整挂+排除 or 反向闸）；旧意见④共用件「宿主前提」头注→D5 登记（SB4 下沉 SuperBenchScreen 时写第一份模板，回头补四件）。
 - **下一刀**：读 m524 CI（1.20.1 job + 判官必须绿）→ **SB4**：先量主线 `SuperBenchScreen` API 面（贴图 id 构造→`SciSkin.Gfx.tex`、EditBox 两代同签名、发包留各代）→ 照 m515 切片下沉共用件、主线退壳、`SuperBenchScreen120` 最小壳换共用件（imageWidth 470）、拷 `super_bench_gui.png`（第 19 闸预期红一次）→ SB5 判官。**开工先跑 21 闸。**
 
+## m525 SB4：超大工作台屏绘制体+交互体两代共用（xplat `client/SuperBenchView`，主线 392 行整段搬）—— 两代屏退壳、1.20.1 最小壳退役；宿主前提头注第一份（D5）
+
+- **取活**：m524 CI 八 job 全绿后按作业表取 SB4；开工 21 闸绿。
+- **先量 API 面（m515 律：先量再定搬法）**：主线 `SuperBenchScreen` 392 行里 1.21 专属只有三处符号——`ResourceLocation.fromNamespaceAndPath`×1（BG 贴图 id）、`ResourceLocation.parse`×2（实体/物品 id）；
+  另两处**自家类** `CompressedPackItem.rawCount/innerId/instanceof`、`CaptureCageItem.cagedType`（1.20.1 白名单不可见，m522b 血案同族，第 20 闸自家类可见性会红）；
+  Screen 层世代差三处（`mouseScrolled` 四参/三参、`renderBackground` 框架自动/手动单参、`EditBox.tick()` 1.20.2 起移除）——**全在壳的方法签名层，不在绘制体里**。
+  其余 `GuiGraphics.blit(RL,int,int,float,float,int,int,int,int)`/`renderOutline`/`renderItem`/`drawString`/`pose()`、`Font.plainSubstrByWidth/width`、`EditBox` 六口、`MultiPlayerGameMode.handleInventoryButtonClick`、`BuiltInRegistries.*` 逐项对 yarn 1.20.1（`drawTexture(class_2960;IIFFIIII)`/`drawBorder`/`drawItem` 在位）与对照表，**两代同名同签名**→整段搬不分片。
+- **搬法**：脚本从主线原文按行段切片生成 `SuperBenchView`（常量/字段/init 体/refilter/sortKey/renderBg/cell/renderLabels/cnt/countAvailable/hasCagedMob/mouseScrolled/mouseClicked/keyPressed），
+  机械替换六类：`this.font→font`（init(Font) 时给——**Screen.font 构造期为 null**，只能 init 后取）、`this.leftPos/topPos→h.left()/h.top()`、`this.width/height→h.screenW()/h.screenH()`、`imageWidth/imageHeight→WIDTH/HEIGHT`、`this.menu.slots→h.slots()`、
+  发包/加控件→`h.clickButton(int)`（回 boolean 保留原句 `minecraft/gameMode` 非空判语义）/`h.addBox(EditBox)`。**Host 七口全是 AbstractContainerScreen 现成字段/方法转发**。
+  世代口三处走**已有**的口不新造：`SciSkin.gfxTex`（m509）/`SciSkin.gfxItem`（m484）/`SuperBenchScreenHandler.host()` 十口（m523，`private→public` 放开，m486/m511 放开同律）。
+  **BG 常量惰性化**（m483 律）：`static final BG = gfxTex(...)` 会在类加载时调 `gfx()`，早于 `installGfx` 就炸——改 `bg()` 首次求值缓存，三处 blit 改 `bg()`，行为逐位不变。
+  `charTyped` 刻意不进共用件：主线原句"聚焦时直接 `return search.charTyped(...)`"回的是 EditBox 结果（可能 false 且不走 super），共用件回 boolean 表达不了这层——壳里两句 + `search()`/`searchFocused()` 两 getter。
+  **归一 diff**（反向还原六类替换后与原文比）：原文段 256 行 / 共用件 253 行，diff 只剩：BG 惰性化 4 行、gfxItem 2 行、宿主口 4 行、`return false`×3（super 留壳）、发包两处（`h.clickButton`），**其余逐句同原文含全部刀号注释**。
+- **两代壳**：主线 `SuperBenchScreen` 392→83 行（构造/init/renderBg/renderLabels/四事件/render + Host 七口）；1.20.1 `SuperBenchScreen120` m524 最小壳退役→91 行同形壳，多三句世代差（`renderBackground(g)` 单参、`mouseScrolled` 三参、`containerTick` 里 `search().tick()`）。
+  Host 口名 `addWidget`→`addBox`：`Screen.addWidget(T)` 泛型同名（擦除不同不算 override 但容易误读）；**七口名对 yarn 两代 Screen/HandledScreen/ParentElement/Element 映射逐一核零撞名**（第七类盲区自查：撞名/返回型不兼容冒烟报不出）。
+- **白名单 40→42**：`SuperBenchView` + `PinyinInitials`（零 MC 依赖，m287 名称排序要用），候选模式先闸后挂→再正式跑绿。1.20.1 资源 +`textures/gui/super_bench_gui.png`（逐字节同主线），第 19 闸「共用件资源」表 +1；第 19 闸删符号登记：主线屏 37 个、1.20.1 屏 4 个；第 18 闸 `SuperBenchScreen120` 描述改世代壳。
+- **宿主前提头注（D5 制度化第一份模板，评审④）**：`SuperBenchView` 类注五条——①坐标层（屏幕坐标、不 push 矩阵、renderBg 自铺全屏底、renderLabels 须在原生 translate 下调）②字体（init 后给，resize 再 init 保留状态）③控件（EditBox 本类建、宿主挂；**1.20.1 手动 tick**）④取色（只走 SciSkin，不看 scopeCanvas）⑤事件（只收纵向量；回 false=没吃）。回头补 WireBundler/GroupFrameRenderer/NodeCardRenderer/CanvasBackdrop 四件（D5）。
+- **验证**：两代冒烟零真错（main 198/retro 100 文件，六个改动文件单编零真错）；自家 11 个新/改符号定向 grep=0；21 闸全绿（0.1.525）；归一 diff 见上；七口零撞名。
+  零协议零存档零配置；**主线像素应逐位不变**（整段搬，唯一结构变化=BG 惰性求值，首帧多一次 id 构造）。**1.20.1 可见变化**：超大工作台屏从"底+槽位"变成主线同形——470 宽底图三段带绘、右侧机器配方浏览器（搜索/拼音序/档位角标/点击填料）、BOM 活体对照（绿够红缺）、"+N▼"材料总览卡、压缩区两钮（本世代空宿主：认包恒否、点钮明说不可用不吞件）。
+  **实机脚本**：①主线：开超大工作台屏与 m524 前截图逐位对（标题条/分隔线/搜索框/列表/BOM/两钮/总览卡/滚轮翻页/Esc 收卡）②1.20.1：开屏与主线同形；搜索"熔炉"列表按拼音序过滤；点一台机器→网格自动从背包填料（`clickMenuButton(idx)` 服务端填料，m523 handler 已在 1.20.1）；BOM 绿/红随背包变；③1.20.1 点"材料→压缩包"：actionbar/聊天明说不可用、网格一件不少④两代 resize 窗口搜索词保留、选中不丢⑤1.20.1 搜索框光标闪烁（containerTick 那句）。
+  **作者判据：CI 主线+1.20.1 两 job 绿；主线屏像素零变化。**
+- **教训**：①「先量 API 面」这次量出 392 行只有 3 处专属符号 + 2 处自家类——**自家类是量 API 面时最容易漏的第三类**（m522b 已撞一次，这次是第 20 闸判据在先、写码时就知道要走 Host）；②`this.font` 这种"看起来是常量"的宿主字段，构造期可能为 null——共用件拿宿主东西的时机要和宿主生命周期对齐（init 后），不是拿到引用就行；③共用件 Host 口的方法名要对两代父类映射核撞名——这是第七类盲区在"名字"上的形状，冒烟永远看不见。
+- **下一刀**：读 m525 CI → **SB5** 1.20.1 超大工作台判官（配方全表唯一 / 端到端合成出机器 / quickMove 服务端权威 / 空宿主压缩钮明说不吞件），写进 `RetroBenchTests`；S 线收官。**开工先跑 21 闸。**
+

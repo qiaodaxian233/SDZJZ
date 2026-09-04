@@ -52,7 +52,7 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "StorageCoreRenderer120.java": (True, False, "BER 渲染"),
     "StructureCoreMenu120.java": (True, False, "菜单/容器（Menu API 两代形状不同）"),
     "SuperBench120.java": (True, False, "m524（SB3）超大工作台 BE 世代壳：主线 SuperBenchBlockEntity 原文，唯一差=BE 类型来源（ModBlockEntities 在 src 不可见）"),
-    "SuperBenchScreen120.java": (True, False, "m524（SB3）超大工作台屏**最小壳**（底+槽位）：SB4 下沉主线 SuperBenchScreen 绘制体后换共用件——本类不许长功能"),
+    "SuperBenchScreen120.java": (True, False, "超大工作台屏**世代壳**：m525（SB4）起绘制体+交互体全走 xplat/client/SuperBenchView（主线 392 行整段搬），本类只剩生命周期/事件签名/Host 七口转发（renderBackground 单参、mouseScrolled 三参、EditBox 手动 tick）"),
     "CanvasScreen120.java": (True, False, "画布屏：输入处理与布局壳。m483 卡面工艺、m484 整张节点卡"
                                          "（骨架+六族读数行）已走共用件；仍待搬：连线缎带(m136)+归并徽章、"
                                          "小地图、悬停详情浮层、面板屏工艺"),
