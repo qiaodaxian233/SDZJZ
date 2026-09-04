@@ -40,6 +40,13 @@ public final class RecipeDomainAssertions {
 
     /** 全套契约。level=不透明代际世界句柄（服务端），recipes=被测实现。 */
     public static void runAll(Object level, RecipeAccess recipes) {
+        runCraftSmelt(level, recipes);
+        runBrewEnch(level, recipes);
+    }
+
+    /** m520（C2a）：①~⑤ 合成+熔炼两域。1.20.1 的酿造/附魔域等附魔定价拍板（作业表阻塞区），先跑这半——
+     *  未到序的域不能把已到序的判官一起拖红；断言正文与 runAll 原文逐字同一份，只是切成两口。 */
+    public static void runCraftSmelt(Object level, RecipeAccess recipes) {
         // ========== ①④ 任意木板 + Ingredient 枚举口径（工作台=4×#planks tag） ==========
         List<CraftPlanner.Plan> plans = recipes.craftingPlans(level, "minecraft:crafting_table");
         chk(!plans.isEmpty(), "①工作台应有合成配方（枚举口没跑通）");
@@ -112,6 +119,10 @@ public final class RecipeDomainAssertions {
         Collections.reverse(syn);
         chk("minecraft:aaa".equals(SmeltPlanner.pickStable(syn)[0]), "③合成候选倒序输入选序应不变");
 
+    }
+
+    /** m520：⑥⑦ 酿造+附魔两域（runAll 后半）。 */
+    public static void runBrewEnch(Object level, RecipeAccess recipes) {
         // ========== ⑥ 酿造域全路径（原版锚点：迅捷=水瓶→粗制(地狱疣)→迅捷(糖)） ==========
         com.sdzjz.machine.BrewPlanner.Plan bp = recipes.brewingPlan(level, "minecraft:swiftness|p");
         chk(bp != null, "⑥迅捷药水应可达（酿造 BFS 没跑通）");

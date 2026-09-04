@@ -929,4 +929,16 @@ public class RetroTickTests implements FabricGameTest {
         ctx.succeed();
     }
 
+    /** m520（C2a）：配方域跨代契约①~⑤（合成+熔炼两域）——与主线卅四号 recipe_domain_contract / 26.2 跑**同一份**
+     *  RecipeDomainAssertions；酿造/附魔域等附魔定价拍板，故先跑 runCraftSmelt（C2b 到序后换 runAll）。 */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 60)
+    public void recipe_domain_contract_craft_smelt(GameTestHelper ctx) {
+        try {
+            com.sdzjz.platform.RecipeDomainAssertions.runCraftSmelt(ctx.getLevel(), com.sdzjz.platform.Platform.recipes());
+        } catch (AssertionError e) {
+            ctx.fail("配方域契约失败: " + e.getMessage());
+            return;
+        }
+        ctx.succeed();
+    }
 }

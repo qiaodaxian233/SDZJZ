@@ -11040,3 +11040,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：读 m519 CI → 作者第二问「合成的那个没做吗」：自动合成机 1.20.1 未落地（作业表 C2/C4）；C2 拆分——合成域不依赖附魔定价拍板，可先做 C2a
   `RetroRecipeAccess` 合成/余料两域（m476 量：低成本，差 RecipeHolder/getId/ResourceLocation 三处）→ C4 目标选择 UI + 自动合成机 tick（`ct` 键）。
 
+## m520 C2a：1.20.1 配方域补合成/余料两域（RetroRecipeAccess，LegacyRecipeAccess 原文）—— 契约 runAll 拆 runCraftSmelt/runBrewEnch，1.20.1 判官接上
+
+- **来路**：作者问「合成的那个没做吗」——自动合成机 1.20.1 未落地。作业表原 C2 把合成/酿造/附魔三域捆一起等附魔定价拍板，但**合成域不依赖那条拍板**
+  （m476 量：craft/remainder 低成本，差 RecipeHolder/getId/ResourceLocation 三处）→ m519 拆出 C2a，本刀落地。m519 CI 八 job 全绿后开工。
+- **逐句对**：`LegacyRecipeAccess.craftingPlans`（m362 = CraftPlanner.resolveAll 原文平移：按目标物遍历 CRAFTING 配方→取结果栈（特殊配方异常跳过）→
+  逐 Ingredient 展开候选集 `LinkedHashSet` 去重→m343 同候选集槽位合并成 `Group`→needs 首选口径/remainders `getCraftingRemainingItem`→
+  minecraft 命名空间优先、同空间 id 字典序排序）与 `craftRemainderOf`。世代差**只有三处**（查对照表，非现猜）：①`getAllRecipesFor(CRAFTING)` 1.20.1 直接返
+  `List<CraftingRecipe>`（1.21 是 `RecipeHolder` 要 `.value()/.id()`）②配方 id 走 `r.getId()` ③`ResourceLocation.parse`→`new ResourceLocation(String)`。
+  其余一字未改（含 try/catch、注释刀号、排序）。`getResultItem(registryAccess)` 1.19.3+ 同签名（m494 熔炼域同款）。
+- **契约**：`RecipeDomainAssertions.runAll` 拆成 `runCraftSmelt`（①~⑤ 合成+熔炼）+ `runBrewEnch`（⑥⑦），runAll 调两口——断言正文逐字不动，只切两口；
+  拆前核过 ⑥⑦ 段不引用 ①~⑤ 段任何局部变量（脚本核：⑥⑦ 声明 bp/dp/e1/e5/e5b，交集空）。理由：1.20.1 酿造/附魔域等拍板，**未到序的域不能把已到序的判官一起拖红**。
+- **判官**：1.20.1 `RetroTickTests.recipe_domain_contract_craft_smelt`（与主线卅四号 `recipe_domain_contract`/26.2 跑同一份断言；不同名，第 18 闸不算双写）——
+  ①工作台=4×#planks 候选组含云杉/绯红/诡异 ②maxCrafts/takeFor 同口径 ③熔炼稳定选序 ④候选去重 ⑤蛋糕 3 桶残留双口一致，全部锚原版 datapack。累计 66。
+- **验证**：`tools_smoke.py` 两代全量零真错 + 三改动文件单编零真错（RecipeDomainAssertions 0 条——common 零 MC；RetroRecipeAccess 39 条全是 MC 类噪音，
+  自家 `CraftPlanner.Group/Plan`、`runCraftSmelt/runBrewEnch`、`recipes()` 0）；21 闸全绿（0.1.520）。零协议零存档零配置零资源；**动了 1.20.1 运行期配方查询**
+  （`Platform.recipes().craftingPlans` 从恒空变真数据——目前只有判官在问它，自动合成机 tick 随 C4 到序）；主线零改动（common 契约只拆口不改断言，主线判官仍调 runAll）。
+- **实机验证脚本**（1.20.1）：①`/test runthis`/CI 跑 `recipe_domain_contract_craft_smelt` 应绿（**CI 1.20.1 job 就是判据**）；②主线 `recipe_domain_contract` 与 26.2 判官照旧绿（runAll 语义不变）；
+  ③1.20.1 万能熔炉照旧（熔炼域一字未动）。
+- **下一刀**：读 m520 CI → **C4a 目标选择 UI**（主线自动合成机的 `ct` 键怎么写：合成目标拾取器 m126/合成终端二级界面，先逐句对主线屏侧入口与 payload）→ **C4b 自动合成机 tick 分支**
+  （主线 tick 自动合成分支整段搬，供料线取料 + 产物入产出边；m464 口径无升级恒 1 倍）。UI 与 tick 分两刀（m465 教训）。
+
