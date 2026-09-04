@@ -11099,3 +11099,21 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：读 m522 CI → **SB3**：`SuperBenchBlock120` 世代壳（`use`、无 codec，对位主线 55 行）+ BE + `BlockEntityType`/`MenuType(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET)` 注册进 `RetroBootstrap`
   + `RetroBlocks` 登记/创造栏 + 资源六件套从主线原样拷（方块状态/block+item 模型/贴图+mcmeta/中英 lang）→ SB4 屏。
 
+## m522b 热修（作者 1.20.1 构建红）：SuperBenchScreenHandler/CraftGridInventory 退出白名单 —— 第 20 闸补两类判据（1.21 新类 + 自家类可见性），血案重放 5 处
+
+- **现象**：作者「拉取并构建」1.20.1 报 2 错：`CraftGridInventory:23 找不到符号 CraftingInput`、`SuperBenchScreenHandler:4 程序包 com.sdzjz.registry 不存在`。
+- **根因（两类，都是 m522 我的验证没量到的）**：①`CraftingInput` 是 **1.21 新增的类**（不是方法）——m522 我扫 API 面用的是 parse/Components/CUSTOM_NAME 三类 grep + 第 20 闸方法表，
+  两把尺子都只认**方法名**，整类符号在量程外；且我数"MC import"只数了 `^import net.minecraft` 行，CraftGridInventory 全是内联 FQN，被我记成"0 触点"。
+  ②handler 引了 `src` 的 `registry.ModScreenHandlers`（`super(SUPER_BENCH, id)`）/`registry.ModItems`（压缩包两件×6）与**非白名单** xplat 类 `item.CompressedPackItem`/`item.CaptureCageItem`——
+  根构建 src+xplat 一起编所以从来不报，1.20.1 只编白名单子集才炸。**没有任何闸查"白名单文件引的自家类在 1.20.1 源集里存在吗"**（第 19 闸只管已删符号、layer_gate 只管加载器符号）。
+- **第 20 闸补两类（先补闸再修码，血案重放）**：①专属表加类名：`CraftingInput`/`PositionedCraftingInput`/`RecipeHolder`/`DataComponents`/`CustomData`/`StreamCodec|RegistryFriendlyByteBuf|CustomPacketPayload`；
+  ②**自家类可见性**：白名单 xplat 文件里出现的 `com.sdzjz.a.b.C`（import 与内联 FQN）必须在 白名单 xplat + common 全层 + versions/1.20.1 源集 里有同名文件。
+  改完在修码前跑：**红 5 处**——作者报的 2 处 + 作者构建还没走到的 3 处（`ModItems`/`CompressedPackItem`/`CaptureCageItem`），即修掉那两条后还会再红一轮。
+- **修法（热修口径=最小恢复构建）**：两文件退出 1.20.1 白名单（40→38），`SuperBenchRecipes` 留着（闸绿、只引 common 的 Machines）；ItemData 三口留着（两代都编、主线同义转发）。
+  **不在热修里重做 handler**：它的 4 个自家依赖各需一个口——菜单类型安装口（`ModScreenHandlers.SUPER_BENCH`→静态 install，ItemData.install 样板）、压缩包功能区宿主口（`ModItems.COMPRESSED_PACK/SUPER_COMPRESSED_PACK` + `CompressedPackItem.of/innerId` 六处，本世代无压缩包→默认关，ExtractPort.Host 样板）、捕获笼同上、`asCraftInput` 覆写删除（1.21 接口 default = `CraftingInput.of(w,h,items)` 逐位同义）。这是 SB2b，正刀做。
+- **验证**：第 20 闸复绿；两代冒烟零真错（retro 源集 95→93）；21 闸全绿（版本仍 0.1.522，热修不抬数字段 m317）。零协议零存档零配置零资源；主线零改动（本刀只动 build.gradle 白名单 + 闸 + 文档）。
+  **作者判据：拉取重构建 1.20.1 应 BUILD SUCCESSFUL**；CI 1.20.1 job 同判。
+- **教训**：①m521 稿写"CraftGridInventory 0 MC import"、"三文件可整文件上挂"是**量错了**——量 API 面要量符号不要量 import 行，要量类不要只量方法；
+  ②"根构建绿"对白名单子集不构成证据，白名单文件的自家依赖需要自己的闸——今天补上；③m516 教训当刀再犯一次：写回滚脚本时断言词（类名）出现在同一刀新写的注释里，断言假摔一次才写盘，改成只对 include 行断言。
+- **下一刀**：读 m522b CI（1.20.1 job 必须绿）→ **SB2b**：handler 四口（菜单类型安装口 / 压缩包宿主口 / 捕获笼宿主口 / 删 asCraftInput 覆写）→ 两文件重新上挂 → 第 20 闸绿 → SB3。
+

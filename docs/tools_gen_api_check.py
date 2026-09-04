@@ -34,7 +34,34 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
     r"\bPotionContents\b": ("PotionUtils", "BrewAccess 实现"),
     r"\.potionBrewing\(\)": ("BrewingRecipeRegistry（静态）", "BrewAccess 实现"),
     r"\bgetAnvilCost\(\)": ("（无直接对位，同期是 Rarity.getWeight）", "EnchAccess + 作者拍板 A/B"),
+    # m522b 血案：1.21 新增的**类**（不是方法）——CraftGridInventory 的 asCraftInput 覆写在作者 1.20.1 构建里"找不到符号 CraftingInput"
+    r"\bCraftingInput\b": ("（1.20.1 无此类；CraftingContainer 也没有 asCraftInput）", "不覆写——1.21 接口 default 与 CraftingInput.of(w,h,items) 逐位同义"),
+    r"\bPositionedCraftingInput\b": ("（1.20.1 无此类）", "同上"),
+    r"\bRecipeHolder\b": ("直接 Recipe 实例（id 走 getId()）", "RecipeAccess 各域实现（m494/m520 样板）"),
+    r"\bDataComponents\b": ("CompoundTag 键 / hoverName API", "ItemData 世代口（has/copyOf/write/clearCustomName）"),
+    r"\bCustomData\b": ("getTag()/setTag()", "ItemData 世代口"),
+    r"\bStreamCodec\b|\bRegistryFriendlyByteBuf\b|\bCustomPacketPayload\b": ("FriendlyByteBuf + FabricPacket", "包类各代各写（协议层是世代壳）"),
 }
+
+# m522b 第二件血案：白名单 xplat 文件 import/内联 FQN 引用了 1.20.1 源集里没有的自家类
+# （SuperBenchScreenHandler 引 src 的 registry.ModScreenHandlers / registry.ModItems、非白名单的 item.CompressedPackItem）——
+# 编译器在作者机上才报"程序包 com.sdzjz.registry 不存在"。判据：白名单 xplat 文件里出现的 com.sdzjz.a.b.C 必须能在
+# 白名单 xplat + common 全层 + versions/1.20.1 源集里找到同名文件。
+def 自家可见类(wl):
+    ok = set()
+    for rel in wl:
+        ok.add(rel[:-5].replace("/", "."))
+    for base in ("common/src/main/java", "versions/1.20.1/src/main/java"):
+        for p in (ROOT / base).rglob("*.java"):
+            ok.add(str(p.relative_to(ROOT / base))[:-5].replace("/", "."))
+    return ok
+
+def 自家引用(码):
+    # import com.sdzjz.x.Y; 与 内联 com.sdzjz.x.Y（取到首个大写段为类名，忽略同包简单名——同包引用另有 dead_ref/编译兜底）
+    refs = set()
+    for m in re.finditer(r"\bcom\.sdzjz\.((?:[a-z_]\w*\.)*)([A-Z]\w*)", 码):
+        refs.add("com.sdzjz." + m.group(1) + m.group(2))
+    return refs
 
 
 def 白名单():
@@ -70,6 +97,16 @@ def 主():
                 行 = 码[:re.search(pat, 码).start()].count("\n") + 1
                 print("❌ %s:%d 出现 1.21 专属 API `%s`" % (名, 行, pat.replace("\\", "")))
                 print("     1.20.1 对位：%s ｜ 该走：%s" % (对位, 口))
+                坏 += 1
+    可见 = 自家可见类(wl)
+    for 名, p in 辖区:
+        if not 名.startswith("xplat/"):
+            continue  # common 层由 common_gate 管；此处只查 1.20.1 白名单里的 xplat 文件
+        码 = 剥(p.read_text(encoding="utf-8"))
+        for ref in sorted(自家引用(码)):
+            if ref not in 可见:
+                print("❌ %s 引用了 1.20.1 源集里没有的自家类 `%s`（不在白名单/common/versions/1.20.1）" % (名, ref))
+                print("     该走：功能区本世代没有→带默认的宿主口（ExtractPort.Host 样板）；注册表类→静态安装口（ItemData.install 样板）")
                 坏 += 1
     if 坏:
         print("\n❌ 世代 API 闸红：%d 处。共用层里留 1.21 专属调用，1.20.1 构建必挂（m487 血案）。" % 坏)
