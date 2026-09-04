@@ -30,6 +30,17 @@ public final class ComponentItemData implements ItemData.Impl {
     }
 
     @Override
+    public net.minecraft.world.item.Item itemById(String id) { // m522：SuperBenchScreenHandler/SuperBenchRecipes 原句
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
+    }
+
+    @Override
+    public void clearCustomName(ItemStack s) { s.remove(DataComponents.CUSTOM_NAME); } // m522：原 SuperBenchScreenHandler 129 行原句
+
+    @Override
+    public net.minecraft.resources.ResourceLocation id(String s) { return net.minecraft.resources.ResourceLocation.parse(s); } // m522
+
+    @Override
     public void clear(ItemStack s) {
         s.remove(DataComponents.CUSTOM_DATA);
     }

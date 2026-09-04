@@ -25,6 +25,13 @@ public final class ItemData {
         void write(ItemStack s, CompoundTag n);
         boolean has(ItemStack s);
         void clear(ItemStack s);
+        /** m522（SB2）：物品 id 字符串→物品（Legacy `ResourceLocation.parse` / Retro `new ResourceLocation`）。服务端可用——
+         *  `SciSkin.Gfx.id`（m484）在 client 包，ScreenHandler/配方表不能引；不存在的 id 两代都回 AIR（注册表默认值）。 */
+        net.minecraft.world.item.Item itemById(String id);
+        /** m522（SB2）：清自定义名（Legacy `remove(DataComponents.CUSTOM_NAME)` / Retro `resetHoverName()`）。 */
+        void clearCustomName(ItemStack s);
+        /** m522（SB2）：id 字符串→ResourceLocation（两代同 FQN，只差构造：parse / new）。非物品注册表（实体类型等）用它。 */
+        net.minecraft.resources.ResourceLocation id(String s);
     }
 
     private static Impl impl;
@@ -54,4 +61,10 @@ public final class ItemData {
 
     /** 显式清除（对位原 remove(CUSTOM_DATA)，m128"变裸"语义）。 */
     public static void clear(ItemStack s) { req().clear(s); }
+    /** m522：id→物品（服务端可用的 id 解析口）。 */
+    public static net.minecraft.world.item.Item itemById(String id) { return req().itemById(id); }
+    /** m522：清自定义名。 */
+    public static void clearCustomName(ItemStack s) { req().clearCustomName(s); }
+    /** m522：id 字符串→ResourceLocation（服务端可用；client 侧同义口是 SciSkin.Gfx.id）。 */
+    public static net.minecraft.resources.ResourceLocation id(String s) { return req().id(s); }
 }

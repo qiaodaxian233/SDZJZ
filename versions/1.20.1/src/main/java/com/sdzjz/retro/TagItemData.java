@@ -40,6 +40,17 @@ final class TagItemData implements ItemData.Impl {
     }
 
     @Override
+    public net.minecraft.world.item.Item itemById(String id) { // m522：1.20.1 对位（对照表：parse→new ResourceLocation）
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new net.minecraft.resources.ResourceLocation(id));
+    }
+
+    @Override
+    public void clearCustomName(ItemStack s) { s.resetHoverName(); } // m522：1.20.1 对位（1.21 remove(CUSTOM_NAME)）
+
+    @Override
+    public net.minecraft.resources.ResourceLocation id(String s) { return new net.minecraft.resources.ResourceLocation(s); } // m522
+
+    @Override
     public void clear(ItemStack s) {
         s.setTag(null); // 对位 remove(CUSTOM_DATA)，m128"变裸"语义
     }

@@ -65,6 +65,9 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/node/CanvasGroupAssertions.java'      // m506（真移植 A5a）画布分组域跨代行为契约：八条判定一份，两代各喂自己的栈（组件/tag）——分组六方法已在 CanvasGraphState 两代同源，契约压的是「同一份代码×两套栈实现」
         include 'com/sdzjz/client/StorageCoreAnimGeo.java' // m465 存储核心动画件几何（bbmodel 生成纯 float 表，零 import）
         include 'com/sdzjz/client/DataCableAnimGeo.java'   // m465 数据线能量脉冲几何（同上）
+            include 'com/sdzjz/machine/SuperBenchRecipes.java' // m522（SB2）超大工作台三文件上挂：1.21 专属已全部换 ItemData 世代口
+            include 'com/sdzjz/screen/SuperBenchScreenHandler.java' // m522（SB2）超大工作台三文件上挂：1.21 专属已全部换 ItemData 世代口
+            include 'com/sdzjz/screen/CraftGridInventory.java' // m522（SB2）超大工作台三文件上挂：1.21 专属已全部换 ItemData 世代口
     }
     into layout.buildDirectory.dir('xplat-subset-src')
 }

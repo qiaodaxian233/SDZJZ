@@ -43,7 +43,8 @@
 ### 资源与注册表
 | 1.21 | 1.20.1 | 处理 | 出处 |
 |---|---|---|---|
-| `ResourceLocation.parse(s)` | `new ResourceLocation(s)` | 走 `SciSkin.Gfx.id` | m484 |
+| `ResourceLocation.parse(s)` | `new ResourceLocation(s)` | client 走 `SciSkin.Gfx.id`；**服务端/共用逻辑走 `ItemData.id(s)` / `ItemData.itemById(s)`**（m522：ScreenHandler 不能引 client 类） | m484/m522 |
+| `stack.remove(DataComponents.CUSTOM_NAME)` | `stack.resetHoverName()` | 走 `ItemData.clearCustomName` | m522 |
 | `ResourceLocation.fromNamespaceAndPath(ns,p)` | `new ResourceLocation(ns,p)` | 走 `SciSkin.Gfx.tex` | m483 |
 | `BuiltInRegistries.ITEM.getKey(item)` | 同名同签名 | 直接用 | m485 核过 |
 | `level.dimension().location()` | 同名同签名 | 直接用 | m480 核过 |

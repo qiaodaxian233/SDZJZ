@@ -11080,3 +11080,22 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   对号入座，**同一个词在作者嘴里可能指玩法（造机器）、在我账上指机器（auto_crafter）**，边界不清先问一句比推进一刀便宜。
 - **下一刀**：读 m521 CI → **SB2**（先 grep 服务端 id 解析口现成与否 → 三文件换口 → 白名单 → 第 20 闸/两代冒烟）。
 
+## m522 SB2：超大工作台三文件上挂 1.20.1 白名单（Recipes/ScreenHandler/CraftGridInventory）—— ItemData 三口（itemById/clearCustomName/id），第 20 闸当场立功
+
+- **来路**：m521 分片 SB2。m521 CI 推完未等（零代码笔）；m520 八 job 全绿。
+- **世代口（第十五个）**：`ItemData.Impl` 加三口——`itemById(String)`（Legacy `BuiltInRegistries.ITEM.get(ResourceLocation.parse)` / Retro `new ResourceLocation`）、
+  `clearCustomName(ItemStack)`（Legacy `remove(DataComponents.CUSTOM_NAME)` / Retro `resetHoverName()`）、`id(String)`（两代同 FQN 的 `ResourceLocation`，只差 parse/new，
+  给实体注册表这类非物品查表用）。放 `ItemData` 而不是 client 的 `SciSkin.Gfx`：`SuperBenchScreenHandler` 跑服务端，引 client 类=专用服务器加载即炸（m521 稿预警）。两实现各三句原句。
+- **三文件换口（逐处手数）**：`SuperBenchScreenHandler` parse×5→`itemById` + 实体类型 parse×1→`id` + `getComponentsPatch().isEmpty()`×3→`ItemData.has` + `CUSTOM_NAME`×1→`clearCustomName`；
+  `SuperBenchRecipes` parse×1→`itemById`。三文件进 `versions/1.20.1/build.gradle` 白名单（37→40 条）。
+- **第 20 闸立功（本刀最该记的）**：手扫（grep parse/Components/CUSTOM_NAME 三类）报"残留 0"后跑 `tools_gen_api_check` 当场红——`ItemStack.isSameItemSameComponents`×5（472~552 行）
+  是第四类我没列进 grep 的 1.21 专属，闸直接给出对位 `isSameItemSameTags` 与该走的口 `StackKey.Kind.same`（m478）→ 五处换 `StackKey.same`，复绿。
+  **m491 那句再应验一次：grep 筛的是我想得到的类别；闸是白名单式的，不认识的就红。上挂前"扫 API 面"这一步以后就是跑第 20 闸，不是手 grep。**
+- **验证**：`tools_smoke.py` 两代全量零真错（retro 源集 92→95 文件）+ 六份单编零真错；自家 8 符号（itemById/clearCustomName/id/ItemData/StackKey.same/三类名）0、
+  `does not override abstract` 0（两实现都补齐）；第 20 闸绿；21 闸全绿（0.1.522）。零协议零存档零配置零资源；**主线行为零变化**（六处换口都是同义转发：
+  `ItemData.has`≡`!getComponentsPatch().isEmpty()`（m487 口径）、`StackKey.same`≡`isSameItemSameComponents`（LegacyStackKind 原句）、其余两口 Legacy 实现即原句）。
+  1.20.1 侧此时只是编译进去（无方块/菜单注册，玩家还开不到），SB3 接。
+- **实机验证脚本**：①主线超大工作台照旧（浏览器/放料合成/shift 搬料/组件件不当散料/清自定义名）——六处换口同义，任何差异都是回归；②1.20.1 无可见变化。
+- **下一刀**：读 m522 CI → **SB3**：`SuperBenchBlock120` 世代壳（`use`、无 codec，对位主线 55 行）+ BE + `BlockEntityType`/`MenuType(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET)` 注册进 `RetroBootstrap`
+  + `RetroBlocks` 登记/创造栏 + 资源六件套从主线原样拷（方块状态/block+item 模型/贴图+mcmeta/中英 lang）→ SB4 屏。
+

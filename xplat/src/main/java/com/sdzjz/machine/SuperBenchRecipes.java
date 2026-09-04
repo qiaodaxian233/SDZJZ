@@ -1034,6 +1034,6 @@ public final class SuperBenchRecipes {
 
     public static ItemStack resultStack(Recipe r) {
         return r == null ? ItemStack.EMPTY
-                : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(r.result)), Math.max(1, r.count()));
+                : new ItemStack(com.sdzjz.item.ItemData.itemById(r.result), Math.max(1, r.count())); // m522：走 ItemData 世代口（1.20.1 上挂）
     }
 }

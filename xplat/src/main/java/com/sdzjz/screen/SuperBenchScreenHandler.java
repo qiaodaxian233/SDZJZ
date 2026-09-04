@@ -126,7 +126,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                         if (s.getItem() instanceof com.sdzjz.item.CaptureCageItem
                                 && mob.equals(com.sdzjz.item.CaptureCageItem.cagedType(s))) {
                             com.sdzjz.item.ItemData.clear(s);
-                            s.remove(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+                            com.sdzjz.item.ItemData.clearCustomName(s);
                             break;
                         }
                     }
@@ -151,7 +151,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                 while (need > 0 && !s.isEmpty()) {
                     s.shrink(1);
                     if (pk.ratio > need) { // 防御性找零：多出来的拆成散件回网格
-                        ItemStack change = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey())), 1);
+                        ItemStack change = new ItemStack(com.sdzjz.item.ItemData.itemById(e.getKey()), 1);
                         int left = pk.ratio - need;
                         while (left > 0) {
                             int chunk = Math.min(left, change.getMaxStackSize());
@@ -238,7 +238,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         Map<String, Integer> pool = new HashMap<>();
         for (Map.Entry<String, Integer> e : r.ingredients().entrySet()) {
             if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子单独处理
-            Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey()));
+            Item item = com.sdzjz.item.ItemData.itemById(e.getKey());
             pool.put(e.getKey(), takeFromInv(player, item, e.getValue()));
         }
         // 按蓝图布局逐格摆放（1 格 1 件；缺料的格留空）
@@ -252,7 +252,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             }
             int have = pool.getOrDefault(want, 0);
             if (have > 0) {
-                input.setItem(i, new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(want)), 1));
+                input.setItem(i, new ItemStack(com.sdzjz.item.ItemData.itemById(want), 1));
                 pool.put(want, have - 1);
             }
         }
@@ -277,7 +277,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                     if (s.getItem() != want || !id.equals(com.sdzjz.item.CompressedPackItem.innerId(s))) continue;
                 } else {
                     if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
-                    if (!s.getComponentsPatch().isEmpty()) continue; // 组件件不当散料搬（附魔书等）
+                    if (com.sdzjz.item.ItemData.has(s)) continue; // 组件件不当散料搬（附魔书等）
                     if (!BuiltInRegistries.ITEM.getKey(s.getItem()).toString().equals(id)) continue;
                 }
                 int take = Math.min(need / ratio, s.getCount());
@@ -303,7 +303,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             int lack = e.getValue() - grid.getOrDefault(e.getKey(), 0);
             if (lack <= 0) continue;
             if (SuperBenchRecipes.CAGE_ID.equals(e.getKey())) continue; // 笼子按生物逐只报，见下
-            Item it = BuiltInRegistries.ITEM.get(ResourceLocation.parse(e.getKey()));
+            Item it = com.sdzjz.item.ItemData.itemById(e.getKey());
             missing.add(it.getDescription().getString() + "×" + lack);
         }
         java.util.List<String> cageMiss = new java.util.ArrayList<>(); // 缺笼或装错生物的，报生物名
@@ -317,7 +317,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
             if (!found) {
                 String mn;
                 try { mn = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
-                        .get(ResourceLocation.parse(mob)).getDescription().getString(); }
+                        .get(com.sdzjz.item.ItemData.id(mob)).getDescription().getString(); } // m522：id 走 ItemData 世代口
                 catch (Exception ex) { mn = mob; }
                 cageMiss.add(mn);
             }
@@ -359,7 +359,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getItem(i);
             if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
-            if (!s.getComponentsPatch().isEmpty()) continue;
+            if (com.sdzjz.item.ItemData.has(s)) continue;
             plain.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), s.getCount(), Integer::sum);
         }
         for (Map.Entry<String, Integer> e : plain.entrySet()) {
@@ -421,7 +421,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
                     if (in == null) continue;
                     ItemStack proto = pass == 0
                             ? com.sdzjz.item.CompressedPackItem.of(t1, in, 1)
-                            : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(in)), 1);
+                            : new ItemStack(com.sdzjz.item.ItemData.itemById(in), 1);
                     int can = (int) Math.min(s.getCount(), capacityAll(player, proto) / 64); // 一包出64件
                     if (can <= 0) { spaceOut = true; continue; }
                     if (can < s.getCount()) spaceOut = true; // 本槽没拆完=空间见底（若腾出槽位下一轮还会进来）
@@ -473,13 +473,13 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         for (int i = 0; i < GRID_SLOTS; i++) {
             ItemStack s = input.getItem(i);
             if (s.isEmpty()) cap += proto.getMaxStackSize();
-            else if (ItemStack.isSameItemSameComponents(s, proto)) cap += Math.max(0, s.getMaxStackSize() - s.getCount());
+            else if (com.sdzjz.storage.StackKey.same(s, proto)) cap += Math.max(0, s.getMaxStackSize() - s.getCount());
         }
         Inventory pinv = player.getInventory();
         for (int i = 0; i < pinv.items.size(); i++) {
             ItemStack s = pinv.items.get(i);
             if (s.isEmpty()) cap += proto.getMaxStackSize();
-            else if (ItemStack.isSameItemSameComponents(s, proto)) cap += Math.max(0, s.getMaxStackSize() - s.getCount());
+            else if (com.sdzjz.storage.StackKey.same(s, proto)) cap += Math.max(0, s.getMaxStackSize() - s.getCount());
         }
         return cap;
     }
@@ -488,7 +488,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     private void insertBulk(Player player, ItemStack proto, long total) {
         for (int i = 0; i < GRID_SLOTS && total > 0; i++) {
             ItemStack s = input.getItem(i);
-            if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, proto)) {
+            if (!s.isEmpty() && com.sdzjz.storage.StackKey.same(s, proto)) {
                 int mv = (int) Math.min(s.getMaxStackSize() - s.getCount(), total);
                 if (mv > 0) { s.grow(mv); total -= mv; }
             }
@@ -502,7 +502,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         Inventory pinv = player.getInventory();
         for (int i = 0; i < pinv.items.size() && total > 0; i++) {
             ItemStack s = pinv.items.get(i);
-            if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, proto)) {
+            if (!s.isEmpty() && com.sdzjz.storage.StackKey.same(s, proto)) {
                 int mv = (int) Math.min(s.getMaxStackSize() - s.getCount(), total);
                 if (mv > 0) { s.grow(mv); total -= mv; }
             }
@@ -525,7 +525,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
         for (int i = 0; i < GRID_SLOTS && n > 0; i++) {
             ItemStack s = input.getItem(i);
             if (s.isEmpty() || s.getItem() instanceof com.sdzjz.item.CompressedPackItem) continue;
-            if (!s.getComponentsPatch().isEmpty()) continue;
+            if (com.sdzjz.item.ItemData.has(s)) continue;
             if (!BuiltInRegistries.ITEM.getKey(s.getItem()).toString().equals(id)) continue;
             int take = Math.min(n, s.getCount());
             s.shrink(take); n -= take;
@@ -549,7 +549,7 @@ public class SuperBenchScreenHandler extends AbstractContainerMenu {
     private ItemStack insertToGrid(ItemStack st) {
         for (int i = 0; i < GRID_SLOTS && !st.isEmpty(); i++) {
             ItemStack s = input.getItem(i);
-            if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, st)) {
+            if (!s.isEmpty() && com.sdzjz.storage.StackKey.same(s, st)) {
                 int room = s.getMaxStackSize() - s.getCount();
                 if (room > 0) { int mv = Math.min(room, st.getCount()); s.grow(mv); st.shrink(mv); }
             }
