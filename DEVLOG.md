@@ -11164,3 +11164,23 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ③m523 注释里那句"由 X 协变满足"是**在 1.21.1 源码里看出来的结论直接写成了两代通用**——引 1.21 源码得出的"不用写"，落到共用层前要再问一次 1.20.1。
 - **下一刀**：读 m523b CI（1.20.1 job 必须绿）→ **SB3**：`SuperBenchBlock120` 世代壳 + BE + `BlockEntityType`/`MenuType` 注册进 RetroBootstrap（注册后 `installType`）+ `RetroBlocks` 登记/创造栏 + 资源六件套从主线原样拷 → SB4 屏。**开工先跑 21 闸**。
 
+## m524 SB3：超大工作台 1.20.1 方块壳 + BE + MenuType/BlockEntityType 注册（注册后紧跟 installType）+ 创造栏 + 资源六件套 —— 最小屏壳让"右键能开屏"可验；S 线判官集起点
+
+- **取活**：m523b CI 八 job 全绿（含 1.20.1）后按作业表取 SB3；开工先跑 21 闸绿（SB 线硬性）。评审文档两条提醒同刀入账（见教训末）。
+- **搬法（世代壳各写，主线原文逐句对）**：主线 `block/SuperBenchBlock`（55 行）只有三处 1.21 专属——①`MapCodec codec()`（BaseEntityBlock 1.20.3 起才有）②`useWithoutItem` 五参（1.20.1 是 `use` 六参，无空手/持物分流）③BE 引 src 的 `registry.ModBlockEntities`（白名单子集不可见，m522b 血案同族）；
+  其余（标题字面 "超大工作台"、`RenderShape.MODEL` 置回、`openMenu(SimpleMenuProvider)` + `ContainerLevelAccess.create(world,pos)` + 两侧回 `SUCCESS`）两代同名同签名——所以**世代壳=RetroBlocks 内部类 `SuperBenchBlock120`**（在树先例 StructureCoreBlock120/DataPanelBlock120 同律），体照主线原文，**不照在树 1.20.1 壳的 `CONSUME` 口径**（有原版搬原版）。
+  `SuperBench120` BE 壳=主线 `SuperBenchBlockEntity` 原文，唯一差=BE 类型来源换 `RetroBlocks.SUPER_BENCH_BE`。
+- **注册三件 id 与主线同名同源** `sdzjz:super_bench`（方块/BE/菜单，m441「id/贴图/lang 键与 Legacy 同名同源」律）：方块 `Properties.copy(CRAFTING_TABLE)`（主线 `ofFullCopy`，m441 签名差清单）、BE `FabricBlockEntityTypeBuilder`、菜单**普通** `new MenuType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET)`（主线 ModScreenHandlers 同句，无随包数据不走 Fabric 扩展类型）→ **下一行就是 `SuperBenchScreenHandler.installType(SUPER_BENCH_MENU)`**（m523 安装口，作业表原文"注册后紧跟"）；创造栏 `e.accept(SUPER_BENCH)`。
+- **最小屏壳 `SuperBenchScreen120`**（作业表 SB3 验收④许可："屏此时是主线壳没接=先用 1.20.1 最小壳"）：`AbstractContainerScreen` 只画 `SciSkin.termPanel` 底 + 逐槽 `SciSkin.termSlot`（DataPanelScreen120 L179 同句），
+  尺寸口径照主线（高 332=m240；宽 274 只覆盖网格+结果槽，主线 470 含右侧浏览器 PX=270 随 SB4）；1.20.1 签名差 `renderBackground` 单参（m448 原注）。**头注写死"本类不许长功能"**——m508 最小菜单件→m509 换共用件同律，SB4 整体换掉。`RetroClientBootstrap` 加 `MenuScreens.register`。
+- **资源六件套（方块版）**：blockstate / block 模型 / item 模型 / `super_bench.png` + `.mcmeta`（帧动画）五件从主线原样拷，**逐字节断言一致 + JSON 全过 json.load**；lang 两键 `block.sdzjz.super_bench` 插在 structure_core 后（zh 128 键/en 128 键对齐）。
+  1.20.1 仍无 `data/`（无战利品表/合成配方）——本世代其余四方块同律，不是本刀欠账。评审预告的"第 19 闸拷入前会红一次"没出现：先拷再跑闸。
+- **判官 +1（累计 68）**：新文件 `RetroBenchTests.super_bench_block_be_and_menu_installed`——放方块→BE 是 `SuperBench120`；三注册表 `get(id)` 各指回 RetroBlocks 那份；`new SuperBenchScreenHandler(1, mockPlayer.getInventory())`（两参=NULL 上下文，主线 m523 判官同句）**把 `reqType()` 那一抛从"玩家开屏那一刻"提前到测试里**（m523 教训②：带默认值的口是静默的）；`getType()==SUPER_BENCH_MENU`；`slots.size()==144+1+36`。
+  `fabric.mod.json` gametest 入口 +1；第 18 闸登记：`SuperBench120`/`SuperBenchScreen120` 世代壳、`RetroBenchTests` 按在树五个判官文件同口径（同名用例计账，0 欠）。
+- **验证**：两代冒烟零真错（retro 源集 95→98，五个改动/新增文件逐文件单编零真错）；自家五个新符号定向 grep=0；第 18 闸绿（登记 38 文件）；第 16 闸绿（主线数据线端点名单不含超大工作台，无对表项）；21 闸全绿（0.1.524）。
+  零协议零存档零配置改动，主线**零改动**（本刀全在 versions/1.20.1 + 文档）。**1.20.1 可见变化**：创造栏"生电终结者"页多一个超大工作台方块（动画贴图同主线），放下右键开一张只有 144 网格+结果槽+背包的屏（无浏览器/搜索/压缩钮，SB4 到序）。
+  **实机脚本**：①创造栏取超大工作台放下，方块贴图应有帧动画（同主线）②右键开屏：面板底 + 12×12 槽 + 结果槽 + 背包，能放取物品③网格里摆一份 15 基础件配方（如 9 铁锭），结果槽应出成品、取走扣料（handler 逻辑 m523 已在 1.20.1 编过，本刀第一次能开屏验）④关屏网格物品应回背包（`ContainerLevelAccess` 非 NULL 时 removed 落地，主线 m201 口径）⑤压缩区两钮本刀屏上没画（SB4），不算缺。
+  **作者判据：CI 1.20.1 job 绿 + 判官 68 绿**。
+- **评审入账（作业表）**：提醒①「闸别无限补」写进取活规则（维持闸拦大流+CI 兜底双层，新形状先问有没有通用判据）；提醒②已按"先拷再跑闸"消化；旧意见③白名单挂载人工同步点→D4 登记（先量主线专属 xplat 文件数再定整挂+排除 or 反向闸）；旧意见④共用件「宿主前提」头注→D5 登记（SB4 下沉 SuperBenchScreen 时写第一份模板，回头补四件）。
+- **下一刀**：读 m524 CI（1.20.1 job + 判官必须绿）→ **SB4**：先量主线 `SuperBenchScreen` API 面（贴图 id 构造→`SciSkin.Gfx.tex`、EditBox 两代同签名、发包留各代）→ 照 m515 切片下沉共用件、主线退壳、`SuperBenchScreen120` 最小壳换共用件（imageWidth 470）、拷 `super_bench_gui.png`（第 19 闸预期红一次）→ SB5 判官。**开工先跑 21 闸。**
+

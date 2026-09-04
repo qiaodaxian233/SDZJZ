@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 /** m441 刀①：1.20.1 世代注册骨架（存储核心+数据线，能摆能看）。签名差按 m440 清单：
  *  ResourceLocation 走构造器（1.21 是静态工厂）、Properties.copy（1.21 是 ofFullCopy）、
  *  BaseEntityBlock 无 codec（1.20.3 起才有）。id/贴图/lang 键与 Legacy 同名同源。
- *  数据线刀①先平方块占位，连接形态与 BE 随刀③（m443）。 */
+ *  数据线刀①先平方块占位，连接形态与 BE 随刀③（m443）。m524（SB3）加超大工作台方块/BE/MenuType（S 线）。 */
 public final class RetroBlocks {
 
     private RetroBlocks() { }
@@ -35,6 +35,9 @@ public final class RetroBlocks {
     public static BlockEntityType<StructureCore120> STRUCTURE_CORE_BE; // m454
     public static net.minecraft.world.inventory.MenuType<DataPanel120.PanelMenu120> PANEL_MENU; // m447 扩展开屏（BlockPos 随包）
     public static net.minecraft.world.inventory.MenuType<StructureCoreMenu120> CANVAS_MENU; // m456
+    public static Block SUPER_BENCH; // m524（SB3）
+    public static BlockEntityType<SuperBench120> SUPER_BENCH_BE; // m524（SB3）零数据挂点，id 与主线同名同源
+    public static net.minecraft.world.inventory.MenuType<com.sdzjz.screen.SuperBenchScreenHandler> SUPER_BENCH_MENU; // m524（SB3）普通 MenuType（无随包数据，主线同形）
 
     /** 1.20.1 无 codec 的最小 EntityBlock 壳（渲染置回 MODEL，BaseEntityBlock 默认 INVISIBLE）。 */
     private static final class StorageCoreBlock120 extends BaseEntityBlock {
@@ -107,6 +110,36 @@ public final class RetroBlocks {
         }
     }
 
+    /** m524（SB3）超大工作台方块 **1.20.1 世代壳**——主线 {@code block/SuperBenchBlock}（55 行）原文照搬，世代差三处：
+     *  ①无 {@code MapCodec codec()}（BaseEntityBlock 1.20.3 起才有，m441 同律）；②{@code useWithoutItem} 五参→本世代 {@code use} 六参
+     *  （1.20.1 无"空手/持物"分流）；③BE 类为本世代 {@link SuperBench120}。其余逐句同原文：标题字面 "超大工作台"、
+     *  渲染置回 MODEL（BaseEntityBlock 默认 INVISIBLE，结构核心同款雷）、服务端 {@code openMenu(SimpleMenuProvider)} 建
+     *  {@code SuperBenchScreenHandler(syncId, inv, ContainerLevelAccess.create(world, pos))}、两侧都回 SUCCESS。 */
+    private static final class SuperBenchBlock120 extends BaseEntityBlock {
+        private static final net.minecraft.network.chat.Component TITLE = net.minecraft.network.chat.Component.literal("超大工作台");
+
+        SuperBenchBlock120(BlockBehaviour.Properties p) { super(p); }
+
+        @Override
+        public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+
+        @Override
+        public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new SuperBench120(pos, state); }
+
+        @Override
+        public net.minecraft.world.InteractionResult use(BlockState state, net.minecraft.world.level.Level world,
+                BlockPos pos, net.minecraft.world.entity.player.Player player,
+                net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+            if (!world.isClientSide) {
+                player.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                        (syncId, inv, p) -> new com.sdzjz.screen.SuperBenchScreenHandler(syncId, inv,
+                                net.minecraft.world.inventory.ContainerLevelAccess.create(world, pos)),
+                        TITLE));
+            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        }
+    }
+
     public static void register() {
         STORAGE_CORE = reg("storage_core", new StorageCoreBlock120(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion()));
         DATA_CABLE = reg("data_cable", new DataCableBlock120(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion())); // m444 三态连接
@@ -126,6 +159,16 @@ public final class RetroBlocks {
                         (syncId, inv, buf) -> new StructureCoreMenu120(syncId, buf.readBlockPos())));
         STRUCTURE_CORE_BE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("structure_core"), // BE id 与 Legacy 同名同源
                 FabricBlockEntityTypeBuilder.create(StructureCore120::new, STRUCTURE_CORE).build());
+        // m524（SB3）超大工作台：方块（主线 ofFullCopy(CRAFTING_TABLE)→本世代 copy，m441 签名差清单）+ BE + 普通 MenuType
+        // （主线 ModScreenHandlers 同款 new MenuType<>(SuperBenchScreenHandler::new, FeatureFlags.VANILLA_SET)，两代同签名 m523 核过）。
+        // **注册 MenuType 后紧跟 installType**——m523 安装口：handler 在白名单里不能引 registry 包，漏装=开屏 reqType() 当场抛（判官 super_bench_block_be_and_menu_installed 钉着）。
+        SUPER_BENCH = reg("super_bench", new SuperBenchBlock120(BlockBehaviour.Properties.copy(Blocks.CRAFTING_TABLE)));
+        SUPER_BENCH_BE = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("super_bench"), // BE id 与 Legacy 同名同源
+                FabricBlockEntityTypeBuilder.create(SuperBench120::new, SUPER_BENCH).build());
+        SUPER_BENCH_MENU = Registry.register(BuiltInRegistries.MENU, id("super_bench"), // 菜单 id 与主线同名同源
+                new net.minecraft.world.inventory.MenuType<>(com.sdzjz.screen.SuperBenchScreenHandler::new,
+                        net.minecraft.world.flag.FeatureFlags.VANILLA_SET));
+        com.sdzjz.screen.SuperBenchScreenHandler.installType(SUPER_BENCH_MENU);
         // m452 专属创造栏页（作者实机反馈：原挂功能方块页得靠搜索才找得到）——tab id "sdzjz:main"
         // 与 Legacy 同名同源（lang 键 itemGroup.sdzjz.main 共用），图标=存储核心。
         net.minecraft.resources.ResourceKey<net.minecraft.world.item.CreativeModeTab> groupKey =
@@ -141,6 +184,7 @@ public final class RetroBlocks {
             e.accept(DATA_CABLE);
             e.accept(DATA_PANEL);
             e.accept(STRUCTURE_CORE); // m454
+            e.accept(SUPER_BENCH); // m524（SB3）
             for (net.minecraft.world.item.Item machine : RetroMachineItems.items()) e.accept(machine); // m453
         });
     }

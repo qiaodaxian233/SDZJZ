@@ -21,7 +21,8 @@
       "com.sdzjz.retro.RetroNetTests",
       "com.sdzjz.retro.RetroPanelTests",
       "com.sdzjz.retro.RetroCanvasTests",
-      "com.sdzjz.retro.RetroTickTests"
+      "com.sdzjz.retro.RetroTickTests",
+      "com.sdzjz.retro.RetroBenchTests"
     ],
     "client": [
       "com.sdzjz.retro.RetroClientBootstrap"

@@ -75,6 +75,10 @@
 | `saveAdditional(tag, lookup)` | `saveAdditional(tag)` | **留世代壳各写**，不下沉 | m485 |
 | `loadAdditional(tag, lookup)` | `load(tag)` | 同上 | m485 |
 | `BlockEntity(type,pos,state)` | 同签名 | 直接用（但**构造器别跟着账本一起删**） | m487 血案 |
+| `BaseEntityBlock.codec()` / `MapCodec CODEC = simpleCodec(...)` | **1.20.1 无**（1.20.3 起才有） | 方块**世代壳各写**（RetroBlocks 内部类），不覆写 | m441 / m524 |
+| `useWithoutItem(state, level, pos, player, hit)` 五参 | `use(state, level, pos, player, hand, hit)` 六参（无空手/持物分流） | 方块世代壳各写；体逐句同主线（`openMenu(SimpleMenuProvider)` / `ContainerLevelAccess.create` / `InteractionResult` 两代同名） | m524 |
+| `BlockBehaviour.Properties.ofFullCopy(b)` | `Properties.copy(b)` | 世代壳注册处各写 | m441 / m524 |
+| `MenuType<>(MenuSupplier, FeatureFlagSet)` / `FeatureFlags.VANILLA_SET` / `MenuScreens.register` | 同签名 | 直接用（普通 MenuType；随包数据的才走 Fabric `ExtendedScreenHandlerType`） | m523 核 / m524 |
 
 ### 附魔 / 药水（⑤d 用得上，尚未落地）
 | 1.21 | 1.20.1 | 处理 | 出处 |

@@ -15,6 +15,7 @@ public final class RetroClientBootstrap implements ClientModInitializer {
         com.sdzjz.client.SciSkin.installGfx(new RetroSkinGfx()); // m483（绞杀者第六刀）卡面工艺上挂：早于一切屏注册
         MenuScreens.register(RetroBlocks.PANEL_MENU, DataPanelScreen120::new);
         MenuScreens.register(RetroBlocks.CANVAS_MENU, CanvasScreen120::new); // m456
+        MenuScreens.register(RetroBlocks.SUPER_BENCH_MENU, SuperBenchScreen120::new); // m524（SB3）最小壳，SB4 换共用绘制体
         // m465：动画归位——存储核心（能量核旋转+呼吸）与数据线（能量脉冲）BER，蓝本=主线 SdzjzClient
         // 同两行；走原版注册口 BlockEntityRenderers（1.20.1 在位，免 Fabric rendering 面）。
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(RetroBlocks.STORAGE_CORE_BE, StorageCoreRenderer120::new);
