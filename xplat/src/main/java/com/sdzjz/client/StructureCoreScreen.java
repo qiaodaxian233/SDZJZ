@@ -1229,23 +1229,9 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     }
 
     /** m264 连通分量：从 idx 出发沿机器连线（connections 纯 {from,to} 下标、按无向走）BFS 收齐
-     *  "连在一起"的全部节点，升序返回。存储边不算（组是机器下标集合，端点不是节点）。 */
+     *  "连在一起"的全部节点，升序返回。存储边不算（组是机器下标集合，端点不是节点）。m513：本体下沉 GroupFrameRenderer，此处转发。 */
     private java.util.List<Integer> connectedComponent(StructureCoreBlockEntity be, int idx) {
-        int n = be.nodes().size();
-        java.util.LinkedHashSet<Integer> seen = new java.util.LinkedHashSet<>();
-        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
-        seen.add(idx); q.add(idx);
-        while (!q.isEmpty()) {
-            int cur = q.poll();
-            for (int[] c : be.connections()) { // 双端防越界口径与渲染侧一致
-                if (c[0] >= n || c[1] >= n || c[0] < 0 || c[1] < 0) continue;
-                int other = c[0] == cur ? c[1] : c[1] == cur ? c[0] : -1;
-                if (other >= 0 && seen.add(other)) q.add(other);
-            }
-        }
-        java.util.List<Integer> out = new ArrayList<>(seen);
-        java.util.Collections.sort(out);
-        return out;
+        return GroupFrameRenderer.connectedComponent(be.connections(), be.nodes().size(), idx); // m513：本体下沉共用件，此处转发
     }
 
     /** m313 快捷键：当前鼠标悬停的机器节点（与右键命中同一套几何，倒序=上层先中）。 */

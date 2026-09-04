@@ -96,6 +96,26 @@ public final class GroupFrameRenderer {
         ctx.pose().popPose();
     }
 
+    /** m264 连通分量：从 idx 出发沿机器连线（connections 纯 {from,to} 下标、按无向走）BFS 收齐
+     *  "连在一起"的全部节点，升序返回。存储边不算（组是机器下标集合，端点不是节点）。
+     *  m513（真移植·A7a）：原文从主线屏整段搬来两代共用（"组合相连"菜单项两代同一份算法），n=节点数。 */
+    public static java.util.List<Integer> connectedComponent(java.util.List<int[]> connections, int n, int idx) {
+        java.util.LinkedHashSet<Integer> seen = new java.util.LinkedHashSet<>();
+        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
+        seen.add(idx); q.add(idx);
+        while (!q.isEmpty()) {
+            int cur = q.poll();
+            for (int[] c : connections) { // 双端防越界口径与渲染侧一致
+                if (c[0] >= n || c[1] >= n || c[0] < 0 || c[1] < 0) continue;
+                int other = c[0] == cur ? c[1] : c[1] == cur ? c[0] : -1;
+                if (other >= 0 && seen.add(other)) q.add(other);
+            }
+        }
+        java.util.List<Integer> out = new java.util.ArrayList<>(seen);
+        java.util.Collections.sort(out);
+        return out;
+    }
+
     /** 世界坐标一次变换（= 主线机器层 translate(panX, panY, 0) + scale(zoom)）。
      *  m511 放开 public：1.20.1 机器线层（非归并线 + {@link WireBundler#drawMachineBundles}）也包进同一形状的世界矩阵——
      *  主线机器线本就在世界矩阵下传 pxScale=zoom（m197 线宽封顶按世界单位算），1.20.1 m488 起在屏幕坐标层传 zoom 是半搬；

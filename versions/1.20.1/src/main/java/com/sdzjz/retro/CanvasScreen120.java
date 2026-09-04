@@ -199,6 +199,69 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         ClientNet120.toServer(new CanvasPayloads120.CanvasQuery(menu.corePos));
     }
 
+    // ===== m513（真移植·A7a）：节点菜单 / 存储连线菜单条目——主线 openNodeMenu / 存储端点右键菜单原文，只装本世代有的操作 =====
+    // 本世代机制面=m457 四操作（放/移/摘/连）+ m458 存储连线（三态循环）+ m192 分组；暂停/融合拆解/目标拾取器/方块名单/白名单/监测/
+    // 信标/区块清理器等条目背后的机制本世代没有，**不装**（m489 "搬工艺不搬本世代没有的功能区"）。装配助手 mi/mt 与主线同名（m509 留壳）。
+    /** 主线 openNodeMenu 原文骨架：标题带=机器名 → 断开全部连线 → 组合两入口（m264）→ 取出机器（危险项垫底红显）→ 取消。 */
+    private void openNodeMenu(int idx, int atX, int atY) {
+        if (idx < 0 || idx >= g.machineNodes.size()) return;
+        final ItemStack st = g.machineNodes.get(idx);
+        clearMenu();
+        cmenu.title(st.getHoverName().getString()); // m148 标题带=机器名
+        addMenu("断开全部连线", mt("disconnect_all"), 2, () -> clearLinksOfMachine(idx)); // m313 用户图标
+        if (groupsOn()) { // m264 组合两入口（作者点名：Shift左键多选后能组合，相连的也能组合）——纯客户端拼成员集走 m191 建组包
+            java.util.LinkedHashSet<Integer> selPlus = new java.util.LinkedHashSet<>(selected);
+            selPlus.removeIf(k -> k < 0 || k >= g.machineNodes.size());
+            selPlus.add(idx); // 右键的这台自动并入，Shift 选完不必再补选它
+            if (selPlus.size() >= 2 && selPlus.size() <= 512) { // 512=服务端伪造包熔断上限，超限不给静默哑口（m99 教训）
+                final java.util.List<Integer> msSel = new java.util.ArrayList<>(selPlus);
+                addMenu("组合所选(" + msSel.size() + "台)", mt("group_selected"), 2, () -> { // m313 用户图标
+                    ClientNet120.toServer(new NodePayloads120.NodeGroup(menu.corePos, -1, "", msSel)); selected.clear(); sendQuery();
+                });
+            }
+            final java.util.List<Integer> comp = com.sdzjz.client.GroupFrameRenderer.connectedComponent(g.connections, g.machineNodes.size(), idx); // 沿连线收齐"连在一起"的整串（m513 两代同一份 BFS）
+            if (comp.size() >= 2 && comp.size() <= 512)
+                addMenu("组合相连(" + comp.size() + "台)", mi(net.minecraft.world.item.Items.CHAIN), selPlus.size() >= 2 ? 0 : 2, () -> {
+                    ClientNet120.toServer(new NodePayloads120.NodeGroup(menu.corePos, -1, "", comp)); selected.clear(); sendQuery();
+                });
+        }
+        addMenu("取出机器", mt("remove_machine"), 1, () -> { // m148 危险项垫底红显；m313 用户图标
+            ClientNet120.toServer(new NodePayloads120.NodeRemove(menu.corePos, idx));
+            sendQuery();
+            if (linkFrom == idx) linkFrom = -1; // 原右键摘回那支的收尾照搬
+        });
+        addMenu("取消", (ItemStack) null, 2, () -> {});
+        openMenu(atX, atY);
+    }
+
+    /** 主线存储端点右键菜单原文（标题"存储连线"）：本世代无总线停靠，"收回总线"不装；只剩断开全部连线 + 取消。 */
+    private void openStorageMenu(long pl, int atX, int atY) {
+        clearMenu();
+        cmenu.title("存储连线"); // m148
+        addMenu("断开全部连线", mt("disconnect_all"), 1, () -> clearLinksOfStorage(pl)); // m313 用户图标
+        addMenu("取消", () -> {});
+        openMenu(atX, atY);
+    }
+
+    /** 主线 clearLinksOfMachine 同形：机器线逐对发断（NodeLink cut=true）；存储边走本世代三态循环包（无→产出0→供料1→断）：
+     *  产出态要转两格、供料态转一格才到"断"，同一包连发两次即到位（服务端按序处理，每包各推一次快照，中间那帧短暂显示为供料线）。 */
+    private void clearLinksOfMachine(int idx) {
+        for (int[] c : new java.util.ArrayList<>(g.connections))
+            if (c[0] == idx || c[1] == idx) ClientNet120.toServer(new NodePayloads120.NodeLink(menu.corePos, c[0], c[1], true));
+        for (long[] e : new java.util.ArrayList<>(g.storageEdges))
+            if (e[0] == idx) for (int k = 0, reps = e[2] == 0 ? 2 : 1; k < reps; k++)
+                ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, idx, e[1]));
+        sendQuery();
+    }
+
+    /** 主线 clearLinksOfStorage 同形：该端点的每条存储边按当前态转到"断"（同上三态循环）。 */
+    private void clearLinksOfStorage(long pl) {
+        for (long[] e : new java.util.ArrayList<>(g.storageEdges))
+            if (e[1] == pl) for (int k = 0, reps = e[2] == 0 ? 2 : 1; k < reps; k++)
+                ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, (int) e[0], pl));
+        sendQuery();
+    }
+
     /** 快照到货（render 线程直达）：应用层有界——节点数超硬顶整包拒绝（m455 稿红线落点）。 */
     void acceptSnapshot(CanvasPayloads120.CanvasSnapshot snapshot) {
         if (snapshot.render() == null) return;
@@ -277,8 +340,9 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             placingIcon = ItemStack.EMPTY;
             return true;
         }
-        Long stHit = storageAt(mouseX, mouseY); // m458 存储节点：连线第二端 / 普通拖动
+        Long stHit = storageAt(mouseX, mouseY); // m458 存储节点：连线第二端 / 普通拖动 / 右键菜单（m513）
         if (stHit != null) {
+            if (button == 1) { openStorageMenu(stHit, (int) mouseX, (int) mouseY); return true; } // m513（A7a）主线"存储连线"菜单
             if (linkMode && linkFrom >= 0 && button == 0) {
                 ClientNet120.toServer(new StoragePayloads120.StorageLink(menu.corePos, linkFrom, stHit));
                 sendQuery();
@@ -297,12 +361,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         Integer hit = nodeAt(mouseX, mouseY);
         if (hit != null) {
-            if (button == 1) { // 右键摘回
-                ClientNet120.toServer(new NodePayloads120.NodeRemove(menu.corePos, hit));
-                sendQuery();
-                if (linkFrom == hit) linkFrom = -1;
-                return true;
-            }
+            if (button == 1) { openNodeMenu(hit, (int) mouseX, (int) mouseY); return true; } // m513（A7a）右键→节点菜单（主线 m148 口径；原"右键一键摘回"退役，取出机器进菜单垫底红显）
             if (button == 0 && groupsOn() && hasShiftDown()) { // m192 Shift+点卡=切换选中
                 if (!selected.remove(Integer.valueOf(hit))) selected.add(hit);
                 return true;
