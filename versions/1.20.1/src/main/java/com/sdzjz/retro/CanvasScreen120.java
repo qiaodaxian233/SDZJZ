@@ -648,7 +648,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             float mysI = (float) sy(mny + (dualPe ? NH / 2.0 + 7 : NH / 2.0)); // 供料=进口柱心
             float mcxS = (float) sx(mnx + NW / 2.0);                            // 机器中心屏幕 x：选缘看几何
             float stx = (float) sx(stX(e[1], sp)), sty = (float) sy(stY(e[1], sp));
-            float stW = (float) (24 * zoom), stH = (float) (24 * zoom);         // 存储卡 24×24
+            float stW = 24f, stH = 24f; // m517：存储卡屏幕实占 24×24 不随 zoom（主线放置卡 bw()/bh() 同律）——m458 起 24*zoom 与实际画的卡不一致，线口悬空         // 存储卡 24×24
             if (e[2] == 0) { // 机器→存储（产出）
                 boolean er = stx + stW * 0.25f >= mcxS; // 收料口在机器右侧→右缘出线
                 float mxs = (float) sx(mnx + (er ? NW : 0));
@@ -666,7 +666,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             int[] sp = g.storageNodePos.get(pl);
             if (sp == null) return null;
             float stx = (float) sx(stX(pl, sp)), sty = (float) sy(stY(pl, sp));
-            float stW = (float) (24 * zoom), stH = (float) (24 * zoom); // 存储卡 24×24
+            float stW = 24f, stH = 24f; // m517：存储卡屏幕实占 24×24 不随 zoom（主线放置卡 bw()/bh() 同律）——m458 起 24*zoom 与实际画的卡不一致，线口悬空 // 存储卡 24×24
             return new float[]{stx + stW * 0.25f, sty + stH + 2, stx + stW * 0.75f, sty + stH + 2};
         });
         // 机器↔机器 连线（世界坐标，pxScale=zoom 让线宽在屏幕上恒定不糊不细）——m511 照主线机器层包进世界矩阵：
@@ -690,29 +690,25 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         }
         // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条（m511 共用件；仍在上面 push 的世界矩阵下）
         bundler.drawMachineBundles(ctx, this.font, groupView, gRect);
-        ctx.pose().popPose(); // 世界矩阵结束（卡片层照旧走 sx/sy 屏幕坐标）
-        for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡：24×24 框+图标+状态灯环
-            int x = (int) sx(wnx(i)), y = (int) sy(wny(i)); // 拖动幽灵位（m508 组成员快照+增量同走 wnx/wny）
-            if (x < -32 || y < -32 || x > width + 8 || y > height + 8) continue; // 视口裁剪
-            int status = i < g.nodeStatus.size() ? g.nodeStatus.get(i) : 0;
-            int ring = switch (status) { // 灯环取色（口径同蓝本状态灯：0待机 1绿 2黄 3红）
-                case 1 -> SciSkinPalette.ON;
-                case 2 -> SciSkinPalette.GOLD;
-                case 3 -> SciSkinPalette.RED;
-                default -> SciSkinPalette.OFF_GRAY;
-            };
+        // m517（真移植·A10）：节点卡层留在世界矩阵里画（主线机器层同形：卡尺寸随 zoom，缩放不再只挤位置不缩卡、5% 档不再互叠）。
+        // 主线 drawNode 就是在 translate+scale 下调的，共用件里阶位图标放大（142 行 pose.scale 后 renderItem）在矩阵下有先例。
+        // 世界矩阵沿用上面机器线层 push 的那一份（中间无别的绘制，帧序不变）。
+        for (int i = 0; i < g.machineNodes.size(); i++) { // 节点卡（世界坐标；m484 起整张走共用渲染件 NodeCardRenderer）
+            int x = wnx(i), y = wny(i); // 拖动幽灵位（m508 组成员快照+增量同走 wnx/wny）
+            double sxp = sx(x), syp = sy(y);
+            if (sxp + NW * zoom < -8 || syp + NH * zoom < -8 || sxp > width + 8 || syp > height + 8) continue; // 视口裁剪（整卡出屏才裁；m517 换算成屏幕坐标判）
             // m484（真移植）：节点卡整张走共用渲染件——与主线**同一份代码**（xplat NodeCardRenderer）：
             // 卡面工艺+分类配色顶条+标题底带+进出口柱与「进」「出」字标+阶位图标放大与前缀变色+
-            // 机器名(自动截断)+状态灯点(绿灯呼吸)+六族逻辑节点各自的读数行。m483 我自己编的灯点画法退役。
+            // 机器名(自动截断)+状态灯点(绿灯呼吸)+六族逻辑节点各自的读数行。m483 我自己编的灯点画法退役（m517 顺手拔掉遗留的死 ring 取色）。
             com.sdzjz.client.NodeCardRenderer.drawNode(ctx, this.font, cardHost, i, x, y, g.machineNodes.get(i));
-            if (linkMode && i == linkFrom) { // 连线首端高亮：卡外描一圈强调色（不覆盖卡面工艺）
-                int NW = com.sdzjz.client.NodeCardRenderer.NW, NH = com.sdzjz.client.NodeCardRenderer.NH;
+            if (linkMode && i == linkFrom) { // 连线首端高亮：卡外描一圈强调色（不覆盖卡面工艺；世界单位，随卡同缩）
                 ctx.fill(x - 2, y - 2, x + NW + 2, y - 1, SciSkinPalette.ACCENT);
                 ctx.fill(x - 2, y + NH + 1, x + NW + 2, y + NH + 2, SciSkinPalette.ACCENT);
                 ctx.fill(x - 2, y - 1, x - 1, y + NH + 1, SciSkinPalette.ACCENT);
                 ctx.fill(x + NW + 1, y - 1, x + NW + 2, y + NH + 1, SciSkinPalette.ACCENT);
             }
         }
+        ctx.pose().popPose(); // 世界矩阵结束（m517：卡片层已在其内；选中高亮/框选共用件自带同一变换，主线同在 pop 之后调；存储卡照主线放置卡走屏幕坐标定尺寸）
         if (groupsOn()) com.sdzjz.client.GroupFrameRenderer.drawSelection(ctx, groupView, selected); // m192 选中高亮（m508 共用件）
         if (boxSelecting) com.sdzjz.client.GroupFrameRenderer.drawSelectBox(ctx, groupView, boxX0, boxY0, boxX1, boxY1); // m192 框选矩形
         for (int i = 0; i < g.storageEndpoints.size(); i++) { // m458 存储节点卡（图标=存储核心）
