@@ -26,6 +26,7 @@
 | `GroupFrameRenderer.View` | 画布屏状态归一：pan/zoom 记法、节点坐标（含拖动覆盖）、卡高、组元数据；`pushWorld` 世界矩阵（m511 放开给机器线层） | m507/m511 |
 | `WireBundler.StoragePorts` | m193 归并的存储端接口位置（主线总线放置卡 x+14 / x+bw-14 vs 1.20.1 24×24×zoom 存储节点卡 0.25w/0.75w，卡底+2） | m511 |
 | `ZoomAnim.Host` | 画布视图状态（pan 记法读三口 + `view(panX,panY,zoom)` 一次落写）：主线 panX/panY/zoom 直存直取，1.20.1 由 viewX/viewY+float zoom 换算 | m512 |
+| `CanvasSettingsPanel`（无 Host，三参 init） | 画布设置面板整件：宿主只给字体/屏幕尺寸（init）与开窗前清场；`EditBox` 两代同签名 | m515 |
 
 ## 二、API 逐项对照（**1.21 专属 → 1.20.1 对位**）
 
@@ -94,6 +95,7 @@
 | **1.20.1 卡片层不随缩放** | 本世代节点卡/存储卡走 `sx/sy` 屏幕坐标直画（NodeCardRenderer 在屏幕层），缩放只改位置不改卡尺寸；主线卡在世界矩阵下随 zoom 缩放。**未修**（A10 登记），缩放范围放开到 5%~800% 后极端档位卡会互叠 | m512 记 |
 | **存储连线包语义** | 主线 `StorageLinkPayload(pos, machine, endpoint, dir, dim)` 按方向切换（断某一向发一次）；本世代 `StorageLink(pos, machine, endpoint)` 三态循环（无→产出0→供料1→断）——"断开全部连线"要按当前态转到断：产出态连发两次、供料态一次（服务端按序处理、每包推快照，中间帧短暂显供料线） | m513 |
 | **节点菜单条目面** | 主线 `openNodeMenu` 三十余条目背后是暂停/融合拆解/目标拾取/名单/监测/信标/区块器等机制；本世代机制面=四操作+存储连线+分组，只装：断开全部连线 / 组合所选 / 组合相连 / 取出机器 / 取消。存储菜单不装"收回总线"（无总线停靠） | m513 |
+| **画布底/网格/暗角层** | 主线 `canvasBg()`（m203 主题/m217 配置覆盖）+ m220 装饰底图 + m188 双色网格（屏幕 32px 定距、世界相位、`termGridMajor/Minor`）+ 网格浓度/暗角强度；本世代 `SciSkinPalette.BACKDROP/CELL` 定色、网格随 zoom 缩放（GRID_STEP 24）。**未搬**（A11 登记）——设置面板背景四行在 1.20.1 暂不生效 | m515 记 |
 
 ## 四、用法
 

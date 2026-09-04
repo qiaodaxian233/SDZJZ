@@ -28,6 +28,11 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     private CanvasGraphState g = new CanvasGraphState(); // 最近快照的本地像（只读）
     private double viewX = 0, viewY = 0; // 视口左上对应的画布坐标
     private float zoom = 1.0f;
+    // m515（真移植·A7c）：画布设置面板（m199/m217/m223 十行+RGB 滑杆+主题预设+恢复默认）与 m219 帮助卡走主线同一份 xplat 共用件；
+    // 顶栏两钮「设置」「帮助」照本世代 16px 顶栏的连线钮同工艺画在标题右侧。面板里背景/网格四行写的是两代同一份配置，本世代底/网格层 A11 前不读。
+    private final com.sdzjz.client.CanvasSettingsPanel settings = new com.sdzjz.client.CanvasSettingsPanel();
+    private boolean helpOpen = false; // m219 帮助卡（modal 同吞穿透口径）
+    private static final int TB_SETT_X = 56, TB_HELP_X = 100, TB_BTN_W = 40; // 顶栏钮位（标题"结构核心"右侧；节点计数在 width-SIDEBAR_W-160 起，不撞）
     // m512（真移植·A6）：缩放平滑动效走主线同一份 xplat client/ZoomAnim（m186 指数缓动+指哪缩哪+连滚累积；m185 范围走配置）。
     // 本世代视图记法是 viewX/viewY（视口左上的画布坐标）+ float zoom，主线是 panX/panY——同一件事两种记法（m490/m507 同款换算
     // panX = -viewX*zoom），Host 里换算一次；zoom 存 float 是本世代旧形（Math.round(float) 等消费点未迁，m366b 六项扫描前不动），
@@ -85,7 +90,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         this.renameField = new EditBox(this.font, 0, 0, 184, 14, Component.empty()); // 占位仅narration不上屏，empty保literal棘轮
         this.renameField.setMaxLength(24);
         this.renameField.setValue(keepG);
+        settings.init(this.font, this.width, this.height); // m199/m217 四个颜色框：重排保留输入、首建取配置现值（m515 共用件，主线 init 同句）
         sendQuery();
+    }
+
+    @Override
+    public void removed() {
+        settings.onScreenRemoved(); // m199 设置窗开着直接关屏也把颜色改动落盘（m515 共用件；主线 removed 同句）
+        super.removed();
     }
 
     // ===== m192 分组：世界坐标换算 + 几何/操作助手（主线 wmx/wmy/wnx/wny/groupsOn/createGroupFromSelection/openGroupMenu/
@@ -304,7 +316,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             sidebarScroll -= (int) Math.signum(delta);         // m459 记档写了"已修"，代码里从没有这一支（回溯到 93368df 亦无），m512 补上；钳回在 renderBg
             return true;
         }
-        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞滚轮（主线 mouseScrolled 同一行的本世代两项：菜单/重命名窗）
+        if (cmenu.isOpen() || renameGid >= 0 || settings.isOpen() || helpOpen) return true; // m509 modal 吞滚轮（主线 mouseScrolled 同一行的本世代四项：菜单/重命名窗/设置窗/帮助卡，m515 并入）
         if (overMap(mouseX, mouseY)) return true; // m110a 地图区不缩放画布（主线 inMap 口径；m490 小地图上挂时漏带）
         if (mouseY > 16) { // 顶栏以下才缩放（主线 mouseY > 34 的本世代对位：顶栏 16）
             za.zoomToward(delta > 0 ? 1.1 : 0.9, mouseX, mouseY); // m185 范围走配置 + m186 平滑缓动指哪缩哪（m512 起与主线同一份；原 1.15 倍/0.35~2.5 硬编码退役）
@@ -315,6 +327,13 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (helpOpen) { helpOpen = false; return true; } // m219 帮助卡：任意点即关（modal 吞穿透，m103 口径；主线同句）
+        if (settings.isOpen()) return settings.click(mouseX, mouseY, button); // m199 设置面板 modal 最先判（m515 共用件；主线同句）
+        if (button == 0 && mouseY < 16 && mouseX >= TB_SETT_X && mouseX < TB_SETT_X + TB_BTN_W) { // 顶栏「设置」（主线 TermButton 244,2 的本世代对位）
+            if (settings.isOpen()) settings.close(); else { if (cmenu.isOpen()) clearMenu(); if (renameGid >= 0) closeRename(); settings.open(); } // 主线 openSettings 清场三行的本世代两项
+            return true;
+        }
+        if (button == 0 && mouseY < 16 && mouseX >= TB_HELP_X && mouseX < TB_HELP_X + TB_BTN_W) { helpOpen = !helpOpen; return true; } // 顶栏「帮助」（主线 336,2 对位）
         if (renameGid >= 0) { // m192 重命名小窗 modal：窗内点进字段，窗外点=关
             int rw = 200, rh = 58, rpx = (this.width - rw) / 2, rpy = (this.height - rh) / 2;
             if (renameField.mouseClicked(mouseX, mouseY, button)) return true;
@@ -436,6 +455,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (settings.released()) return true; // m223 设置面板 RGB 滑杆收拖（m515 共用件；主线首句）
         if (button == 0 && dragGid >= 0) { // m192 组拖动松手：一包发总增量（服务端批量改+单次同步，防N连发全量同步）
             for (var en : dragGidSnap.entrySet()) // m196 覆盖失效前按快照+增量本地定格——否则松手到快照回来之间闪回旧位置
                 if (en.getKey() < g.machineNodes.size()) {
@@ -485,7 +505,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (cmenu.isOpen() || renameGid >= 0) return true; // m509 modal 吞拖动（主线 mouseDragged 同一行的本世代两项）
+        if (settings.dragged(mouseX)) return true; // m223 设置面板 RGB 滑杆拖动（必须先于下方 modal 吞穿透；m515 共用件）
+        if (cmenu.isOpen() || renameGid >= 0 || settings.isOpen() || helpOpen) return true; // m509 modal 吞拖动（本世代四项，m515 并入设置窗/帮助卡）
         if (button == 0 && dragGid >= 0) { // m192 组拖动：每帧快照+增量绝对写（渲染读 wnx/wny 的快照+增量，快照回来也自愈）
             dragGidDx = (int) (wmx(mouseX) - dragGidWx);
             dragGidDy = (int) (wmy(mouseY) - dragGidWy);
@@ -554,6 +575,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             }
             if (cmenu.isOpen()) renderMenu(ctx, mouseX, mouseY);
             if (renameGid >= 0) renderRename(ctx, mouseX, mouseY, delta); // m192 组重命名小窗压最上层
+            if (settings.isOpen()) settings.render(ctx, mouseX, mouseY, delta); // m199 设置面板压最上层（m515 共用件；主线同句）
+            if (helpOpen) com.sdzjz.client.CanvasHelpCard.render(ctx, this.font, width - SIDEBAR_W); // m219 帮助卡（锚定侧栏左缘=主线 workRight 对位）
         } finally {
             com.sdzjz.client.SciSkin.scopeCanvas(false);
         }
@@ -561,6 +584,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (helpOpen) { if (keyCode == 256) helpOpen = false; return true; } // m219 帮助卡：Esc=关，其余吞（modal 同口径；主线同句）
+        if (settings.keyPressed(keyCode, scanCode, modifiers)) return true; // m199 设置窗：Esc=关；其余喂四个颜色框（m515 共用件）
         if (renameGid >= 0) { // m192 重命名窗：回车确认 / Esc取消，其余进输入框（先于 super，否则 E 键会关屏）
             if (keyCode == 257 || keyCode == 335) { confirmRename(); return true; }
             if (keyCode == 256) { closeRename(); return true; }
@@ -577,6 +602,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (settings.charTyped(chr, modifiers)) return true; // m199/m217（m515 共用件）
         if (renameGid >= 0) return renameField.charTyped(chr, modifiers); // m192
         return super.charTyped(chr, modifiers);
     }
@@ -718,6 +744,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         ctx.fill(0, 0, width, 15, SciSkinPalette.BTN_FACE); // 顶栏：标题+连线按钮+节点计数
         ctx.fill(0, 15, width, 16, SciSkinPalette.FRAME);
         ctx.drawString(font, title, 6, 4, SciSkinPalette.TXT_HI, false);
+        for (int b = 0; b < 2; b++) { // m515 顶栏「设置」「帮助」两钮（照下方连线钮同工艺；开着=强调色描边）
+            int bx = b == 0 ? TB_SETT_X : TB_HELP_X;
+            boolean on = b == 0 ? settings.isOpen() : helpOpen;
+            ctx.fill(bx, 2, bx + TB_BTN_W, 13, on ? SciSkinPalette.ACCENT : SciSkinPalette.BTN_FRM);
+            ctx.fill(bx + 1, 3, bx + TB_BTN_W - 1, 12, SciSkinPalette.BTN_FACE);
+            ctx.drawString(font, Component.translatable(b == 0 ? "sdzjz.canvas.settings" : "sdzjz.canvas.help"), bx + 5, 3,
+                    on ? SciSkinPalette.ACCENT : SciSkinPalette.TXT, false);
+        }
         int btnX = width - SIDEBAR_W - 64;
         ctx.fill(btnX, 2, btnX + 56, 13, linkMode ? SciSkinPalette.ACCENT : SciSkinPalette.BTN_FRM);
         ctx.fill(btnX + 1, 3, btnX + 55, 12, SciSkinPalette.BTN_FACE);

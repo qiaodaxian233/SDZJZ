@@ -10899,3 +10899,43 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   ③1.20.1 整理后拖动/连线/分组照常（NodeMove 走的是 m457 同一包）。
 - **下一刀**：读 m514 CI → **A7c 设置面板 m199 / 帮助卡 m219**（先量 EditBox/滑块 1.21 专属 API 面）→ A10 卡片层随缩放。
 
+## m515 A7c：画布设置面板 m199 + 帮助卡 m219 两代共用（xplat CanvasSettingsPanel / CanvasHelpCard）—— 1.20.1 顶栏添「设置」「帮助」
+
+- **来路**：作业表 A7c。开工先 fetch，origin/main=10e5225（m514 CI 八 job 全绿）。
+- **先量 API 面**（作业表要求）：面板全部控件=`EditBox`（构造/setValue/getValue/setResponder/setMaxLength/setFocused/setX/setY/render/
+  mouseClicked/keyPressed/charTyped）+ `GuiGraphics.fill/drawString` + `SciSkin`（drawCard/hex/TERM_PRESETS/withAlpha）+ common 配置；
+  1.20.1 `EditBox` 同签名（m192 重命名框在树先例：构造与 render(GuiGraphics,…) 已在 1.20.1 真编译过 m509~m514）。**1.21 专属 API 命中 0
+  → 整段搬，不分片**。
+- **逐句对**：主线设置面板散在 13 处——字段 3 行（开关/四框）+ 常量 11 行 + init 里四框"重排保留输入/首建取配置现值" 20 行 + `openSettings`
+  （含清场三行）/`closeSettings` + `settPos`/m223 公共表三函数（含 m239 作用域根因注释）/`settApplySlider`/`hexOk` + `renderSettings` 83 行 +
+  `stBox` + `settingsClick` 76 行 + 事件派发六处（点击/拖动/收拖/滚轮吞/键盘/字符）+ render 一句 + removed 落盘一句。
+  **世代差为零**；宿主只给三样：字体、屏幕尺寸（面板居中，原文 `this.width/this.height`）、开窗前清场（菜单/拾取器/重命名是宿主 modal，
+  主线 `openSettings` 壳保留三行 + `settings.open()`）。机械替换只两类：`this.font`→字段、`this.width/height`→字段；方法改名
+  renderSettings→render / settingsClick→click / openSettings→open / closeSettings→close，主线留同名壳。
+- **共用件 `CanvasSettingsPanel`**（327 行，脚本从主线原文切片生成 + 两类机械替换，人工只写了 12 行：isOpen/init 头/onScreenRemoved/
+  dragged/released/keyPressed/charTyped 七个小口，其中后四个的函数体就是主线事件派发里那几句原文）；`CanvasHelpCard.render(ctx, font, anchorRight)`
+  =主线 `renderHelp` 原文（`workRight()`→参数）。
+- **主线屏**：13 处→字段 1 行（`settings`）+ `openSettings`（清场三行 + 一句）/`closeSettings`/`renderHelp` 三壳 + 六处派发各一句
+  （`settings.click/dragged/released/keyPressed/charTyped/isOpen`）；2919→2645 行（-274）。第 19 闸登记 27 个已删符号（字段/常量/助手）。
+- **1.20.1 屏**：`settings` + `helpOpen` 字段；`init` 末 `settings.init(font, width, height)`（主线同句）；新增 `removed()` 只做落盘兜底
+  （本世代无视图持久化，故此前无 removed）；顶栏「设置」「帮助」两钮照本世代 16px 顶栏连线钮工艺画在标题右侧（x=56/100，宽 40；节点计数在
+  width-SIDEBAR_W-160 起，不撞），开着=强调色描边；事件派发六处主线同句同序（帮助卡任意点即关 → 设置 modal → 顶栏两钮 → 重命名 …；
+  拖动首句 `settings.dragged` 必须先于 modal 吞穿透，主线 m223 同律）；render 在菜单/重命名之后压最上层；滚轮/拖动 modal 吞并入
+  设置窗/帮助卡两项。lang 两键 `sdzjz.canvas.settings/help` 照主线 zh/en 原文补进 1.20.1（六件套 lang 两处）。两共用件进白名单。
+  **面板十行里「背景色/网格色/网格浓度/暗角强度」四行在 1.20.1 暂不生效**——写的是两代同一份配置（主线立刻生效），本世代底/网格层还是
+  `SciSkinPalette.BACKDROP/CELL` 定色、网格随 zoom（A11 登记，下一刀就搬）。其余六行两代同效（缩放平滑 m512 / 线宽随缩放+封顶 WireRenderer
+  / 出进线色 m511 / 归并 m511 / 主题预设写画布 7 键→SciSkin 两代同读 / 恢复默认）。
+- **对照表**：第一节补 `CanvasSettingsPanel`；第三节补「画布底/网格/暗角层」（未搬）。
+- **验证**：`tools_smoke.py` 两代全量（195/91）零真错 + 四改动文件单编零真错（面板 23×2 / 帮助卡 4×2 全是 GuiGraphics/Font/EditBox/Component
+  缺 jar 噪音；主线屏 557→518 条）；自家 18 个新/删符号 0（`setX/setY/setFocused` 各 3 条是 HEAD 既有的 TermButton 受体噪音，stash 对照确认）；
+  21 闸全绿（0.1.515）。零协议零存档改动；配置零新增；lang 两键；纯客户端。
+- **实机验证脚本**：①主线：设置钮开面板 → 十行开关/步进/色框/滑杆/预设/恢复默认全程与 m514 逐位一致（同一份代码）；开着关屏颜色落盘；
+  Esc/窗外点关；拖滑杆按 Esc 无残拖；帮助卡任意点关；②1.20.1：顶栏「设置」开面板——切"缩放平滑"立刻改滚轮手感、改"出线颜色"字段线色即时变、
+  拖 R/G/B 滑杆同上、点主题预设五片整屏配色变（m511 作用域已开）、"恢复默认"回十项；背景四行改了不生效（A11 前预期）；
+  ③1.20.1「帮助」开卡：文案与主线同（"右键节点=菜单"从 m513 起在本世代也成立；"P暂停 X断线 Del取出 V选择"快捷键本世代无，
+  属文案先于机制——A 线后续搬快捷键时对齐）；④1.20.1 面板开着滚轮/拖动/点卡片全被吞，重命名窗与面板互斥。
+- **教训**：**先量 API 面再决定搬法**这一步值得每刀都做——这刀 13 处散落、300 行、四个控件，看着最该"分片"，量下来 1.21 专属为零，反而是
+  最干净的整段搬；分片是给真有世代差的地方留的，不是给"看着大"的地方留的。
+- **下一刀**：读 m515 CI → **A11 画布底/网格/暗角层随主题+配置**（m203/m217/m220/m188 + 网格浓度/暗角；让面板背景四行在 1.20.1 生效；
+  先核 m220 装饰底图 `FRAME` 贴图在 1.20.1 资源目录有没有——m489 资源教训）→ A10 卡片层随缩放 → A9 悬停聚焦。
+
