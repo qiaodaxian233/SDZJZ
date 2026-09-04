@@ -615,6 +615,23 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         // 至此 m515 设置面板「背景色/网格色/网格浓度/暗角强度」四行在本世代生效。
         com.sdzjz.client.CanvasBackdrop.fillAndDecor(ctx, width, height);
         com.sdzjz.client.CanvasBackdrop.gridAndVignette(ctx, -viewX * zoom, -viewY * zoom, width, height, 16, 0, 16, width - SIDEBAR_W, height);
+
+        // m164b 悬停聚焦（用户点名"线看着还是乱"）：指着哪张卡，只有它的线保持全亮，其余压暗成
+        // 三成底色——一眼看清单张卡的进出走向；不指任何卡=全亮照旧，零学习成本。压暗走
+        // SciSkin.mix 向底色靠拢（wirePath 会丢传入 alpha，改 alpha 无效——见其 rgb=color&0xFFFFFF）。
+        // m518（真移植·A9）：主线原文；世代差只有三处记法——节点用 wnx(i)/wny(i)（主线 wnx(be,nodes,i)，拖动幽灵同律）、
+        // 卡高 NH（主线 NH+26 含升级格行，本世代无升级系统）、存储端悬停走本世代 storageAt（主线 m265 总线放置卡 snx/sny+bw/bh，本世代无总线）。
+        int hovN = -1; long hovEnd = Long.MIN_VALUE;
+        {
+            double hx = wmx(mouseX), hy = wmy(mouseY);
+            for (int i = g.machineNodes.size() - 1; i >= 0; i--) {
+                int nxH = wnx(i), nyH = wny(i);
+                if (hx >= nxH && hx <= nxH + NW && hy >= nyH && hy <= nyH + NH) { hovN = i; break; }
+            }
+            if (hovN < 0) { Long seH = storageAt(mouseX, mouseY); if (seH != null) hovEnd = seH; } // 存储节点卡 24×24 屏幕命中（与点击/悬停详情同一口）
+        }
+        boolean hovAny = hovN >= 0 || hovEnd != Long.MIN_VALUE;
+
         // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）——m511（A4）照主线原文装配，
         // m507 那份"只画框"的装配退役：nGid 还要喂 m193 归并。
         java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =
@@ -631,14 +648,15 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         com.sdzjz.client.GroupFrameRenderer.drawFrames(ctx, this.font, groupView, gm, gRect);
         // m511（真移植·A4）：m193 连线归并两代共用（xplat client/WireBundler），本处只留两处分流调用点；
         // 存储端接口位置（本世代=画布上 24×24×zoom 的存储节点卡：收料口 x+0.25w / 供料口 x+0.75w，卡底 +2）走 StoragePorts 口。
-        // 本世代无 m164b 悬停聚焦，lit 恒真。
+        // m518（A9）：m164b 悬停聚焦接线——两处分流的 lit 与非归并线颜色式照主线原文（m511 起此处恒 true 即接口）。
         com.sdzjz.client.WireBundler bundler = new com.sdzjz.client.WireBundler(bundleOn, nGid);
         for (int i = 0; i < g.storageEdges.size(); i++) { // m458 机器↔存储边（产出 / 供料，色走 m198 配置 wireOut/wireIn，m511 起与主线同源）
             long[] e = g.storageEdges.get(i);
             int m = (int) e[0];
             int[] sp = g.storageNodePos.get(e[1]);
             if (m >= g.machineNodes.size() || sp == null) continue;
-            if (bundler.takeStorageEdge(m, e[1], e[2], true)) continue; // m193 组成员的存储线→归并，后面按组框画一条
+            boolean lit = !hovAny || m == hovN || e[1] == hovEnd; // m164b 悬停聚焦
+            if (bundler.takeStorageEdge(m, e[1], e[2], lit)) continue; // m193 组成员的存储线→归并，后面按组框画一条
             // m492：锚点算法照主线原文（m184 选缘看几何 + m352 柱心分高 + 存储卡接口在**卡底**）：
             //  产出=机器近侧缘水平出线 → 垂直向上接卡底左收料口；供料=卡底右供料口垂直下发 → 水平接机器近侧缘。
             //  m488 我自己推的「机器右缘 → 存储卡中心」是错的：忽略了选缘、也把存储卡接口当成了中心。
@@ -653,12 +671,14 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
                 boolean er = stx + stW * 0.25f >= mcxS; // 收料口在机器右侧→右缘出线
                 float mxs = (float) sx(mnx + (er ? NW : 0));
                 com.sdzjz.client.WireRenderer.drawWire(ctx, mxs, mysO, er ? 1 : -1, 0,
-                        stx + stW * 0.25f, sty + stH + 2, 0, -1, com.sdzjz.client.SciSkin.wireOut(), 1f); // 主线此处传 1f（屏幕坐标层）；m198 出线配置色
+                        stx + stW * 0.25f, sty + stH + 2, 0, -1,
+                        lit ? com.sdzjz.client.SciSkin.wireOut() : com.sdzjz.client.SciSkin.mix(com.sdzjz.client.SciSkin.termInk(), com.sdzjz.client.SciSkin.wireOut(), 0.30f), 1f); // 主线此处传 1f（屏幕坐标层）；m198 出线配置色
             } else {         // 存储→机器（供料）
                 boolean fr = stx + stW * 0.75f >= mcxS; // 供料口在机器右侧→从右缘进
                 float mxi = (float) sx(mnx + (fr ? NW : 0));
                 com.sdzjz.client.WireRenderer.drawWire(ctx, stx + stW * 0.75f, sty + stH + 2, 0, 1,
-                        mxi, mysI, fr ? -1 : 1, 0, com.sdzjz.client.SciSkin.wireIn(), 1f); // 同上；m198 进线配置色
+                        mxi, mysI, fr ? -1 : 1, 0,
+                        lit ? com.sdzjz.client.SciSkin.wireIn() : com.sdzjz.client.SciSkin.mix(com.sdzjz.client.SciSkin.termInk(), com.sdzjz.client.SciSkin.wireIn(), 0.30f), 1f); // 同上；m198 进线配置色
             }
         }
         // m193 组↔存储归并线：组框缘（世界→屏幕）到端点口，一对一条（m511 共用件；屏幕坐标层，与上面单线同层）
@@ -676,7 +696,8 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
         // m193 归并：端点属组→锚到组框缘，同锚对折并成一条+×N徽章；同组内部线照旧各画各的（m511 分流计数走共用件）
         for (int[] c : g.connections) { // 连线（出口柱→进口柱）
             if (c[0] >= g.machineNodes.size() || c[1] >= g.machineNodes.size()) continue; // 快照途中拓扑变化防御
-            if (bundler.takeConnection(c[0], c[1], true)) continue; // 跨组界→归并（组内部线不归并）
+            boolean lit2 = !hovAny || c[0] == hovN || c[1] == hovN; // m164b 悬停聚焦
+            if (bundler.takeConnection(c[0], c[1], lit2)) continue; // 跨组界→归并（组内部线不归并）
             // m492：照主线原文（m352 柱心分高 + m184 选缘看几何：下游在右=右缘出左缘进，
             //  在左=左缘出右缘进，不再绕背后大圈）。
             boolean dual = com.sdzjz.config.SdzjzConfig.get().nodeDualSidePorts;
@@ -686,7 +707,7 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
             boolean fwd = bx0 >= ax0; // m184 下游在右=右缘出左缘进（旧行为）；在左=左缘出右缘进，不再绕背后大圈
             int ax = ax0 + (fwd ? NW : 0), bx = bx0 + (fwd ? 0 : NW), dir = fwd ? 1 : -1;
             com.sdzjz.client.WireRenderer.drawWire(ctx, ax, ay, dir, 0, bx, by, dir, 0,
-                    com.sdzjz.client.SciSkin.wireOut(), (float) zoom); // m198 出线配置色（主线机器线同色）
+                    lit2 ? com.sdzjz.client.SciSkin.wireOut() : com.sdzjz.client.SciSkin.mix(com.sdzjz.client.SciSkin.termInk(), com.sdzjz.client.SciSkin.wireOut(), 0.30f), (float) zoom); // m198 出线配置色（主线机器线同色）
         }
         // m193 归并线：组框缘/卡缘 → 组框缘/卡缘，一锚对一条（m511 共用件；仍在上面 push 的世界矩阵下）
         bundler.drawMachineBundles(ctx, this.font, groupView, gRect);
