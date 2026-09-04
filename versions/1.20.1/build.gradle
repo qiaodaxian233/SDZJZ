@@ -42,6 +42,7 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/client/CanvasLayout.java'       // m514（真移植·A7b）「整理布局」落位几何两代共用：主线 autoLayout 算术段整段搬（m149 竖排/m221 间距配置/存储右列），发包留各代
         include 'com/sdzjz/client/CanvasSettingsPanel.java' // m515（真移植·A7c）画布设置面板两代共用：主线 m199/m211/m217/m223/m239/m262 整段搬（EditBox 两代同签名，1.20.1 m192 重命名框在树先例），宿主只给字体/屏幕尺寸/开窗前清场
         include 'com/sdzjz/client/CanvasHelpCard.java'       // m515 m219 帮助卡两代共用（纯静态，helpOpen 留宿主）
+        include 'com/sdzjz/client/CanvasBackdrop.java'     // m516（真移植·A11）画布底层两代共用：主线 renderBg 开头底色/装饰底图/32px 双色网格/暗角原文整段搬，布局参数（网格起始 y/暗角区）留调用点，主线顶底浅带夹在两口之间不搬
         include 'com/sdzjz/machine/DropRolls.java'     // m464（C2-⑤a）掉落表掷点（依赖仅 RandomSource+MachineDef，闭包干净）
         include 'com/sdzjz/machine/StorageAccess.java' // m464（C2-⑤a）存储访问契约（依赖仅 ItemStack+Map；StorageCore120 补 implements 与主线辅件同型）
         include 'com/sdzjz/node/NodeTags.java'         // m472（绞杀者第五刀）节点栈标签纯函数上挂——NBT 走 ItemData 五口（m437/m451）、身份走 Ident 世代口（RetroNodeIdent），剩余 MC 触点=ItemStack/CompoundTag/Tag/ListTag 四个两代同名类型

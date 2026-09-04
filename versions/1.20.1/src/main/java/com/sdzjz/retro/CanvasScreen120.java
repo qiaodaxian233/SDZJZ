@@ -23,7 +23,6 @@ import java.util.Optional;
  */
 public final class CanvasScreen120 extends AbstractContainerScreen<StructureCoreMenu120> {
 
-    private static final int GRID_STEP = 24; // 画布世界格距（缩放前）
     private static final int SIDEBAR_W = 30; // m457 机器库侧栏宽
     private CanvasGraphState g = new CanvasGraphState(); // 最近快照的本地像（只读）
     private double viewX = 0, viewY = 0; // 视口左上对应的画布坐标
@@ -610,12 +609,12 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     @Override
     protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         za.tick(); // m186 缩放动效每帧推进（先于一切使用 view/zoom 的绘制；m512 共用件）
-        ctx.fill(0, 0, width, height, SciSkinPalette.BACKDROP); // 满窗不透明（m452 透明教训口径）
-        int step = Math.max(6, Math.round(GRID_STEP * zoom));   // 网格
-        int offX = (int) (Math.floorMod(Math.round(-viewX * zoom), step));
-        int offY = (int) (Math.floorMod(Math.round(-viewY * zoom), step));
-        for (int x = offX; x < width; x += step) ctx.fill(x, 0, x + 1, height, SciSkinPalette.CELL);
-        for (int y = offY; y < height; y += step) ctx.fill(0, y, width, y + 1, SciSkinPalette.CELL);
+        // m516（真移植·A11）：底层走主线同一份 CanvasBackdrop——底色随主题/配置（m203/m217，满窗不透明保住 m452 口径）、装饰底图（m220）、
+        // 32px 定距双色网格（m188；原 24×zoom 随缩放的仿写网格退役）、四缘暗角（m187/m217）。网格从顶栏下 16 起；暗角区=工作区（侧栏左、顶栏下）。
+        // 本世代顶栏是后画的不透明条（0~16）、侧栏亦不透明，故底层满窗画、上层盖住即可；主线夹在两口之间的顶/底终端浅带本世代没有。
+        // 至此 m515 设置面板「背景色/网格色/网格浓度/暗角强度」四行在本世代生效。
+        com.sdzjz.client.CanvasBackdrop.fillAndDecor(ctx, width, height);
+        com.sdzjz.client.CanvasBackdrop.gridAndVignette(ctx, -viewX * zoom, -viewY * zoom, width, height, 16, 0, 16, width - SIDEBAR_W, height);
         // m193 分组共享表一次算好：组成员 / 组框矩形 / 节点→组查表（组框渲染与连线归并共用）——m511（A4）照主线原文装配，
         // m507 那份"只画框"的装配退役：nGid 还要喂 m193 归并。
         java.util.LinkedHashMap<Integer, java.util.List<Integer>> gm =

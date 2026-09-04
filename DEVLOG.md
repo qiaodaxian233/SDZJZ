@@ -10939,3 +10939,33 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **下一刀**：读 m515 CI → **A11 画布底/网格/暗角层随主题+配置**（m203/m217/m220/m188 + 网格浓度/暗角；让面板背景四行在 1.20.1 生效；
   先核 m220 装饰底图 `FRAME` 贴图在 1.20.1 资源目录有没有——m489 资源教训）→ A10 卡片层随缩放 → A9 悬停聚焦。
 
+## m516 A11：画布底/网格/暗角层两代共用（xplat CanvasBackdrop）—— m515 设置面板背景四行在 1.20.1 生效
+
+- **来路**：作业表 A11（m515 新登记：面板四行写了配置本世代不读）。开工先 fetch，origin/main=8aeef9f（m515 CI 八 job 全绿）。
+- **先核资源**（作业表点名，m489 教训）：m220 装饰底图 `textures/gui/structure_core_canvas.png`（1280×800，597KB）1.20.1 资源目录**没有**→ 拷入。
+- **逐句对**：主线 renderBg 开头=底色 `fill(canvasBg())` → m220 装饰底图 `blit(FRAME, 全屏)`（`canvasBgDecor && !canvasBgOverridden()`）→
+  **主线专有**顶/底终端浅带（m203/m210：顶 22、底 botTop；本世代顶栏 16 无底栏，不搬）→ m188 双色网格（屏幕 32px 定距、相位 floorMod 世界格序号、
+  每 4 格主线、`termGridMajor/Minor` m203 随主题 m217 色覆盖+浓度、从 y=34 起）→ `SciSkin.vignette(0,23,workRight,botTop)`。
+  **世代差为零**（fill + 9 参 blit 两代同签名——SciSkin.drawSlot 在树先例；SciSkin 三函数与 common 配置两代同读；纹理 id 走 m509 `gfxTex` 两代门）。
+  **差住在两处布局参数与一段主线专有插入**：网格起始 y、暗角区；浅带夹在底色与网格之间——帧序是像素（底色→浅带→网格线压在底部浅带上），
+  所以拆**两口** `fillAndDecor(ctx,w,h)` / `gridAndVignette(ctx,panX,panY,w,h,gridTop,vx1,vy1,vx2,vy2)`，主线在两口之间照旧画浅带，逐位不变。
+- **共用件 `CanvasBackdrop`**：两口原文（归一后 3/3 + 14/14 句 diff=0：`this.width/height`→形参、`34`→`gridTop`、暗角四坐标→形参、
+  `FRAME`→`SciSkin.gfxTex(DECOR_TEX)`）；`DECOR_TEX` 路径原文。
+- **主线屏**：三句+十四句换两句调用；`FRAME` 常量删除（唯一用处随下沉；第 19 闸登记，`SciSkin.FRAME` 是另一符号带限定名不算裸引用）。2645→2630 行。
+- **1.20.1 屏**：`fill(Palette.BACKDROP)` + `GRID_STEP 24×zoom` 随缩放仿写网格（六句）→ 两句共用件调用（`panX = -viewX*zoom`，网格从 16 起，
+  暗角区 (0,16)~(width-SIDEBAR_W,height)）；`GRID_STEP` 常量删除。本世代顶栏/侧栏是后画的不透明层，底层满窗画、上层盖住即可。
+  **可见变化**：底色由调色板定色→画布主题墨色（m214 作用域 m511 已开）；网格由 24×zoom 随缩放→32px 屏幕定距+世界相位（主线 m188 设计：平移不跳档、
+  缩放不糊）；多了装饰底图与四缘暗角；m515 面板「背景色/网格色/网格浓度/暗角强度」四行即时生效，「主题预设」五片换的底色也随之可见。
+- **对照表**：第三节「画布底/网格/暗角层」行改"m516 已搬"。
+- **验证**：`tools_smoke.py` 两代全量（196/92）零真错 + 三改动文件单编零真错（CanvasBackdrop 两代各 3 条 GuiGraphics 噪音）；自家 5 个新/删符号 0；
+  归一 diff=0；`gridAndVignette` 十参/`fillAndDecor` 三参/`blit` 九参逐处手数；21 闸全绿（0.1.516）。零协议零存档零配置新增；资源 +1 张贴图；纯客户端。
+  **顺手教训（本刀两次脚本假摔）**：①javadoc 里写 `termGrid*/vignette` 把注释提前闭合→javac "illegal character"（写注释别让 `*/` 出现在字符串外）；
+  ②断言 `"GRID_STEP" not in s` 被自己新写的注释撞红——断言词别出现在同一刀的注释里，或用带上下文的正则。两次都在写盘前拦住，无损。
+- **实机验证脚本**：①主线：画布底色/装饰底图/顶底浅带/网格/暗角**应与 m515 逐位一致**（帧序未动；重点看底部浅带上网格线仍压其上、
+  暗角区仍 (0,23)~(workRight,botTop)）；改设置面板背景四行与开关 `canvasBgDecor` 行为不变；②1.20.1：开画布——底色为画布主题墨色（默认暗夜），
+  装饰底图可见（设了背景色即让位纯色，同主线），32px 网格平移不跳档、缩放不变距（改前随缩放）、每 4 格一根主线，四缘暗角；
+  ③1.20.1 设置面板改「背景色」立刻变、清空回主题；改「网格色/网格浓度」立刻变；「暗角强度」拉到 0 四缘消失；主题预设五片换整屏底色；
+  ④两代 `canvasBgDecor=false` 装饰底图无条件关。
+- **下一刀**：读 m516 CI → **A10 1.20.1 卡片层随缩放**（节点卡/存储卡进世界矩阵，`nodeAt/storageAt` 命中框同口径；`renderItem` 在缩放矩阵下
+  的先例=NodeCardRenderer 142 行 `msi.scale` 后 renderItem）→ A9 悬停聚焦 m164b → A8 升级槽（先核本世代有无升级系统）。
+

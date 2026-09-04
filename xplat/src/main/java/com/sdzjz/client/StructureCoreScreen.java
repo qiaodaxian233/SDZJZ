@@ -43,7 +43,7 @@ import java.util.List;
  */
 public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreScreenHandler> {
 
-    private static final ResourceLocation FRAME = ResourceLocation.fromNamespaceAndPath("sdzjz", "textures/gui/structure_core_canvas.png");
+    // m516：装饰底图 FRAME 常量随底层下沉 CanvasBackdrop（路径原文，纹理 id 走 SciSkin.gfxTex 两代门）
     private static final int TXT      = SciSkin.TXT;
     private static final int SUB      = SciSkin.SUB;
     private static final int ON       = SciSkin.ON;
@@ -468,30 +468,15 @@ public class StructureCoreScreen extends AbstractContainerScreen<StructureCoreSc
     @Override
     protected void renderBg(GuiGraphics ctx, float delta, int mouseX, int mouseY) {
         tickZoomAnim(); // m186 缩放动效每帧推进（先于一切使用 pan/zoom 的绘制）
-        ctx.fill(0, 0, this.width, this.height, SciSkin.canvasBg()); // m203 全屏底随主题；m217 配置可覆盖（空=跟随主题墨色）
-        if (com.sdzjz.config.SdzjzConfig.get().canvasBgDecor && !SciSkin.canvasBgOverridden()) // m220 设了背景色=纯色画布，装饰底图让位（作者截图：改色无感+装饰边碍眼同根）；canvasBgDecor=false 可无条件关
-            ctx.blit(FRAME, 0, 0, 0.0F, 0.0F, this.width, this.height, this.width, this.height);
+        CanvasBackdrop.fillAndDecor(ctx, this.width, this.height); // m203 全屏底随主题 + m220 装饰底图（m516 共用件，原文两句）
         SciSkin.termBand(ctx, 0, 0, workRight(), 22); // m203 顶条换终端主题浅带（照作者画布设计稿）
         SciSkin.termBandLine(ctx, 0, workRight(), 22);
         // m210 底栏浅带迁到背景层：AbstractContainerScreen 帧序=背景→按钮→前景，m203 的不透明浅带留在前景层
         // 把底部五钮整排糊死（作者实机截图实锤）；机器区剪刀(24~height-78)挡着，前置安全。
         SciSkin.termBand(ctx, 0, botTop(), workRight(), this.height);
         SciSkin.termBandLine(ctx, 0, workRight(), botTop());
-        // m188 网格双色制：细线打底 + 每4格一根主线；相位按世界格序号（floorMod）定，平移不跳档
-        int step = 32;
-        int gi0 = (int) Math.floor(-panX / step), gi1 = (int) Math.floor((this.width - panX) / step);
-        for (int gi = gi0; gi <= gi1; gi++) {
-            int gsx = (int) Math.floor(panX + gi * (double) step);
-            ctx.fill(gsx, 34, gsx + 1, this.height,
-                    Math.floorMod(gi, 4) == 0 ? SciSkin.termGridMajor() : SciSkin.termGridMinor()); // m203 网格随主题强调色
-        }
-        int gj0 = (int) Math.floor((34 - panY) / step), gj1 = (int) Math.floor((this.height - panY) / step);
-        for (int gj = gj0; gj <= gj1; gj++) {
-            int gsy = (int) Math.floor(panY + gj * (double) step);
-            if (gsy >= 34) ctx.fill(0, gsy, this.width, gsy + 1,
-                    Math.floorMod(gj, 4) == 0 ? SciSkin.termGridMajor() : SciSkin.termGridMinor());
-        }
-        SciSkin.vignette(ctx, 0, 23, workRight(), botTop()); // m188 四缘暗角压景深（卡片/连线画在其上不受影响）
+        // m188 网格双色制 + 四缘暗角（m516 共用件，原文整段；网格从 34 起=顶栏+总线带之下，暗角区 (0,23)~(workRight,botTop)）
+        CanvasBackdrop.gridAndVignette(ctx, panX, panY, this.width, this.height, 34, 0, 23, workRight(), botTop());
 
         StructureCoreBlockEntity be = be();
         if (be == null) return;

@@ -50,7 +50,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
     "zoomTarget","zoomAnim","zoomAnchorSx","zoomAnchorSy","zoomAnchorWx","zoomAnchorWy","zoomAnimNs", # m512 m186 状态六件下沉 ZoomAnim
     "settingsOpen","wireOutField","wireInField","bgField","gridColField","SETT_W","SETT_H","SETT_ROW","SETT_ROW0","SETT_SL_Y",
     "SETT_SL_SP","SETT_PRESET_Y","SETT_RESET_Y","SETT_SL_X","SETT_SL_W","SETT_COLOR_NAMES","settColSel","settSlDrag",
-    "settPos","settSelOfRow","settColorField","settColorVal","settApplySlider","hexOk","renderSettings","stBox","settingsClick"], # m515 设置面板下沉 CanvasSettingsPanel
+    "settPos","settSelOfRow","settColorField","settColorVal","settApplySlider","hexOk","renderSettings","stBox","settingsClick", # m515 设置面板下沉 CanvasSettingsPanel
+    "FRAME"], # m516 装饰底图常量随底层下沉 CanvasBackdrop（SciSkin.FRAME 带限定名不算裸引用）
  "versions/1.20.1/src/main/java/com/sdzjz/retro/CanvasScreen120.java":
    ["menuOpen","menuX","menuY","menuLabels","menuActions","menuStyles","menuTitle","MENU_W","MENU_ROW","menuH","menuRowAt"],
 }
