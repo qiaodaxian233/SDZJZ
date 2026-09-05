@@ -1,0 +1,13 @@
+
+> Task :runGametest FAILED
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1788594350321.json
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':runGametest'.
+> Process 'command '/usr/lib/jvm/temurin-21-jdk-amd64/bin/java'' finished with non-zero exit value 1
+--
+
+BUILD FAILED in 27s
+7 actionable tasks: 4 executed, 3 up-to-date
