@@ -1,0 +1,1 @@
+{"type": "minecraft:crafting_shaped", "pattern": ["AGA", "GMG", "AGA"], "key": {"A": {"item": "minecraft:amethyst_block"}, "G": {"item": "minecraft:gold_block"}, "M": {"item": "sdzjz:core_module"}}, "result": {"item": "sdzjz:count_upgrade", "count": 1}}

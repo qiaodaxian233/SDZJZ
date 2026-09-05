@@ -60,9 +60,9 @@ public final class RetroBenchTests implements FabricGameTest {
 
     /** 已知缺口·结果件：m521 缺口表「非机器物品 21」里在配方表出现的 14 件（本世代未注册）。补上一件就该从这儿删一行（判官双向对表会红提醒）。 */
     private static final Set<String> KNOWN_GAP_RESULTS = Set.of(
-            "sdzjz:auto_feeder", "sdzjz:capture_cage", "sdzjz:count_upgrade", "sdzjz:linker", // m527：core_module 已注册（RetroItems），滚出
-            "sdzjz:parallel_upgrade", "sdzjz:portable_vault", "sdzjz:satellite_node", "sdzjz:speed_upgrade",
-            "sdzjz:storage_upgrade", "sdzjz:terminal", "sdzjz:trade_center", "sdzjz:villager_contract", "sdzjz:wireless_node");
+            "sdzjz:auto_feeder", "sdzjz:capture_cage", "sdzjz:linker", // m527 滚出 core_module；m528（N1）滚出四升级件
+            "sdzjz:portable_vault", "sdzjz:satellite_node",
+            "sdzjz:terminal", "sdzjz:trade_center", "sdzjz:villager_contract", "sdzjz:wireless_node");
 
     /** 已知缺口·材料（1.20.1 配方可达账：m526b 0/122 → m527 注册 core_module 后账面 56/122，CI 判官②实机对表为准）：
      *  ①~~`sdzjz:core_module`~~ **m527 已注册**（RetroItems 第一件，作者拍板「按 1.21.1 的来，做成一样」）——此前 bom/bomPacked/addSmall 三建表口
@@ -79,7 +79,7 @@ public final class RetroBenchTests implements FabricGameTest {
     /** 本世代可达配方数账面值（判官②等值断言，多了少了都红）。m526b=0（core_module 未注册一件卡死全部）→ **m527=56**（注册 core_module 后：
      *  42 bom + 3 bomPacked + 4 addSmall9 + 7 addSmall；不可达 66 = 44 刷怪类要抓物笼 + 12 条含 1.21 原版新料 + 结果件为未注册非机器件的小配方；
      *  别名解析版离线脚本口径，以 CI 判官②实机对表为准）。本世代每注册一件非机器物品 / 主线每改配方表，此值同刀改。 */
-    private static final int EXPECTED_REACHABLE = 56;
+    private static final int EXPECTED_REACHABLE = 60; // m527=56（CI 对表命中）→ m528 N1 四升级件注册 +4 条 addSmall9（账面，CI 定）
 
     /** 本世代可达（结果件+全部材料都能解析、无生物、有蓝图）的配方里 BOM 总件数最少的那条——端到端/填料两判官用，确定性选取。 */
     private static SuperBenchRecipes.Recipe smallestReachable() {

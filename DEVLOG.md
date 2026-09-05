@@ -11257,3 +11257,17 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①"做成一样"的另一半在 data 目录——m441~m526 三十几刀盯的全是 Java，五方块挖了不掉这种事没人报过；②数据包世代差是纯机械的，**转换器+漂移闸**比手拷稳（主线以后加配方本世代自动跟上）；③生成器自身要带尺子（MachineDef 解析数对表字段数），不然静默少文件。
 - **下一刀**：读 m527 CI（判官②账面 56 实机对表；③④首次真跑）→ **N1**：纯 Item 六件（四升级件+两包框）——先 grep 主线升级件消费方在本世代接了没，只注册不接行为要明说。**开工先跑 22 闸。**
 
+## m528 N1：纯 Item 六件对齐主线（四升级件 + 两包框）；datapack 19→23；判官账 56→60 —— F 线（Forge 1.20.1 / 1.21.1）排入作业表
+
+- **取活**：m527 CI 八 job 全绿（判官②账面 56 实机命中，③④首次真跑通）→ 按作业表取 N1。作者同轮口头：「这个是移植，做成一样的；我还要做 Forge 的 1.20.1、1.21.1」——N 线口径不变，**Forge 立 F 线**（见末）。
+- **六件（照主线原样）**：`RetroItems.plain(name)` = 主线 `reg(name, new Item(new Item.Properties()))` 同句；`speed/count/parallel/storage_upgrade` 创造栏排机器之后（主线 L209-212 同序，`RetroBlocks` 机器循环后 `acceptAfterMachines`），`compressed_pack_frame`/`super_compressed_pack_frame` **主线只注册不上栏——照抄**；六件模型（generated 立绘）+ 贴图逐字节同主线，lang 六键值直接取主线 json（不臆造译名），zh/en 135 键对齐。
+  **升级件本世代能拿、能合、能进浏览器，不能装**：消费方 `xplat/node/NodeUpgrades`（引 src `ModItems`，未上白名单）+ 画布屏 UPG 槽——`StructureCore120` 尚不吃升级件，画布升级槽=A8 待做，m99 升级/封顶公式随 A8 一并对位。**注释里写死了，不静默**。
+- **datapack 19→23**：`--write` 多出四升级件工作台配方（主线 `recipe/{speed,count,parallel,storage}_upgrade.json`）。**生成器被自己的重构打断一次**：`RetroItems` 注册改成 `plain("…")` 后生成器只认 `id("…")`，已注册集少 7 件→只生成 8 文件（19→8，五方块/节点配方因材料 core_module"未注册"被跳过）——m527 那把"MachineDef 字段数对表"的尺子没覆盖 RetroItems。**补尺**：解析 `plain|id("…")`，且注册句数须等于 `public static Item` 声明字段数，不等当场红。教训：生成器每新增一个"读源码取注册表"的入口，都要配一把对表尺，不然静默少文件（m109 家法第 N 次）。
+- **判官账本**：`KNOWN_GAP_RESULTS` 滚出四升级件（剩 9：auto_feeder/capture_cage/linker/portable_vault/satellite_node/terminal/trade_center/villager_contract/wireless_node）；`EXPECTED_REACHABLE` 56→**60**（别名解析版：+4 条 addSmall9 升级件配方；CI 判官②定）。
+- **验证**：两代冒烟零真错（RetroItems 单编零真错）；自家 4 新符号 0；22 闸全绿（0.1.528，含第 22 闸 23 文件逐字节）；零协议零存档零配置、主线零改动。**1.20.1 可见**：创造栏机器后四升级件；工作台可合四升级件；超大工作台浏览器多四条小配方。**实机脚本**：①合速度升级 ②拿着升级件右键画布节点——**本世代无反应（预期，A8）**。**作者判据：CI 1.20.1 绿（账面 60）。**
+- **F 线（作者新目标：Forge 1.20.1 / 1.21.1）——m528 盘点，进作业表**：
+  `xplat/`149 + `common/`23 文件 **0 行 `net.fabricmc`**（第 13 闸硬保）；Fabric 胶水只在 `src/`（21 文件 66 行）与 `versions/1.20.1/src`（19 文件 64 行）。**Forge 壳=把这两份胶水各重写一遍，业务层零改动**——B 线三十刀"零加载器符号"攒下的资产在这儿兑现。五类：注册（Forge 冻结注册表→`DeferredRegister`/`RegisterEvent`）、网络（`FabricPacket`→`SimpleChannel`/NeoForge payload）、传输（transfer v1→`IItemHandler`，Xfer 五口已是世代口）、创造栏/菜单/BE 类型（三处 Fabric 建器→Forge 对位）、GameTest 注册（`FabricGameTest`→`@GameTestHolder`）+ `BuiltinItemRendererRegistry`→`IClientItemExtensions`。
+  已有地基：`versions/1.21.1/neoforge/`（m408，只挂 common，被 Yarn↔Mojmap 卡住）——**m409 全仓迁 Mojmap 后那道墙已不存在**，xplat 可直接挂；CI 已有 NeoForge 1.21.1 编译 job。
+  **F0 拍板项（阻塞区）**：1.21.1 的"Forge"= MinecraftForge 52（`net.minecraftforge`，从零）还是 NeoForge 21.1（`net.neoforged`，地基已有）？两者 API 已分叉；1.20.1 上 Forge 47≈NeoForge 47 不受影响。F1（1.21.1 壳挂 xplat）/F2（1.20.1 `versions/1.20.1/forge/`）拍板后开工；开工同刀 layer_gate 加 `net.minecraftforge|net.neoforged` 进 LOADER_SYMBOLS。
+- **下一刀**：读 m528 CI → **N2**：`compressed_pack`×2（`CompressedPackItem` + 认包 Host 十口的真实现对位主线 `LegacySuperBenchHost`）+ `capture_cage`（`CaptureCageItem` 右键实体抓生物，先 `--candidate` 量 API 面）。F0 拍板前 F 线不开工。**开工先跑 22 闸。**
+

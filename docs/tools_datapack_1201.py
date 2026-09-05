@@ -44,7 +44,13 @@ def registered_1201():
     ids |= set(re.findall(r'\breg\("([a-z0-9_]+)"', rb))
     ri = ROOT / "versions/1.20.1/src/main/java/com/sdzjz/retro/RetroItems.java"
     if ri.exists():
-        ids |= set(re.findall(r'\bid\("([a-z0-9_]+)"\)', ri.read_text(encoding="utf-8")))
+        t = ri.read_text(encoding="utf-8")
+        # 注册句形：`plain("id")` / `Registry.register(…, id("id"), …)`——m528 自证：注册出的 id 数须等于 `public static Item` 声明的字段数
+        got = set(re.findall(r'\b(?:plain|id)\("([a-z0-9_]+)"\)', t))
+        fields = sum(len(re.findall(r'\b[A-Z][A-Z0-9_]*\b', decl)) for decl in re.findall(r'public static Item\s+([^;]+);', t))
+        if len(got) != fields:
+            print(f"❌ 生成器尺子坏：RetroItems 声明 {fields} 个 Item 字段只解析出 {len(got)} 条注册句（注册写法变了？改本正则）"); sys.exit(1)
+        ids |= got
     return {"sdzjz:" + i for i in ids}
 
 

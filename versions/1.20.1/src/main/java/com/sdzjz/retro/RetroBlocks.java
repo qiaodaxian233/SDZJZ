@@ -188,6 +188,7 @@ public final class RetroBlocks {
             e.accept(SUPER_BENCH); // m524（SB3）
             RetroItems.acceptAll(e); // m527：核心模块排机器前（主线 ModItems.init 同序）
             for (net.minecraft.world.item.Item machine : RetroMachineItems.items()) e.accept(machine); // m453
+            RetroItems.acceptAfterMachines(e); // m528：四升级件排机器后（主线同序）
         });
     }
 
