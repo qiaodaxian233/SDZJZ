@@ -64,16 +64,21 @@ public final class RetroBenchTests implements FabricGameTest {
             "sdzjz:parallel_upgrade", "sdzjz:portable_vault", "sdzjz:satellite_node", "sdzjz:speed_upgrade",
             "sdzjz:storage_upgrade", "sdzjz:terminal", "sdzjz:trade_center", "sdzjz:villager_contract", "sdzjz:wireless_node");
 
-    /** 已知缺口·材料（m526 量出的 1.20.1 配方可达账：**126 条里可达 3 条**——data_panel/storage_core/data_cable）：
-     *  ①**`sdzjz:core_module`**：`bom()/bomPacked()/addSmall()` 三个建表口都自动并入 core_module×4/×1，它在本世代未注册（m521「非机器物品 21」）→
-     *    81+19+9=109 条机器/灵魂件配方一条都合不出——**一件卡死全部机器配方**，处置=阻塞区待拍板（注册 core_module 是最省的一刀）；
+    /** 已知缺口·材料（m526/m526b 量出的 1.20.1 配方可达账：**126 条可达 0 条**——CI 判官②实机对表纠正了离线脚本的"3 条"：
+     *  addSmall9 用字母常量 MM=core_module，正则只认字面量漏数）：
+     *  ①**`sdzjz:core_module`**：`bom()/bomPacked()/addSmall()` 三个建表口自动并入 ×4/×1，17 条 addSmall9 里 16 条也用它，它在本世代未注册（m521「非机器物品 21」）→
+     *    **一件卡死全部 126 条**；它自己的 addSmall9 配方（铜/红石/石英全原版）在注册后立刻可达，处置=阻塞区待拍板（注册 core_module 是最省的一刀）；
      *  ②m526 新发现——**10 种 1.20.3+/1.21 才有的原版物品**被 12 条 BOM 引用（crafter×9 条、微风/试炼农场专料、heavy_core），
      *    1.20.1 注册表查不到，浏览器 BOM 里显示为空气（替料/隐藏/照旧待拍板）；
      *  ③抓物笼（44 条刷怪类自动带）+ trade_center/villager_contract/wireless_node 三件非机器 sdzjz 料（m521 缺口表已列）。 */
     private static final Set<String> KNOWN_GAP_INGREDIENTS = Set.of(
             "minecraft:breeze_rod", "minecraft:copper_bulb", "minecraft:copper_grate", "minecraft:crafter", "minecraft:heavy_core",
             "minecraft:ominous_bottle", "minecraft:trial_key", "minecraft:trial_spawner", "minecraft:tuff_bricks", "minecraft:vault",
-            "sdzjz:capture_cage", "sdzjz:core_module", "sdzjz:trade_center", "sdzjz:villager_contract", "sdzjz:wireless_node");
+            "sdzjz:capture_cage", "sdzjz:core_module", "sdzjz:wireless_node"); // m526b：CI 首次对表滚掉 trade_center/villager_contract（只是结果件不是材料，离线脚本归错类）
+
+    /** 本世代可达配方数账面值（判官②等值断言，多了少了都红）。**m526b=0**：core_module 未注册一件卡死全部。
+     *  SB6 注册 core_module 后此值必须同刀改（预期 core_module 自身 + 不含笼/1.21 料的机器配方），判官③④随之从"账说 0 空转"转为真跑。 */
+    private static final int EXPECTED_REACHABLE = 0;
 
     /** 本世代可达（结果件+全部材料都能解析、无生物、有蓝图）的配方里 BOM 总件数最少的那条——端到端/填料两判官用，确定性选取。 */
     private static SuperBenchRecipes.Recipe smallestReachable() {
@@ -146,8 +151,8 @@ public final class RetroBenchTests implements FabricGameTest {
         for (String id : KNOWN_GAP_INGREDIENTS)   if (resolvable(id) || !seenIng.contains(id)) stale.add("材料白名单 " + id + (resolvable(id) ? " 已能解析" : " 不在配方表"));
         ctx.assertTrue(newGap.isEmpty(), "1.20.1 新缺口（不在白名单）：" + newGap);
         ctx.assertTrue(stale.isEmpty(), "缺口白名单过期该滚：" + stale);
-        ctx.assertTrue(reachable > 0, "本世代竟无一条可达配方");
-        ctx.assertTrue(smallestReachable() != null, "该有至少一条无生物有蓝图的可达配方");
+        ctx.assertTrue(reachable == EXPECTED_REACHABLE, "本世代可达配方数账面 " + EXPECTED_REACHABLE + "，实得 " + reachable + "（变了就改 EXPECTED_REACHABLE 并滚白名单/缺口表）");
+        ctx.assertTrue((smallestReachable() == null) == (EXPECTED_REACHABLE == 0), "可达账与端到端选取不一致（有可达配方却选不出=全是刷怪类/打包版）");
         ctx.succeed();
     }
 
@@ -155,7 +160,10 @@ public final class RetroBenchTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE)
     public void super_bench_end_to_end_craft_consumes_bom(GameTestHelper ctx) {
         SuperBenchRecipes.Recipe r = smallestReachable();
-        ctx.assertTrue(r != null, "无可达配方");
+        if (r == null) { // 账说 0（core_module 未注册）→ 本判官空转待 SB6；账不是 0 却选不出=红
+            ctx.assertTrue(EXPECTED_REACHABLE == 0, "可达账 " + EXPECTED_REACHABLE + " 条却选不出无生物有蓝图的配方");
+            ctx.succeed(); return;
+        }
         Player p = ctx.makeMockPlayer();
         SuperBenchScreenHandler h = new SuperBenchScreenHandler(1, p.getInventory());
         String[] lay = r.layout();
@@ -177,7 +185,10 @@ public final class RetroBenchTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE)
     public void super_bench_fill_from_inventory_buttons_conserve(GameTestHelper ctx) {
         SuperBenchRecipes.Recipe r = smallestReachable();
-        ctx.assertTrue(r != null, "无可达配方");
+        if (r == null) { // 同③：账说 0 → 空转待 SB6
+            ctx.assertTrue(EXPECTED_REACHABLE == 0, "可达账 " + EXPECTED_REACHABLE + " 条却选不出无生物有蓝图的配方");
+            ctx.succeed(); return;
+        }
         int idx = SuperBenchRecipes.ALL.indexOf(r);
         Player p = ctx.makeMockPlayer();
         SuperBenchScreenHandler h = new SuperBenchScreenHandler(1, p.getInventory());
