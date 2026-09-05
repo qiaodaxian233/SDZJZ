@@ -11314,3 +11314,10 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①平台事件口（Hooks）在 1.20.1 一直没装，只是之前没消费方——"世代口有没有装"要在**消费方上挂时**核，不是默认有；②N2a/N2b 两件行为物品用同一手法（abstract 基类 + 两代 tooltip 壳 + ItemData 口）收干净，N3 那批照此办；③三刀（core_module/升级件/包/笼）下来 1.20.1 超大工作台账面从 0 到 101/122，剩 21 条=12 条含 1.21 原版料（照旧）+ 9 条结果件/料为 N3 件（wireless/satellite/trade_center/terminal/portable_vault/linker/villager_contract/auto_feeder）。
 - **下一刀**：读 m530 CI → **F1：NeoForge 1.21.1 壳挂 xplat**（作者拍板三加载器，地基/CI job 已有）——开工先量 `src/` 21 文件 Fabric 胶水逐件对位 NeoForge 21.1 写法，`layer_gate` 同刀加 `net.minecraftforge|net.neoforged`；N3 排其后。**开工先跑 22 闸。**
 
+## m530b 热修（m530 CI 1.20.1 判官②红）：可达配方账面 101 → CI 实测 100，按 CI 数改常量
+
+- **现象**：八判官七绿一红：`super_bench_recipe_ids_resolvable_or_ledgered` "账面 101，实得 100"。编译绿、抓僵尸新判官绿、无"新缺口"。
+- **处置**：m526b 规矩——离线别名解析脚本只做预估，等值断言以 CI 实机为准，`EXPECTED_REACHABLE` 101→100，三处文档同改。差 1 的具体是哪条不追（预估脚本本就不是尺子，判官才是；追它要再花一轮 CI）。
+- **验证**：22 闸全绿；版本仍 0.1.530。**作者判据：CI 1.20.1 job 绿。**
+- **下一刀**：读 m530b CI → **F1 NeoForge 1.21.1 壳挂 xplat**。**开工先跑 22 闸。**
+

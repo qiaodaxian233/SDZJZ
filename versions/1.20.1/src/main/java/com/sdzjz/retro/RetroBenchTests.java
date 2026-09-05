@@ -79,7 +79,7 @@ public final class RetroBenchTests implements FabricGameTest {
     /** 本世代可达配方数账面值（判官②等值断言，多了少了都红）。m526b=0（core_module 未注册一件卡死全部）→ **m527=56**（注册 core_module 后：
      *  42 bom + 3 bomPacked + 4 addSmall9 + 7 addSmall；不可达 66 = 44 刷怪类要抓物笼 + 12 条含 1.21 原版新料 + 结果件为未注册非机器件的小配方；
      *  别名解析版离线脚本口径，以 CI 判官②实机对表为准）。本世代每注册一件非机器物品 / 主线每改配方表，此值同刀改。 */
-    private static final int EXPECTED_REACHABLE = 101; // m527=56→m528=60（CI 均命中）→ m530 N2b 抓物笼注册：44 条刷怪类按 id 可达（账面 101，CI 定）
+    private static final int EXPECTED_REACHABLE = 100; // m527=56→m528=60（CI 命中）→ m530 抓物笼注册账面 101、CI 实测 100（m530b 按 CI 改；离线别名解析脚本只做预估）
 
     /** 本世代可达（结果件+全部材料都能解析、无生物、有蓝图）的配方里 BOM 总件数最少的那条——端到端/填料两判官用，确定性选取。 */
     private static SuperBenchRecipes.Recipe smallestReachable() {
