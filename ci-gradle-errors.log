@@ -1,0 +1,14 @@
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:50: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:50: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:60: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:60: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:66: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:71: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:86: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:86: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:92: error: cannot find symbol
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:97: error: cannot find symbol
+> Task :compileJava FAILED
+> Compilation failed; see the compiler error output for details.
+Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler error output for details.
+BUILD FAILED in 46s
