@@ -18,7 +18,30 @@ import sys
 import srcroots
 
 XPLAT = 'xplat/src/main/java'
-LOADER_SYMBOLS = re.compile(r'net\.fabricmc|FabricLoader|\bModInitializer\b|\bClientModInitializer\b')
+LOADER_SYMBOLS = re.compile(r'net\.fabricmc|FabricLoader|\bModInitializer\b|\bClientModInitializer\b'
+                            r'|net\.minecraftforge|net\.neoforged|\bFMLJavaModLoadingContext\b|\bIEventBus\b')  # m531（F1a）：三加载器都不许进 xplat
+
+# m531（F1a）② **src/ 的 Fabric 胶水白名单**：F 线要让 `src/`（1.21.1 世代业务层）能被 NeoForge/Forge 模块整挂，
+# 前提是 Fabric 符号只出现在下面这些"加载器胶水"文件里。白名单外的 src 文件出现 Fabric 符号 → 红（新增胶水先登记再写）。
+# 「待拆」组是 F1b/F1c 的欠账（业务文件里嵌着 Fabric 接口），每拆一个删一行——数字在报告里可见。
+SRC = 'src/main/java'
+SRC_GLUE_OK = {  # 天生加载器层：入口 / 口的 Fabric 实现 / Fabric 专属注册壳
+    'com/sdzjz/loader/FabricEntry.java', 'com/sdzjz/loader/FabricEnv.java', 'com/sdzjz/loader/FabricHooks.java',
+    'com/sdzjz/loader/FabricNet.java', 'com/sdzjz/loader/FabricXfer.java',
+    'com/sdzjz/client/FabricClientEntry.java', 'com/sdzjz/client/FabricClientHooks.java', 'com/sdzjz/client/FabricClientNet.java',
+    'com/sdzjz/client/CompressedPackRenderer.java',  # DynamicItemRenderer 壳（m529）
+}
+SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1b 菜单数据口 / F1c 存储传输适配器 / F1d 模型插件·判官）
+    'com/sdzjz/block/DataCableBlockEntity.java': 'F1b ExtendedScreenHandlerFactory',
+    'com/sdzjz/block/DataPanelBlockEntity.java': 'F1b ExtendedScreenHandlerFactory',
+    'com/sdzjz/block/StructureCoreBlockEntity.java': 'F1b ExtendedScreenHandlerFactory',
+    'com/sdzjz/block/TradeCenterBlockEntity.java': 'F1b ExtendedScreenHandlerFactory',
+    'com/sdzjz/item/TerminalItem.java': 'F1b ExtendedScreenHandlerFactory',
+    'com/sdzjz/registry/ModScreenHandlers.java': 'F1b ExtendedScreenHandlerType',
+    'com/sdzjz/block/StorageCoreBlockEntity.java': 'F1c Storage<ItemVariant> 提供侧',
+    'com/sdzjz/client/SatelliteNodeModel.java': 'F1d ModelLoadingPlugin',
+    'com/sdzjz/gametest/SdzjzGameTests.java': 'F1d FabricGameTest + 传输断言',
+}
 # m433：Net/ClientNet 已接口化销账（门面迁 xplat+Fabric 给 Impl+入口首行安装），从清单摘除。
 # m435：六漏斗全员接口化销账收官（m433 Net/ClientNet、m434 Xfer、m435 Env/Hooks/ClientHooks）。
 # 清单留空但机制保留：将来再立静态漏斗就填回来（改一个销一个）。
@@ -56,6 +79,36 @@ def main():
             print('    %s' % r)
         return 1
     print('分层硬闸 ✓ xplat %d 文件零加载器符号' % total)
+    # m531 ② src/ Fabric 胶水白名单
+    sbase = os.path.join(root, *SRC.split('/'))
+    stray, pend_hit, ok_hit = [], [], 0
+    for dp, _dirs, fs in os.walk(sbase):
+        for f in fs:
+            if not f.endswith('.java'):
+                continue
+            p = os.path.join(dp, f)
+            body = strip_comments(open(p, encoding='utf-8').read())
+            if not re.search(r'net\.fabricmc|FabricLoader|\bModInitializer\b|\bClientModInitializer\b', body):
+                continue
+            rel = os.path.relpath(p, sbase).replace(os.sep, '/')
+            if rel in SRC_GLUE_OK:
+                ok_hit += 1
+            elif rel in SRC_GLUE_PENDING:
+                pend_hit.append((rel, SRC_GLUE_PENDING[rel]))
+            else:
+                stray.append(rel)
+    stale = [r for r in SRC_GLUE_PENDING if not re.search(r'net\.fabricmc', strip_comments(open(os.path.join(sbase, r), encoding='utf-8').read())) if os.path.exists(os.path.join(sbase, r))] if True else []
+    if stray:
+        print('分层硬闸 ✗ src/ 里白名单外的文件出现 Fabric 符号（%d）——新胶水先登记 SRC_GLUE_OK，业务文件别直摸加载器：' % len(stray))
+        for r in stray:
+            print('    %s' % r)
+        return 1
+    if stale:
+        print('分层硬闸 ✗ SRC_GLUE_PENDING 过期（已无 Fabric 符号，删行）：%s' % stale)
+        return 1
+    print('    src/ Fabric 胶水：白名单 %d 文件 ✓；待拆欠账 %d 文件（F1b/F1c/F1d）：' % (ok_hit, len(pend_hit)))
+    for r, why in pend_hit:
+        print('        %-50s %s' % (r, why))
     print('    待接口化（引用加载器层漏斗类，报告不红）：%d 文件' % len(pending))
     # m437 记分牌：ItemData 收口进度（P-A 刀，报告不红）——直摸组件 API 的残余触点，改一处销一处
     import glob

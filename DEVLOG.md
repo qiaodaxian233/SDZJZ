@@ -11321,3 +11321,18 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：22 闸全绿；版本仍 0.1.530。**作者判据：CI 1.20.1 job 绿。**
 - **下一刀**：读 m530b CI → **F1 NeoForge 1.21.1 壳挂 xplat**。**开工先跑 22 闸。**
 
+## m531 F1a：`src/` 去 Fabric 化机械项——入口拆分（`FabricEntry`/`FabricClientEntry`）、BE 类型建器/创造栏/BER 换原版 API、命令注册走 `Hooks` 新口；第 13 闸加三加载器符号 + `src/` Fabric 胶水白名单与待拆欠账
+
+- **取活**：m530b CI 全绿 → 按作业表取 F1（作者拍板 2×3 加载器矩阵）。**先量再拆**：`src/` 含 Fabric 符号 21 文件分四类——①纯胶水 12（入口/事件/网络/传输/环境/渲染壳）②业务文件嵌 Fabric 接口 6（`ExtendedScreenHandlerFactory`×5、`Storage<ItemVariant>`×1）③注册用 Fabric 便利建器 3（BE 类型/创造栏/菜单类型）④判官 1。NeoForge 模块要整挂 `src/`，前提是 Fabric 符号只在胶水里→**F1 拆四刀**：F1a 机械项（本刀）/F1b 菜单数据口/F1c 存储传输适配器/F1d NeoForge 模块编译。
+- **F1a 四项（主线 Fabric 行为零变化，m180 家法：方法体原文只搬家）**：
+  ①**入口拆分**：`Sdzjz implements ModInitializer` → 普通类 `public static void init()`（原 `onInitialize` 体去四句加载器口安装 + 提供侧传输注册）；新 `loader/FabricEntry implements ModInitializer`：装 Net/Xfer/Env/Hooks 四个 Fabric 实现 → `Sdzjz.init()` → `ItemStorage.SIDED.registerForBlockEntity`（依赖 init 里的 ModBlockEntities.init，原顺序里它就在其后）。客户端同构：`SdzjzClient.init()` 留原版 API（MenuScreens/BER/ClientNet 口），`client/FabricClientEntry` 装 ClientHooks + `SatelliteNodeModel.register()`（ModelLoadingPlugin）+ 两句 `BuiltinItemRendererRegistry`。`fabric.mod.json` 两入口改。**世代口（ItemData/NodeTags/CanvasGraphState/StackKey/SuperBenchHost）留 Sdzjz.init**——它们是 1.21 组件世代的事，不是加载器的事，NeoForge 1.21.1 入口同样调 `Sdzjz.init()` 就全有了。
+  ②`ModBlockEntities`：`FabricBlockEntityTypeBuilder.create(..).build()` → 原版 `BlockEntityType.Builder.of(..).build(null)` ×8（Fabric 那个就是它的封装，DataFixer 类型同传 null）。
+  ③`ModItems` 创造栏：`FabricItemGroup.builder()` → 原版 `CreativeModeTab.builder(Row.TOP, 0)`；`ItemGroupEvents.modifyEntriesEvent(KEY).register(entries -> {…})` → 建器 `.displayItems((params, entries) -> {…})`，lambda 体 129 行原文、形参名保留（两加载器都认原版 displayItems；NeoForge 没有 Fabric 事件）。
+  ④`SdzjzClient` 四句 `BlockEntityRendererRegistry.register` → 原版 `BlockEntityRenderers.register`（Fabric 那个就是转调）。`SdzjzCommands`：`CommandRegistrationCallback.EVENT.register((disp,reg,env) -> disp.register(…))` → `Hooks.onRegisterCommands(disp -> disp.register(…))`——`Hooks.Impl` 加第六口，`FabricHooks`/`RetroHooks` 各一句实现（1.20.1 同 API）。
+- **第 13 闸扩展**：①`LOADER_SYMBOLS` 加 `net.minecraftforge|net.neoforged|FMLJavaModLoadingContext|IEventBus`——三加载器都不许进 xplat；②**`src/` Fabric 胶水白名单**（`SRC_GLUE_OK` 9 文件：入口/口的 Fabric 实现/渲染壳）+ **待拆欠账表**（`SRC_GLUE_PENDING` 9 文件带刀号：F1b×6 / F1c×1 / F1d×2）——白名单外的 src 文件出现 Fabric 符号红、待拆表里已无 Fabric 符号也红（过期该删）。报告里欠账逐文件可见，F1b/F1c 每拆一个删一行。
+- **验证**：两代冒烟零真错（八个改动/新增文件单编零真错）；自家 7 新符号 0；22 闸全绿（0.1.531）；语法级干净。零协议零存档零配置零资源。**主线行为零变化**（入口只是把同一批句子换个类跑；三处原版 API 与 Fabric 封装同义）。
+  **7 类盲区自查**：`CreativeModeTab.builder(Row,int)` 1.21.1 public ✓（FabricItemGroup 内部就调它）；`BlockEntityType.Builder.of/build(null)` ✓；`BlockEntityRenderers.register(type, X::new)` 与 Fabric 同签名 ✓。
+  **作者判据：主线 CI job 绿（编译 + 46 条 GameTest 在新入口下全跑）；1.20.1 job 绿（Hooks 接口加口 RetroHooks 实现了）。实机：进游戏创造栏"生电终结者"页物品顺序不变、`/sdzjz profile core` 命令仍在、四种 BE 动画仍渲染。**
+- **教训**：①"零加载器符号"的资产在 xplat（150 文件）是真的，但 `src/` 里 21 处 Fabric 触点有 9 处是**业务文件嵌着 Fabric 接口**——这才是三加载器的真门槛，F1b/F1c 专治；②Fabric 的"便利建器"（BE 类型/创造栏/BER 注册）多数是原版 API 的封装，换原版写法零成本还去了加载器绑定——m408 骨架当年若先做这一步，就不会被"只挂 common"卡住；③入口拆分后"世代口 vs 加载器口"的边界第一次在代码里成形：`Sdzjz.init()` 装世代口，`*Entry` 装加载器口。
+- **下一刀**：读 m531 CI → **F1b 菜单数据口**：`MenuData<D>` + `Hooks.openMenu` + `Hooks.menuType` 三口，先 grep 全部 `openMenu(` 调用点与四 BE/TerminalItem 的 `getScreenOpeningData`，Fabric 实现原句包一层；欠账 9→3。**开工先跑 22 闸。**
+

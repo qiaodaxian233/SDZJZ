@@ -18,22 +18,20 @@ import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModBlocks;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.fabricmc.api.ModInitializer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Sdzjz implements ModInitializer {
+/** 1.21.1 世代的 MOD 主体初始化（业务 + 世代口安装）。m531（F1a）起**不再是 Fabric 入口**：加载器入口在 {@code loader/FabricEntry}
+ *  （NeoForge 对位 {@code neoforge/NeoForgeEntry}，F1d）——入口负责装四个**加载器**口（Net/Xfer/Env/Hooks）与提供侧传输注册，然后调本类 {@link #init()}；
+ *  本类只剩**世代**口（ItemData/NodeTags/CanvasGraphState/StackKey/SuperBenchHost，1.21 组件世代）与业务初始化，方法体逐句原文（m180 家法）。 */
+public class Sdzjz {
     public static final String MOD_ID = "sdzjz";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    @Override
-    public void onInitialize() {
-        com.sdzjz.net.Net.install(new com.sdzjz.loader.FabricNet()); // m433 平台口安装：必须早于下方一切 payload 注册/接收器挂接
-        com.sdzjz.storage.Xfer.install(new com.sdzjz.loader.FabricXfer()); // m434 平台口安装
-        com.sdzjz.loader.Env.install(new com.sdzjz.loader.FabricEnv()); // m435 平台口安装：必须早于下行 initConfigDir
-        com.sdzjz.loader.Hooks.install(new com.sdzjz.loader.FabricHooks()); // m435 平台口安装
+    /** 原 {@code onInitialize()} 体，去掉四句加载器口安装（挪 FabricEntry）与提供侧传输注册（Fabric 专属，挪 FabricEntry）。**调用前提**：四个加载器口已装。 */
+    public static void init() {
         com.sdzjz.item.ItemData.install(new com.sdzjz.item.ComponentItemData()); // m437 平台口安装（1.21 组件世代）
         com.sdzjz.node.NodeTags.installIdent(new com.sdzjz.node.LegacyNodeIdent()); // m472 世代身份口（绞杀者第五刀）：早于一切 NodeTags 消费方
         com.sdzjz.node.CanvasGraphState.installCodec(new com.sdzjz.node.LegacyStackCodec()); // m477 图状态栈编解码口（真移植 A 阶段）：早于任何存档读入
@@ -61,13 +59,7 @@ public class Sdzjz implements ModInitializer {
         ModScreenHandlers.init();
         ModItems.init();
 
-        // m161c 跨模组直连：存储核心双账本挂上 Fabric Transfer API——Create/Modern Industrialization/
-        // Tech Reborn/AE2 等一切走 fabric-transfer-api 的管道怼在存储核心任意面即可存取。
-        // 注意原版漏斗不走此 API（漏斗只认 Inventory 接口），漏斗对接另开里程碑（见 DEVLOG m161）。
-        // m404 提供侧（我们把自家账本暴露给别的模组）：天生属加载器层，不抽口——
-        // 换 NeoForge 时这里换成能力注册，业务侧一行不动。
-        net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.registerForBlockEntity(
-                (be, direction) -> be.fabricStorage(), ModBlockEntities.STORAGE_CORE_BE);
+        // m161c/m404 提供侧传输注册（Fabric Transfer API 把存储核心账本暴露给 Create/AE2 等）天生属加载器层——m531 挪 loader/FabricEntry；NeoForge 对位=能力注册（F1c）。
 
         // m94：抓物笼捕获改走实体交互事件——抢在 entity.interact() 之前触发，
         // 否则村民（交易界面）/马（骑乘）/驯服猫狗（坐下）等自带右键交互的生物会把捕获整个截胡，

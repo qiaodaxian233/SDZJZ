@@ -36,4 +36,9 @@ public final class RetroHooks implements Hooks.Impl {
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register(
                 (player, world, hand, entity, hitResult) -> h.test(player, hand, entity));
     }
+
+    @Override
+    public void onRegisterCommands(java.util.function.Consumer<com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack>> h) {
+        net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((disp, reg, env) -> h.accept(disp)); // m531：原 SdzjzCommands 直挂句
+    }
 }

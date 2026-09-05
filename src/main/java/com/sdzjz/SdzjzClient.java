@@ -7,35 +7,28 @@ import com.sdzjz.client.StructureCoreScreen;
 import com.sdzjz.client.SuperBenchScreen;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.minecraft.client.gui.screens.MenuScreens;
 
-public class SdzjzClient implements ClientModInitializer {
-    @Override
-    public void onInitializeClient() {
+/** 1.21.1 世代客户端初始化（屏注册/BER/客户端接收器）。m531（F1a）起**不再是 Fabric 入口**：加载器入口在 {@code client/FabricClientEntry}
+ *  （装 ClientHooks 加载器口、Fabric 专属的内建物品渲染器与模型插件，然后调本类 {@link #init()}）；本类只剩原版 API（MenuScreens/BlockEntityRenderers）与世代口。 */
+public class SdzjzClient {
+    /** 原 {@code onInitializeClient()} 体，去掉 ClientHooks 安装句、SatelliteNodeModel 模型插件句、两句 BuiltinItemRendererRegistry（Fabric 专属，挪 FabricClientEntry）；
+     *  BlockEntityRendererRegistry.register → 原版 BlockEntityRenderers.register（Fabric 那个就是它的转调）。 */
+    public static void init() {
         com.sdzjz.client.SciSkin.installGfx(new com.sdzjz.client.LegacySkinGfx()); // m483 卡面工艺世代口（绞杀者第六刀）：早于一切屏注册
         com.sdzjz.client.ClientNet.install(new com.sdzjz.client.FabricClientNet()); // m433 平台口安装：必须早于下方一切客户端接收器挂接
-        com.sdzjz.client.ClientHooks.install(new com.sdzjz.client.FabricClientHooks()); // m435 平台口安装
-        com.sdzjz.client.SatelliteNodeModel.register(); // m151 卫星节点bbmodel自定义烘焙
         MenuScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
         MenuScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
         MenuScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
         MenuScreens.register(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
         MenuScreens.register(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
         MenuScreens.register(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
-        BlockEntityRendererRegistry.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
-        BlockEntityRendererRegistry.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
-        BlockEntityRendererRegistry.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
-        BlockEntityRendererRegistry.register(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
         // m277 三块动画改原生贴图帧动画（.png.mcmeta，docs/tools_block_anim.py 生成）——m249/m250 全息 BER 三件套退役
-        // m243 压缩包动态图标：内容物模型缩0.8 + 档位边框叠层（模型 parent=builtin/entity 触发本渲染器）
-        net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(
-                com.sdzjz.registry.ModItems.COMPRESSED_PACK,
-                new com.sdzjz.client.CompressedPackRenderer(com.sdzjz.registry.ModItems.COMPRESSED_PACK_FRAME));
-        net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(
-                com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK,
-                new com.sdzjz.client.CompressedPackRenderer(com.sdzjz.registry.ModItems.SUPER_COMPRESSED_PACK_FRAME));
+        // m243 压缩包动态图标两句（Fabric BuiltinItemRendererRegistry）m531 挪 FabricClientEntry；NeoForge 对位 IClientItemExtensions（F1d）
         // m89：画布端点直发包 → 静态缓存（画布优先读缓存，BE 数据后备）
         com.sdzjz.client.ClientNet.onClient(com.sdzjz.net.CanvasEndsPayload.ID,
                 (payload, client) -> com.sdzjz.client.StructureCoreScreen.applyEndsPayload(payload));

@@ -14,13 +14,13 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.sdzjz.Sdzjz"
+      "com.sdzjz.loader.FabricEntry"
     ],
     "fabric-gametest": [
       "com.sdzjz.gametest.SdzjzGameTests"
     ],
     "client": [
-      "com.sdzjz.SdzjzClient"
+      "com.sdzjz.client.FabricClientEntry"
     ],
     "jei_mod_plugin": [
       "com.sdzjz.compat.jei.SdzjzJeiPlugin"

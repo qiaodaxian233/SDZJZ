@@ -7,8 +7,6 @@ import com.sdzjz.item.LinkerItem;
 import com.sdzjz.item.TerminalItem;
 import com.sdzjz.item.PortableVaultItem; // m311
 import com.sdzjz.machine.Machines;
-import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
@@ -154,18 +152,12 @@ public class ModItems {
 
     public static final ResourceKey<CreativeModeTab> GROUP_KEY =
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, Sdzjz.id("main"));
-    public static final CreativeModeTab GROUP = FabricItemGroup.builder()
+    /** m531（F1a）：Fabric `FabricItemGroup.builder()` → 原版 `CreativeModeTab.builder(Row.TOP, 0)`（Fabric 那个就是它的封装）；
+     *  条目从 Fabric `ItemGroupEvents.modifyEntriesEvent` 改进建器的原版 `displayItems`（两加载器都认，NeoForge 无 Fabric 事件）——lambda 体逐句原文，形参名保留 entries。 */
+    public static final CreativeModeTab GROUP = CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0)
             .icon(() -> new ItemStack(LOGO)) // m93 用户点名：标签图标换 MOD 红色核心
             .title(Component.translatable("itemGroup.sdzjz.main"))
-            .build();
-
-    private static Item reg(String name, Item item) {
-        return Registry.register(BuiltInRegistries.ITEM, Sdzjz.id(name), item);
-    }
-
-    public static void init() {
-        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, GROUP_KEY, GROUP);
-        ItemGroupEvents.modifyEntriesEvent(GROUP_KEY).register(entries -> {
+            .displayItems((params, entries) -> {
             entries.accept(CORE_MODULE);
             entries.accept(AUTO_CRAFTER);
             entries.accept(BREWING_TOWER);
@@ -294,6 +286,14 @@ public class ModItems {
             entries.accept(ModBlocks.DATA_CABLE);
             entries.accept(ModBlocks.WIRELESS_NODE);
             entries.accept(ModBlocks.SATELLITE_NODE);
-        });
+        })
+            .build();
+
+    private static Item reg(String name, Item item) {
+        return Registry.register(BuiltInRegistries.ITEM, Sdzjz.id(name), item);
+    }
+
+    public static void init() {
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, GROUP_KEY, GROUP);
     }
 }

@@ -2,7 +2,6 @@ package com.sdzjz.debug;
 
 import com.sdzjz.Sdzjz;
 import com.sdzjz.block.StructureCoreBlockEntity;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
@@ -23,7 +22,7 @@ public final class SdzjzCommands {
     private SdzjzCommands() {}
 
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((disp, reg, env) -> disp.register(
+        com.sdzjz.loader.Hooks.onRegisterCommands(disp -> disp.register( // m531（F1a）：原 CommandRegistrationCallback 直挂改走 Hooks 加载器口
                 literal("sdzjz").requires(s -> s.hasPermission(2))
                         .then(literal("profile")
                                 .then(literal("core").executes(c -> profileCore(c.getSource())))

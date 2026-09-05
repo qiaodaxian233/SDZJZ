@@ -37,6 +37,8 @@ public final class Hooks {
         void onPlayerDisconnect(java.util.function.Consumer<ServerPlayer> h);
         void onServerStopped(java.util.function.Consumer<MinecraftServer> h);
         void onUseEntity(UseEntity h);
+        /** m531（F1a）：命令树注册（Fabric CommandRegistrationCallback / NeoForge RegisterCommandsEvent），消费方 debug/SdzjzCommands。 */
+        void onRegisterCommands(java.util.function.Consumer<com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack>> h);
     }
 
     private static Impl impl;
@@ -65,4 +67,5 @@ public final class Hooks {
     public static void onServerStopped(java.util.function.Consumer<MinecraftServer> h) { req().onServerStopped(h); }
 
     public static void onUseEntity(UseEntity h) { req().onUseEntity(h); }
+    public static void onRegisterCommands(java.util.function.Consumer<com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack>> h) { req().onRegisterCommands(h); } // m531
 }
