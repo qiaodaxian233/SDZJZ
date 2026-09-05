@@ -11209,3 +11209,24 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①「先量 API 面」这次量出 392 行只有 3 处专属符号 + 2 处自家类——**自家类是量 API 面时最容易漏的第三类**（m522b 已撞一次，这次是第 20 闸判据在先、写码时就知道要走 Host）；②`this.font` 这种"看起来是常量"的宿主字段，构造期可能为 null——共用件拿宿主东西的时机要和宿主生命周期对齐（init 后），不是拿到引用就行；③共用件 Host 口的方法名要对两代父类映射核撞名——这是第七类盲区在"名字"上的形状，冒烟永远看不见。
 - **下一刀**：读 m525 CI → **SB5** 1.20.1 超大工作台判官（配方全表唯一 / 端到端合成出机器 / quickMove 服务端权威 / 空宿主压缩钮明说不吞件），写进 `RetroBenchTests`；S 线收官。**开工先跑 21 闸。**
 
+## m526 SB5：1.20.1 超大工作台五判官（S 线收官）—— 判官顺手量出 1.20.1 配方可达 3/126：`core_module` 一件卡死全部机器配方 + 10 种 1.21 原版新料被 12 条 BOM 引用
+
+- **取活**：m525 CI 八 job 全绿后按作业表取 SB5；开工 21 闸绿。主线判官 46 条里超大工作台相关只有 `super_bench_host_pack_roundtrip`（压缩包专项，本世代空宿主不适用），本刀判官全是本世代独有覆盖（m482 双写定义：与主线不同名不算欠账）。
+- **五判官（`RetroBenchTests` 1→6，累计 68→73）**：
+  ①`super_bench_recipe_table_unique_and_layout_consistent`：`SuperBenchRecipes.ALL` 两两 `ingredients` 多重集不等（`match` 是 equals 精确查表，撞了=先到先得静默错配）+ 蓝图版 144 格、逐格多重集==BOM、总件≤144——主线"离线校验"在本世代判官照跑（m521 稿第四节 SB2 那条验收挪到这兑现）。
+  ②`super_bench_recipe_ids_resolvable_or_ledgered`：配方表全部结果件/材料 id 对 1.20.1 `BuiltInRegistries.ITEM`——解析不出的必须在**已知缺口白名单**里（否则=新缺口红），白名单里的必须仍解析不出且仍在表里（否则=缺口已补/条目过期，白名单该滚，红）。**双向对表让缺口账本和注册表互相钉死**。
+  ③`super_bench_end_to_end_craft_consumes_bom`：取可达配方里 BOM 最少那条（确定性），按蓝图逐格 `Slot.set` 1 件→`setChanged→slotsChanged→match` 结果槽出机器→`h.clicked(RESULT_INDEX, 0, PICKUP, p)` 走原版 `doClick→tryRemove（m127b 整取或不取）→onTake→consumeIngredients`（mock 玩家在服务端世界=服务端权威分支）→手上是机器、网格全空、结果槽空。
+  ④`super_bench_fill_from_inventory_buttons_conserve`：背包放 BOM→`clickMenuButton(idx)` 按蓝图铺满结果出、背包按 BOM 减；`BTN_COMPRESS/BTN_UNPACK` 回 true 且网格一件不少（m523 空宿主明说不吞件）；换台回收；越界 id 回 false；**每步件数守恒**（网格+结果+背包合计）。
+  ⑤`super_bench_quickmove_grid_inventory_result_noop`：网格→背包、背包→网格、结果槽 shift 无动作（"结果槽用鼠标取"，m95 128 槽协议上限口径）。
+  没写的：`removed()` 关屏回收——1.20.1 `clearContainer` 只对 `ServerPlayer` 回背包，`makeMockPlayer()` 不是 ServerPlayer，测不到；留作者实机脚本。
+- **判官②量出两笔账（本刀最重要的产出）**：
+  ①**`sdzjz:core_module` 一件卡死全部机器配方**——`bom()/bomPacked()/addSmall()` 三个建表口都自动 `ing.merge("sdzjz:core_module", 4/1)`（m453 只注册了 Machines 反射出的 101 台机器，core_module 在「非机器物品 21」里）→ 81+19+9=109 条配方在 1.20.1 一条都合不出；可达的只有 `addSmall9` 里结果件已注册且九格全原版的 **3 条：data_panel / storage_core / data_cable**。
+    **m521 普查稿量错了这一格**：第三节把配方写成"表两代同一份、1.20.1 判官照跑"，没量"表里的 id 本世代解析得出来吗"——量符号不量 import（m522b 教训）的同族：**量数据表要连数据表引用的注册表一起量**。
+  ②**10 种 1.20.3+/1.21 才有的原版物品被 12 条 BOM 引用**：crafter（auto_crafter + 8 台 mega 打包版）、copper_bulb/copper_grate/tuff_bricks/breeze_rod/trial_key/trial_spawner/vault/ominous_bottle（微风·试炼农场，机器本身就是 1.21 内容）、heavy_core（villager_trader）。1.20.1 浏览器 BOM 里这些格显示为空气。
+  ③抓物笼：44 条刷怪类自动带 `sdzjz:capture_cage`（已知缺口）。
+  **处置进作业表阻塞区第一条**，我不拍：A 注册 core_module（一刀级：RetroItems 骨架+六件套+判官白名单滚一行，解锁 ~53 条）/ B 再补 capture_cage（整块特性）/ C 12 条 1.21 料替料·隐藏·照旧 / D 不动。**推荐 A**：不拍 A，S 线六刀在玩家侧只兑现"能开屏合三样"。
+- **验证**：两代冒烟零真错（RetroBenchTests 单编 86 条全依赖噪音）；自家 6 新符号 0；21 闸全绿（0.1.526）；第 18 闸判官同名用例 0 欠。判官②的白名单按离线脚本量出的 14 结果件 + 15 材料登记，**CI 1.20.1 job 跑判官②=白名单与注册表的第一次实机对表**（红=账没对上，看清单再滚，不算血案）。零协议零存档零配置零资源，主线零改动。
+  **实机脚本（1.20.1）**：①创造栏开超大工作台，浏览器搜"数据线"点填料（背包先放 9 格料）→结果槽出 8 根数据线→取走网格清空②搜"自动合成机"→BOM 里 crafter 格显示空气+计数红（新缺口②的观感）③点任意机器配方→聊天报缺 core_module×4（缺口①的观感）④关屏网格物品回背包（判官测不到的那条）。
+- **教训**：①判官不只是回归保险，**双向对表的判官是量尺**——这刀 5 条判官里最有价值的是量出两笔账的那条；②普查量数据表时要连"表引用的注册表本世代有没有"一起量，m521 漏了；③白名单式判官必须双向（多了红、过期也红），单向白名单会让缺口悄悄常驻。
+- **下一刀**：读 m526 CI（判官②是第一次实机对表）→ 等作者拍阻塞区第一条：拍 A 开 SB6（`RetroItems` + core_module 六件套 + 白名单滚一行 + 缺口表 21→20），不拍回 A12；期间可做 D5 余四件宿主前提头注。**开工先跑 21 闸。**
+
