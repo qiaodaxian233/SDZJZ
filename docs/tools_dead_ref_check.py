@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
  "src/main/java/com/sdzjz/block/StorageCoreBlockEntity.java":
    ["exactTpl","exactN","exactIdx","store","xpBank","tier","exactIndexOf","typeGate","satAdd",
     "exactIdxAppended","exactIdxRemoved","storeRev","exactRev",
-    "FabricLedger", "fabricLedger"],
+    "FabricLedger", "fabricLedger", "fabricStorage"],  # m533（F1c）：内部类整段搬 loader/FabricStorageAdapter，fabricStorage() 随之退役
  "versions/1.20.1/src/main/java/com/sdzjz/retro/StorageCore120.java":
    ["exactTpl","exactN","exactIdx","store","xpBank","exactIndexOf","typeGate",
     "exactIdxAppended","exactIdxRemoved","storeRev","exactRev",

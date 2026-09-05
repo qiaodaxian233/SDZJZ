@@ -1,21 +1,14 @@
 package com.sdzjz.block;
 
 import com.sdzjz.registry.ModBlockEntities;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
-import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
-import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -23,7 +16,6 @@ import net.minecraft.world.level.Level;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -162,7 +154,7 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     // 口径同 storeRev：单调只增、跨核心求和作指纹；回滚/读档宁可多记（多失效=白重建一次，无害）。
     public long exactRev() { return ledger.exactRev(); }
 
-    // ===== m161c 跨模组直连：Fabric Transfer API =====
+    // ===== m161c 跨模组直连：Fabric Transfer API（m533/F1c 起：适配器本体在 src/loader/FabricStorageAdapter）=====
     // m503（真移植 B5）：业务判断（分流判据/类型闸/undo 前像/索引维护）整段迁
     // xplat/storage/StorageLedger 两代共用（原 FabricLedger.insert/extract 内脏搬去
     // StorageLedger.ftaInsert/ftaExtract，1.20.1 的同功能重写同刀删除）。**本类只剩薄壳**：
@@ -172,78 +164,17 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     // 实现这个接口这件事只能留在两代各自源集里做（详见 StorageLedger 里三个 fta 前缀方法的类注，
     // 那份注释也记着这次顺手修的真编译错：exactIndexOf/exactIdxAppended/exactIdxRemoved 六处
     // 调用点漏了 ledger. 前缀，从 m485 账本下沉起编译不过，两层安全网当年都没接住）。
-    private FabricLedger fabricLedger;
+    // m533（F1c）：上面那段「薄壳」已整段搬去 src/loader/FabricStorageAdapter（原文一字未改，机械替换三类）；
+    // 本类不再出现任何 FTA 符号——第 13 闸 SRC_GLUE_PENDING 最后一件销账，`src/` 可整挂 NeoForge（F1d）。
+    // 留下的只有一个**不透明适配器缓存槽**：加载器提供侧（Fabric=FabricStorageAdapter.of / NeoForge=IItemHandler 适配器）
+    // 首次取时建一个并存在这里，之后恒返同一实例——SnapshotParticipant 的 undo 日志住在适配器实例里，
+    // 同一 BE 若每次 find 都新建实例，嵌套事务的快照位点就会串账。业务层不解释这个 Object。
+    private Object transferAdapter;
 
-    public Storage<ItemVariant> fabricStorage() {
-        if (fabricLedger == null) fabricLedger = new FabricLedger();
-        return fabricLedger;
-    }
-
-    public class FabricLedger extends SnapshotParticipant<Integer> implements Storage<ItemVariant> {
-
-        // m278 增量事务日志：快照=日志位点(int)，回滚=从尾到位点逆序重放 undo（逆序保证精确账本
-        // add/remove 的按下标前像恢复正确）。嵌套事务天然支持：每层快照各记自己的位点。旧版整本
-        // 浅拷 O(全账本) 每带写事务一次；管道模组每口每 tick 开事务，大仓库=纯拷贝+GC 风暴。现在
-        // O(实际触碰条目)，典型管道操作=1 条。日志不变量：事务外恒为空（最外层 commit 走
-        // onFinalCommit 清空 / 最外层 abort 截断回位点 0）——本类只管这份日志的生命周期，
-        // 日志*内容*（撤销动作）由 StorageLedger.ftaInsert/ftaExtract 追加。
-        private final ArrayList<Runnable> undoJournal = new ArrayList<>();
-
-        @Override protected Integer createSnapshot() { return undoJournal.size(); }
-
-        @Override protected void readSnapshot(Integer pos) {
-            for (int i = undoJournal.size() - 1; i >= pos; i--) undoJournal.get(i).run();
-            undoJournal.subList(pos, undoJournal.size()).clear();
-            ledger.bumpStoreRev(); // m218（回滚也是变更；口径同旧版=每次回滚记一次）
-            ledger.bumpExactRev(); // m322：undo 可能碰过精确账本——宁可多记，白重建一次无害
-        }
-
-        @Override protected void onFinalCommit() { undoJournal.clear(); setChanged(); }
-
-        @Override public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
-            if (resource.isBlank() || maxAmount <= 0) return 0;
-            // beforeMutate=updateSnapshots(tx)：必须恰在 StorageLedger 确定"真的要改"那一刻触发，
-            // 早/晚都会破坏事务快照的正确性，所以设计成回调而不是本方法自己猜时机（防长整溢出：
-            // 管道惯用 Long.MAX_VALUE 试探性 insert，累加前先钳余量——这条语义在 ftaInsert 内）。
-            return ledger.ftaInsert(resource.toStack(1), maxAmount, undoJournal, () -> updateSnapshots(tx));
-        }
-
-        @Override public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
-            if (resource.isBlank() || maxAmount <= 0) return 0;
-            return ledger.ftaExtract(resource.toStack(1), maxAmount, undoJournal, () -> updateSnapshots(tx));
-        }
-
-        @Override public Iterator<StorageView<ItemVariant>> iterator() {
-            List<StorageView<ItemVariant>> views = new ArrayList<>(ledger.storeView().size() + ledger.exactTemplates().size());
-            for (String id : ledger.storeView().keySet()) { // m350 撤键拷贝：views 表在此建完才外泄，外部 extract 只动 views 走 View 懒读，建表期 store 零突变
-                ResourceLocation rl = ResourceLocation.tryParse(id); // 防御：坏档脏 id 静默跳过不炸迭代（本世代原写法，两代合一借光，m502 extractAll 同款教训）
-                if (rl == null) continue;
-                Item it = BuiltInRegistries.ITEM.get(rl);
-                ItemVariant v = ItemVariant.of(it);
-                if (v.isBlank()) continue; // 已卸载物品条目跳过（缺失 id 落回 air 即 blank）
-                views.add(new View(v, id));
-            }
-            for (ItemStack tpl : new ArrayList<>(ledger.exactTemplates())) views.add(new View(ItemVariant.of(tpl), null));
-            return views.iterator();
-        }
-
-        /** 游标视图：金额按键实时查（迭代途中被别的事务抽走也读不到脏值）；抽取转正门统一走外层 extract。 */
-        private class View implements StorageView<ItemVariant> {
-            private final ItemVariant v;
-            private final String id; // 非 null=普通账本键；null=精确账本按模板匹配
-
-            View(ItemVariant v, String id) { this.v = v; this.id = id; }
-
-            @Override public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
-                if (!v.equals(resource)) return 0;
-                return FabricLedger.this.extract(resource, maxAmount, tx);
-            }
-
-            @Override public boolean isResourceBlank() { return v.isBlank(); }
-            @Override public ItemVariant getResource() { return v; }
-            @Override public long getAmount() { return ledger.ftaAmount(id, v.toStack(1)); }
-            @Override public long getCapacity() { return Long.MAX_VALUE; }
-        }
+    /** 加载器胶水专用：首次调用用 create 建适配器并缓存，之后恒返同一实例。业务代码不要调它。 */
+    public Object transferAdapter(java.util.function.Supplier<Object> create) {
+        if (transferAdapter == null) transferAdapter = create.get();
+        return transferAdapter;
     }
 
     // ===== m460 漏斗对接：幻影槽 WorldlyContainer =====
@@ -256,8 +187,8 @@ public class StorageCoreBlockEntity extends BlockEntity implements com.sdzjz.mac
     //   StorageCoreBlockEntity 分支都排在 Container 分支之前——核心变容器后仍走存储核心正路；
     //   ②DataCableBlock.endFor 对 STORAGE_CORE 有显式 PLUG 分支在 Container 判定之前——线缆视觉不变；
     //   ③区块扫描器 conS 统计会把核心计入"容器"——纯报告口径，无玩法影响（记档）；
-    //   ④FTA 侧：ItemStorage.SIDED 已有显式注册（fabricStorage），显式注册优先于 Fabric 的
-    //   Inventory 兜底包装——FTA 管道看到的仍是 FabricLedger 双账本，不会退化成幻影槽。
+    //   ④FTA 侧：ItemStorage.SIDED 已有显式注册（FabricEntry→FabricStorageAdapter.of，m533 前是 fabricStorage()），显式注册优先于 Fabric 的
+    //   Inventory 兜底包装——FTA 管道看到的仍是双账本适配器，不会退化成幻影槽。
     // 【第三方越闸兜底】：规矩管不了野管道——有的 Container 管道不问 canPlaceItem 直接 setItem。
     //   类型闸拒收/配置关闸时**绝不吞件**：残料散落核心上方（掉落物比凭空蒸发轻一万倍；
     //   存储域"绝不落地"说的是自家路由，不适用于第三方硬塞）。

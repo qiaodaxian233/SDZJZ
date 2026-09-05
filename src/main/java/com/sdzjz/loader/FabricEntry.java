@@ -20,7 +20,8 @@ public final class FabricEntry implements ModInitializer {
         // Tech Reborn/AE2 等一切走 fabric-transfer-api 的管道怼在存储核心任意面即可存取。
         // 注意原版漏斗不走此 API（漏斗只认 Inventory 接口），漏斗对接另开里程碑（见 DEVLOG m161）。
         // m404 提供侧（我们把自家账本暴露给别的模组）：天生属加载器层，不抽口——换 NeoForge 时这里换成能力注册，业务侧一行不动。
+        // m533（F1c）：适配器从 BE 内部类搬成 loader/FabricStorageAdapter，BE 里只剩不透明缓存槽；同一 BE 恒返同一实例（事务日志在实例里）。
         net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.registerForBlockEntity(
-                (be, direction) -> be.fabricStorage(), com.sdzjz.registry.ModBlockEntities.STORAGE_CORE_BE);
+                (be, direction) -> FabricStorageAdapter.of(be), com.sdzjz.registry.ModBlockEntities.STORAGE_CORE_BE);
     }
 }

@@ -51,9 +51,9 @@ public class SdzjzGameTests implements FabricGameTest {
         StorageCoreBlockEntity c = core(ctx);
         c.deposit(new ItemStack(Items.COBBLESTONE, 32));
         try (Transaction tx = Transaction.openOuter()) {
-            long ins = c.fabricStorage().insert(ItemVariant.of(Items.COBBLESTONE), 16, tx);
+            long ins = com.sdzjz.loader.FabricStorageAdapter.of(c).insert(ItemVariant.of(Items.COBBLESTONE), 16, tx);
             ctx.assertTrue(ins == 16, "事务内插入应报 16，实得 " + ins);
-            long ext = c.fabricStorage().extract(ItemVariant.of(Items.COBBLESTONE), 40, tx);
+            long ext = com.sdzjz.loader.FabricStorageAdapter.of(c).extract(ItemVariant.of(Items.COBBLESTONE), 40, tx);
             ctx.assertTrue(ext == 40, "事务内提取应报 40，实得 " + ext);
             // 不 commit → try 退出即 abort
         }
@@ -71,11 +71,11 @@ public class SdzjzGameTests implements FabricGameTest {
         ItemVariant v = ItemVariant.of(exactSample(1, 1));
         try (Transaction outer = Transaction.openOuter()) {
             try (Transaction inner = outer.openNested()) {
-                long ext = c.fabricStorage().extract(v, 10, inner); // 提净=删条目（结构前像+索引置脏都过一遍）
+                long ext = com.sdzjz.loader.FabricStorageAdapter.of(c).extract(v, 10, inner); // 提净=删条目（结构前像+索引置脏都过一遍）
                 ctx.assertTrue(ext == 10, "内层提净应报 10，实得 " + ext);
                 inner.commit();
             }
-            long ins = c.fabricStorage().insert(v, 3, outer); // 又插回=新条目
+            long ins = com.sdzjz.loader.FabricStorageAdapter.of(c).insert(v, 3, outer); // 又插回=新条目
             ctx.assertTrue(ins == 3, "外层再插应报 3，实得 " + ins);
             // 外层不 commit → 全链回滚
         }
@@ -316,7 +316,7 @@ public class SdzjzGameTests implements FabricGameTest {
         c.deposit(new ItemStack(Items.COBBLESTONE, 64));
         c.depositExact(exactSample(1, 5));
         try (Transaction tx = Transaction.openOuter()) { // 30 亿精确计数：FTA 长插一笔到位（deposit 的 int 形参到不了）
-            long ins = c.fabricStorage().insert(ItemVariant.of(exactSample(7, 1)), 3_000_000_000L, tx);
+            long ins = com.sdzjz.loader.FabricStorageAdapter.of(c).insert(ItemVariant.of(exactSample(7, 1)), 3_000_000_000L, tx);
             ctx.assertTrue(ins == 3_000_000_000L, "FTA 长插应收 30 亿，实收 " + ins);
             tx.commit();
         }
@@ -349,7 +349,7 @@ public class SdzjzGameTests implements FabricGameTest {
         c.deposit(new ItemStack(Items.COBBLESTONE, 100));
         c.deposit(new ItemStack(Items.DIRT, 40));
         try (Transaction tx = Transaction.openOuter()) {
-            long ext = c.fabricStorage().extract(ItemVariant.of(Items.COBBLESTONE), 50, tx);
+            long ext = com.sdzjz.loader.FabricStorageAdapter.of(c).extract(ItemVariant.of(Items.COBBLESTONE), 50, tx);
             ctx.assertTrue(ext == 50, "事务内提取应报 50，实得 " + ext);
             int manual = c.withdraw("minecraft:dirt", 10); // 事务窗内的手账改动（异键）
             ctx.assertTrue(manual == 10, "手账取土应得 10，实得 " + manual);
@@ -360,7 +360,7 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.assertTrue(c.count("minecraft:dirt") == 30,
                 "手账改动不许被回滚冲掉（m278 整本深拷时代的病），实余 " + c.count("minecraft:dirt"));
         try (Transaction tx = Transaction.openOuter()) { // 提交路 + 手账串行：算术精确
-            c.fabricStorage().extract(ItemVariant.of(Items.COBBLESTONE), 25, tx);
+            com.sdzjz.loader.FabricStorageAdapter.of(c).extract(ItemVariant.of(Items.COBBLESTONE), 25, tx);
             tx.commit();
         }
         int direct = c.withdraw("minecraft:cobblestone", 25);

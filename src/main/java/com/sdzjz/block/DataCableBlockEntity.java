@@ -174,7 +174,11 @@ public class DataCableBlockEntity extends BlockEntity
             return StorageCoreBlockEntity.loadedCoreAt(world, p);
         }
         @Override public Object coreStorage(com.sdzjz.machine.StorageLedgerProbe core) {
-            return ((StorageCoreBlockEntity) core).fabricStorage(); // m161c FTA 出口（回收拍目的地）
+            // m161c FTA 出口（回收拍目的地）。m533（F1c）：原 `core.fabricStorage()` 直取 FTA 视图=业务 BE 上的加载器符号；
+            // 改走既有 Xfer.find（m434 口）按核心自己的坐标找——Fabric 侧走 ItemStorage.SIDED 提供侧（FabricEntry 注册的
+            // FabricStorageAdapter.of，同一 BE 恒返同一实例，与原直取逐位同一个对象），NeoForge 侧（F1d）走能力查询；零新口。
+            StorageCoreBlockEntity be = (StorageCoreBlockEntity) core;
+            return com.sdzjz.storage.Xfer.find(be.getLevel(), be.getBlockPos(), null);
         }
     }
 

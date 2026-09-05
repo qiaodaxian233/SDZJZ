@@ -8,7 +8,7 @@ import net.minecraft.world.level.Level;
 
 /** m434：{@link Xfer.Impl} 的 Fabric 实现——m404 门面里的 Fabric 内脏原样搬来
  *  （find/canInsert/canExtract/insert 一行未改；move=原 moveToCore 体，唯一改动是
- *  dst 从 {@code core.fabricStorage()} 换成传入句柄按 insert 同款姿势强转）。 */
+ *  dst 从 {@code core.fabricStorage()} 换成传入句柄按 insert 同款姿势强转；m533 起该视图由 {@link FabricStorageAdapter#of} 提供）。 */
 public final class FabricXfer implements Xfer.Impl {
 
     @Override

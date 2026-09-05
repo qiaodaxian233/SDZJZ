@@ -30,9 +30,9 @@ SRC_GLUE_OK = {  # 天生加载器层：入口 / 口的 Fabric 实现 / Fabric �
     'com/sdzjz/loader/FabricNet.java', 'com/sdzjz/loader/FabricXfer.java', 'com/sdzjz/loader/FabricMenus.java',  # m532 菜单数据口
     'com/sdzjz/client/FabricClientEntry.java', 'com/sdzjz/client/FabricClientHooks.java', 'com/sdzjz/client/FabricClientNet.java',
     'com/sdzjz/client/CompressedPackRenderer.java',  # DynamicItemRenderer 壳（m529）
+    'com/sdzjz/loader/FabricStorageAdapter.java',  # m533（F1c）存储核心 FTA 提供侧适配器（原 BE 内部类 FabricLedger）
 }
-SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1c 存储传输适配器 / F1d 模型插件·判官）；F1b 六件 m532 已拆
-    'com/sdzjz/block/StorageCoreBlockEntity.java': 'F1c Storage<ItemVariant> 提供侧',
+SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1d 模型插件·判官）；F1b 六件 m532 已拆、F1c 存储提供侧 m533 已拆
     'com/sdzjz/client/SatelliteNodeModel.java': 'F1d ModelLoadingPlugin',
     'com/sdzjz/gametest/SdzjzGameTests.java': 'F1d FabricGameTest + 传输断言',
 }

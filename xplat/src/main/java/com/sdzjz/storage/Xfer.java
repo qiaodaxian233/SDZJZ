@@ -22,8 +22,10 @@ import net.minecraft.world.level.Level;
  * 传送带/漏斗/置物台开箱即通，1.20.1 格照此同款（该版 fabric-api 同有此 API）。
  *
  * <p><b>刻意留在原地的两处</b>：①{@code StorageCoreBlockEntity.FabricLedger}=我们**提供**给别的模组的
- * 那个视图（含 m278 增量事务日志），它天生属于加载器层，抽口没有意义——等目录分层时整体搬进
- * `versions/&lt;loader&gt;`；②GameTest 里的 FTA 调用是测试代码，同理归加载器侧。
+ * 那个视图（含 m278 增量事务日志），它天生属于加载器层，抽口没有意义——**m533（F1c）已整段搬成
+ * {@code src/loader/FabricStorageAdapter}**（BE 只留不透明缓存槽 {@code transferAdapter(Supplier)}，
+ * 自家消费点 {@code DataCableBlockEntity.coreStorage} 改走本类 {@link #find} 按核心坐标取）；
+ * ②GameTest 里的 FTA 调用是测试代码，同理归加载器侧（F1d 随判官注册口一起拆）。
  */
 public final class Xfer {
 
