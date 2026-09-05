@@ -34,6 +34,8 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     "CompressedPack120.java": (True, False, "m529（N2a）压缩包 1.20.1 壳：只覆写 1.20.1 签名 appendHoverText 一句转调 xplat CompressedPackItem.hoverLines"),
     "CompressedPackRenderer120.java": (True, False, "m529（N2a）压缩包渲染 Fabric 1.20.1 壳：DynamicItemRenderer 一句转调 xplat CompressedPackIcon + 本世代扫光实现（附魔标记）"),
     "RetroSuperBenchHost.java": (True, False, "m529（N2a）SuperBenchScreenHandler.Host 的 1.20.1 实现（主线 LegacySuperBenchHost 对位，注册表换 RetroItems）"),
+    "CaptureCage120.java": (True, False, "m530（N2b）抓物笼 1.20.1 壳：只覆写 1.20.1 签名 appendHoverText 一句转调 xplat CaptureCageItem.hoverLines"),
+    "RetroHooks.java": (True, False, "m530（N2b）Hooks.Impl 的 Fabric 1.20.1 实现（主线 loader/FabricHooks 原文，五事件同名同签名）"),
     "RetroBootstrap.java": (True, False, "加载器入口：装配各世代口"),
     "RetroClientBootstrap.java": (True, False, "客户端入口"),
     "Net120.java": (True, False, "网络通道注册（1.20.1 无 CustomPacketPayload）"),

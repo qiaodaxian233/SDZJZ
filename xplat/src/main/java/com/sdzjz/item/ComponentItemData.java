@@ -38,6 +38,9 @@ public final class ComponentItemData implements ItemData.Impl {
     public void clearCustomName(ItemStack s) { s.remove(DataComponents.CUSTOM_NAME); } // m522：原 SuperBenchScreenHandler 129 行原句
 
     @Override
+    public void setCustomName(ItemStack s, net.minecraft.network.chat.Component name) { s.set(DataComponents.CUSTOM_NAME, name); } // m530：原 CaptureCageItem L62 原句
+
+    @Override
     public net.minecraft.resources.ResourceLocation id(String s) { return net.minecraft.resources.ResourceLocation.parse(s); } // m522
 
     @Override

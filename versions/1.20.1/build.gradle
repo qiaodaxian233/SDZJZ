@@ -72,6 +72,8 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/client/SuperBenchView.java'      // m525（SB4）超大工作台屏绘制体+交互体两代共用：主线 SuperBenchScreen 392 行整段搬（归一 diff 只剩世代口/宿主口），贴图 id 走 gfxTex、id 解析走 gfxItem、认包/抓物笼走 handler Host 十口；两代屏只留壳
         include 'com/sdzjz/item/CompressedPackItem.java'    // m529（N2a）压缩材料包两代共用：数据走 ItemData 口、id 解析走 itemById；tooltip 覆写签名差留世代壳（CompressedPack120 / LegacyCompressedPackItem）
         include 'com/sdzjz/client/CompressedPackIcon.java'  // m529（N2a）压缩包动态图标绘制体两代共用（主线 CompressedPackRenderer render 体整段搬）；加载器接口留壳，扫光实现由壳传入
+        include 'com/sdzjz/item/CaptureCageItem.java'       // m530（N2b）抓物笼两代共用：自定义名走 ItemData.setCustomName（新口）、id 解析走 ItemData.id；tooltip 签名差留壳（CaptureCage120 / LegacyCaptureCageItem）
+        include 'com/sdzjz/loader/Hooks.java'               // m530（N2b）平台事件口门面（m435 接口化），1.20.1 实现 RetroHooks=FabricHooks 原文；首个消费方抓物笼 UseEntity
     }
     into layout.buildDirectory.dir('xplat-subset-src')
 }

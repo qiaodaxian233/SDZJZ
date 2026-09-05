@@ -23,6 +23,8 @@ public final class RetroItems {
     public static Item COMPRESSED_PACK_FRAME, SUPER_COMPRESSED_PACK_FRAME;
     /** m529（N2a）压缩材料包两级：主线 ModItems L32-33 `new CompressedPackItem(props, 64/4096)`（m241 方案A 一级 64:1 / 二级 64²:1）→ 本世代壳 CompressedPack120（tooltip 签名差）。 */
     public static Item COMPRESSED_PACK, SUPER_COMPRESSED_PACK;
+    /** m530（N2b）抓物笼：主线 ModItems L31 `new CaptureCageItem(new Item.Properties().stacksTo(1))` → 本世代壳 CaptureCage120。 */
+    public static Item CAPTURE_CAGE;
 
     static void register() {
         CORE_MODULE = plain("core_module");
@@ -32,6 +34,7 @@ public final class RetroItems {
         STORAGE_UPGRADE = plain("storage_upgrade");
         COMPRESSED_PACK_FRAME = plain("compressed_pack_frame");
         SUPER_COMPRESSED_PACK_FRAME = plain("super_compressed_pack_frame");
+        CAPTURE_CAGE = Registry.register(BuiltInRegistries.ITEM, id("capture_cage"), new CaptureCage120(new Item.Properties().stacksTo(1))); // m530
         COMPRESSED_PACK = Registry.register(BuiltInRegistries.ITEM, id("compressed_pack"), new CompressedPack120(new Item.Properties(), 64));            // m529
         SUPER_COMPRESSED_PACK = Registry.register(BuiltInRegistries.ITEM, id("super_compressed_pack"), new CompressedPack120(new Item.Properties(), 4096)); // m529
     }
@@ -51,7 +54,7 @@ public final class RetroItems {
         e.accept(COUNT_UPGRADE);
         e.accept(PARALLEL_UPGRADE);
         e.accept(STORAGE_UPGRADE);
-        // 主线此处是 CAPTURE_CAGE（N2b 上挂后插回）
+        e.accept(CAPTURE_CAGE);          // m530（主线 L213 同序）
         e.accept(COMPRESSED_PACK);       // m241 同序
         e.accept(SUPER_COMPRESSED_PACK); // m241
     }

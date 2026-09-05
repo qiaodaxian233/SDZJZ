@@ -48,6 +48,9 @@ final class TagItemData implements ItemData.Impl {
     public void clearCustomName(ItemStack s) { s.resetHoverName(); } // m522：1.20.1 对位（1.21 remove(CUSTOM_NAME)）
 
     @Override
+    public void setCustomName(ItemStack s, net.minecraft.network.chat.Component name) { s.setHoverName(name); } // m530：1.20.1 对位（1.21 set(CUSTOM_NAME)）
+
+    @Override
     public net.minecraft.resources.ResourceLocation id(String s) { return new net.minecraft.resources.ResourceLocation(s); } // m522
 
     @Override

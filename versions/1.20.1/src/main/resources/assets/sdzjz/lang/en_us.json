@@ -132,6 +132,7 @@
   "item.sdzjz.super_compressed_pack_frame": "Super Pack Frame (render part)",
   "item.sdzjz.compressed_pack": "Compressed Pack",
   "item.sdzjz.super_compressed_pack": "Super Compressed Pack",
+  "item.sdzjz.capture_cage": "Capture Cage",
   "sdzjz.canvas.nodes": "Nodes %s",
   "sdzjz.canvas.hint": "Drag=move · RMB=take back · Link: node↔node; to vault cycles out/feed/cut",
   "sdzjz.canvas.settings": "Settings",

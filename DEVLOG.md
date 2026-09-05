@@ -11297,3 +11297,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **验证**：两代冒烟零真错（基线）；22 闸全绿；版本仍 0.1.529（热修不抬）。**作者判据：CI 三 job 转绿。**
 - **教训**：①m123/m180"自家类定向 grep"只兜类名，兜不住局部变量——切片手法本身要防漏（整方法搬）；②给冒烟加判据前先在全量上跑一遍看底噪，别只看单文件；③这次是**主线也红**——F 线以后一份 xplat 三个壳编，切片漏行会三处齐红，手法约束比事后补尺更值。
 
+## m530 N2b：抓物笼对齐主线——`ItemData` 加 `setCustomName` 口、`CaptureCageItem` 两代化、`RetroHooks` 装平台事件五口、抓物事件主线原句、Host 十口全真；判官 75、账面可达 60→101
+
+- **取活**：m529b CI 八 job 全绿 → 按作业表取 N2b（作者拍板「做成一样」）。
+- **先量**：`CaptureCageItem`（110 行）第 20 闸候选量出：`DataComponents/CustomData` 死 import ×2、`caged.set(DataComponents.CUSTOM_NAME, …)`（真世代差：1.20.1 `setHoverName`）、`ResourceLocation.parse`（→`ItemData.id` m522 口）、`appendHoverText` 签名（同 N2a）。事件挂线：主线走 `Hooks.onUseEntity`（m405/m435 平台口）→ 1.20.1 **从未装过 Hooks**（`FabricHooks` 只在 src）。
+- **做法**：
+  ①`ItemData.Impl` 加 `setCustomName(ItemStack, Component)`（接口第 9 口）：`ComponentItemData` 写 `s.set(DataComponents.CUSTOM_NAME, name)`（原句）、`TagItemData` 写 `s.setHoverName(name)`——与 m522 `clearCustomName` 成对。
+  ②`CaptureCageItem` 转 abstract：`tryCapture` 体原文，两处改走 ItemData 口；`appendHoverText` 体改名 `hoverLines`；两代壳 `LegacyCaptureCageItem`（TooltipContext）/`CaptureCage120`（Level）各一句转调；`ModItems` L31 换 Legacy 子类（死 import 顺手删）。上白名单。
+  ③`RetroHooks implements Hooks.Impl`=主线 `FabricHooks` 逐句原文（五个 Fabric 事件 1.20.1 同名同签名：ServerTickEvents/ServerWorldEvents/ServerPlayConnectionEvents/ServerLifecycleEvents/UseEntityCallback）；`Hooks.java` 上白名单；`RetroBootstrap` 装 Hooks 后挂抓物事件——主线 `Sdzjz` L76-80 **原句**（m94：事件抢在原版 `Player.interact` 之前，村民/马/宠物的交互不再"吃掉"右键）。另四口先装着（A 线消费方到位直接用）。
+  ④`RetroItems.CAPTURE_CAGE = new CaptureCage120(new Item.Properties().stacksTo(1))`（主线 L31 同句），创造栏插回升级件后、包前（主线 L213 同序）；`RetroSuperBenchHost.cagedType` 接主线原句→**十口全真，与主线同形**；笼子模型/贴图/lang 同主线；datapack 23→24（+`capture_cage` 工作台配方）。
+- **判官 +1（累计 75）**：`capture_cage_captures_mob_and_host_sees_it`——mock 玩家手持 2 只空笼、`ctx.spawn(ZOMBIE)`、`tryCapture` → SUCCESS、僵尸 `isRemoved`、手上剩 1 只空笼、背包恰 1 只 `cagedType==minecraft:zombie` 且自定义名以"抓物笼子 · "起（**ItemData.setCustomName 1.20.1 口装了没**）、`host().cagedType` 认出/空笼 null（刷怪配方 `mobOk` 走它）。事件挂线本身判官触发不到（实机脚本）。判官账本：`KNOWN_GAP_*` 各滚出 capture_cage、`EXPECTED_REACHABLE` 60→**101**（44 条刷怪类按 id 可达；别名解析版账面，CI 定）。
+- **验证**：两代冒烟零真错（十一个改动/新增文件单编零真错）；自家 8 新符号 0；切片产物结构自证（小写标识符全有声明，m529b 手法）；22 闸全绿（0.1.530）；第 18 闸登记两世代壳、白名单 44→46。零协议零存档零配置；**主线行为零变化**（Legacy 壳一句转调、ItemData 新口主线实现=原句）。
+  **1.20.1 可见**：创造栏抓物笼；工作台可合（铁栏杆×4+铁锭×4+核心模块，主线同配方）；右键活体生物→收进笼、笼子改名"抓物笼子 · X"、actionbar 提示；右键村民不弹交易直接抓（事件抢先）；超大工作台刷怪类配方（44 条）浏览器可填料，笼里装对生物才出成品，成品取走后笼子清成空笼留网格（m166 口径）。
+  **实机脚本**：①空笼右键僵尸/村民/马各一次（村民不弹交易、马不上马）②叠 5 只空笼抓一只→手上剩 4、背包多 1 只已捕获③超大工作台搜"刷铁机"点填料（背包有村民笼+僵尸笼+料）→成品出→取走后两只笼变空笼留在网格④装错生物的笼不出成品⑤旁观者/龙/玩家抓不了（PASS）。
+  **作者判据：CI 主线+1.20.1 两 job 绿（判官②账面 101；抓僵尸判官）。**
+- **教训**：①平台事件口（Hooks）在 1.20.1 一直没装，只是之前没消费方——"世代口有没有装"要在**消费方上挂时**核，不是默认有；②N2a/N2b 两件行为物品用同一手法（abstract 基类 + 两代 tooltip 壳 + ItemData 口）收干净，N3 那批照此办；③三刀（core_module/升级件/包/笼）下来 1.20.1 超大工作台账面从 0 到 101/122，剩 21 条=12 条含 1.21 原版料（照旧）+ 9 条结果件/料为 N3 件（wireless/satellite/trade_center/terminal/portable_vault/linker/villager_contract/auto_feeder）。
+- **下一刀**：读 m530 CI → **F1：NeoForge 1.21.1 壳挂 xplat**（作者拍板三加载器，地基/CI job 已有）——开工先量 `src/` 21 文件 Fabric 胶水逐件对位 NeoForge 21.1 写法，`layer_gate` 同刀加 `net.minecraftforge|net.neoforged`；N3 排其后。**开工先跑 22 闸。**
+

@@ -60,7 +60,7 @@ public final class RetroBenchTests implements FabricGameTest {
 
     /** 已知缺口·结果件：m521 缺口表「非机器物品 21」里在配方表出现的 14 件（本世代未注册）。补上一件就该从这儿删一行（判官双向对表会红提醒）。 */
     private static final Set<String> KNOWN_GAP_RESULTS = Set.of(
-            "sdzjz:auto_feeder", "sdzjz:capture_cage", "sdzjz:linker", // m527 滚出 core_module；m528（N1）滚出四升级件
+            "sdzjz:auto_feeder", "sdzjz:linker", // m527 滚出 core_module；m528 滚出四升级件；m530（N2b）滚出 capture_cage
             "sdzjz:portable_vault", "sdzjz:satellite_node",
             "sdzjz:terminal", "sdzjz:trade_center", "sdzjz:villager_contract", "sdzjz:wireless_node");
 
@@ -70,16 +70,16 @@ public final class RetroBenchTests implements FabricGameTest {
      *    它自己的配方铜/红石/石英全原版，注册后立刻可达；
      *  ②m526 新发现——**10 种 1.20.3+/1.21 才有的原版物品**被 12 条 BOM 引用（crafter×9 条、微风/试炼农场专料、heavy_core），
      *    1.20.1 注册表查不到，浏览器 BOM 里显示为空气（替料/隐藏/照旧待拍板）；
-     *  ③抓物笼（44 条刷怪类自动带）+ trade_center/villager_contract/wireless_node 三件非机器 sdzjz 料（m521 缺口表已列）。 */
+     *  ③~~抓物笼~~ m530 已注册（44 条刷怪类按 id 可达，真合成还要笼里装对生物=mobOk）；wireless_node 一件非机器 sdzjz 料仍缺（satellite_node 配方料，N3）。 */
     private static final Set<String> KNOWN_GAP_INGREDIENTS = Set.of(
             "minecraft:breeze_rod", "minecraft:copper_bulb", "minecraft:copper_grate", "minecraft:crafter", "minecraft:heavy_core",
             "minecraft:ominous_bottle", "minecraft:trial_key", "minecraft:trial_spawner", "minecraft:tuff_bricks", "minecraft:vault",
-            "sdzjz:capture_cage", "sdzjz:wireless_node"); // m526b 滚掉 trade_center/villager_contract（只是结果件）；m527 滚掉 core_module（已注册）
+            "sdzjz:wireless_node"); // m526b 滚掉 trade_center/villager_contract（只是结果件）；m527 滚掉 core_module；m530 滚掉 capture_cage（已注册）
 
     /** 本世代可达配方数账面值（判官②等值断言，多了少了都红）。m526b=0（core_module 未注册一件卡死全部）→ **m527=56**（注册 core_module 后：
      *  42 bom + 3 bomPacked + 4 addSmall9 + 7 addSmall；不可达 66 = 44 刷怪类要抓物笼 + 12 条含 1.21 原版新料 + 结果件为未注册非机器件的小配方；
      *  别名解析版离线脚本口径，以 CI 判官②实机对表为准）。本世代每注册一件非机器物品 / 主线每改配方表，此值同刀改。 */
-    private static final int EXPECTED_REACHABLE = 60; // m527=56（CI 对表命中）→ m528 N1 四升级件注册 +4 条 addSmall9（账面，CI 定）
+    private static final int EXPECTED_REACHABLE = 101; // m527=56→m528=60（CI 均命中）→ m530 N2b 抓物笼注册：44 条刷怪类按 id 可达（账面 101，CI 定）
 
     /** 本世代可达（结果件+全部材料都能解析、无生物、有蓝图）的配方里 BOM 总件数最少的那条——端到端/填料两判官用，确定性选取。 */
     private static SuperBenchRecipes.Recipe smallestReachable() {
@@ -275,6 +275,31 @@ public final class RetroBenchTests implements FabricGameTest {
             if (s.is(Items.COBBLESTONE)) inv += s.getCount();
         }
         ctx.assertTrue(packs == 0 && plain + inv == 64, "拆开后包清零、圆石守恒 64，实得 包=" + packs + " 网格散=" + plain + " 背包=" + inv);
+        ctx.succeed();
+    }
+
+    /** m530（N2b）抓物笼「装了没」判官：空笼（叠 2）右键僵尸→SUCCESS、僵尸收走、手上剩 1 只空笼、背包 1 只装着僵尸的笼（cagedType 键 + ItemData.setCustomName 自定义名）；
+     *  宿主口 cagedType 认出笼里生物（刷怪类配方 mobOk 走它）、空笼回 null。UseEntityCallback 事件挂线本身判官触发不到（实机：右键村民不弹交易直接抓）。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void capture_cage_captures_mob_and_host_sees_it(GameTestHelper ctx) {
+        Player p = ctx.makeMockPlayer();
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(RetroItems.CAPTURE_CAGE, 2)); // 叠 2：只该消耗 1 只空笼
+        var zombie = ctx.spawn(net.minecraft.world.entity.EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        var r = com.sdzjz.item.CaptureCageItem.tryCapture(p, net.minecraft.world.InteractionHand.MAIN_HAND, zombie);
+        ctx.assertTrue(r == net.minecraft.world.InteractionResult.SUCCESS, "空笼右键僵尸该 SUCCESS，实得 " + r);
+        ctx.assertTrue(zombie.isRemoved(), "僵尸该被收走（discard）");
+        ItemStack hand = p.getItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND);
+        ctx.assertTrue(hand.is(RetroItems.CAPTURE_CAGE) && hand.getCount() == 1 && !com.sdzjz.item.CaptureCageItem.isCaged(hand), "手上该剩 1 只空笼，实得 " + hand);
+        ItemStack caged = ItemStack.EMPTY;
+        for (int i = 0; i < p.getInventory().getContainerSize(); i++) {
+            ItemStack s = p.getInventory().getItem(i);
+            if (s.is(RetroItems.CAPTURE_CAGE) && com.sdzjz.item.CaptureCageItem.isCaged(s)) { caged = s; break; }
+        }
+        ctx.assertTrue(!caged.isEmpty() && caged.getCount() == 1, "背包该有恰 1 只已捕获笼");
+        ctx.assertTrue("minecraft:zombie".equals(com.sdzjz.item.CaptureCageItem.cagedType(caged)), "笼里该是 minecraft:zombie，实得 " + com.sdzjz.item.CaptureCageItem.cagedType(caged));
+        ctx.assertTrue(caged.hasCustomHoverName() && caged.getHoverName().getString().startsWith("抓物笼子 · "), "笼子该有自定义名（ItemData.setCustomName 1.20.1 口=setHoverName），实得 " + caged.getHoverName().getString());
+        ctx.assertTrue("minecraft:zombie".equals(SuperBenchScreenHandler.host().cagedType(caged)), "宿主口该认出笼里生物（刷怪配方 mobOk 走它）");
+        ctx.assertTrue(SuperBenchScreenHandler.host().cagedType(new ItemStack(RetroItems.CAPTURE_CAGE)) == null, "空笼该回 null");
         ctx.succeed();
     }
 }

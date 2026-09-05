@@ -1,7 +1,5 @@
 package com.sdzjz.item;
 
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.player.Player;
@@ -24,7 +22,7 @@ import net.minecraft.resources.ResourceLocation;
  * 2、整叠笼子：以前把生物 id 写到整叠上（3 个笼子一次全变"已捕获"），自动填料又整叠搬进一格，
  *    多重集精确匹配 ×3≠×1 → 配方不出结果。修法：只产 1 个"已捕获"笼，叠里其余保持空笼。
  */
-public class CaptureCageItem extends Item {
+public abstract class CaptureCageItem extends Item {
     private static final String KEY = "caged";
 
     public CaptureCageItem(Properties settings) {
@@ -59,7 +57,7 @@ public class CaptureCageItem extends Item {
         CompoundTag nbt = new CompoundTag();
         nbt.putString(KEY, id.toString());
         com.sdzjz.item.ItemData.write(caged, nbt);
-        caged.set(DataComponents.CUSTOM_NAME,
+        com.sdzjz.item.ItemData.setCustomName(caged, // m530：原 caged.set(DataComponents.CUSTOM_NAME, …)，走 ItemData 世代口
                 Component.literal("抓物笼子 · ").append(entity.getType().getDescription()));
 
         // 操作手上的真实栈（getStackInHand 重新取真身，创造/生存都对）
@@ -82,13 +80,13 @@ public class CaptureCageItem extends Item {
         return InteractionResult.SUCCESS;
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
-                              net.minecraft.world.item.TooltipFlag type) {
+    /** m530（N2b）：原 {@code appendHoverText} 体原文——签名两代不同（1.21 TooltipContext / 1.20.1 Level），覆写留世代壳
+     *  （主线 {@code LegacyCaptureCageItem} / 1.20.1 {@code CaptureCage120}）一句转调；本类因此 abstract（N2a 压缩包同律）。 */
+    public void hoverLines(ItemStack stack, java.util.List<Component> tooltip) {
         String id = cagedType(stack);
         if (id != null) {
             Component name;
-            try { name = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(id)).getDescription(); }
+            try { name = BuiltInRegistries.ENTITY_TYPE.get(com.sdzjz.item.ItemData.id(id)).getDescription(); } // m530：原 ResourceLocation.parse(id)，走 m522 口
             catch (Exception ex) { name = Component.literal(id); }
             tooltip.add(Component.literal("已捕获: ").append(name).withStyle(net.minecraft.ChatFormatting.GREEN));
             tooltip.add(Component.literal("可插画布刷掉落，或作刷怪机器的合成材料").withStyle(net.minecraft.ChatFormatting.GRAY));

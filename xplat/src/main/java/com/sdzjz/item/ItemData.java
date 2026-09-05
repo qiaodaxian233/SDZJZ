@@ -30,6 +30,8 @@ public final class ItemData {
         net.minecraft.world.item.Item itemById(String id);
         /** m522（SB2）：清自定义名（Legacy `remove(DataComponents.CUSTOM_NAME)` / Retro `resetHoverName()`）。 */
         void clearCustomName(ItemStack s);
+        /** m530（N2b）：设自定义名（1.21 `set(CUSTOM_NAME)` / 1.20.1 `setHoverName`）——CaptureCageItem 原句 `caged.set(DataComponents.CUSTOM_NAME, …)`。 */
+        void setCustomName(ItemStack s, net.minecraft.network.chat.Component name);
         /** m522（SB2）：id 字符串→ResourceLocation（两代同 FQN，只差构造：parse / new）。非物品注册表（实体类型等）用它。 */
         net.minecraft.resources.ResourceLocation id(String s);
     }
@@ -65,6 +67,7 @@ public final class ItemData {
     public static net.minecraft.world.item.Item itemById(String id) { return req().itemById(id); }
     /** m522：清自定义名。 */
     public static void clearCustomName(ItemStack s) { req().clearCustomName(s); }
+    public static void setCustomName(ItemStack s, net.minecraft.network.chat.Component name) { req().setCustomName(s, name); } // m530
     /** m522：id 字符串→ResourceLocation（服务端可用；client 侧同义口是 SciSkin.Gfx.id）。 */
     public static net.minecraft.resources.ResourceLocation id(String s) { return req().id(s); }
 }
