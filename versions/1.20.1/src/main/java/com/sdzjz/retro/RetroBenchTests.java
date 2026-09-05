@@ -207,9 +207,9 @@ public final class RetroBenchTests implements FabricGameTest {
         ctx.assertTrue(gridCount(h) == total, "填料后网格件数该=BOM 总件 " + total + "，实得 " + gridCount(h));
         for (String id : bom.keySet()) ctx.assertTrue(countEverywhere(h, id) == before.get(id), "填料件数不守恒 " + id);
 
-        ctx.assertTrue(h.clickMenuButton(p, SuperBenchScreenHandler.BTN_COMPRESS), "压缩钮该回 true（服务端拦截并明说）");
+        ctx.assertTrue(h.clickMenuButton(p, SuperBenchScreenHandler.BTN_COMPRESS), "压缩钮该回 true（m529 起真宿主：9 件小配方不满 64 无可压，零动作）");
         ctx.assertTrue(h.clickMenuButton(p, SuperBenchScreenHandler.BTN_UNPACK), "拆包钮该回 true");
-        ctx.assertTrue(gridCount(h) == total, "空宿主下两钮该零动作，网格件数变了：" + gridCount(h));
+        ctx.assertTrue(gridCount(h) == total, "不满 64 时两钮该零动作，网格件数变了：" + gridCount(h));
         for (String id : bom.keySet()) ctx.assertTrue(countEverywhere(h, id) == before.get(id), "两钮后件数不守恒 " + id);
 
         int other = (idx + 1) % SuperBenchRecipes.ALL.size();
@@ -236,6 +236,45 @@ public final class RetroBenchTests implements FabricGameTest {
         h.getSlot(SuperBenchScreenHandler.RESULT_INDEX).set(new ItemStack(Items.STONE, 1)); // 结果槽直接放一件
         ctx.assertTrue(h.quickMoveStack(p, SuperBenchScreenHandler.RESULT_INDEX).isEmpty()
                 && h.getSlot(SuperBenchScreenHandler.RESULT_INDEX).getItem().is(Items.STONE), "结果槽 shift 该无动作");
+        ctx.succeed();
+    }
+
+    /** m529（N2a）宿主口「装了没」判官——主线 super_bench_host_pack_roundtrip 逐句对位（注册表换 RetroItems）：
+     *  64 圆石→压缩钮→1 只一级包（内容物圆石）+0 散件；拆包钮→包清零、圆石守恒 64（先落网格、溢出进背包）。
+     *  空宿主（m523）会让第一步"钮回 true 但散件原样 64"——本判官红=RetroSuperBenchHost 没装或包口没接。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void super_bench_compress_unpack_roundtrip(GameTestHelper ctx) {
+        Player p = ctx.makeMockPlayer();
+        SuperBenchScreenHandler h = new SuperBenchScreenHandler(1, p.getInventory());
+        final int G = SuperBenchScreenHandler.GRID_SLOTS;
+        h.getSlot(0).set(new ItemStack(Items.COBBLESTONE, 64));
+        ctx.assertTrue(h.clickMenuButton(p, SuperBenchScreenHandler.BTN_COMPRESS), "压缩钮该被 handler 认领");
+        int packs = 0, plain = 0;
+        for (int i = 0; i < G; i++) {
+            ItemStack s = h.getSlot(i).getItem();
+            if (s.isEmpty()) continue;
+            if (s.getItem() == RetroItems.COMPRESSED_PACK) {
+                String in = com.sdzjz.item.CompressedPackItem.innerId(s);
+                ctx.assertTrue("minecraft:cobblestone".equals(in), "一级包内容物该是圆石，实得 " + in);
+                packs += s.getCount();
+            } else if (s.is(Items.COBBLESTONE)) plain += s.getCount();
+            else ctx.fail("压缩后网格出现意外物品 " + s);
+        }
+        ctx.assertTrue(packs == 1 && plain == 0,
+                "64 圆石压缩后网格该是 1 只一级包 + 0 散件（宿主口没装时钮只报不可用、散件原样 64），实得 包=" + packs + " 散=" + plain);
+        ctx.assertTrue(h.clickMenuButton(p, SuperBenchScreenHandler.BTN_UNPACK), "拆开钮该被 handler 认领");
+        packs = 0; plain = 0;
+        for (int i = 0; i < G; i++) {
+            ItemStack s = h.getSlot(i).getItem();
+            if (s.getItem() == RetroItems.COMPRESSED_PACK) packs += s.getCount();
+            else if (s.is(Items.COBBLESTONE)) plain += s.getCount();
+        }
+        int inv = 0; // m246 拆包产物先落网格、溢出进背包——143 空格容得下不该溢，守恒断言仍连背包一起数
+        for (int i = 0; i < p.getInventory().getContainerSize(); i++) {
+            ItemStack s = p.getInventory().getItem(i);
+            if (s.is(Items.COBBLESTONE)) inv += s.getCount();
+        }
+        ctx.assertTrue(packs == 0 && plain + inv == 64, "拆开后包清零、圆石守恒 64，实得 包=" + packs + " 网格散=" + plain + " 背包=" + inv);
         ctx.succeed();
     }
 }

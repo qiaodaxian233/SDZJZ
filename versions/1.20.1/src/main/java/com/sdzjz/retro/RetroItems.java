@@ -21,6 +21,8 @@ public final class RetroItems {
     // 本刀=能拿、能合、能进浏览器，**装进机器要等 A8**（m99 升级/封顶公式随 A8 一并对位）。两包框主线也只注册不上创造栏（压缩包配方料，N2 接压缩包）。
     public static Item SPEED_UPGRADE, COUNT_UPGRADE, PARALLEL_UPGRADE, STORAGE_UPGRADE;
     public static Item COMPRESSED_PACK_FRAME, SUPER_COMPRESSED_PACK_FRAME;
+    /** m529（N2a）压缩材料包两级：主线 ModItems L32-33 `new CompressedPackItem(props, 64/4096)`（m241 方案A 一级 64:1 / 二级 64²:1）→ 本世代壳 CompressedPack120（tooltip 签名差）。 */
+    public static Item COMPRESSED_PACK, SUPER_COMPRESSED_PACK;
 
     static void register() {
         CORE_MODULE = plain("core_module");
@@ -30,6 +32,8 @@ public final class RetroItems {
         STORAGE_UPGRADE = plain("storage_upgrade");
         COMPRESSED_PACK_FRAME = plain("compressed_pack_frame");
         SUPER_COMPRESSED_PACK_FRAME = plain("super_compressed_pack_frame");
+        COMPRESSED_PACK = Registry.register(BuiltInRegistries.ITEM, id("compressed_pack"), new CompressedPack120(new Item.Properties(), 64));            // m529
+        SUPER_COMPRESSED_PACK = Registry.register(BuiltInRegistries.ITEM, id("super_compressed_pack"), new CompressedPack120(new Item.Properties(), 4096)); // m529
     }
 
     private static Item plain(String name) {
@@ -47,6 +51,9 @@ public final class RetroItems {
         e.accept(COUNT_UPGRADE);
         e.accept(PARALLEL_UPGRADE);
         e.accept(STORAGE_UPGRADE);
+        // 主线此处是 CAPTURE_CAGE（N2b 上挂后插回）
+        e.accept(COMPRESSED_PACK);       // m241 同序
+        e.accept(SUPER_COMPRESSED_PACK); // m241
     }
 
     private static ResourceLocation id(String p) { return new ResourceLocation("sdzjz", p); }

@@ -70,6 +70,8 @@ def xplatSubset = tasks.register('syncXplatSubset', Sync) {
         include 'com/sdzjz/screen/CraftGridInventory.java'     // m523（SB2b）3×3 合成网格库存重挂：asCraftInput 覆写删除（1.21 接口 default 逐位同义，1.21.1 源码核过；1.20.1 无 CraftingInput 类），剩余 API 面两代同名（SimpleContainer/CraftingContainer/StackedContents）；m523b：补 getItems() 自声明——1.20.1 SimpleContainer 无此 getter 不兜底接口抽象方法（CI 1.20.1 红 does not override abstract）
         include 'com/sdzjz/client/PinyinInitials.java'      // m525（SB4）零 MC 依赖的拼音首字母表（m282），超大工作台配方列表/BOM 名称排序（m287）要用；候选过第 20 闸
         include 'com/sdzjz/client/SuperBenchView.java'      // m525（SB4）超大工作台屏绘制体+交互体两代共用：主线 SuperBenchScreen 392 行整段搬（归一 diff 只剩世代口/宿主口），贴图 id 走 gfxTex、id 解析走 gfxItem、认包/抓物笼走 handler Host 十口；两代屏只留壳
+        include 'com/sdzjz/item/CompressedPackItem.java'    // m529（N2a）压缩材料包两代共用：数据走 ItemData 口、id 解析走 itemById；tooltip 覆写签名差留世代壳（CompressedPack120 / LegacyCompressedPackItem）
+        include 'com/sdzjz/client/CompressedPackIcon.java'  // m529（N2a）压缩包动态图标绘制体两代共用（主线 CompressedPackRenderer render 体整段搬）；加载器接口留壳，扫光实现由壳传入
     }
     into layout.buildDirectory.dir('xplat-subset-src')
 }

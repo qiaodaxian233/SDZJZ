@@ -61,6 +61,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
     "BTN_Y","BTN_H","BTN_W","BTN_GAP","bomExpanded","bomScroll","bomOver","bomMoreX","bomMoreY","bomMoreW","bomMoreH","scroll","selected","search",
     "refilter","sortKey","cell","cnt","countAvailable","hasCagedMob"],
  "versions/1.20.1/src/main/java/com/sdzjz/retro/SuperBenchScreen120.java": ["GX","GY","W","PY"],
+ # m529（N2a）：压缩包渲染体下沉 CompressedPackIcon——主线渲染器只剩 DynamicItemRenderer 壳
+ "src/main/java/com/sdzjz/client/CompressedPackRenderer.java": ["sheen","spinDeg"], # frameItem 仍是壳构造器形参名，不登记
 }
 # m506 重复键自检：dict 字面量里同名键会静默覆盖，这里从源码文本数一遍键，重复即红。
 import collections as _c

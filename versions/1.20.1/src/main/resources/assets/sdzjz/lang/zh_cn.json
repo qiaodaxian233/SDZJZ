@@ -130,6 +130,8 @@
   "item.sdzjz.storage_upgrade": "存储升级",
   "item.sdzjz.compressed_pack_frame": "压缩包边框（渲染件）",
   "item.sdzjz.super_compressed_pack_frame": "超级压缩包边框（渲染件）",
+  "item.sdzjz.compressed_pack": "压缩材料包",
+  "item.sdzjz.super_compressed_pack": "超级压缩材料包",
   "sdzjz.canvas.nodes": "节点 %s",
   "sdzjz.canvas.hint": "拖=移动 · 右键=摘回 · 连线钮=机↔机；机→仓循环 产出/供料/断",
   "sdzjz.canvas.settings": "设置",

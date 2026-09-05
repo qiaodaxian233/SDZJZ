@@ -11271,3 +11271,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
   **F0 拍板项（阻塞区）**：1.21.1 的"Forge"= MinecraftForge 52（`net.minecraftforge`，从零）还是 NeoForge 21.1（`net.neoforged`，地基已有）？两者 API 已分叉；1.20.1 上 Forge 47≈NeoForge 47 不受影响。F1（1.21.1 壳挂 xplat）/F2（1.20.1 `versions/1.20.1/forge/`）拍板后开工；开工同刀 layer_gate 加 `net.minecraftforge|net.neoforged` 进 LOADER_SYMBOLS。
 - **下一刀**：读 m528 CI → **N2**：`compressed_pack`×2（`CompressedPackItem` + 认包 Host 十口的真实现对位主线 `LegacySuperBenchHost`）+ `capture_cage`（`CaptureCageItem` 右键实体抓生物，先 `--candidate` 量 API 面）。F0 拍板前 F 线不开工。**开工先跑 22 闸。**
 
+## m529 N2a：压缩材料包×2 对齐主线——`CompressedPackItem` 两代共用 + 渲染体 `CompressedPackIcon` 下沉 xplat + `RetroSuperBenchHost` 真宿主；F0 拍板：2×3 加载器矩阵
+
+- **拍板**：作者「就是 MinecraftForge，我提的那些版本都有 Forge、Fabric、NeoForge」→ 1.20.1 / 1.21.1 各三加载器。F 线排成 F1 NeoForge 1.21.1（地基/CI 已有，最省）→ F2 MinecraftForge 1.21.1 → F3 MinecraftForge 1.20.1 → F4 NeoForge 1.20.1（从 F3 派生）。硬约束不变：xplat 零加载器符号，每个壳的胶水一句转调（本刀的渲染壳就是样板）。
+- **N2a 先量**：`CompressedPackItem`（94 行）第 20 闸候选量出三条 1.21 专属——`DataComponents/CustomData` 两条是**死 import**（数据早走 ItemData 口）、`ResourceLocation.parse`→`ItemData.itemById`（m522 口）；真世代差只剩 **`appendHoverText` 覆写签名**（1.21 `Item.TooltipContext` / 1.20.1 `Level`）。渲染器 `CompressedPackRenderer`（119 行）两处：同上 id 解析 + 扁平件扫光用的 `ENCHANTMENT_GLINT_OVERRIDE` 组件（1.20.5+）。
+- **做法**：
+  ①`CompressedPackItem` 转 abstract、`appendHoverText` 体原文改名 `hoverLines(stack, tooltip)`；两代壳各一句转调：主线 `src/item/LegacyCompressedPackItem`（TooltipContext 签名，`ModItems` L32-33 改 new 它）、1.20.1 `CompressedPack120`（Level 签名）。`instanceof CompressedPackItem`/`ratio` 全库用法不变（子类）。上白名单。
+  ②渲染体下沉 xplat `client/CompressedPackIcon`（render 体 + spinDeg 原文，加载器接口不进 xplat）；扫光"给临时栈开流光"改构造器传入 `Consumer<ItemStack> flatSheen`——主线壳传组件写法、1.20.1 壳传 `enchant(UNBREAKING,1)`（`hasFoil()` 同效，临时栈不碰真实物品）。主线 `CompressedPackRenderer` 退成 `DynamicItemRenderer` 壳（`SdzjzClient` 注册句零改动），1.20.1 `CompressedPackRenderer120` 同形，`RetroClientBootstrap` 注册两级（主线 m243 同句）。**F 线 Forge 壳照此一句转调**——这是渲染件第一次做成"加载器接口留壳"。
+  ③`RetroItems` 注册两级 `new CompressedPack120(props, 64/4096)`（主线 m241 同数），创造栏排升级件后（主线此处是抓物笼，N2b 插回）；两包模型（`builtin/entity`）+ lang 两键同主线（lang 插入时 `compressed_pack` 是 `compressed_pack_frame` 的前缀——判重带闭引号）。
+  ④`RetroSuperBenchHost`：主线 `LegacySuperBenchHost` 逐句对位、注册表换 RetroItems，压缩包八口真实现；`cagedType` 沿用默认 null 待 N2b。`RetroBootstrap` 空宿主退役。
+- **判官 +1（累计 74）**：`super_bench_compress_unpack_roundtrip`=主线 `super_bench_host_pack_roundtrip` 逐句对位（64 圆石→1 只一级包 内容物圆石→拆包→圆石守恒 64 连背包数）——**红=真宿主没装**（m523 空宿主下钮回 true 但散件原样 64）。判官④两处"空宿主"文案改"不满 64 零动作"（逻辑不变）。
+- **验证**：两代冒烟零真错（main 198→200、retro 101→106，十个改动/新增文件单编零真错）；自家 8 新符号 0；22 闸全绿（0.1.529）；第 18 闸登记三世代壳、第 19 闸主线渲染器删符号 `sheen/spinDeg`（`frameItem` 仍是壳形参名不登记——第一次跑红就是它，登记表也要过脑）、第 20 闸白名单 42→44。零协议零存档零配置；**主线行为零变化**（Legacy 壳一句转调、渲染壳一句转调、ModItems 换子类）。
+  **1.20.1 可见**：创造栏两级压缩包（动态图标：内容物缩放 + 档位边框，3D 方块自转、扁平件流光同主线）；超大工作台压缩区两钮**真能压/拆**（64 同种→1 包，一次点击级联到二级）；BOM 认包折算同主线（`gridMultiset`/`consumeIngredients` 十口全真）。
+  **实机脚本**：①网格放 64 圆石点"材料→压缩包"→1 只包，tooltip "= 64 × 圆石"②再放 63 只包+1 只（64 只一级）→压成 1 只二级③点"拆开材料包"→回散件先落网格④手持包：3D 内容物在框内自转、锭/粉类有流光（配置 `compressedPackFlatSheen` 可关）⑤主线像素零变化（渲染壳只转调）。
+  **作者判据：CI 主线+1.20.1 两 job 绿（1.20.1 新判官=宿主装了没）。**
+- **教训**：①第 20 闸候选量出的"专属 API"里可能一半是死 import——先删再量，别为死 import 开世代口；②"覆写签名两代不同"的形状（appendHoverText）用**abstract 基类 + 壳一句转调**收，比在 xplat 里开口干净；③渲染件也能按"加载器接口留壳、体下沉"切——F 线三加载器的壳都可以这么长。
+- **下一刀**：读 m529 CI → **N2b 抓物笼**：`ItemData` 加 `setCustomName` 口、`CaptureCageItem` 同 N2a 手法两代化、`UseEntityCallback` 挂 RetroBootstrap、Host `cagedType` 接原句、判官②账面 60→104 由 CI 定 → 然后 **F1 NeoForge 1.21.1 壳挂 xplat**。**开工先跑 22 闸。**
+

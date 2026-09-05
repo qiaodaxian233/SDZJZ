@@ -25,7 +25,7 @@ public final class RetroBootstrap implements ModInitializer {
         com.sdzjz.node.CanvasGraphState.installCodec(new RetroStackCodec()); // m477：图状态两代共用一份（真移植 A 阶段）——栈编解码走世代口
         com.sdzjz.storage.StackKey.installKind(new RetroStackKind()); // m478：栈身份键两代共用一份（真移植 B 阶段）——相等与哈希走世代口
         com.sdzjz.storage.Xfer.install(new RetroXfer()); // m502：五口传输门面本世代兑现（FabricXfer 原文照搬）——抽取口业务自此两代共用（早于任何 ExtractPort 消费方）
-        com.sdzjz.screen.SuperBenchScreenHandler.installHost(new com.sdzjz.screen.SuperBenchScreenHandler.Host() { }); // m523（SB2b）：本世代无压缩材料包/抓物笼（m521 缺口表）→空宿主=十口全走默认关（认包恒否、压缩区两钮明说不可用、刷怪配方合不出）；菜单类型 installType 随 SB3 注册 MenuType 后装
+        com.sdzjz.screen.SuperBenchScreenHandler.installHost(new RetroSuperBenchHost()); // m529（N2a）：压缩包八口真实现（m523 空宿主退役）；抓物笼口随 N2b // m523（SB2b）：本世代无压缩材料包/抓物笼（m521 缺口表）→空宿主=十口全走默认关（认包恒否、压缩区两钮明说不可用、刷怪配方合不出）；菜单类型 installType 随 SB3 注册 MenuType 后装
         com.sdzjz.platform.Platform.initRecipes(new RetroRecipeAccess()); // m494（⑤d2）：熔炼域实装（其余三域随 ⑤d1）；不装的话熔炉族 tick 一问配方就抛未注册
         RetroBlocks.register(); // m441 刀①：注册骨架（存储核心+数据线+BE 类型+创造栏）
 

@@ -1,13 +1,9 @@
 package com.sdzjz.item;
 
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 /**
  * 压缩材料包（m241 / 方案A，作者拍板）：两件通用物品承载"原版物品的数量压缩"——
@@ -20,9 +16,10 @@ import net.minecraft.resources.ResourceLocation;
  * 工程款 BOM 仍记原版总数，包只是搬运介质。
  *
  * 压/拆入口：超大工作台右下"压缩区"两钮（服务端权威，见 SuperBenchScreenHandler）。
+ * m529（N2a）两代共用（1.20.1 白名单）：数据走 ItemData 口、id 解析走 ItemData.itemById，tooltip 覆写签名差留世代壳（见 hoverLines）。
  * 只压"无组件差异的普通物品"——附魔书/药水这类组件物品跳过，防压包抹组件（精确条目教训同源）。
  */
-public class CompressedPackItem extends Item {
+public abstract class CompressedPackItem extends Item {
     private static final String KEY = "pack"; // CUSTOM_DATA 下的内容物 id 键
 
     /** 压缩倍率：一级 64，二级 4096。 */
@@ -58,7 +55,7 @@ public class CompressedPackItem extends Item {
 
     private Item inner(ItemStack stack) {
         String id = innerId(stack);
-        return id == null ? null : BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
+        return id == null ? null : com.sdzjz.item.ItemData.itemById(id); // m529：原 BuiltInRegistries.ITEM.get(ResourceLocation.parse(id))，走 m522 世代口
     }
 
     @Override
@@ -68,9 +65,9 @@ public class CompressedPackItem extends Item {
         return Component.translatable(this.getDescriptionId()).copy().append(" · ").append(in.getDescription());
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> tooltip,
-                              net.minecraft.world.item.TooltipFlag type) {
+    /** m529（N2a）：原 {@code appendHoverText} 体原文——签名两代不同（1.21 {@code Item.TooltipContext} / 1.20.1 {@code Level}），
+     *  覆写留在世代壳（主线 {@code LegacyCompressedPackItem} / 1.20.1 {@code CompressedPack120}），壳只做一句转调；本类因此 abstract，不许直接 new。 */
+    public void hoverLines(ItemStack stack, java.util.List<Component> tooltip) {
         Item in = inner(stack);
         if (in != null) {
             tooltip.add(Component.literal("= " + ratio + " × ").append(in.getDescription())

@@ -29,8 +29,8 @@ public class ModItems {
     public static final Item PARALLEL_UPGRADE = reg("parallel_upgrade", new Item(new Item.Properties()));
     public static final Item STORAGE_UPGRADE   = reg("storage_upgrade", new Item(new Item.Properties()));
     public static final Item CAPTURE_CAGE     = reg("capture_cage", new CaptureCageItem(new Item.Properties().stacksTo(1)));
-    public static final Item COMPRESSED_PACK       = reg("compressed_pack",       new com.sdzjz.item.CompressedPackItem(new Item.Properties(), 64));   // m241 方案A 一级 64:1
-    public static final Item SUPER_COMPRESSED_PACK = reg("super_compressed_pack", new com.sdzjz.item.CompressedPackItem(new Item.Properties(), 4096)); // m241 方案A 二级 64²:1
+    public static final Item COMPRESSED_PACK       = reg("compressed_pack",       new com.sdzjz.item.LegacyCompressedPackItem(new Item.Properties(), 64));   // m241 方案A 一级 64:1
+    public static final Item SUPER_COMPRESSED_PACK = reg("super_compressed_pack", new com.sdzjz.item.LegacyCompressedPackItem(new Item.Properties(), 4096)); // m241 方案A 二级 64²:1
     // m243 边框渲染件（压缩包动态图标的叠层素材）：只为客户端渲染注册模型/贴图，不进创造栏属设计
     public static final Item COMPRESSED_PACK_FRAME       = reg("compressed_pack_frame",       new Item(new Item.Properties()));
     public static final Item SUPER_COMPRESSED_PACK_FRAME = reg("super_compressed_pack_frame", new Item(new Item.Properties()));
