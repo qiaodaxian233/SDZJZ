@@ -1,0 +1,51 @@
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:50: error: cannot find symbol
+        var frameModel = ir.getModel(frame, mc.level, null, 0);
+                                            ^
+  symbol:   variable mc
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:50: error: cannot find symbol
+        var frameModel = ir.getModel(frame, mc.level, null, 0);
+                         ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:60: error: cannot find symbol
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
+                                                    ^
+  symbol:   variable mc
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:60: error: cannot find symbol
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
+                                 ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:66: error: cannot find symbol
+                ir.render(inner, mode, false, matrices, vcp, light, overlay, innerModel);
+                ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:71: error: cannot find symbol
+            ir.render(frame, mode, false, matrices, vcp, light, overlay, frameModel);
+            ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:86: error: cannot find symbol
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
+                                                    ^
+  symbol:   variable mc
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:86: error: cannot find symbol
+                var innerModel = ir.getModel(inner, mc.level, null, 0);
+                                 ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:92: error: cannot find symbol
+                ir.render(inner, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, innerModel);
+                ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+/home/runner/work/SDZJZ/SDZJZ/xplat/src/main/java/com/sdzjz/client/CompressedPackIcon.java:97: error: cannot find symbol
+            ir.render(frame, ItemDisplayContext.NONE, false, matrices, vcp, light, overlay, frameModel);
+            ^
+  symbol:   variable ir
+  location: class CompressedPackIcon
+错误条数: 10
