@@ -12,6 +12,7 @@ public final class FabricEntry implements ModInitializer {
         com.sdzjz.storage.Xfer.install(new com.sdzjz.loader.FabricXfer()); // m434 平台口安装
         com.sdzjz.loader.Env.install(new com.sdzjz.loader.FabricEnv()); // m435 平台口安装：必须早于 initConfigDir
         com.sdzjz.loader.Hooks.install(new com.sdzjz.loader.FabricHooks()); // m435 平台口安装
+        com.sdzjz.loader.Menus.install(new com.sdzjz.loader.FabricMenus()); // m532（F1b）菜单数据口：必须早于 Sdzjz.init（ModScreenHandlers 类初始化在里面）
 
         com.sdzjz.Sdzjz.init(); // 世代口安装 + 业务初始化（内含 ModBlockEntities.init，下行提供侧注册依赖它）
 

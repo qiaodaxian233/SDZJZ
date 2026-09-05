@@ -11336,3 +11336,18 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①"零加载器符号"的资产在 xplat（150 文件）是真的，但 `src/` 里 21 处 Fabric 触点有 9 处是**业务文件嵌着 Fabric 接口**——这才是三加载器的真门槛，F1b/F1c 专治；②Fabric 的"便利建器"（BE 类型/创造栏/BER 注册）多数是原版 API 的封装，换原版写法零成本还去了加载器绑定——m408 骨架当年若先做这一步，就不会被"只挂 common"卡住；③入口拆分后"世代口 vs 加载器口"的边界第一次在代码里成形：`Sdzjz.init()` 装世代口，`*Entry` 装加载器口。
 - **下一刀**：读 m531 CI → **F1b 菜单数据口**：`MenuData<D>` + `Hooks.openMenu` + `Hooks.menuType` 三口，先 grep 全部 `openMenu(` 调用点与四 BE/TerminalItem 的 `getScreenOpeningData`，Fabric 实现原句包一层；欠账 9→3。**开工先跑 22 闸。**
 
+## m532 F1b：菜单数据口——`MenuData<D>` + `Menus.type/open` 两口 + `FabricMenus`；四 BE / TerminalItem / ModScreenHandlers / 四调用点去 Fabric；`src/` 待拆欠账 9→3
+
+- **取活**：m531 CI 全绿 → 按作业表取 F1b。触点量清：四 BE（结构核心/数据面板/交易中心/数据线）`implements ExtendedScreenHandlerFactory<BlockPos>` + `getScreenOpeningData`；TerminalItem 远程面板匿名工厂（m303 remote=true 塞进构造链）；`ModScreenHandlers` 四处 `new ExtendedScreenHandlerType<>(Handler::new, BlockPos.STREAM_CODEC)`；开屏调用点四处在 xplat（StructureCoreBlock/DataPanelBlock/TradeCenterBlock/LinkerItem，都不在 1.20.1 白名单）。
+- **三口（Net/Xfer/Env/Hooks 同族样式）**：
+  ①`xplat/loader/MenuData<D> extends MenuProvider { D menuData(ServerPlayer) }`——Fabric `ExtendedScreenHandlerFactory` 与 NeoForge "openMenu(provider, buf 写入)" 的共同抽象：provider 只**给出**数据，怎么发由加载器管。
+  ②`xplat/loader/Menus`：`type(Factory<T,D>, StreamCodec)` 建类型、`open(Player, MenuProvider)` 开屏（provider 是 MenuData 则连数据发，否则等价 `player.openMenu`）；`install/req` 门面。**1.21 世代专用**（StreamCodec 1.20.5+），不上 1.20.1 白名单——1.20.1 世代壳自有菜单注册（RetroBlocks）。
+  ③`src/loader/FabricMenus`：`type` = 原 `new ExtendedScreenHandlerType<>(factory::create, codec)` 原句；`open` = 把 MenuData 包成 `ExtendedScreenHandlerFactory<D>` 匿名类（三方法原文=原四 BE 直接 implements 的那三方法）再 `player.openMenu`——Fabric 的 openMenu 认这个接口才发数据。泛型通配捕获用私有 `<D> openData` 收。
+- **改动（业务体零变化）**：四 BE `implements com.sdzjz.loader.MenuData<BlockPos>`、`getScreenOpeningData`→`menuData`（体不动）；TerminalItem 匿名类换接口名 + `Menus.open(player, …)`；ModScreenHandlers 四处 `Menus.type(Handler::new, BlockPos.STREAM_CODEC)`（无数据的两个仍原版 `new MenuType<>`）；xplat 四处 `player.openMenu(x)`→`Menus.open(player, x)`（SuperBenchBlock/PortableVaultItem 走 SimpleMenuProvider 的原版 openMenu 不动）；`FabricEntry` 装 Menus **早于 `Sdzjz.init()`**（ModScreenHandlers 类初始化在里面，没装=启动即抛，fail-fast 自带"装了没"）。
+- **第 13 闸账本**：`SRC_GLUE_OK` +FabricMenus（10）；`SRC_GLUE_PENDING` 删六行 → 剩 3（F1c StorageCore 传输提供侧 / F1d SatelliteNodeModel 模型插件 / F1d 判官）。
+- **验证**：两代冒烟零真错（十三个改动/新增文件单编零真错）；自家 7 新符号 0；22 闸全绿（0.1.532）。零协议零存档零配置零资源。**主线行为零变化**：Fabric 侧最终仍是 `ExtendedScreenHandlerType` + `ExtendedScreenHandlerFactory`，只是多包一层；开屏数据仍是 BlockPos。
+  **7 类盲区自查**：`ExtendedScreenHandlerType(ExtendedFactory<T,D>, StreamCodec<? super RegistryFriendlyByteBuf, D>)` 构造与 `factory::create` 形状 ✓；`Player.openMenu(MenuProvider)` ✓；`ServerPlayer` 在四 BE 的 menuData 形参保留 ✓。
+  **作者判据：主线 CI job 绿；实机四张带数据的屏（画布/面板/交易所/抽取口）+ 终端远程面板都能开。**
+- **教训**：①加载器口的边界要按"谁负责发数据"划：provider 给数据（业务）、发数据（加载器）——这么切 NeoForge 那边就是 `openMenu(provider, buf -> codec.encode(buf, md.menuData(sp)))` 一句；②一个口要不要上 1.20.1 白名单，看它引的 MC 类哪代有——`Menus` 因 StreamCodec 天然是 1.21 世代的，不硬凑两代。
+- **下一刀**：读 m532 CI → **F1c 存储传输适配器**：`StorageCoreBlockEntity implements Storage<ItemVariant>`（5 Fabric 符号，`fabricStorage()` 提供侧）→ 业务方法留 BE、Fabric 适配器进 src/loader、FabricEntry 注册；欠账 3→2。**开工先跑 22 闸。**
+

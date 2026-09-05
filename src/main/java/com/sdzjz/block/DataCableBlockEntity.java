@@ -21,7 +21,7 @@ import java.util.List;
  *  周期性把相连存储核心账本里的物品（按过滤，空=全部）塞进邻接的任意 Fabric Transfer API 存储。
  *  m226：兼作抽取口配置屏的开屏工厂（扳手右键 openHandledScreen，数据面板同款三方法）。 */
 public class DataCableBlockEntity extends BlockEntity
-        implements net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos> {
+        implements com.sdzjz.loader.MenuData<BlockPos> {
 
     // ===== m225 抽取口状态：m502（真移植 B4a）整段迁 com.sdzjz.storage.ExtractPort 两代共用
     // （extractOn/filter/rrCursor/opTargetsFull/coresScanTick/coresCache/pullMode 七件与
@@ -98,7 +98,8 @@ public class DataCableBlockEntity extends BlockEntity
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
+    public BlockPos menuData( // m532（F1b）：原 Fabric getScreenOpeningData，改实现加载器无关的 MenuData（Fabric 发数据由 FabricMenus 包一层）
+            net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
 

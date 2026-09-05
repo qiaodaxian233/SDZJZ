@@ -84,8 +84,8 @@ public class TerminalItem extends Item {
         }
         // m303 AccessMode：远程开屏不再直走 openHandledScreen(panel)（那会进 BE.createMenu=方块模式），
         // 自带工厂把 remote=true 塞进 handler 构造链；开屏数据仍发 BlockPos，客户端工厂零改动。
-        player.openMenu(new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory<BlockPos>() {
-            @Override public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer sp) { return panel.getBlockPos(); }
+        com.sdzjz.loader.Menus.open(player, new com.sdzjz.loader.MenuData<BlockPos>() { // m532（F1b）：原 Fabric ExtendedScreenHandlerFactory 匿名类，三方法原文
+            @Override public BlockPos menuData(net.minecraft.server.level.ServerPlayer sp) { return panel.getBlockPos(); }
             @Override public Component getDisplayName() { return panel.getDisplayName(); }
             @Override public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId, net.minecraft.world.entity.player.Inventory inv, Player p) {
                 return new com.sdzjz.screen.DataPanelScreenHandler(syncId, inv, panel, true);

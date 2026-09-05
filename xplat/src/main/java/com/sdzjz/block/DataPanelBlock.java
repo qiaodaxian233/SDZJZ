@@ -52,7 +52,7 @@ public class DataPanelBlock extends BaseEntityBlock {
         if (!world.isClientSide) {
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof DataPanelBlockEntity panel) {
-                player.openMenu(panel);
+                com.sdzjz.loader.Menus.open(player, panel); // m532（F1b）：带开屏数据的开屏走加载器口（Fabric=ExtendedScreenHandlerFactory 包一层）
             }
         }
         return InteractionResult.SUCCESS;

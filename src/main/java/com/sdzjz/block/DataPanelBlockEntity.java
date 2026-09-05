@@ -2,7 +2,6 @@ package com.sdzjz.block;
 
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.screen.DataPanelScreenHandler;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.entity.player.Player;
@@ -24,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /** 数据面板：存储终端（不自带存储）。经网络访问相连的存储核心，聚合显示/存取。 */
-public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, com.sdzjz.machine.StorageAccess {
+public class DataPanelBlockEntity extends BlockEntity implements com.sdzjz.loader.MenuData<BlockPos>, com.sdzjz.machine.StorageAccess {
 
     public static final int PAGE = 54;
     // m292：searchFilter/scrollRow/matchedIds/filteredCount/lastViewTick/display 全部迁 handler（每玩家独立）
@@ -254,7 +253,8 @@ public class DataPanelBlockEntity extends BlockEntity implements ExtendedScreenH
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
+    public BlockPos menuData( // m532（F1b）：原 Fabric getScreenOpeningData，改实现加载器无关的 MenuData（Fabric 发数据由 FabricMenus 包一层）
+            net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
 }

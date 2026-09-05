@@ -72,7 +72,7 @@ public class StructureCoreBlock extends BaseEntityBlock {
             core.ejectOne(player);
             return InteractionResult.SUCCESS;
         }
-        player.openMenu(core);
+        com.sdzjz.loader.Menus.open(player, core); // m532（F1b）：带开屏数据的开屏走加载器口（Fabric=ExtendedScreenHandlerFactory 包一层）
         return InteractionResult.SUCCESS;
     }
 

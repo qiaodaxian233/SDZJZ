@@ -41,7 +41,7 @@ public class TradeCenterBlock extends BaseEntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         if (world.isClientSide) return InteractionResult.SUCCESS;
         if (world.getBlockEntity(pos) instanceof TradeCenterBlockEntity be) {
-            player.openMenu(be);
+            com.sdzjz.loader.Menus.open(player, be); // m532（F1b）：带开屏数据的开屏走加载器口（Fabric=ExtendedScreenHandlerFactory 包一层）
         }
         return InteractionResult.SUCCESS;
     }

@@ -4,7 +4,6 @@ import com.sdzjz.config.SdzjzConfig;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.StructureCoreScreenHandler;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.entity.player.Player;
@@ -51,7 +50,7 @@ import org.jetbrains.annotations.Nullable;
  * 速度升级缩短周期、数量升级放大单次产量、并发升级提高同时运行的机器数；
  * 产物进输出缓存，尝试送入面板/存储/箱子；全都连不到时从顶面喷射掉落物（m114，节流 1 组/10t），缓存满则暂停。
  */
-public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos>, Container,
+public class StructureCoreBlockEntity extends BlockEntity implements com.sdzjz.loader.MenuData<BlockPos>, Container,
         com.sdzjz.node.RouteBrainProbe { // m481 路由域跨代契约探针（四口转发，纯加法）
 
     public static final int MACHINE_START = 0, MACHINE_SLOTS = 8;
@@ -3751,7 +3750,8 @@ public class StructureCoreBlockEntity extends BlockEntity implements ExtendedScr
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
+    public BlockPos menuData( // m532（F1b）：原 Fabric getScreenOpeningData，改实现加载器无关的 MenuData（Fabric 发数据由 FabricMenus 包一层）
+            net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
 

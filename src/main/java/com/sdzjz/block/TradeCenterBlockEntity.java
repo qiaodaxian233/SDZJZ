@@ -4,7 +4,6 @@ import com.sdzjz.machine.VillagerTrades;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModItems;
 import com.sdzjz.screen.TradeCenterScreenHandler;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.core.component.DataComponents;
@@ -28,7 +27,7 @@ import java.util.List;
  * 村民交易所：放入村民合同 → 就业（消耗工作方块）→ 执行交易（输入从相连存储核心取、输出存回）→ 治愈提折扣。
  * 合同数据存物品 CUSTOM_DATA：prof=职业id, disc=折扣等级(0..5)。
  */
-public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos> {
+public class TradeCenterBlockEntity extends BlockEntity implements com.sdzjz.loader.MenuData<BlockPos> {
 
     public final SimpleContainer contractSlot = new SimpleContainer(1) {
         @Override public void setChanged() { super.setChanged(); TradeCenterBlockEntity.this.setChanged(); }
@@ -298,7 +297,8 @@ public class TradeCenterBlockEntity extends BlockEntity implements ExtendedScree
     }
 
     @Override
-    public BlockPos getScreenOpeningData(net.minecraft.server.level.ServerPlayer player) {
+    public BlockPos menuData( // m532（F1b）：原 Fabric getScreenOpeningData，改实现加载器无关的 MenuData（Fabric 发数据由 FabricMenus 包一层）
+            net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
 }

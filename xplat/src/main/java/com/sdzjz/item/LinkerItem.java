@@ -64,7 +64,7 @@ public class LinkerItem extends Item {
                                 : Component.translatable("sdzjz.extract_port.off"), true);
                     }
                 } else { // 右键=抽取口配置界面
-                    player.openMenu(cable);
+                    com.sdzjz.loader.Menus.open(player, cable); // m532（F1b）：带开屏数据的开屏走加载器口（Fabric=ExtendedScreenHandlerFactory 包一层）
                 }
             }
             return InteractionResult.SUCCESS;
