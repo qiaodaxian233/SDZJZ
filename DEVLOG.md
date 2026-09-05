@@ -11240,3 +11240,20 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①离线脚本量出的数，在实机对表前只能写"约"，不能落成结论进三份文档；②配方表用常量别名（MM/W/CH…）是正则量表的盲区——量 Java 数据表要跑 Java（或让判官量），不要用正则；③白名单判官双向对表第一次跑就抓到自家两条过期——这套尺子成立了。
 - **下一刀**：读 m526b CI → 等阻塞区第一条拍板（A：SB6 注册 core_module，同刀改 `EXPECTED_REACHABLE` 与白名单/缺口表）；不拍回 A12；期间 D5 余四件头注。**开工先跑 21 闸。**
 
+## m527 SB6（作者拍板「按 1.21.1 的来，做成一样」）：`RetroItems` 非机器物品骨架 + `core_module` 六件套；1.20.1 `data/` 目录从零到有=主线机械转换（`tools_datapack_1201.py`，第 22 闸）；判官账本 0→56
+
+- **拍板**：m526 阻塞区第一条（1.20.1 配方可达 0/122）作者一句「按 1.21.1 的来，做成一样」——即 A（注册 core_module）+ 余下非机器件逐刀对位主线；12 条含 1.21 原版新料的配方**照旧**（本世代没那些物品，配方表两代同一份，不改表不替料，浏览器显示空气是事实）；抓物笼随 N 线。
+- **core_module（照主线原样）**：`RetroItems.CORE_MODULE = Registry.register(ITEM, id("core_module"), new Item(new Item.Properties()))`（主线 `ModItems.CORE_MODULE` 同句，`Item.Properties` 两代同签名）；`RetroBlocks.register()` 里 `RetroItems.register()` 在机器物品前、创造栏 `RetroItems.acceptAll(e)` 在机器循环前（主线 `ModItems.init` 顺序：核心模块第一件）；模型 `models/item/core_module.json`（立绘 generated，含 m319 credit 键）+ `textures/item/core_module.png`（186KB）逐字节同主线；lang 两键 `item.sdzjz.core_module`（zh 129/en 129 对齐）。**RetroItems 是骨架**：余 20 件按 N 线逐刀进同一文件。
+- **1.20.1 `data/` 从零到有（做成一样的另一半）**：本世代此前整个 data 目录没有——五方块无战利品表（挖了不掉）、无原版工作台配方、无 mineable 标签（挖掘慢/工具不对）。主线 34 个数据文件（24 配方 + 8 战利品表 + 2 标签）与 1.20.1 只有四处机械差：
+  ①目录 `recipe/→recipes/`、`loot_table/→loot_tables/`（1.20.5 起去复数）②配方 `result.id→result.item`（1.20.5 起改 id）③标签目录 `tags/block/→tags/blocks/`（1.21 去复数）④**本世代未注册的 id 整条跳过**（1.20.1 加载未知物品报 "Failed to parse recipe"）。
+  写成 `docs/tools_datapack_1201.py`：`--write` 从主线生成、默认校验模式逐文件比对（缺/多/异即红）、`--list` 预览；已注册 id = Machines 四建定口（`new MachineDef/def/defMulti/defConsume` 第一个字符串实参，**解析数≠MachineDef 字段数当场红**，m109 尺子自证）+ RetroBlocks `reg("…")` + RetroItems `id("…")`；原版拒绝表与判官 `KNOWN_GAP_INGREDIENTS` 同源（1.20.3+ 新增 10 种）。
+  **首次生成 19 文件**：5 战利品表（五方块）+ 12 配方（core_module/data_cable/data_panel/storage_core/structure_core/super_bench + 六逻辑节点）+ 2 标签（axe 含 super_bench；pickaxe 滚掉 wireless/satellite/trade_center 三未注册）；跳过 15 个逐条打印原因（结果件本世代无）。**篡改自证**：手改一字节→红点名文件→`--write` 复绿。
+  **第 22 闸**：ci.yml 加步、作业表一条命令加 `datapack_1201`（21→22）、步骤 7 文案；规矩：**1.20.1 `data/` 不许手写**，主线加配方/本世代注册新件后 `--write` 再 commit。
+- **判官账本滚动**：`KNOWN_GAP_RESULTS/INGREDIENTS` 各滚出 `sdzjz:core_module`；`EXPECTED_REACHABLE` 0→**56**（别名解析版离线脚本：42 bom + 3 bomPacked + 4 addSmall9 + 7 addSmall；不可达 66=44 刷怪类要笼 + 12 条 1.21 料 + 结果件未注册的小配方）——**以 CI 判官②实机对表为准**（m526b 教训：离线数写"账面"，CI 定；对不上按 CI 数改常量，不算血案）。判官③④首次真跑：`smallestReachable()`=data_panel（9 件，addSmall9 首条结果件已注册者）→ 铺料→出面板→PICKUP 扣料→填料钮守恒。
+- **验证**：两代冒烟零真错（retro 100→101，RetroItems/RetroBlocks/RetroBenchTests 单编零真错）；自家 3 新符号 0；22 闸全绿（0.1.527）；第 18 闸登记 `RetroItems.java` 世代壳；19 个 JSON 全过 json.load。零协议零存档零配置改动；**主线零改动**（生成器只读主线）。
+  **1.20.1 可见变化**：①创造栏第一格核心模块（立绘同主线）②原版工作台 铜×4+红石×4+石英 合核心模块（主线同配方）③五方块挖掉会掉自己、斧/镐 mineable 标签生效④超大工作台浏览器：56 条配方能填料合成（此前 0），点机器不再报缺核心模块×4。
+  **实机脚本**：①工作台合 core_module ②超大工作台搜"石头机"点填料→网格铺满→取成品→网格清空 ③挖存储核心掉存储核心 ④搜"自动合成机"：BOM 里 crafter 格仍空气（照旧，作者拍板）⑤搜"刷铁机"：报缺抓物笼（N 线）。
+  **作者判据：CI 1.20.1 job 绿（判官②账面 56 对不对由它定）。**
+- **教训**：①"做成一样"的另一半在 data 目录——m441~m526 三十几刀盯的全是 Java，五方块挖了不掉这种事没人报过；②数据包世代差是纯机械的，**转换器+漂移闸**比手拷稳（主线以后加配方本世代自动跟上）；③生成器自身要带尺子（MachineDef 解析数对表字段数），不然静默少文件。
+- **下一刀**：读 m527 CI（判官②账面 56 实机对表；③④首次真跑）→ **N1**：纯 Item 六件（四升级件+两包框）——先 grep 主线升级件消费方在本世代接了没，只注册不接行为要明说。**开工先跑 22 闸。**
+

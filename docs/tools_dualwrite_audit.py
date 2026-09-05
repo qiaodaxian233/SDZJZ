@@ -30,6 +30,7 @@ RETRO = "versions/1.20.1/src/main/java/com/sdzjz/retro"
     # ===== 世代壳：MC API 密集，两代形状本就不同，该各写一份（不算欠账）=====
     "RetroBlocks.java": (True, False, "方块与 BE 类型注册——注册 API 两代形状不同"),
     "RetroMachineItems.java": (True, False, "机器物品批量注册（反射 Machines 唯一数据源，零名单）"),
+    "RetroItems.java": (True, False, "m527（SB6）非机器物品注册骨架（第一件 core_module，主线 ModItems 逐件对位）——注册 API 世代壳"),
     "RetroBootstrap.java": (True, False, "加载器入口：装配各世代口"),
     "RetroClientBootstrap.java": (True, False, "客户端入口"),
     "Net120.java": (True, False, "网络通道注册（1.20.1 无 CustomPacketPayload）"),

@@ -55,6 +55,8 @@ jobs:
         run: python3 docs/tools_gen_api_check.py
       - name: 裸调用实参个数闸(m510,冒烟第六类盲区=含不可解析类型实参的调用 javac 不做适用性判定;m481 主线断 28 刀的形状)
         run: python3 docs/tools_arity_check.py
+      - name: 1.20.1 数据包闸(m527,1.20.1 data/ 只能由主线 data/ 机械转换生成;目录名/结果键/标签单复数四处世代差,手写或漂移即红)
+        run: python3 docs/tools_datapack_1201.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；

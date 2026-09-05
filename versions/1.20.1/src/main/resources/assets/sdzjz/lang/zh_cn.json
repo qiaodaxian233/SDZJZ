@@ -123,6 +123,7 @@
   "sdzjz.machine.wip": "画布机器——画布系统移植中（P-C2），当前为收藏品",
   "block.sdzjz.structure_core": "结构核心",
   "block.sdzjz.super_bench": "超大工作台",
+  "item.sdzjz.core_module": "核心模块",
   "sdzjz.canvas.nodes": "节点 %s",
   "sdzjz.canvas.hint": "拖=移动 · 右键=摘回 · 连线钮=机↔机；机→仓循环 产出/供料/断",
   "sdzjz.canvas.settings": "设置",

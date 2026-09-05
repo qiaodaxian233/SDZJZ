@@ -178,6 +178,7 @@ public final class RetroBlocks {
                         .icon(() -> new net.minecraft.world.item.ItemStack(STORAGE_CORE))
                         .title(net.minecraft.network.chat.Component.translatable("itemGroup.sdzjz.main"))
                         .build());
+        RetroItems.register(); // m527（SB6）：非机器物品骨架，第一件 core_module（作者拍板按 1.21.1 做成一样）
         RetroMachineItems.registerAll(); // m453：101 台机器物品（Machines 唯一数据源反射枚举，id 序）
         ItemGroupEvents.modifyEntriesEvent(groupKey).register(e -> {
             e.accept(STORAGE_CORE);
@@ -185,6 +186,7 @@ public final class RetroBlocks {
             e.accept(DATA_PANEL);
             e.accept(STRUCTURE_CORE); // m454
             e.accept(SUPER_BENCH); // m524（SB3）
+            RetroItems.acceptAll(e); // m527：核心模块排机器前（主线 ModItems.init 同序）
             for (net.minecraft.world.item.Item machine : RetroMachineItems.items()) e.accept(machine); // m453
         });
     }

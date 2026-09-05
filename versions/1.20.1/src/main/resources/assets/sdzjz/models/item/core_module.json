@@ -1,0 +1,1 @@
+{ "parent": "item/generated", "textures": { "layer0": "sdzjz:item/core_module" }, "credit": "m319 作者点名换回原图立绘（Blockbench 元素模型退役，历史在 git：m313 前 core_module.json）" }
