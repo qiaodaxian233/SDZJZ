@@ -11288,3 +11288,12 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：①第 20 闸候选量出的"专属 API"里可能一半是死 import——先删再量，别为死 import 开世代口；②"覆写签名两代不同"的形状（appendHoverText）用**abstract 基类 + 壳一句转调**收，比在 xplat 里开口干净；③渲染件也能按"加载器接口留壳、体下沉"切——F 线三加载器的壳都可以这么长。
 - **下一刀**：读 m529 CI → **N2b 抓物笼**：`ItemData` 加 `setCustomName` 口、`CaptureCageItem` 同 N2a 手法两代化、`UseEntityCallback` 挂 RetroBootstrap、Host `cagedType` 接原句、判官②账面 60→104 由 CI 定 → 然后 **F1 NeoForge 1.21.1 壳挂 xplat**。**开工先跑 22 闸。**
 
+## m529b 热修（m529 CI 三 job 红）：`CompressedPackIcon` 切片少切两行声明（`mc`/`ir`）—— 第八类冒烟盲区：找不到局部变量被"缺依赖噪音"吞掉，且无法靠筛选器判据兜
+
+- **现象**：m529 推完主线编译/主线 GameTest/1.20.1 三 job 齐红，`ci-mojmap-errors`/`ci-retro-errors` 同一条：`CompressedPackIcon.java:50/60/66/71 cannot find symbol: variable mc / variable ir`。
+- **根因**：渲染体下沉时按**手打行号**切片（`src[43:101]`），原方法第 42-43 行 `Minecraft mc = Minecraft.getInstance(); ItemRenderer ir = mc.getItemRenderer();` 落在段外。冒烟两代都绿——`cannot find symbol` 整类被记为缺 MC jar 噪音，我的定向 grep 只查了自家**新符号**，没查"丢了的局部变量"。
+- **修法**：补回两行。**筛选器加判据两次都失败（回滚）**：①`symbol: variable X` 全判真错→缺 MC jar 时 `Items.COBBLESTONE` 这类限定名也报成 `variable Items`，噪音 1733 条；②收窄到小写名→`Screen` 子类继承字段 `font/leftPos/width` 在父类解析不了时同样报 `variable font`，噪音 553 条。**结论：没有 MC jar，"找不到变量"与"找不到继承字段"在 javac 输出里不可区分，这一类不能靠筛选器**（m109：坏尺子不如没尺子，改动回滚）。
+- **改用手法约束 + 一次性结构尺**：①**切片一律"从方法签名切到配平的闭括号"整段搬**（生成脚本按签名定位+括号计数取段，不按行号——m529 SuperBenchView 的生成器就是按行号，只是没漏）；②切完对新文件跑一次"用到的小写标识符是否都有声明"结构自证（正则级，只对切片产物跑，不进闸）：m529 原文重放→列出 `mc/ir`，修后→无。写进作业表 5c。
+- **验证**：两代冒烟零真错（基线）；22 闸全绿；版本仍 0.1.529（热修不抬）。**作者判据：CI 三 job 转绿。**
+- **教训**：①m123/m180"自家类定向 grep"只兜类名，兜不住局部变量——切片手法本身要防漏（整方法搬）；②给冒烟加判据前先在全量上跑一遍看底噪，别只看单文件；③这次是**主线也红**——F 线以后一份 xplat 三个壳编，切片漏行会三处齐红，手法约束比事后补尺更值。
+

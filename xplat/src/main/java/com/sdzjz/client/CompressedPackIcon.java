@@ -43,6 +43,8 @@ public final class CompressedPackIcon {
 
     public void render(ItemStack stack, ItemDisplayContext mode, PoseStack matrices,
                        MultiBufferSource vcp, int light, int overlay) {
+        Minecraft mc = Minecraft.getInstance();
+        ItemRenderer ir = mc.getItemRenderer();
         matrices.pushPose();
         matrices.translate(0.5F, 0.5F, 0.5F); // 外层已 -0.5，先回中心原点再嵌套（见类注坐标账）
 
