@@ -435,7 +435,7 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
                 continue;
             }
             if (def.outputs().isEmpty()) {
-                be.stat(i, 2, "配方/特种机型随 C2-⑤ 后续分片到序（本世代暂只跑数据驱动生成类）");
+                be.stat(i, 2, "当前版本尚未支持该机器（配方/特种机型）"); // m533：运行时文案用玩家语言，开发分片编号留注释：随 C2-⑤（C4/C5）到序
                 continue;
             }
             StorageCore120 dep = be.depositTarget(world, i);
@@ -495,7 +495,7 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
                 produced = true;
             }
             if (produced) be.stat(i, 1, "");
-            else if (skippedComponent) be.stat(i, 2, "组件产物机型随 C2-⑤d（精确账本对接）到序");
+            else if (skippedComponent) be.stat(i, 2, "当前版本尚未支持带附加数据的产物（如山羊角）"); // m533：玩家语言；原「随 C2-⑤d（精确账本对接）到序」
         }
     }
 

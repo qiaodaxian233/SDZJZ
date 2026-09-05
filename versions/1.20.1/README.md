@@ -1,6 +1,14 @@
 # versions/1.20.1 —— 旧世代（Retro）bootstrap 构建
 
 独立 Gradle 构建（Gradle 8.10 wrapper，与根仓同线），工具链=经典 fabric-loom 1.7.4 + mojmap +
-release 17。现阶段=骨架+Common 真编译+在岗日志，无玩法。P-B 第二段起移植：存储网络域 →
-Xfer120/TagItemData/Net120 对位实现 → **Create 传送带↔数据线互通（本格验收线，作者承诺项）**。
-坐标出处见 gradle.properties 头注释（web 实查非记忆）。本机跑法：`gradlew build`（Gradle JVM≥17）。
+release 17。坐标出处见 gradle.properties 头注释（web 实查非记忆）。本机跑法：`gradlew build`（Gradle JVM≥17）。
+
+**现状（m533 起以 `docs/版本能力表.md` 第 2 节为准，本段只是摘要）**：五方块（结构核心/存储核心/数据面板/数据线/
+超大工作台）+ 三屏（画布/数据面板/超大工作台）+ 生产主链（数据驱动生成类/耗料类/逻辑节点六族/直连路由/链式拉料/
+熔炉族）+ 存储网络（账本与主线同一份代码）+ 压缩包/抓物笼；配方可解析 100/122（判官②，只证 id 可解析）。
+**尚缺**：自动合成（C4）、升级安装（U1/U2）、经验池（C3）、酿造/附魔（C2b/C5）、特种机型（C5）、11 件非机器物品与
+交易所/无线/卫星三方块（N3-a/b/c）、命令/JEI/mixin。**Create 传送带↔数据线互通（作者承诺项）**：FTA 直连代码在
+（`RetroXfer`，m502），锁定版本组合的实测记录还没有（作业表 K1）。
+
+源集=`common/` + `xplat/` 白名单子集（`build.gradle` 现读，第 20 闸先候选再上挂）+ 本目录 `src/`；
+数据包由 `docs/tools_datapack_1201.py` 从主线机械生成（第 22 闸防漂移，不手写）。

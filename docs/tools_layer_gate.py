@@ -103,6 +103,45 @@ def main():
     print('    src/ Fabric 胶水：白名单 %d 文件 ✓；待拆欠账 %d 文件（F1b/F1c/F1d）：' % (ok_hit, len(pend_hit)))
     for r, why in pend_hit:
         print('        %-50s %s' % (r, why))
+    # m533 ③ **xplat→src 依赖闭包**（评估报告 P0-①，F1-0）：xplat 显式 import 的根 src 类逐个对胶水名单——
+    # F1d 要把 `src/`（排除胶水）与 xplat 一起整挂 NeoForge，所以 xplat 引 src **业务类**不是问题，
+    # 引 **胶水**（SRC_GLUE_OK）就是把加载器绑回共用层 → 红；引 **待拆**（SRC_GLUE_PENDING）报数，F1c 收官应归零。
+    # 判据：剥注释后抓 `import com.sdzjz.…;`，按段逐级缩短匹配 src 顶层类（能吃静态导入/内部类）。
+    src_classes = {}
+    for dp, _dirs, fs in os.walk(sbase):
+        for f in fs:
+            if f.endswith('.java'):
+                rel = os.path.relpath(os.path.join(dp, f), sbase).replace(os.sep, '/')
+                src_classes[rel[:-5].replace('/', '.')] = rel
+    closure, glue_bad, glue_pend = {}, [], {}
+    for dp, _dirs, fs in os.walk(base):
+        for f in fs:
+            if not f.endswith('.java'):
+                continue
+            p = os.path.join(dp, f)
+            body = strip_comments(open(p, encoding='utf-8').read())
+            xrel = os.path.relpath(p, base).replace(os.sep, '/')
+            for m in re.finditer(r'^\s*import\s+(?:static\s+)?(com\.sdzjz\.[\w.]+)\s*;', body, re.M):
+                parts = m.group(1).split('.')
+                for k in range(len(parts), 1, -1):
+                    cand = '.'.join(parts[:k])
+                    if cand in src_classes:
+                        closure.setdefault(cand, set()).add(xrel)
+                        srel = src_classes[cand]
+                        if srel in SRC_GLUE_OK:
+                            glue_bad.append((xrel, cand))
+                        elif srel in SRC_GLUE_PENDING:
+                            glue_pend.setdefault(cand, set()).add(xrel)
+                        break
+    if glue_bad:
+        print('分层硬闸 ✗ xplat 引用了 src 的加载器胶水（%d 处）——共用层不许绑加载器入口，改走 xplat 口/宿主接口：' % len(glue_bad))
+        for x, c in glue_bad[:20]:
+            print('    %-52s -> %s' % (x, c))
+        return 1
+    files_in_closure = set().union(*closure.values()) if closure else set()
+    print('    xplat→src 依赖闭包：%d 文件引 %d 个 src 类（零胶水 ✓）；其中引待拆件 %d 类：%s'
+          % (len(files_in_closure), len(closure), len(glue_pend),
+             ', '.join('%s←%d文件' % (c.rsplit('.', 1)[-1], len(fs)) for c, fs in sorted(glue_pend.items())) or '无'))
     print('    待接口化（引用加载器层漏斗类，报告不红）：%d 文件' % len(pending))
     # m437 记分牌：ItemData 收口进度（P-A 刀，报告不红）——直摸组件 API 的残余触点，改一处销一处
     import glob
