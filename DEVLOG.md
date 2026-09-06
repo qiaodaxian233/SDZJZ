@@ -11426,3 +11426,10 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：Fabric 的「加载期替换模型」和 NeoForge 的「烘后替换模型」是同一件事的两个时刻——把模型本体写成原版 `UnbakedModel`（两家都能 bake）之后，两边壳各自只剩「什么时候、替哪个键」那几行；世代口不必抽接口，**共用的是本体、各家写的是时刻**。
 - **下一刀**：读 m537 CI → 红修；绿开 **F1d-3 提供侧能力 + 判官**（`NeoForgeStorageAdapter implements IItemHandler` 账本有界槽位视图 + `RegisterCapabilitiesEvent.registerBlockEntity`；主线判官 `@GameTestHolder` 壳销待拆最后一件；CI job 升 GameTest）。**开工先跑 22 闸。**
 
+## m537b 热修：m537 CI NeoForge job 红一条——`RegisterClientExtensionsEvent` 住 `net.neoforged.neoforge.client.extensions.common`（与 `IClientItemExtensions` 同包），不住 `client.event`
+
+- **读 CI**：错误清单 6 条=同一符号三遍（import + 形参）；其余全过——`ModelEvent.ModifyBakingResult.getTextureGetter()` 21.1 **有**（m537 唯一核不到项销账）、`ModelResourceLocation(ResourceLocation, String)`、`IClientItemExtensions` 路径、`BlockEntityWithoutLevelRenderer` 两参构造均编过。
+- **修**：import 一行换包（javadoc 核过：`registerItem(IClientItemExtensions, Item...)` 形参顺序与本刀写法一致）。排刀稿对照表该行同改。版本仍 0.1.537。
+- **教训**：NeoForge 把「事件」按主题分包（`client.event` 放渲染/输入/注册屏，`client.extensions.common` 放扩展注册事件）——查 javadoc 时先看"所在包"再抄名字，别按"它是事件所以在 event 包"推。
+- **下一刀**：读 m537b CI → 绿开 F1d-3。**开工先跑 22 闸。**
+

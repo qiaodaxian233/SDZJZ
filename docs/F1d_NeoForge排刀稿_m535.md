@@ -19,7 +19,7 @@
 | Env 两口 | `FabricLoader.getInstance().isModLoaded/getConfigDir` | `ModList.get().isLoaded` / `FMLPaths.CONFIGDIR.get()` | — |
 | Xfer 消费侧五口 | `ItemStorage.SIDED.find` + `Storage<ItemVariant>`（事务） | `level.getCapability(Capabilities.ItemHandler.BLOCK, pos, side)` + `IItemHandler`（simulate 布尔）；`ItemHandlerHelper.insertItem` | [capabilities](https://docs.neoforged.net/docs/1.21.1/inventories/capabilities/) |
 | 提供侧（存储核心暴露账本） | `ItemStorage.SIDED.registerForBlockEntity(..., FabricStorageAdapter.of)` | `RegisterCapabilitiesEvent.registerBlockEntity(Capabilities.ItemHandler.BLOCK, STORAGE_CORE_BE, (be, side) -> be.transferAdapter(() -> new NeoForgeStorageAdapter(be)))`——需要账本的**有界槽位视图** | 同上；F1d-3 |
-| 客户端 | `MenuScreens.register` / `BlockEntityRenderers.register` 直调；`ModelLoadingPlugin`；`BuiltinItemRendererRegistry` | `RegisterMenuScreensEvent` / `EntityRenderersEvent.RegisterRenderers`；`ModelEvent.ModifyBakingResult`/`RegisterAdditional`；`IClientItemExtensions`（`RegisterClientExtensionsEvent`）——**F1d-2 开工前逐个对文档核名** | F1d-2 |
+| 客户端 | `MenuScreens.register` / `BlockEntityRenderers.register` 直调；`ModelLoadingPlugin`；`BuiltinItemRendererRegistry` | `RegisterMenuScreensEvent` / `EntityRenderersEvent.RegisterRenderers`；`ModelEvent.ModifyBakingResult`/`RegisterAdditional`；`IClientItemExtensions`（`RegisterClientExtensionsEvent`，**包=`client.extensions.common` 不是 `client.event`**，m537b CI 纠正）——**F1d-2 开工前逐个对文档核名** | F1d-2 ✅ m536/m537 |
 | 判官 | `FabricGameTest` | `@GameTestHolder` + `@PrefixGameTestTemplate(false)`（`RegisterGameTestsEvent`） | F1d-3 |
 
 ## 二、注册时机（报告 P0 的生命周期检查点，m535 落地）
