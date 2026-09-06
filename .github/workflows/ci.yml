@@ -57,7 +57,7 @@ jobs:
         run: python3 docs/tools_arity_check.py
       - name: 1.20.1 数据包闸(m527,1.20.1 data/ 只能由主线 data/ 机械转换生成;目录名/结果键/标签单复数四处世代差,手写或漂移即红)
         run: python3 docs/tools_datapack_1201.py
-      - name: 像素风资源包闸(m538,resourcepacks/pixel 只能由 docs/tools_pixelate.py 从默认高清贴图生成;贴图换皮忘重跑即红)
+      - name: 贴图两档闸(m538/m540,默认贴图与 1.20.1 同名件只能由 docs/tools_pixelate.py 从 resourcepacks/hd 高清原图生成;默认目录出现高清尺寸或漂移即红)
         run: pip install --quiet pillow && python3 docs/tools_pixelate.py
 
   gametest:

@@ -47,7 +47,7 @@ public final class ClientHooks {
         <T extends net.minecraft.world.level.block.entity.BlockEntity>
         void registerBlockEntityRenderer(net.minecraft.world.level.block.entity.BlockEntityType<? extends T> type,
                                          net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider);
-        /** m538 第七口：注册 jar 内置资源包（目录 {@code resourcepacks/<packPath>/}，两加载器同一目录约定），玩家在「资源包」里可选、默认关。
+        /** m538 第七口：注册 jar 内置资源包（目录 {@code resourcepacks/<packPath>/}，两加载器同一目录约定），玩家在「资源包」里可选、默认关（m540 起装的是「高清立绘」，默认贴图为像素版）。
          *  Fabric={@code ResourceManagerHelper.registerBuiltinResourcePack(NORMAL)}；NeoForge=缓冲到 {@code AddPackFindersEvent}。 */
         void registerBuiltinResourcePack(String packPath, String displayName);
     }

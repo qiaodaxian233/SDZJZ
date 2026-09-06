@@ -85,6 +85,9 @@ Subject: <描述>
 - super_bench: ornate dark machine block face, glowing purple-gold core
 - data_panel: dark terminal block face, glowing cyan holographic data grid
 
-## m538 像素风内置资源包
+## 贴图两档（m538 立 / m540 作者拍板对调：默认低分辨率、高清可选）
 
-默认贴图仍是高清原图（物品 128×、方块 64×）。`docs/tools_pixelate.py --write` 从它们机械生成 `src/main/resources/resourcepacks/pixel/`（物品 32×/方块 16×，40 色，动画逐帧），游戏内「资源包」可选。**换皮后必须重跑 `--write`**（第 23 闸校验漂移）。参数（尺寸/色数/锐化）在脚本头部常量。
+- **高清原图（作者画的）住 `src/main/resources/resourcepacks/hd/assets/sdzjz/textures/{item,block}/`**——它就是游戏里可选的资源包「生电终结者 · 高清立绘」。
+- **默认贴图 `src/main/resources/assets/sdzjz/textures/{item,block}/` 是像素版**（物品 32× / 方块 16×，40 色，动画逐帧），由 `python3 docs/tools_pixelate.py --write` 从 hd 生成；1.20.1 的同名件同刀镜像（两代逐字节同源）。
+- **换皮老习惯照旧**：高清 png 丢进 `assets/sdzjz/textures/item/`，跑一次 `--write`——脚本会把它收编进 hd 再生成像素版。忘了跑=第 23 闸红并打印这条命令。
+- 参数（尺寸/色数/锐化）在脚本头部常量；GUI 贴图不走此流程。1.20.1 暂无高清包（pack_format 15，待拍）。

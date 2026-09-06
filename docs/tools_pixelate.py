@@ -1,29 +1,48 @@
 #!/usr/bin/env python3
-"""m538 像素风内置资源包生成器（作者视频评论：贴图太高清/和原版差太多/有些跳脱）。
+"""m540 贴图两档（作者拍板：**默认低分辨率、高清可选**）——本脚本是唯一数据流：
 
-    python3 docs/tools_pixelate.py --write   # 从 assets/sdzjz/textures/{item,block} 生成 src/main/resources/resourcepacks/pixel/
-    python3 docs/tools_pixelate.py           # 校验模式（第 23 闸）：重生成到内存与已提交产物逐字节对比，漂移即红
+    高清原图（作者画的）住 src/main/resources/resourcepacks/hd/assets/sdzjz/textures/{item,block}/   ← 「高清立绘」可选资源包
+        │  python3 docs/tools_pixelate.py --write
+        ▼
+    默认贴图 src/main/resources/assets/sdzjz/textures/{item,block}/                                    ← 像素版（物品 32× / 方块 16×）
+    1.20.1   versions/1.20.1/src/main/resources/assets/sdzjz/textures/{item,block}/（只写它已有的同名件）  ← 与主线逐字节同源
 
-**不动作者原图**：高清件（物品 128×、方块 64×）留在默认资源里；本脚本产出一份像素风覆盖包，玩家在「资源包」里一键切。
-工艺（m538 目检定案，三工艺对照见 DEVLOG）：物品 128→**32**（原版 16× 糊成一团认不出复杂机器，32× 能认且像素味足，只差原版 2 倍）；
-方块 64→**16**（原版方块尺寸）；LANCZOS 降采样 + 轻锐化（UnsharpMask r1/60%/t2）+ 中位切分 40 色量化（无抖动）+ alpha 硬阈值 128；
-动画帧条（h = 帧数×w，见 .png.mcmeta）**逐帧处理再叠回**，防锐化跨帧串色；.mcmeta 原样拷（帧时/插值不变）。
-最小边已 ≤ 目标尺寸的贴图不进包（含 160×16 宽条、已 16× 的件；包只覆盖它含有的文件）；非动画件保持长宽比。GUI 贴图不动（不是评论说的对象）。
-产出确定性：Pillow 同版本同参数逐字节一致（--check 依赖这点；CI 与本地 Pillow 版本不同导致假红时，以 --write 重生成后的 diff 为准）。
+    python3 docs/tools_pixelate.py           # 校验模式（第 23 闸）：默认目录/1.20.1 与「由 hd 重生成」逐字节对比；默认目录里出现高清尺寸的图也红
+    python3 docs/tools_pixelate.py --write   # 先收编：默认目录里最小边 > 目标尺寸的 png（作者按老习惯丢进来的新高清图）连 .mcmeta 一起搬进 hd；再全量生成
+
+**作者老工作流不变**：高清 png 照旧丢进 assets/sdzjz/textures/item/，跑一次 --write 即可（忘了跑=第 23 闸红并给出这条命令）。
+工艺（m538 目检定案）：物品 128→32（16× 认不出复杂机器）、方块 64→16；LANCZOS + 轻锐化（UnsharpMask r1/60%/t2）+ 中位切分 40 色无抖动 + alpha 硬阈值 128；
+动画帧条（有 .mcmeta 且 h=帧数×w）逐帧处理再叠回；非动画保持长宽比；hd 里最小边已 ≤ 目标尺寸的件原样拷（不是所有件都需要缩）。
+GUI 贴图不在此流程。Pillow 同版本同参数产出逐字节确定（CI 装 pillow 校验）。
 """
-import argparse, io, json, os, pathlib, sys
+import argparse, io, json, pathlib, shutil, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC = ROOT / 'src/main/resources/assets/sdzjz/textures'
-OUT = ROOT / 'src/main/resources/resourcepacks/pixel'
-PACK_ID = 'pixel'
+HD = ROOT / 'src/main/resources/resourcepacks/hd'
+HD_TEX = HD / 'assets/sdzjz/textures'
+MAIN_TEX = ROOT / 'src/main/resources/assets/sdzjz/textures'
+RETRO_TEX = ROOT / 'versions/1.20.1/src/main/resources/assets/sdzjz/textures'
 TARGET = {'item': 32, 'block': 16}
 COLORS = 40
-PACK_MCMETA = {"pack": {"pack_format": 34, "description": "生电终结者 · 像素风（物品 32× / 方块 16×，贴近原版尺寸；由 docs/tools_pixelate.py 从默认高清贴图生成）"}}
+PACK_MCMETA = {"pack": {"pack_format": 34, "description": "生电终结者 · 高清立绘（作者原图：物品 128× / 方块 64×）。默认贴图是它的像素版（docs/tools_pixelate.py 生成）"}}
+
+
+def png_size(p):
+    import struct
+    with open(p, 'rb') as f:
+        h = f.read(24)
+    return struct.unpack('>II', h[16:24]) if h[:8] == b'\x89PNG\r\n\x1a\n' else (0, 0)
+
+
+def is_hd(p, size):
+    w, h = png_size(p)
+    meta = p.with_name(p.name + '.mcmeta')
+    animated = meta.exists() and w and h % w == 0 and h > w
+    frame_h = w if animated else h
+    return min(w, frame_h) > size
 
 
 def pixelate(im, size, colors, animated):
-    """animated=有 .mcmeta 且 h 是 w 的整数倍：按 w×w 逐帧处理再叠回；否则单帧、保持长宽比（宽条/图集不压扁）。"""
     from PIL import Image, ImageFilter
     im = im.convert('RGBA')
     w, h = im.size
@@ -41,69 +60,97 @@ def pixelate(im, size, colors, animated):
     return out
 
 
-def render_all():
-    """返回 {相对路径: bytes}（含 pack.mcmeta 与各 .png/.png.mcmeta），不写盘。"""
+def render_defaults():
+    """从 hd 渲染默认贴图：返回 {'item/x.png': bytes, 'item/x.png.mcmeta': bytes, ...}（不写盘）。"""
     from PIL import Image
-    files = {'pack.mcmeta': (json.dumps(PACK_MCMETA, ensure_ascii=False, indent=2) + '\n').encode('utf-8')}
+    files = {}
     for sub, size in TARGET.items():
-        d = SRC / sub
+        d = HD_TEX / sub
+        if not d.exists():
+            continue
         for p in sorted(d.glob('*.png')):
-            im = Image.open(p)
-            w, h = im.size
             meta = p.with_name(p.name + '.mcmeta')
-            animated = meta.exists() and h % w == 0 and h > w
-            frame_h = w if animated else h
-            if min(w, frame_h) <= size:
-                continue  # 已经是像素尺寸（含 160×16 这类宽条/已 16× 的件），不覆盖
-            buf = io.BytesIO()
-            pixelate(im, size, COLORS, animated).save(buf, format='PNG', optimize=True)
-            rel = f'assets/sdzjz/textures/{sub}/{p.name}'
-            files[rel] = buf.getvalue()
+            rel = f'{sub}/{p.name}'
+            if is_hd(p, size):
+                buf = io.BytesIO()
+                pixelate(Image.open(p), size, COLORS, meta.exists()).save(buf, format='PNG', optimize=True)
+                files[rel] = buf.getvalue()
+            else:
+                files[rel] = p.read_bytes()  # 已是像素尺寸的件原样进默认
             if meta.exists():
                 files[rel + '.mcmeta'] = meta.read_bytes()
     return files
 
 
+def adopt():
+    """默认目录里的高清尺寸 png（连 .mcmeta）搬进 hd（覆盖）。返回搬了几张。"""
+    n = 0
+    for sub, size in TARGET.items():
+        d = MAIN_TEX / sub
+        if not d.exists():
+            continue
+        for p in sorted(d.glob('*.png')):
+            if is_hd(p, size):
+                dst = HD_TEX / sub / p.name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), str(dst))
+                meta = p.with_name(p.name + '.mcmeta')
+                if meta.exists():
+                    shutil.copy2(str(meta), str(dst.with_name(dst.name + '.mcmeta')))
+                n += 1
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--write', action='store_true', help='写盘生成/更新资源包')
+    ap.add_argument('--write', action='store_true', help='收编默认目录里的高清图 → 重生成默认贴图与 1.20.1 同名件 → 写 hd 的 pack.mcmeta')
     a = ap.parse_args()
     try:
         import PIL  # noqa: F401
     except ImportError:
-        print('像素风资源包 ✗ 缺 Pillow（pip install pillow）')
+        print('贴图两档 ✗ 缺 Pillow（pip install pillow）')
         return 1
-    files = render_all()
+    pack_bytes = (json.dumps(PACK_MCMETA, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
     if a.write:
-        if OUT.exists():
-            for old in OUT.rglob('*'):
-                if old.is_file():
-                    old.unlink()
+        moved = adopt()
+        files = render_defaults()
         for rel, data in files.items():
-            dst = OUT / rel
+            dst = MAIN_TEX / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_bytes(data)
+            rp = RETRO_TEX / rel
+            if rp.exists() or (rel.endswith('.mcmeta') and (RETRO_TEX / rel[:-7]).exists()):
+                rp.write_bytes(data)  # 1.20.1 只镜像它已有的同名件（含其动画 meta）
+        (HD / 'pack.mcmeta').parent.mkdir(parents=True, exist_ok=True)
+        (HD / 'pack.mcmeta').write_bytes(pack_bytes)
         n_png = sum(1 for r in files if r.endswith('.png'))
-        print(f'像素风资源包 ✓ 写盘 {n_png} 张贴图 + {len(files) - n_png - 1} 个 .mcmeta → {OUT.relative_to(ROOT)}')
+        print(f'贴图两档 ✓ 收编 {moved} 张高清图进 hd；默认目录重生成 {n_png} 张（物品→{TARGET["item"]}× / 方块→{TARGET["block"]}×，{COLORS} 色）；1.20.1 同名件已镜像')
         return 0
-    # 校验模式
+    # 校验模式（第 23 闸）
     bad = []
-    committed = {str(p.relative_to(OUT)).replace(os.sep, '/'): p.read_bytes() for p in OUT.rglob('*') if p.is_file()} if OUT.exists() else {}
+    for sub, size in TARGET.items():
+        for p in sorted((MAIN_TEX / sub).glob('*.png')):
+            if is_hd(p, size):
+                bad.append(f'默认目录出现高清尺寸 {sub}/{p.name}（高清图归 resourcepacks/hd，默认目录只放像素版）')
+    files = render_defaults()
     for rel, data in files.items():
-        if rel not in committed:
-            bad.append(f'缺产物 {rel}')
-        elif committed[rel] != data:
-            bad.append(f'漂移 {rel}')
-    for rel in committed:
-        if rel not in files:
-            bad.append(f'多余 {rel}（源贴图已删或已 ≤ 目标尺寸）')
+        mp = MAIN_TEX / rel
+        if not mp.exists():
+            bad.append(f'默认缺 {rel}')
+        elif mp.read_bytes() != data:
+            bad.append(f'默认漂移 {rel}')
+        rp = RETRO_TEX / rel
+        if rp.exists() and rp.read_bytes() != data:
+            bad.append(f'1.20.1 漂移 {rel}')
+    if not (HD / 'pack.mcmeta').exists() or (HD / 'pack.mcmeta').read_bytes() != pack_bytes:
+        bad.append('hd/pack.mcmeta 缺失或漂移')
     if bad:
-        print(f'像素风资源包 ✗ {len(bad)} 处与源贴图不一致——贴图换皮后跑 `python3 docs/tools_pixelate.py --write` 再提交：')
+        print(f'贴图两档 ✗ {len(bad)} 处——跑 `python3 docs/tools_pixelate.py --write` 后提交：')
         for b in bad[:20]:
             print('    ' + b)
         return 1
     n_png = sum(1 for r in files if r.endswith('.png'))
-    print(f'像素风资源包 ✓ {n_png} 张贴图与源一致（物品→{TARGET["item"]}× / 方块→{TARGET["block"]}×，{COLORS} 色）')
+    print(f'贴图两档 ✓ 默认 {n_png} 张与 hd 同源（物品→{TARGET["item"]}× / 方块→{TARGET["block"]}×）；1.20.1 同名件一致；默认目录无高清尺寸残留')
     return 0
 
 
