@@ -1,9 +1,9 @@
 // m408 NeoForge 1.21.1 骨架（作者问"别的版本框架在哪"）——**第二个加载器的第一块地基**。
-//
-// 现阶段挂载范围刻意只有 Core：`common/`（零 MC 依赖，tools_common_gate 硬闸保证）在任何加载器、
-// 任何 MC 世代都能编——这正是三层架构最值钱的地方，本构建就是它的第一次跨加载器实证。
-// **xplat 业务层暂不挂**：它写的是 Yarn 映射名，而 NeoForge 用 Mojang 官方名，
-// 同一份源码两边编不过（详见 DEVLOG m408 的"映射分歧"一节，这是全局拍板项）。
+// m535（F1d-1）起**整挂三源集**：`common/`（零 MC）+ `xplat/`（见 MC 不见加载器，第 13 闸硬保）+ 根 `src/`（1.21.1 世代业务层，
+// m531~m534 去 Fabric 化后只剩胶水白名单 11 文件 + 待拆 2 文件带 Fabric 符号——下方 exclude 逐一排掉，名单与
+// docs/tools_layer_gate.py 的 SRC_GLUE_OK/SRC_GLUE_PENDING 对表，第 13 闸校验两边不漂）+ 本目录 NeoForge 胶水。
+// m408 记的「Yarn↔Mojmap 映射分歧」那道墙 m409 全仓迁 Mojmap 后已没了（HANDOVER F 线段）。
+// mixin 族（xplat/com/sdzjz/mixin，大堆叠/随身仓库）与主线判官（src/com/sdzjz/gametest）本刀不挂：F1e / F1d-3。
 plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.91' // MDK archive/1.21-mdg 原文版本
@@ -28,7 +28,24 @@ neoForge {
 
 sourceSets {
     main {
-        java { srcDir '../../../common/src/main/java' } // Core 层：跨加载器共用同一份
+        java {
+            srcDir '../../../common/src/main/java' // Core 层：跨加载器共用同一份
+            srcDir '../../../xplat/src/main/java'  // m535：见 MC 不见加载器的业务层
+            srcDir '../../../src/main/java'        // m535：1.21.1 世代业务层（去 Fabric 化后）
+            // ---- Fabric 胶水（对表 tools_layer_gate.SRC_GLUE_OK，11 文件）----
+            exclude 'com/sdzjz/loader/Fabric*.java'          // FabricEntry/Env/Hooks/Net/Xfer/Menus/StorageAdapter
+            exclude 'com/sdzjz/client/Fabric*.java'          // FabricClientEntry/FabricClientHooks/FabricClientNet
+            exclude 'com/sdzjz/client/CompressedPackRenderer.java' // DynamicItemRenderer 壳（m529）
+            // ---- 待拆（SRC_GLUE_PENDING，F1d-2/F1d-3 各收一件）----
+            exclude 'com/sdzjz/client/SatelliteNodeModel.java'    // Fabric ModelLoadingPlugin → F1d-2 ModelEvent
+            exclude 'com/sdzjz/gametest/**'                       // FabricGameTest 判官 → F1d-3 @GameTestHolder
+            // ---- 不挂 ----
+            exclude 'com/sdzjz/mixin/**'                          // mixin 族随 F1e（mixin 配置/refmap 工艺另议）
+        }
+        resources {
+            srcDir '../../../src/main/resources' // 资产/数据包与 Fabric 主线同一份
+            exclude 'fabric.mod.json', 'sdzjz.mixins.json' // 加载器元数据各家各的（本模块 mods.toml 走 templates 展开）
+        }
     }
 }
 
@@ -55,4 +72,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
 
-tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xmaxerrs' << '1000' // m535：CI 红时一次看全（javac 默认截 100 条，m471 教训）
+}

@@ -9,6 +9,7 @@ public final class FabricClientEntry implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         com.sdzjz.client.ClientHooks.install(new com.sdzjz.client.FabricClientHooks()); // m435 平台口安装
+        com.sdzjz.client.ClientNet.install(new com.sdzjz.client.FabricClientNet()); // m433 平台口安装（m535 从 SdzjzClient.init 首句挪来）：必须早于 SdzjzClient.init 里一切客户端接收器挂接
         com.sdzjz.client.SatelliteNodeModel.register(); // m151 卫星节点bbmodel自定义烘焙（Fabric ModelLoadingPlugin）
         com.sdzjz.SdzjzClient.init();
         // m243 压缩包动态图标：内容物模型缩0.8 + 档位边框叠层（模型 parent=builtin/entity 触发本渲染器）——Fabric 专属注册口

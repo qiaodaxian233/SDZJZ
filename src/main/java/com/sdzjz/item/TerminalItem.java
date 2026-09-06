@@ -86,6 +86,7 @@ public class TerminalItem extends Item {
         // 自带工厂把 remote=true 塞进 handler 构造链；开屏数据仍发 BlockPos，客户端工厂零改动。
         com.sdzjz.loader.Menus.open(player, new com.sdzjz.loader.MenuData<BlockPos>() { // m532（F1b）：原 Fabric ExtendedScreenHandlerFactory 匿名类，三方法原文
             @Override public BlockPos menuData(net.minecraft.server.level.ServerPlayer sp) { return panel.getBlockPos(); }
+            @Override public net.minecraft.network.codec.StreamCodec<? super net.minecraft.network.RegistryFriendlyByteBuf, BlockPos> menuCodec() { return BlockPos.STREAM_CODEC; } // m535（F1d）
             @Override public Component getDisplayName() { return panel.getDisplayName(); }
             @Override public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int syncId, net.minecraft.world.entity.player.Inventory inv, Player p) {
                 return new com.sdzjz.screen.DataPanelScreenHandler(syncId, inv, panel, true);

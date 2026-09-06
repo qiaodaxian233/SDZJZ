@@ -16,7 +16,7 @@ public class SdzjzClient {
      *  BlockEntityRendererRegistry.register → 原版 BlockEntityRenderers.register（Fabric 那个就是它的转调）。 */
     public static void init() {
         com.sdzjz.client.SciSkin.installGfx(new com.sdzjz.client.LegacySkinGfx()); // m483 卡面工艺世代口（绞杀者第六刀）：早于一切屏注册
-        com.sdzjz.client.ClientNet.install(new com.sdzjz.client.FabricClientNet()); // m433 平台口安装：必须早于下方一切客户端接收器挂接
+        // m433 ClientNet 平台口安装句 m535（F1d）挪 FabricClientEntry（加载器胶水引用不能留在业务入口，NeoForge 编不过）；仍早于下方一切客户端接收器挂接
         MenuScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
         MenuScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
         MenuScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);

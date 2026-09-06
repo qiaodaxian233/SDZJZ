@@ -103,6 +103,55 @@ def main():
     print('    src/ Fabric 胶水：白名单 %d 文件 ✓；待拆欠账 %d 文件（F1b/F1c/F1d）：' % (ok_hit, len(pend_hit)))
     for r, why in pend_hit:
         print('        %-50s %s' % (r, why))
+    # m535 ④ **src/ 业务文件不许按类名引胶水**：`new FabricClientNet()` 这种引用里没有 net.fabricmc 字面，上面的正则抓不到，
+    # 但 NeoForge 整挂 src（排掉胶水）时它就是 cannot find symbol（m535 在 SdzjzClient.init 首句抓到一例）。
+    # 判据：白名单外（含待拆）的 src 文件，剥注释/字符串后出现任一 SRC_GLUE_OK 文件的简单类名 → 红。
+    glue_names = sorted({r.rsplit('/', 1)[-1][:-5] for r in SRC_GLUE_OK})
+    glue_ref_bad = []
+    for dp, _dirs, fs in os.walk(sbase):
+        for f in fs:
+            if not f.endswith('.java'):
+                continue
+            p = os.path.join(dp, f)
+            rel = os.path.relpath(p, sbase).replace(os.sep, '/')
+            if rel in SRC_GLUE_OK or rel in SRC_GLUE_PENDING:
+                continue
+            body = re.sub(r'"(?:\\.|[^"\\])*"', '""', strip_comments(open(p, encoding='utf-8').read()))
+            for n in glue_names:
+                if re.search(r'\b' + re.escape(n) + r'\b', body):
+                    glue_ref_bad.append((rel, n))
+    if glue_ref_bad:
+        print('分层硬闸 ✗ src/ 业务文件按类名引用了 Fabric 胶水（%d 处）——NeoForge 整挂 src 时这就是 cannot find symbol；安装句挪入口/走口：' % len(glue_ref_bad))
+        for r, n in glue_ref_bad[:20]:
+            print('    %-52s -> %s' % (r, n))
+        return 1
+    print('    src/ 业务文件零胶水类名引用 ✓（%d 个胶水类名）' % len(glue_names))
+    # m535 ⑤ **NeoForge 模块的排除表要盖住全部胶水**：versions/1.21.1/neoforge/build.gradle 用 exclude 排掉 SRC_GLUE_OK/SRC_GLUE_PENDING，
+    # 两边是两份手写名单，新增胶水文件忘了加 exclude → NeoForge job 才红。这里按 Ant 通配把每个胶水路径逐一对表。
+    gradle_p = os.path.join(root, 'versions', '1.21.1', 'neoforge', 'build.gradle')
+    if os.path.exists(gradle_p):
+        pats = re.findall(r"exclude\s+'([^']+)'", open(gradle_p, encoding='utf-8').read())
+        def ant_re(pat):
+            out = ''
+            i = 0
+            while i < len(pat):
+                if pat.startswith('**/', i):
+                    out += '(?:.*/)?'; i += 3
+                elif pat.startswith('**', i):
+                    out += '.*'; i += 2
+                elif pat[i] == '*':
+                    out += '[^/]*'; i += 1
+                else:
+                    out += re.escape(pat[i]); i += 1
+            return re.compile('^' + out + '$')
+        pat_res = [ant_re(x) for x in pats]
+        uncovered = [r for r in sorted(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING)) if not any(pr.match(r) for pr in pat_res)]
+        if uncovered:
+            print('分层硬闸 ✗ NeoForge build.gradle 的 exclude 没盖住这些 Fabric 胶水（整挂 src 会把 Fabric 符号带进 NeoForge 编译）：')
+            for r in uncovered:
+                print('    %s' % r)
+            return 1
+        print('    NeoForge 排除表盖住全部 %d 个胶水/待拆文件 ✓（%d 条 exclude）' % (len(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING)), len(pats)))
     # m533 ③ **xplat→src 依赖闭包**（评估报告 P0-①，F1-0）：xplat 显式 import 的根 src 类逐个对胶水名单——
     # F1d 要把 `src/`（排除胶水）与 xplat 一起整挂 NeoForge，所以 xplat 引 src **业务类**不是问题，
     # 引 **胶水**（SRC_GLUE_OK）就是把加载器绑回共用层 → 红；引 **待拆**（SRC_GLUE_PENDING）报数，F1c 收官应归零。

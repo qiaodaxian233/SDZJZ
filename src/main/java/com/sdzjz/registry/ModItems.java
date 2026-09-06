@@ -19,6 +19,8 @@ import net.minecraft.network.chat.Component;
 
 /** 物品注册 + 创造物品组。 */
 public class ModItems {
+    // m535（F1d）注册分期：八个方块物品先于本类一切物品注册（原 ModBlocks.reg 连带注册，顺序逐位不变）；见 ModBlocks.registerBlockItems 注。
+    static { ModBlocks.registerBlockItems(); }
     // 通用件
     public static final Item CORE_MODULE      = reg("core_module", new Item(new Item.Properties()));
     public static final Item SPEED_UPGRADE    = reg("speed_upgrade", new Item(new Item.Properties()));
@@ -293,6 +295,10 @@ public class ModItems {
         return Registry.register(BuiltInRegistries.ITEM, Sdzjz.id(name), item);
     }
 
+    /** m535（F1d）ITEM 期触发口：只为触发本类静态初始化（方块物品 + 全部物品），不碰创造栏注册表。Fabric 不用它（init() 一句顺带触发）。 */
+    public static void initItems() {}
+
+    /** 创造栏注册（CREATIVE_MODE_TAB 注册表，NeoForge 在它自己的 RegisterEvent 期调；Fabric=Sdzjz.initRegistries 原句）。 */
     public static void init() {
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, GROUP_KEY, GROUP);
     }

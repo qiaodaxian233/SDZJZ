@@ -257,4 +257,5 @@ public class DataPanelBlockEntity extends BlockEntity implements com.sdzjz.loade
             net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
+    @Override public net.minecraft.network.codec.StreamCodec<? super net.minecraft.network.RegistryFriendlyByteBuf, BlockPos> menuCodec() { return BlockPos.STREAM_CODEC; } // m535（F1d）MenuData 第二口：与 ModScreenHandlers 里 Menus.type 传的同一个 codec
 }

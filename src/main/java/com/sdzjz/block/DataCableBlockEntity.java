@@ -102,6 +102,7 @@ public class DataCableBlockEntity extends BlockEntity
             net.minecraft.server.level.ServerPlayer player) {
         return this.worldPosition;
     }
+    @Override public net.minecraft.network.codec.StreamCodec<? super net.minecraft.network.RegistryFriendlyByteBuf, BlockPos> menuCodec() { return BlockPos.STREAM_CODEC; } // m535（F1d）MenuData 第二口：与 ModScreenHandlers 里 Menus.type 传的同一个 codec
 
     /** m224 邻接可抽取存储探测（走 Fabric Transfer API 标准口不做逐模组集成）→ m228 升级「六面视图」：
      *  贴线面只是查询视角之一——侧向机器（AvaritiaNeo 中子态素压缩机等）往往只在顶面暴露输入槽、

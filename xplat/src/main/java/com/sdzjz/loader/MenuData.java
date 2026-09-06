@@ -9,4 +9,9 @@ import net.minecraft.world.MenuProvider;
 public interface MenuData<D> extends MenuProvider {
     /** 原 Fabric {@code getScreenOpeningData(ServerPlayer)}：开屏时随 OpenScreen 包发给客户端的数据（本 MOD 全是 BlockPos）。 */
     D menuData(ServerPlayer player);
+
+    /** m535（F1d）：数据的编解码器。Fabric 的 ExtendedScreenHandlerType 自带 codec 用不上它；NeoForge 的
+     *  {@code openMenu(provider, buf 写入)} 在写数据那一步拿不到菜单类型，只能由 provider 自报——与 {@code Menus.type(factory, codec)}
+     *  传的是同一个 codec（四 BE + TerminalItem 都是 BlockPos.STREAM_CODEC）。 */
+    net.minecraft.network.codec.StreamCodec<? super net.minecraft.network.RegistryFriendlyByteBuf, D> menuCodec();
 }

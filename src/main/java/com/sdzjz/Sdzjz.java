@@ -30,8 +30,17 @@ public class Sdzjz {
     public static final String MOD_ID = "sdzjz";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    /** 原 {@code onInitialize()} 体，去掉四句加载器口安装（挪 FabricEntry）与提供侧传输注册（Fabric 专属，挪 FabricEntry）。**调用前提**：四个加载器口已装。 */
+    /** 原 {@code onInitialize()} 体，去掉四句加载器口安装（挪 FabricEntry）与提供侧传输注册（Fabric 专属，挪 FabricEntry）。**调用前提**：四个加载器口已装。
+     *  m535（F1d）拆三段——语句与顺序**逐位不变**，Fabric 仍调本方法；NeoForge 分别调：{@link #initPorts()} 在 @Mod 构造器、
+     *  {@link #initRegistries()} 的四句拆到各自 RegisterEvent 期、{@link #initHooksAndNet()} 在构造器（Net 实现缓冲到 RegisterPayloadHandlersEvent 再落）。 */
     public static void init() {
+        initPorts();
+        initRegistries();
+        initHooksAndNet();
+    }
+
+    /** 第一段：世代口/配置/命令/压测/服务端 tick 钩——不碰任何注册表（NeoForge 构造器期注册表全冻着）。 */
+    public static void initPorts() {
         com.sdzjz.item.ItemData.install(new com.sdzjz.item.ComponentItemData()); // m437 平台口安装（1.21 组件世代）
         com.sdzjz.node.NodeTags.installIdent(new com.sdzjz.node.LegacyNodeIdent()); // m472 世代身份口（绞杀者第五刀）：早于一切 NodeTags 消费方
         com.sdzjz.node.CanvasGraphState.installCodec(new com.sdzjz.node.LegacyStackCodec()); // m477 图状态栈编解码口（真移植 A 阶段）：早于任何存档读入
@@ -54,10 +63,19 @@ public class Sdzjz {
             }
         });
         SdzjzConfig.load();
+    }
+
+    /** 第二段：四注册类触发（Fabric 一口气；NeoForge 按注册表期各调一句：BLOCK→ModBlocks.init / ITEM→ModItems.initItems /
+     *  BLOCK_ENTITY_TYPE→ModBlockEntities.init / MENU→ModScreenHandlers.init / CREATIVE_MODE_TAB→ModItems.init）。 */
+    public static void initRegistries() {
         ModBlocks.init();
         ModBlockEntities.init();
         ModScreenHandlers.init();
         ModItems.init();
+    }
+
+    /** 第三段：平台事件钩 + 全部 payload 类型/接收器（Net 口）。**不碰注册表**（lambda 体里的引用运行期才求值）。 */
+    public static void initHooksAndNet() {
 
         // m161c/m404 提供侧传输注册（Fabric Transfer API 把存储核心账本暴露给 Create/AE2 等）天生属加载器层——m531 挪 loader/FabricEntry；NeoForge 对位=能力注册（F1c）。
 

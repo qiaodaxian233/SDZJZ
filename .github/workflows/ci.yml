@@ -102,11 +102,13 @@ jobs:
 
   neoforge-1211:
     # m408 立：NeoForge 1.21.1 骨架闸=真编译出包（第二个加载器的第一块地基）。
-    # 现阶段挂载范围只有 Core（common/ 零 MC 依赖），编得过即证明"同一份 Core 跨加载器可用"；
-    # xplat 业务层因 Yarn↔Mojmap 映射分歧暂不挂（见 DEVLOG m408）。
+    # m535（F1d-1）起挂全三源集（common+xplat+src 排除 Fabric 胶水）+ NeoForge 胶水——这个 job 是 F1 的唯一编译判官
+    # （沙箱没有 NeoForge jar，冒烟对 net.neoforged.* 全盲），红时错误清单回推 ci-neoforge-errors 分支（照主线 m414 工艺）。
     name: NeoForge 1.21.1：编译出包
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: write # m535 编译错误清单回推 ci-neoforge-errors 分支（沙箱只可达 raw 域）
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -118,7 +120,20 @@ jobs:
         working-directory: versions/1.21.1/neoforge
         run: |
           chmod +x gradlew
-          ./gradlew build --stacktrace --no-daemon
+          set -o pipefail
+          ./gradlew build --stacktrace --no-daemon 2>&1 | tee gradle-build.log
+      - name: 失败错误清单回推分支(m535,照 m414 mojmap 工艺)
+        if: failure()
+        run: |
+          git config user.name ci-bot
+          git config user.email ci@local
+          git checkout -B ci-neoforge-errors
+          LOG=versions/1.21.1/neoforge/gradle-build.log
+          grep -A4 -E "\.java:[0-9]+: (error|错误)" "$LOG" > ci-neoforge-errors.log || tail -c 200000 "$LOG" > ci-neoforge-errors.log
+          echo "错误条数: $(grep -cE '\.java:[0-9]+: (error|错误)' "$LOG" || echo 0)" >> ci-neoforge-errors.log
+          git add -f ci-neoforge-errors.log
+          git commit -m "neoforge 编译错误清单 $GITHUB_SHA" || true
+          git push -f origin ci-neoforge-errors
       - uses: actions/upload-artifact@v7
         if: always()
         with:
