@@ -41,6 +41,7 @@ sourceSets {
             exclude 'com/sdzjz/gametest/**'                       // FabricGameTest 判官 → F1d-3 @GameTestHolder
             // ---- 不挂 ----
             exclude 'com/sdzjz/mixin/**'                          // mixin 族随 F1e（mixin 配置/refmap 工艺另议）
+            exclude 'com/sdzjz/compat/jei/**'                     // m535b：JEI 插件引 mezz.jei.api，本模块未配 JEI 依赖（NeoForge 侧坐标随 F1e 接）
         }
         resources {
             srcDir '../../../src/main/resources' // 资产/数据包与 Fabric 主线同一份

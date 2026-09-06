@@ -36,6 +36,11 @@ SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1d 模型�
     'com/sdzjz/client/SatelliteNodeModel.java': 'F1d ModelLoadingPlugin',
     'com/sdzjz/gametest/SdzjzGameTests.java': 'F1d FabricGameTest + 传输断言',
 }
+# m535b：xplat 里**第三方可选依赖**的编译单元——不是加载器符号（第 13 闸①不红），但 NeoForge 模块没配那家依赖就编不过；
+# 在这里登记「目录 → 接上的刀」，⑤ 判据同样要求 NeoForge build.gradle 的 exclude 盖住它们（F1e 接上依赖后删行即放行）。
+XPLAT_OPTDEP_PENDING = {
+    'com/sdzjz/compat/jei/': 'F1e JEI（mezz.jei.api；NeoForge 侧 JEI maven 坐标待核）',
+}
 # m433：Net/ClientNet 已接口化销账（门面迁 xplat+Fabric 给 Impl+入口首行安装），从清单摘除。
 # m435：六漏斗全员接口化销账收官（m433 Net/ClientNet、m434 Xfer、m435 Env/Hooks/ClientHooks）。
 # 清单留空但机制保留：将来再立静态漏斗就填回来（改一个销一个）。
@@ -145,13 +150,20 @@ def main():
                     out += re.escape(pat[i]); i += 1
             return re.compile('^' + out + '$')
         pat_res = [ant_re(x) for x in pats]
-        uncovered = [r for r in sorted(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING)) if not any(pr.match(r) for pr in pat_res)]
+        optdep_files = []
+        for d in XPLAT_OPTDEP_PENDING:
+            dd = os.path.join(base, *d.strip('/').split('/'))
+            for dp, _dirs, fs in os.walk(dd):
+                for f in fs:
+                    if f.endswith('.java'):
+                        optdep_files.append(os.path.relpath(os.path.join(dp, f), base).replace(os.sep, '/'))
+        uncovered = [r for r in sorted(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING) | set(optdep_files)) if not any(pr.match(r) for pr in pat_res)]
         if uncovered:
-            print('分层硬闸 ✗ NeoForge build.gradle 的 exclude 没盖住这些 Fabric 胶水（整挂 src 会把 Fabric 符号带进 NeoForge 编译）：')
+            print('分层硬闸 ✗ NeoForge build.gradle 的 exclude 没盖住这些胶水/待拆/可选依赖文件（整挂时会把 Fabric 或第三方 API 符号带进 NeoForge 编译）：')
             for r in uncovered:
                 print('    %s' % r)
             return 1
-        print('    NeoForge 排除表盖住全部 %d 个胶水/待拆文件 ✓（%d 条 exclude）' % (len(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING)), len(pats)))
+        print('    NeoForge 排除表盖住全部 %d 个胶水/待拆/可选依赖文件 ✓（%d 条 exclude；可选依赖目录 %d 个待 F1e）' % (len(set(SRC_GLUE_OK) | set(SRC_GLUE_PENDING) | set(optdep_files)), len(pats), len(XPLAT_OPTDEP_PENDING)))
     # m533 ③ **xplat→src 依赖闭包**（评估报告 P0-①，F1-0）：xplat 显式 import 的根 src 类逐个对胶水名单——
     # F1d 要把 `src/`（排除胶水）与 xplat 一起整挂 NeoForge，所以 xplat 引 src **业务类**不是问题，
     # 引 **胶水**（SRC_GLUE_OK）就是把加载器绑回共用层 → 红；引 **待拆**（SRC_GLUE_PENDING）报数，F1c 收官应归零。

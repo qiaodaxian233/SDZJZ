@@ -31,12 +31,17 @@ public final class ClientHooks {
                   net.minecraft.world.phys.Vec3 cameraPos);
     }
 
-    /** 加载器要给的四个口（m435）：语义见各静态门面注释。 */
+    /** 加载器要给的五个口（m435 四口 + m535b 菜单屏注册）：语义见各静态门面注释。 */
     public interface Impl {
         void onClientTickEnd(java.util.function.Consumer<Minecraft> h);
         void onItemTooltip(Tooltip h);
         net.minecraft.client.KeyMapping registerKey(String translationKey, int glfwKey, String category);
         void onWorldDrawAfterEntities(WorldDraw h);
+        /** m535b（F1d-1 热修）第五口：菜单屏注册。原版 {@code MenuScreens.register} 是 private——Fabric API 用 access widener 放开了它
+         *  （所以主线一直直调），NeoForge 没放开、要走 {@code RegisterMenuScreensEvent}（CI 红：has private access in MenuScreens）。
+         *  Fabric 实现=原句一行；NeoForge 实现（F1d-2）=缓冲到事件里 {@code event.register(type, ctor)}。泛型与原版签名逐位一致，调用点方法引用推断不变。 */
+        <M extends net.minecraft.world.inventory.AbstractContainerMenu, U extends net.minecraft.client.gui.screens.Screen & net.minecraft.client.gui.screens.inventory.MenuAccess<M>>
+        void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor);
     }
 
     private static Impl impl;
@@ -63,4 +68,9 @@ public final class ClientHooks {
     }
 
     public static void onWorldDrawAfterEntities(WorldDraw h) { req().onWorldDrawAfterEntities(h); }
+    /** 菜单屏注册（m535b，见 Impl 注）。 */
+    public static <M extends net.minecraft.world.inventory.AbstractContainerMenu, U extends net.minecraft.client.gui.screens.Screen & net.minecraft.client.gui.screens.inventory.MenuAccess<M>>
+    void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor) {
+        req().registerScreen(type, ctor);
+    }
 }

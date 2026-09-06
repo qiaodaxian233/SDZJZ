@@ -7,7 +7,6 @@ import com.sdzjz.client.StructureCoreScreen;
 import com.sdzjz.client.SuperBenchScreen;
 import com.sdzjz.registry.ModBlockEntities;
 import com.sdzjz.registry.ModScreenHandlers;
-import net.minecraft.client.gui.screens.MenuScreens;
 
 /** 1.21.1 世代客户端初始化（屏注册/BER/客户端接收器）。m531（F1a）起**不再是 Fabric 入口**：加载器入口在 {@code client/FabricClientEntry}
  *  （装 ClientHooks 加载器口、Fabric 专属的内建物品渲染器与模型插件，然后调本类 {@link #init()}）；本类只剩原版 API（MenuScreens/BlockEntityRenderers）与世代口。 */
@@ -17,12 +16,12 @@ public class SdzjzClient {
     public static void init() {
         com.sdzjz.client.SciSkin.installGfx(new com.sdzjz.client.LegacySkinGfx()); // m483 卡面工艺世代口（绞杀者第六刀）：早于一切屏注册
         // m433 ClientNet 平台口安装句 m535（F1d）挪 FabricClientEntry（加载器胶水引用不能留在业务入口，NeoForge 编不过）；仍早于下方一切客户端接收器挂接
-        MenuScreens.register(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new);
-        MenuScreens.register(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
-        MenuScreens.register(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
-        MenuScreens.register(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
-        MenuScreens.register(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
-        MenuScreens.register(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new); // m535b：六句 MenuScreens.register 改走 ClientHooks 第五口（NeoForge 上该方法 private）
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.TRADE_CENTER, com.sdzjz.client.TradeCenterScreen::new);
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
+        com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波

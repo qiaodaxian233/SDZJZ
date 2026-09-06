@@ -31,4 +31,10 @@ public final class FabricClientHooks implements ClientHooks.Impl {
             h.draw(ctx.matrixStack(), ctx.consumers(), ctx.camera().getPosition());
         });
     }
+
+    @Override
+    public <M extends net.minecraft.world.inventory.AbstractContainerMenu, U extends net.minecraft.client.gui.screens.Screen & net.minecraft.client.gui.screens.inventory.MenuAccess<M>>
+    void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor) {
+        net.minecraft.client.gui.screens.MenuScreens.register(type, ctor); // m535b：原 SdzjzClient.init 六句直调的那个方法（Fabric API access widener 放开）
+    }
 }
