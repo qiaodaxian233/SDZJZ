@@ -11446,3 +11446,15 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：玩家说"太高清"其实在说**尺度不一致**——同一画面里 8 倍分辩率的物品和 1 倍的世界互相凸显；解法不是重画，是把尺度拉近，量化到调色板之后原立绘的构图与配色都还在，32× 一眼能认出是同一台机器。
 - **下一刀**：读 m538 CI → 绿回 **F1d-3**（IItemHandler 提供侧 + 判官 @GameTestHolder + CI 升 GameTest）。**开工先跑 23 闸。**
 
+## m539 F1d-3a：存储核心 NeoForge 提供侧——`NeoForgeStorageAdapter implements IItemHandler`（账本有界槽位视图，业务全转调 `StorageLedger.fta*` 三口）+ `RegisterCapabilitiesEvent.registerBlockEntity(Capabilities.ItemHandler.BLOCK, STORAGE_CORE_BE, …)`
+
+- **取活**：m538 CI 八 job 全绿 → 回 F 线取 F1d-3，拆 3a（提供侧能力，编译判官能验）/ 3b（判官 `@GameTestHolder` + CI 升 GameTest，另刀）。对位 Fabric `loader/FabricStorageAdapter`（m534）：那边是 `Storage<ItemVariant>`+事务，这边是 `IItemHandler`+simulate 布尔——m404 预言「语义差别大到不值得统一类型」，所以两壳各写、**业务只有一份**：`ftaInsert/ftaExtract/ftaAmount`（m503 刻意零加载器类型）。
+- **槽位视图**（评估报告 §14.1「有界槽位视图、别把总量塞一个栈、别每次查询遍历全库」）：普通账每 id 一槽（裸 Item 模板栈；坏档脏 id 静默跳过，Fabric 壳 iterator 同款防御）+ 精确账每模板一槽（拷贝 count=1）+ **末尾一空槽收新件**；槽表按 `storeRev/exactRev` 懒刷新；`getStackInSlot` 显示量钳到堆叠上限（总量在账本，抽取按槽多次取）；`getSlotLimit=64`（视图口径一栈，大额由调用方分批——NeoForgeXfer.insert 就这么做）；`isItemValid` 恒真（收不收由 ftaInsert 类型闸决定，不预判）；`insertItem` 任意槽都收（槽号只是视图坐标，内部按分流判据入普通/精确账）。
+- **simulate**：IItemHandler 无事务→模拟=真做一遍再把 undo 日志**逆序**回放（与 Fabric 壳 `readSnapshot` 同律：逆序才让精确账本按下标前像恢复正确），回滚后两修订号各 +1（m218/m322「回滚也是变更」）；真做后 `be.setChanged()`。`beforeMutate` 传空 lambda（那口对应 Fabric 的 updateSnapshots，这边没有快照要更新）。
+- **注册**：`NeoForgeEntry.onRegisterCapabilities`（模组总线 `RegisterCapabilitiesEvent`，注册完成后触发所以可引 `ModBlockEntities.STORAGE_CORE_BE`）：`registerBlockEntity(Capabilities.ItemHandler.BLOCK, STORAGE_CORE_BE, (be, side) -> (IItemHandler) be.transferAdapter(() -> new NeoForgeStorageAdapter(be)))`——用 m534 留的不透明槽，同一 BE 恒返同一实例（本壳无跨调用状态但槽表缓存受益）。
+- **验证**：两代冒烟零真错；NeoForge 侧语法冒烟语法类 0、自家 15 符号 symbol 级 0（六条 `does not override` 是 `IItemHandler` 无 jar 不可解析噪音，六方法名 getSlots/getStackInSlot/insertItem/extractItem/getSlotLimit/isItemValid 与接口一一对应）；23 闸全绿（0.1.539）。**主线/Fabric 零改动**（本刀只加 NeoForge 模块两文件+一监听）。
+  **核不到的（CI 说话）**：`RegisterCapabilitiesEvent.registerBlockEntity(BlockCapability, BlockEntityType, ICapabilityProvider<BE,C,T>)` 三参形态与 lambda `(be, side)` 推断。
+  **作者判据**：CI NeoForge job 绿。**NeoForge 实机（第一次可试传输）**：漏斗/管道类模组（或原版漏斗？——原版漏斗不走能力，走 m460 幻影槽 WorldlyContainer 那条，两家同）怼存储核心：存普通件与附魔书/药水精确件、抽取时按槽逐栈取、账本数字与终端一致、模拟不留痕。传输验收八场景（目标全满/部分接收/源不足/命名物品/组件保真/端口切换/卸载重载/双向同时）按作业表 F1d-3 行由判官（3b）与实机分摊。
+- **教训**：提供侧和消费侧不是对称的——消费侧五口（m535）几乎是机械换类名，提供侧要**发明一个视图**（槽位是别人的世界观，我们账本没有槽）；这层"视图设计"才是 F 线里真正的新逻辑，也正是报告 §14.1 花一整节讲的原因。
+- **下一刀**：读 m539 CI → 绿开 **F1d-3b 判官**：`SdzjzGameTests` 46 条去 `FabricGameTest`（`@GameTest(template=FabricGameTest.EMPTY_STRUCTURE)` → 世代口/两家壳：Fabric 原样、NeoForge `@GameTestHolder("sdzjz")`+`@PrefixGameTestTemplate(false)`），七处 FTA 断言走 `Xfer`/能力两代化，销待拆最后一件；CI NeoForge job 升 `runGameTestServer`。**开工先跑 23 闸。**
+

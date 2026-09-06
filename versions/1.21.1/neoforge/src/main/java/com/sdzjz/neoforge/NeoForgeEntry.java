@@ -23,7 +23,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  * {@code RegisterPayloadHandlersEvent} 再落（NeoForge 的 registrar 出了事件作用域即失效——m535 排刀稿）。
  *
  * <p>客户端入口另开 {@code NeoForgeClientEntry}（F1d-2：{@code RegisterMenuScreensEvent}/{@code EntityRenderersEvent}/模型插件）。
- * 提供侧能力（存储核心 {@code IItemHandler}）随 F1d-3。
+ * 提供侧能力（存储核心 {@code IItemHandler}）：m539 {@link #onRegisterCapabilities}。
  */
 @Mod(NeoForgeEntry.MODID)
 public final class NeoForgeEntry {
@@ -42,10 +42,18 @@ public final class NeoForgeEntry {
 
         modBus.addListener(NeoForgeEntry::onRegister); // 注册分期
         modBus.addListener(NeoForgeNet::onRegisterPayloads); // 缓冲的 payload 在这儿落
+        modBus.addListener(NeoForgeEntry::onRegisterCapabilities); // m539（F1d-3a）提供侧能力：存储核心 IItemHandler（对位 FabricEntry 的 ItemStorage.SIDED 注册句）
 
         com.sdzjz.Sdzjz.initHooksAndNet(); // 平台事件钩（游戏总线随时可挂）+ payload 类型/接收器（进缓冲）
 
         LOGGER.info("[生电终结者] NeoForge 入口在岗：业务层与 Fabric 同一份代码（熔炉族判定 {}）", com.sdzjz.machine.Machines.smelterFamily("super_smelter"));
+    }
+
+    /** m539：把存储核心双账本暴露成 IItemHandler（Create/漏斗管道类模组怼任意面即存取）；适配器实例走 BE 不透明槽（m534），同一 BE 恒返同一实例。 */
+    private static void onRegisterCapabilities(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK,
+                com.sdzjz.registry.ModBlockEntities.STORAGE_CORE_BE,
+                (be, side) -> (net.neoforged.neoforge.items.IItemHandler) be.transferAdapter(() -> new NeoForgeStorageAdapter(be)));
     }
 
     /** 五期各触发一句——与 Fabric {@code Sdzjz.initRegistries()} 四句同源，只是按注册表拆开叫。 */
