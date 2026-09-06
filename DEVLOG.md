@@ -11433,3 +11433,16 @@ this.x 仅剩赋值与退化 translate 两处无害；⑤m122 命中放宽无判
 - **教训**：NeoForge 把「事件」按主题分包（`client.event` 放渲染/输入/注册屏，`client.extensions.common` 放扩展注册事件）——查 javadoc 时先看"所在包"再抄名字，别按"它是事件所以在 event 包"推。
 - **下一刀**：读 m537b CI → 绿开 F1d-3。**开工先跑 22 闸。**
 
+## m538 作者点名：贴图「太高清 / 和原版差太多 / 有些跳脱」→ 像素风内置可选资源包（`tools_pixelate.py` 机械生成，不动原图）+ `ClientHooks` 第七口 `registerBuiltinResourcePack`（Fabric/NeoForge）+ 第 23 闸；记档作者本地 1.21.1 构建成功
+
+- **取活**：作者转达视频评论区反馈，按取活规则第 2 条插队（F1d-3 排后）。**先量**：物品贴图 126 张里 **124 张 128×128**（原版 16×，**8 倍**）、2 张 16×；方块 11 张里 6 张 64×（4 倍）、其余 16× 与宽条；GUI 不在评论范围。"太高清"=这 8 倍；"跳脱"=8 倍件与周围一切原版 16× 挤在一起、且模组内还有 16× 的件混着。
+- **不动作者原图**（资源事归作者；m161a 那批 1254² 立绘是作者刻意画的）→ 做一份**像素风覆盖包**由脚本从现有贴图机械生成，玩家在「资源包」里一键切，默认仍高清。**尺寸目检定案**（`view` 三轮对照图）：**16× 糊成一团**——刷铁机/深层采掘平台这类复杂立绘完全认不出，原版尺寸不可行；**32× 能认且像素味足**（只差原版 2 倍）；三工艺对照选 **LANCZOS 降采样 + 轻锐化（UnsharpMask r1/60%/t2）+ 中位切分 40 色量化无抖动 + alpha 硬阈值 128**；方块 64→16（原版方块尺寸，六张目检可用）。
+- **`docs/tools_pixelate.py`**：`--write` 生成 `src/main/resources/resourcepacks/pixel/`（pack.mcmeta `pack_format 34` + 130 张 png + 76 个 .mcmeta 原样拷）；动画帧条（h=帧数×w，判定=有 .mcmeta）**逐帧处理再叠回**（防锐化跨帧串色）；非动画保持长宽比；**最小边 ≤ 目标尺寸即跳过**（第一版把 160×16 数据线宽条压成 16×16——目检方块全览时抓到，修规则后 134→130 张）。无参=**第 23 闸**校验模式（重生成到内存逐字节对比，缺/漂/多余即红；Pillow 确定性）；CI「配方校验 + 资源审计」job 加一步（`pip install pillow`）；作业表命令 22→23 闸。
+- **注册口**：`ClientHooks.Impl` 第七口 `registerBuiltinResourcePack(packPath, displayName)`——Fabric=`ResourceManagerHelper.registerBuiltinResourcePack(sdzjz:pixel, ModContainer, Component, NORMAL)`（jar 内 `resourcepacks/<path>/` 约定）；NeoForge=`NeoForgeClientHooks` 缓冲、`AddPackFindersEvent.addPackFinders(sdzjz:resourcepacks/pixel, CLIENT_RESOURCES, name, BUILT_IN, alwaysActive=false, TOP)`（**同一目录两家共用**，`NeoForgeClientEntry` 加监听）；`SdzjzClient.initHooksAndNet` 一句调用，注释写明「改默认启用只动壳里一词」。1.20.1 未装（pack_format 15，另拍）。
+- **记档**：作者口头「我这边编译成功了，我说的是 1.21.1」（2026-09-06）=m537b 主线本地 Gradle 构建绿——D2「主线构建只能靠作者验」这轮有实证（与 CI 主线 job 一致），作业表 D2 行记档。
+- **验证**：两代冒烟零真错（main 208 / retro 110 + 五改动文件单编）；NeoForge 侧语法冒烟自家 3 新符号 0；23 闸全绿（含新 23 闸自证：写盘后校验绿；`ci_resources` 对新目录无异议）；版本 0.1.538。资源 +1.2 MB（130 png），零协议零存档零配置；**默认外观零变化**（包默认关）。
+  **核不到的（CI 说话）**：`AddPackFindersEvent.addPackFinders` 六参形态（20.4+）；Fabric `registerBuiltinResourcePack(ResourceLocation, ModContainer, Component, ResourcePackActivationType)` 四参重载。
+  **作者判据**：Fabric 1.21.1 选项→资源包→左侧应出现「生电终结者 · 像素风（物品 32× / 方块 16×，贴近原版）」，启用后物品图标变 32× 像素风、五方块变 16×、动画照播（帧时不变）；不启用一切照旧。**待你拍板三件**：①要不要**默认启用**（评论既然这么说，默认像素风、高清留给想要的人也说得通——Fabric 壳 `NORMAL→DEFAULT_ENABLED` 一词）②32× 还是也出一份 16×（目检 16× 认不出，我不建议）③1.20.1 也装一份否。
+- **教训**：玩家说"太高清"其实在说**尺度不一致**——同一画面里 8 倍分辩率的物品和 1 倍的世界互相凸显；解法不是重画，是把尺度拉近，量化到调色板之后原立绘的构图与配色都还在，32× 一眼能认出是同一台机器。
+- **下一刀**：读 m538 CI → 绿回 **F1d-3**（IItemHandler 提供侧 + 判官 @GameTestHolder + CI 升 GameTest）。**开工先跑 23 闸。**
+

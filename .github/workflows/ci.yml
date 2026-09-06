@@ -57,6 +57,8 @@ jobs:
         run: python3 docs/tools_arity_check.py
       - name: 1.20.1 数据包闸(m527,1.20.1 data/ 只能由主线 data/ 机械转换生成;目录名/结果键/标签单复数四处世代差,手写或漂移即红)
         run: python3 docs/tools_datapack_1201.py
+      - name: 像素风资源包闸(m538,resourcepacks/pixel 只能由 docs/tools_pixelate.py 从默认高清贴图生成;贴图换皮忘重跑即红)
+        run: pip install --quiet pillow && python3 docs/tools_pixelate.py
 
   gametest:
     # m301：第九道闸——真跑全部 GameTest 用例（临时专用服务器，vanilla TestServer 免 EULA；

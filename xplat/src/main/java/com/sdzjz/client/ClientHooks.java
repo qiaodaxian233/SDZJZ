@@ -31,7 +31,7 @@ public final class ClientHooks {
                   net.minecraft.world.phys.Vec3 cameraPos);
     }
 
-    /** 加载器要给的六个口（m435 四口 + m535b 菜单屏注册 + m536 方块实体渲染器注册）：语义见各静态门面注释。 */
+    /** 加载器要给的七个口（m435 四口 + m535b 菜单屏注册 + m536 方块实体渲染器注册 + m538 内置资源包）：语义见各静态门面注释。 */
     public interface Impl {
         void onClientTickEnd(java.util.function.Consumer<Minecraft> h);
         void onItemTooltip(Tooltip h);
@@ -47,6 +47,9 @@ public final class ClientHooks {
         <T extends net.minecraft.world.level.block.entity.BlockEntity>
         void registerBlockEntityRenderer(net.minecraft.world.level.block.entity.BlockEntityType<? extends T> type,
                                          net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider);
+        /** m538 第七口：注册 jar 内置资源包（目录 {@code resourcepacks/<packPath>/}，两加载器同一目录约定），玩家在「资源包」里可选、默认关。
+         *  Fabric={@code ResourceManagerHelper.registerBuiltinResourcePack(NORMAL)}；NeoForge=缓冲到 {@code AddPackFindersEvent}。 */
+        void registerBuiltinResourcePack(String packPath, String displayName);
     }
 
     private static Impl impl;
@@ -84,4 +87,6 @@ public final class ClientHooks {
                                      net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider) {
         req().registerBlockEntityRenderer(type, provider);
     }
+    /** 内置可选资源包（m538，见 Impl 注）。 */
+    public static void registerBuiltinResourcePack(String packPath, String displayName) { req().registerBuiltinResourcePack(packPath, displayName); }
 }

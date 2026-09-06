@@ -84,3 +84,7 @@ Subject: <描述>
 - structure_core: dark navy sci-fi machine block face, glowing cyan hex core, metal frame
 - super_bench: ornate dark machine block face, glowing purple-gold core
 - data_panel: dark terminal block face, glowing cyan holographic data grid
+
+## m538 像素风内置资源包
+
+默认贴图仍是高清原图（物品 128×、方块 64×）。`docs/tools_pixelate.py --write` 从它们机械生成 `src/main/resources/resourcepacks/pixel/`（物品 32×/方块 16×，40 色，动画逐帧），游戏内「资源包」可选。**换皮后必须重跑 `--write`**（第 23 闸校验漂移）。参数（尺寸/色数/锐化）在脚本头部常量。

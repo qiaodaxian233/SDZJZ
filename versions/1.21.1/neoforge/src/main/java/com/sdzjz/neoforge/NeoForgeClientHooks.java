@@ -36,6 +36,8 @@ public final class NeoForgeClientHooks implements ClientHooks.Impl {
     private EntityRenderersEvent.RegisterRenderers renderers;
     private final List<KeyMapping> pendingKeys = new ArrayList<>();
     private boolean keysFlushed;
+    private final List<String[]> pendingPacks = new ArrayList<>(); // m538 {packPath, displayName}
+    private boolean packsFlushed;
 
     @Override
     public void onClientTickEnd(java.util.function.Consumer<Minecraft> h) {
@@ -86,6 +88,26 @@ public final class NeoForgeClientHooks implements ClientHooks.Impl {
     void withRenderers(EntityRenderersEvent.RegisterRenderers e, Runnable body) {
         renderers = e;
         try { body.run(); } finally { renderers = null; }
+    }
+
+    @Override
+    public void registerBuiltinResourcePack(String packPath, String displayName) {
+        if (packsFlushed) throw new IllegalStateException("registerBuiltinResourcePack 必须在 AddPackFindersEvent 之前调（SdzjzClient.initHooksAndNet 在客户端入口构造器里调）");
+        pendingPacks.add(new String[]{packPath, displayName});
+    }
+
+    /** m538：内置资源包在 AddPackFindersEvent 期登记——包目录与 Fabric 同一约定 jar 内 resourcepacks/<packPath>/，alwaysActive=false（玩家可选、默认关）。 */
+    void flushPacks(net.neoforged.neoforge.event.AddPackFindersEvent e) {
+        for (String[] pk : pendingPacks) {
+            e.addPackFinders(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(NeoForgeEntry.MODID, "resourcepacks/" + pk[0]),
+                    net.minecraft.server.packs.PackType.CLIENT_RESOURCES,
+                    net.minecraft.network.chat.Component.literal(pk[1]),
+                    net.minecraft.server.packs.repository.PackSource.BUILT_IN,
+                    false,
+                    net.minecraft.server.packs.repository.Pack.Position.TOP);
+        }
+        pendingPacks.clear();
+        packsFlushed = true;
     }
 
     /** 构造器期 registerKey 建好的句柄在这儿登记（NeoForge 只认事件期）。 */

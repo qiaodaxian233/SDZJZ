@@ -40,6 +40,7 @@ public final class NeoForgeClientEntry {
         modBus.addListener((RegisterMenuScreensEvent e) -> hooks.withScreens(e, com.sdzjz.SdzjzClient::initScreens));
         modBus.addListener((EntityRenderersEvent.RegisterRenderers e) -> hooks.withRenderers(e, com.sdzjz.SdzjzClient::initRenderers));
         modBus.addListener((RegisterKeyMappingsEvent e) -> hooks.flushKeys(e));
+        modBus.addListener((net.neoforged.neoforge.event.AddPackFindersEvent e) -> hooks.flushPacks(e)); // m538 内置像素风资源包
         modBus.addListener(NeoForgeClientEntry::onModifyBakingResult); // m537：卫星节点模型替换（Fabric 侧=FabricSatelliteModel 加载期拦截）
         modBus.addListener(NeoForgeClientEntry::onRegisterClientExtensions); // m537：压缩包×2 动态图标（Fabric 侧=FabricClientEntry 两句 BuiltinItemRendererRegistry）
 

@@ -44,4 +44,14 @@ public final class FabricClientHooks implements ClientHooks.Impl {
                                      net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider) {
         net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(type, provider); // m536：原 SdzjzClient.init 四句直调
     }
+
+    @Override
+    public void registerBuiltinResourcePack(String packPath, String displayName) {
+        // m538：Fabric 内置资源包=jar 内 resourcepacks/<id.path>/（含 pack.mcmeta）；NORMAL=玩家可选、默认不启用（默认贴图仍是作者高清原图）
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper.registerBuiltinResourcePack(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("sdzjz", packPath),
+                net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("sdzjz").orElseThrow(),
+                net.minecraft.network.chat.Component.literal(displayName),
+                net.fabricmc.fabric.api.resource.ResourcePackActivationType.NORMAL);
+    }
 }

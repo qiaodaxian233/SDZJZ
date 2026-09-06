@@ -94,6 +94,9 @@ public class SdzjzClient {
                 if (handK >= 0) mc.setScreen(new com.sdzjz.client.ChunkRemoverConfigScreen(handK));
             }
         });
+        // m538 作者视频评论「贴图太高清/和原版差太多/有些跳脱」：内置可选资源包「像素风」（物品 32×、方块 16×，docs/tools_pixelate.py 由默认高清贴图生成，
+        // 第 23 闸防漂移）；默认仍是作者高清原图，玩家在「资源包」里一键切。要改默认启用：Fabric 壳 NORMAL→DEFAULT_ENABLED / NeoForge alwaysActive 或 Position，一处一词。
+        com.sdzjz.client.ClientHooks.registerBuiltinResourcePack("pixel", "生电终结者 · 像素风（物品 32× / 方块 16×，贴近原版）");
         Sdzjz.LOGGER.info("[生电终结者] 客户端已加载：结构核心画布 + 超大工作台 GUI 已注册。");
     }
 }

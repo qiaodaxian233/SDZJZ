@@ -1,0 +1,6 @@
+{
+  "pack": {
+    "pack_format": 34,
+    "description": "生电终结者 · 像素风（物品 32× / 方块 16×，贴近原版尺寸；由 docs/tools_pixelate.py 从默认高清贴图生成）"
+  }
+}
