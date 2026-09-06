@@ -2,7 +2,6 @@ package com.sdzjz.client;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
-import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -56,19 +55,12 @@ public final class SatelliteNodeModel implements UnbakedModel {
 
     private SatelliteNodeModel(JsonArray quads) { this.quads = quads; }
 
-    /** 客户端入口调用：拦截 sdzjz:block/satellite_node 的模型加载。 */
-    public static void register() {
-        ModelLoadingPlugin.register(ctx -> ctx.modifyModelOnLoad().register((original, context) -> {
-            // m151-3 编译修正=类注释备忘④：1.21.1 Fabric 把 id 拆成 resourceId()（文件模型）/
-            // topLevelId()（blockstate/物品顶层，ModelIdentifier），二者恰一非空。我们拦
-            // blockstate 引用的文件模型 sdzjz:block/satellite_node → 走 resourceId()。
-            ResourceLocation id = context.resourceId();
-            if (id != null && "sdzjz".equals(id.getNamespace()) && id.getPath().endsWith("block/satellite_node")) {
-                JsonArray geo = loadGeo();
-                if (geo != null) return new SatelliteNodeModel(BER_TAKEOVER ? new JsonArray() : geo);
-            }
-            return original;
-        }));
+    /** m537（F1d-2b）：模型本体的加载器无关入口——读 geo、按 BER_TAKEOVER 决定烘空壳还是全几何；读失败返回 null（调用方保留原模型不炸游戏）。
+     *  Fabric 壳 {@code FabricSatelliteModel.register()}（原 m151 模型加载插件句）在模型加载期拦 {@code sdzjz:block/satellite_node} 换成它；
+     *  NeoForge 壳（NeoForgeClientEntry）在 {@code ModelEvent.ModifyBakingResult} 期把它烘出来替换 blockstate 那一键（物品模型是独立的 item/generated，不动）。 */
+    public static UnbakedModel loadShell() {
+        JsonArray geo = loadGeo();
+        return geo != null ? new SatelliteNodeModel(BER_TAKEOVER ? new JsonArray() : geo) : null;
     }
 
     private static JsonArray loadGeo() {

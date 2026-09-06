@@ -37,7 +37,6 @@ sourceSets {
             exclude 'com/sdzjz/client/Fabric*.java'          // FabricClientEntry/FabricClientHooks/FabricClientNet
             exclude 'com/sdzjz/client/CompressedPackRenderer.java' // DynamicItemRenderer 壳（m529）
             // ---- 待拆（SRC_GLUE_PENDING，F1d-2/F1d-3 各收一件）----
-            exclude 'com/sdzjz/client/SatelliteNodeModel.java'    // Fabric ModelLoadingPlugin → F1d-2 ModelEvent
             exclude 'com/sdzjz/gametest/**'                       // FabricGameTest 判官 → F1d-3 @GameTestHolder
             // ---- 不挂 ----
             exclude 'com/sdzjz/mixin/**'                          // mixin 族随 F1e（mixin 配置/refmap 工艺另议）

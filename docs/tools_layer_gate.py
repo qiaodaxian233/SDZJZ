@@ -31,9 +31,9 @@ SRC_GLUE_OK = {  # 天生加载器层：入口 / 口的 Fabric 实现 / Fabric �
     'com/sdzjz/client/FabricClientEntry.java', 'com/sdzjz/client/FabricClientHooks.java', 'com/sdzjz/client/FabricClientNet.java',
     'com/sdzjz/client/CompressedPackRenderer.java',  # DynamicItemRenderer 壳（m529）
     'com/sdzjz/loader/FabricStorageAdapter.java',  # m533（F1c）存储核心 FTA 提供侧适配器（原 BE 内部类 FabricLedger）
+    'com/sdzjz/client/FabricSatelliteModel.java',  # m537（F1d-2b）卫星节点 ModelLoadingPlugin 壳（本体 SatelliteNodeModel 去 Fabric）
 }
-SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1d 模型插件·判官）；F1b 六件 m532 已拆、F1c 存储提供侧 m533 已拆
-    'com/sdzjz/client/SatelliteNodeModel.java': 'F1d ModelLoadingPlugin',
+SRC_GLUE_PENDING = {  # 待拆：业务文件里嵌 Fabric 接口（F1d-3 判官）；F1b 六件 m532、F1c 存储提供侧 m533、F1d-2b 模型插件 m537 已拆
     'com/sdzjz/gametest/SdzjzGameTests.java': 'F1d FabricGameTest + 传输断言',
 }
 # m535b：xplat 里**第三方可选依赖**的编译单元——不是加载器符号（第 13 闸①不红），但 NeoForge 模块没配那家依赖就编不过；
