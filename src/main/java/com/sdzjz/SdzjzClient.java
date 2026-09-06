@@ -14,7 +14,21 @@ public class SdzjzClient {
     /** 原 {@code onInitializeClient()} 体，去掉 ClientHooks 安装句、SatelliteNodeModel 模型插件句、两句 BuiltinItemRendererRegistry（Fabric 专属，挪 FabricClientEntry）；
      *  BlockEntityRendererRegistry.register → 原版 BlockEntityRenderers.register（Fabric 那个就是它的转调）。 */
     public static void init() {
+        initGfx();
+        initScreens();
+        initRenderers();
+        initHooksAndNet();
+    }
+
+    /** m536（F1d-2a）拆四段——语句与顺序**逐位不变**，Fabric 仍调 {@link #init()}；NeoForge 客户端入口：构造器调 initGfx / initHooksAndNet，
+     *  {@code RegisterMenuScreensEvent} 期调 initScreens、{@code EntityRenderersEvent.RegisterRenderers} 期调 initRenderers
+     *  （两段实参 ModScreenHandlers.X / ModBlockEntities.X 会触发注册类初始化，构造器期注册表冻着不能碰——与 m535 服务端分期同一条理）。 */
+    public static void initGfx() {
         com.sdzjz.client.SciSkin.installGfx(new com.sdzjz.client.LegacySkinGfx()); // m483 卡面工艺世代口（绞杀者第六刀）：早于一切屏注册
+    }
+
+    /** 第二段：六张菜单屏（ClientHooks 第五口）。 */
+    public static void initScreens() {
         // m433 ClientNet 平台口安装句 m535（F1d）挪 FabricClientEntry（加载器胶水引用不能留在业务入口，NeoForge 编不过）；仍早于下方一切客户端接收器挂接
         com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.STRUCTURE_CORE, StructureCoreScreen::new); // m535b：六句 MenuScreens.register 改走 ClientHooks 第五口（NeoForge 上该方法 private）
         com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.DATA_PANEL, DataPanelScreen::new);
@@ -22,10 +36,18 @@ public class SdzjzClient {
         com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.SUPER_BENCH, SuperBenchScreen::new);
         com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.EXTRACT_PORT, com.sdzjz.client.ExtractPortScreen::new); // m226 抽取口配置
         com.sdzjz.client.ClientHooks.registerScreen(ModScreenHandlers.PORTABLE_VAULT, com.sdzjz.client.PortableVaultScreen::new); // m312 随身仓库
-        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
-        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
-        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
-        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
+    }
+
+    /** 第三段：四个方块实体渲染器（ClientHooks 第六口）。 */
+    public static void initRenderers() {
+        com.sdzjz.client.ClientHooks.registerBlockEntityRenderer(ModBlockEntities.STORAGE_CORE_BE, StorageCoreRenderer::new); // 存储核心动画
+        com.sdzjz.client.ClientHooks.registerBlockEntityRenderer(ModBlockEntities.DATA_CABLE_BE, DataCableRenderer::new); // 数据线能量脉冲
+        com.sdzjz.client.ClientHooks.registerBlockEntityRenderer(ModBlockEntities.WIRELESS_NODE_BE, com.sdzjz.client.WirelessNodeRenderer::new); // 无线节点信号波
+        com.sdzjz.client.ClientHooks.registerBlockEntityRenderer(ModBlockEntities.SATELLITE_NODE_BE, com.sdzjz.client.SatelliteNodeRenderer::new); // m156 卫星扫描动画
+    }
+
+    /** 第四段：客户端接收器 + tooltip/tick/键位/世界渲染钩（全走口，构造器期可调：lambda 体里的引用运行期才求值）。 */
+    public static void initHooksAndNet() {
         // m277 三块动画改原生贴图帧动画（.png.mcmeta，docs/tools_block_anim.py 生成）——m249/m250 全息 BER 三件套退役
         // m243 压缩包动态图标两句（Fabric BuiltinItemRendererRegistry）m531 挪 FabricClientEntry；NeoForge 对位 IClientItemExtensions（F1d）
         // m89：画布端点直发包 → 静态缓存（画布优先读缓存，BE 数据后备）

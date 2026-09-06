@@ -37,4 +37,11 @@ public final class FabricClientHooks implements ClientHooks.Impl {
     void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor) {
         net.minecraft.client.gui.screens.MenuScreens.register(type, ctor); // m535b：原 SdzjzClient.init 六句直调的那个方法（Fabric API access widener 放开）
     }
+
+    @Override
+    public <T extends net.minecraft.world.level.block.entity.BlockEntity>
+    void registerBlockEntityRenderer(net.minecraft.world.level.block.entity.BlockEntityType<? extends T> type,
+                                     net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider) {
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderers.register(type, provider); // m536：原 SdzjzClient.init 四句直调
+    }
 }

@@ -31,7 +31,7 @@ public final class ClientHooks {
                   net.minecraft.world.phys.Vec3 cameraPos);
     }
 
-    /** 加载器要给的五个口（m435 四口 + m535b 菜单屏注册）：语义见各静态门面注释。 */
+    /** 加载器要给的六个口（m435 四口 + m535b 菜单屏注册 + m536 方块实体渲染器注册）：语义见各静态门面注释。 */
     public interface Impl {
         void onClientTickEnd(java.util.function.Consumer<Minecraft> h);
         void onItemTooltip(Tooltip h);
@@ -42,6 +42,11 @@ public final class ClientHooks {
          *  Fabric 实现=原句一行；NeoForge 实现（F1d-2）=缓冲到事件里 {@code event.register(type, ctor)}。泛型与原版签名逐位一致，调用点方法引用推断不变。 */
         <M extends net.minecraft.world.inventory.AbstractContainerMenu, U extends net.minecraft.client.gui.screens.Screen & net.minecraft.client.gui.screens.inventory.MenuAccess<M>>
         void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor);
+        /** m536（F1d-2a）第六口：方块实体渲染器注册。原版 {@code BlockEntityRenderers.register} 两家都 public，但 NeoForge 该在
+         *  {@code EntityRenderersEvent.RegisterRenderers} 期注册（时序归事件管）；Fabric 实现=原句一行。泛型与原版签名逐位一致。 */
+        <T extends net.minecraft.world.level.block.entity.BlockEntity>
+        void registerBlockEntityRenderer(net.minecraft.world.level.block.entity.BlockEntityType<? extends T> type,
+                                         net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider);
     }
 
     private static Impl impl;
@@ -72,5 +77,11 @@ public final class ClientHooks {
     public static <M extends net.minecraft.world.inventory.AbstractContainerMenu, U extends net.minecraft.client.gui.screens.Screen & net.minecraft.client.gui.screens.inventory.MenuAccess<M>>
     void registerScreen(net.minecraft.world.inventory.MenuType<? extends M> type, net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor<M, U> ctor) {
         req().registerScreen(type, ctor);
+    }
+    /** 方块实体渲染器注册（m536，见 Impl 注）。 */
+    public static <T extends net.minecraft.world.level.block.entity.BlockEntity>
+    void registerBlockEntityRenderer(net.minecraft.world.level.block.entity.BlockEntityType<? extends T> type,
+                                     net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider<T> provider) {
+        req().registerBlockEntityRenderer(type, provider);
     }
 }
