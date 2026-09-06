@@ -1,0 +1,33 @@
+/home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:15: error: cannot find symbol
+import net.neoforged.neoforge.client.event.RegisterClientExtensionsEvent;
+                                          ^
+  symbol:   class RegisterClientExtensionsEvent
+  location: package net.neoforged.neoforge.client.event
+/home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:59: error: cannot find symbol
+    private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+                                                   ^
+  symbol:   class RegisterClientExtensionsEvent
+  location: class NeoForgeClientEntry
+--
+  /home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:15: error: cannot find symbol
+  import net.neoforged.neoforge.client.event.RegisterClientExtensionsEvent;
+                                            ^
+    symbol:   class RegisterClientExtensionsEvent
+    location: package net.neoforged.neoforge.client.event
+  /home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:59: error: cannot find symbol
+      private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+                                                     ^
+    symbol:   class RegisterClientExtensionsEvent
+    location: class NeoForgeClientEntry
+--
+/home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:15: error: cannot find symbol
+import net.neoforged.neoforge.client.event.RegisterClientExtensionsEvent;
+                                          ^
+  symbol:   class RegisterClientExtensionsEvent
+  location: package net.neoforged.neoforge.client.event
+/home/runner/work/SDZJZ/SDZJZ/versions/1.21.1/neoforge/src/main/java/com/sdzjz/neoforge/NeoForgeClientEntry.java:59: error: cannot find symbol
+    private static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+                                                   ^
+  symbol:   class RegisterClientExtensionsEvent
+  location: class NeoForgeClientEntry
+错误条数: 6
