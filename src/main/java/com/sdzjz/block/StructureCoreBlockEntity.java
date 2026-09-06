@@ -2021,173 +2021,121 @@ public class StructureCoreBlockEntity extends BlockEntity implements com.sdzjz.l
         return !world.getFluidState(new BlockPos(x, y, z)).isEmpty();
     }
 
-    /** 切换节点 暂停/运行（m110b）。 */
-    public void togglePause(int index) {
-        if (index < 0 || index >= g.machineNodes.size()) return;
-        ItemStack s = g.machineNodes.get(index);
-        if (s.isEmpty()) return;
-        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
-        n.putBoolean("np", !com.sdzjz.node.NodeTags.nodePaused(s));
-        com.sdzjz.item.ItemData.write(s, n);
-        setChanged();
-        syncToClient();
-    }
 
-    /** 切换开关节点 开/关。 */
-    public void toggleSwitch(int index) {
-        if (index < 0 || index >= g.machineNodes.size()) return;
-        ItemStack s = g.machineNodes.get(index);
-        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
-        if (com.sdzjz.node.NodeTags.isSwitch(s)) n.putBoolean("so", !com.sdzjz.node.NodeTags.switchOn(s));
-        else if (com.sdzjz.node.NodeTags.isExtractor(s)) n.putBoolean("xo", !com.sdzjz.node.NodeTags.extractorOn(s)); // m154 抽取启停走同一收包口
-        else return;
-        com.sdzjz.item.ItemData.write(s, n);
-        setChanged();
-        syncToClient();
-    }
-
-    /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单。 */
-    public void toggleFilterEntry(int index, String id) {
-        if (index < 0 || index >= g.machineNodes.size()) return;
-        ItemStack s = g.machineNodes.get(index);
-        if ("#cr".equals(id) && s.getItem() instanceof AutoCrafterItem) { // m235 配方换挡复用此收包口（#xr 同款哨兵工艺）：
-            // 自动(-1)→候选0→候选1→…→回自动；候选序=CraftPlanner.plans 原版排前+id字典序，双端同源循环稳定
-            String tgt = com.sdzjz.node.NodeTags.craftTarget(s);
-            java.util.List<CraftPlanner.Plan> ps = tgt.isEmpty() ? java.util.List.of() : CraftPlanner.plans(level, tgt);
-            CompoundTag nc = com.sdzjz.node.NodeTags.nbtOf(s);
-            String cur = nc.contains("cr") ? nc.getString("cr") : "";
-            int at = -1;
-            for (int k = 0; k < ps.size(); k++) if (ps.get(k).recipeId().equals(cur)) { at = k; break; }
-            int nxt = at + 1;
-            if (nxt >= ps.size()) nc.remove("cr"); else nc.putString("cr", ps.get(nxt).recipeId());
-            com.sdzjz.item.ItemData.write(s, nc);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#xr".equals(id) && com.sdzjz.node.NodeTags.isExtractor(s)) { // m159 抽取量换挡复用此收包口；m163a 扩至五挡（用户点名"还是太少"）
-            CompoundTag nx = com.sdzjz.node.NodeTags.nbtOf(s);
-            long cur = com.sdzjz.node.NodeTags.extractorRate(s);
-            nx.putLong("xr", cur == 64 ? 512 : cur == 512 ? 4096 : cur == 4096 ? 32768 : cur == 32768 ? 262144 : 64);
-            com.sdzjz.item.ItemData.write(s, nx);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#zy".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 Y 挡循环复用此收包口（#xr 同款哨兵工艺）：全高度→地表下→深层→深板岩→地上→回全高度
-            CompoundTag nz = com.sdzjz.node.NodeTags.nbtOf(s);
-            nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
-            com.sdzjz.item.ItemData.write(s, nz);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if (id != null && id.startsWith("#zrd:") && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调（替 m382 三挡循环）：带符号增量，服务端钳 0..上限；变更=新工程重扫 zn 保留
-            int dR;
-            try { dR = Integer.parseInt(id.substring(5)); } catch (NumberFormatException e) { return; }
-            if (dR < -1024 || dR > 1024) return; // 伪造包尺寸熔断
-            CompoundTag nr = com.sdzjz.node.NodeTags.nbtOf(s);
-            int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
-            int nv = Math.max(0, Math.min(Math.max(0, nr.getInt("zr")) + dR, capR));
-            if (nv != nr.getInt("zr")) {
-                nr.putInt("zr", nv);
-                nr.putInt("zy", level != null ? level.getMaxBuildHeight() - 1 : 319);
-                nr.putInt("zi", 0);
-                nr.putInt("zc", 0);
-                nr.remove("zf");
-                nr.remove("zq"); // m390 湿账随新工程归零
-                com.sdzjz.item.ItemData.write(s, nr);
+    // ===== m541（真移植·1.20.1 结构核心补全第一刀）：节点配置操作层已下沉共用（xplat node/NodeConfig）=====
+    // togglePause/toggleSwitch/toggleFilterEntry/setSensorConfig/setNodeTarget 五方法整段搬走，本处只留
+    // 同签名转发壳 + 宿主面。宿主里住的是**主线专属**那部分原文：toggleFilterEntry 的区块族/信标七段哨兵
+    // （#zy/#zrd/#bfx/#bfl/#zsbd/#zm/#zw/#zs，依赖 ChunkFilterItem/ChunkRemoverItem/InfiniteBeaconItem 静态助手，
+    // 这些类含 1.21 专属 tooltip 签名上不了 1.20.1 白名单）+ setNodeTarget 的 trade/dup/seal 三项校验。
+    // 原文逐句未动（含注释刀号），只把每段末尾 return; 改成 return true;（=已处理）。
+    private final com.sdzjz.node.NodeConfig.Host nodeCfgHost = new com.sdzjz.node.NodeConfig.Host() {
+        @Override public com.sdzjz.node.CanvasGraphState graph() { return g; }
+        @Override public Object level() { return level; }
+        @Override public void changed() { setChanged(); syncToClient(); }
+        @Override public boolean specialFilterEntry(ItemStack s, String id) {
+            if ("#zy".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkFilterItem) { // m377 Y 挡循环复用此收包口（#xr 同款哨兵工艺）：全高度→地表下→深层→深板岩→地上→回全高度
+                CompoundTag nz = com.sdzjz.node.NodeTags.nbtOf(s);
+                nz.putInt("zp", (com.sdzjz.item.ChunkFilterItem.preset(s) + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS);
+                com.sdzjz.item.ItemData.write(s, nz);
                 setChanged();
                 syncToClient();
+                return true;
             }
-            return;
-        }
-        if (("#bfx".equals(id) || "#bfl".equals(id)) && s.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 效果/等级循环
-            CompoundTag nbf = com.sdzjz.node.NodeTags.nbtOf(s);
-            if ("#bfx".equals(id)) nbf.putInt("bfx", com.sdzjz.item.InfiniteBeaconItem.nextEffect(nbf.getInt("bfx")));
-            else nbf.putInt("bfl", nbf.getInt("bfl") >= 1 ? 0 : 1);
-            com.sdzjz.item.ItemData.write(s, nbf);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
-            CompoundTag nb = com.sdzjz.node.NodeTags.nbtOf(s);
-            nb.remove("zsb");
-            com.sdzjz.item.ItemData.write(s, nb);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
-            CompoundTag nm = com.sdzjz.node.NodeTags.nbtOf(s);
-            nm.putInt("zm", com.sdzjz.item.ChunkRemoverItem.nextMode(nm.getInt("zm"),
-                    com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode)); // m397 三挡循环
-            com.sdzjz.item.ItemData.write(s, nm);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#zw".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m388 封边挡水切换（开=重扫补封：已挖开的边界回补玻璃墙、灌进的水按普通块清；关不动游标）
-            CompoundTag nw = com.sdzjz.node.NodeTags.nbtOf(s);
-            boolean sealOnW = nw.getInt("zw") == 2; // m394 三态：切换后的新状态（原为关=2 则开）
-            nw.putInt("zw", sealOnW ? 1 : 2);
-            if (sealOnW) { // 开堵水=新工程重扫（zn 总账保留，#zrd 同口径）
-                nw.putInt("zy", level != null ? level.getMaxBuildHeight() - 1 : 319);
-                nw.putInt("zi", 0);
-                nw.putInt("zc", 0);
-                nw.remove("zf");
-                nw.remove("zq"); // m390
+            if (id != null && id.startsWith("#zrd:") && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 区域自由调（替 m382 三挡循环）：带符号增量，服务端钳 0..上限；变更=新工程重扫 zn 保留
+                int dR;
+                try { dR = Integer.parseInt(id.substring(5)); } catch (NumberFormatException e) { return true; } // m541 宿主口内 return→return true（=已处理，同原语义：静默丢包）
+                if (dR < -1024 || dR > 1024) return true; // 伪造包尺寸熔断
+                CompoundTag nr = com.sdzjz.node.NodeTags.nbtOf(s);
+                int capR = Math.max(0, SdzjzConfig.get().chunkRemoverMaxRadius);
+                int nv = Math.max(0, Math.min(Math.max(0, nr.getInt("zr")) + dR, capR));
+                if (nv != nr.getInt("zr")) {
+                    nr.putInt("zr", nv);
+                    nr.putInt("zy", level != null ? level.getMaxBuildHeight() - 1 : 319);
+                    nr.putInt("zi", 0);
+                    nr.putInt("zc", 0);
+                    nr.remove("zf");
+                    nr.remove("zq"); // m390 湿账随新工程归零
+                    com.sdzjz.item.ItemData.write(s, nr);
+                    setChanged();
+                    syncToClient();
+                }
+                return true;
             }
-            com.sdzjz.item.ItemData.write(s, nw);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        if ("#zs".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 重新扫描（#zy 同款哨兵工艺）
-            com.sdzjz.item.ChunkScannerItem.resetScan(s, level != null ? level.getMaxBuildHeight() - 1 : 319);
-            setChanged();
-            syncToClient();
-            return;
-        }
-        boolean chunkF = s.getItem() instanceof com.sdzjz.item.ChunkFilterItem; // m377 区块过滤器：名单+黑白切换全套复用过滤节点收包口
-        boolean voidP = s.getItem() instanceof com.sdzjz.item.VoidProcessorItem; // m378 虚空处理器：白名单复用（永远白名单无黑白，垃圾桶同律）
-        if (!com.sdzjz.node.NodeTags.isFilter(s) && !com.sdzjz.node.NodeTags.machineFilterable(s) && !com.sdzjz.node.NodeTags.isExtractor(s) && !com.sdzjz.node.NodeTags.isTrash(s) && !chunkF && !voidP) return;
-        // m149 机器加工过滤 / m160 抽取白名单+垃圾桶白名单（安全桶）同走此口
-        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
-        if (id == null || id.isEmpty()) {
-            if (!com.sdzjz.node.NodeTags.isFilter(s) && !chunkF) return; // 机器侧永远白名单，无黑白切换（m377 区块过滤器有黑白）
-            n.putBoolean("fb", !n.getBoolean("fb"));
-        } else {
-            ListTag l = n.getList("fl", Tag.TAG_STRING);
-            boolean removed = false;
-            for (int k = 0; k < l.size(); k++)
-                if (l.getString(k).equals(id)) { l.remove(k); removed = true; break; }
-            if (!removed) {
-                if (l.size() >= 64) return; // 名单封顶，防 NBT 膨胀
-                l.add(net.minecraft.nbt.StringTag.valueOf(id));
+            if (("#bfx".equals(id) || "#bfl".equals(id)) && s.getItem() instanceof com.sdzjz.item.InfiniteBeaconItem) { // m399 效果/等级循环
+                CompoundTag nbf = com.sdzjz.node.NodeTags.nbtOf(s);
+                if ("#bfx".equals(id)) nbf.putInt("bfx", com.sdzjz.item.InfiniteBeaconItem.nextEffect(nbf.getInt("bfx")));
+                else nbf.putInt("bfl", nbf.getInt("bfl") >= 1 ? 0 : 1);
+                com.sdzjz.item.ItemData.write(s, nbf);
+                setChanged();
+                syncToClient();
+                return true;
             }
-            n.put("fl", l);
+            if ("#zsbd".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m396 封边材料回默认（免费石头）
+                CompoundTag nb = com.sdzjz.node.NodeTags.nbtOf(s);
+                nb.remove("zsb");
+                com.sdzjz.item.ItemData.write(s, nb);
+                setChanged();
+                syncToClient();
+                return true;
+            }
+            if ("#zm".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m386 掉落模式切换（不动游标，中途可切）
+                CompoundTag nm = com.sdzjz.node.NodeTags.nbtOf(s);
+                nm.putInt("zm", com.sdzjz.item.ChunkRemoverItem.nextMode(nm.getInt("zm"),
+                        com.sdzjz.config.SdzjzConfig.get().chunkRemoverVoidMode)); // m397 三挡循环
+                com.sdzjz.item.ItemData.write(s, nm);
+                setChanged();
+                syncToClient();
+                return true;
+            }
+            if ("#zw".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem) { // m388 封边挡水切换（开=重扫补封：已挖开的边界回补玻璃墙、灌进的水按普通块清；关不动游标）
+                CompoundTag nw = com.sdzjz.node.NodeTags.nbtOf(s);
+                boolean sealOnW = nw.getInt("zw") == 2; // m394 三态：切换后的新状态（原为关=2 则开）
+                nw.putInt("zw", sealOnW ? 1 : 2);
+                if (sealOnW) { // 开堵水=新工程重扫（zn 总账保留，#zrd 同口径）
+                    nw.putInt("zy", level != null ? level.getMaxBuildHeight() - 1 : 319);
+                    nw.putInt("zi", 0);
+                    nw.putInt("zc", 0);
+                    nw.remove("zf");
+                    nw.remove("zq"); // m390
+                }
+                com.sdzjz.item.ItemData.write(s, nw);
+                setChanged();
+                syncToClient();
+                return true;
+            }
+            if ("#zs".equals(id) && s.getItem() instanceof com.sdzjz.item.ChunkScannerItem) { // m380 重新扫描（#zy 同款哨兵工艺）
+                com.sdzjz.item.ChunkScannerItem.resetScan(s, level != null ? level.getMaxBuildHeight() - 1 : 319);
+                setChanged();
+                syncToClient();
+                return true;
+            }
+            return false;
         }
-        com.sdzjz.item.ItemData.write(s, n);
-        setChanged();
-        syncToClient();
-    }
+        @Override public boolean tradeTargetOk(ItemStack s, String id) {
+            return s.getItem() instanceof com.sdzjz.item.VillagerTraderItem
+                    && com.sdzjz.machine.TradePlanner.valid(id); // m146 目标串服务端校验
+        }
+        @Override public boolean dupTargetOk(ItemStack s, String id) {
+            return s.getItem() instanceof com.sdzjz.item.DuplicatorItem
+                    && com.sdzjz.item.DuplicatorItem.validTarget(id); // m334 目标=物品id 服务端校验
+        }
+        @Override public boolean sealTargetOk(ItemStack s, String id) {
+            return s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem
+                    && com.sdzjz.item.ChunkRemoverItem.validSealBlock(id); // m396 封边材料（移除器的 setNodeTarget 槽 m376 起本就空着=复用零新协议；服务端校验"必须有方块形态"）
+        }
+    };
+
+    /** 切换节点 暂停/运行（m110b）。 */
+    public void togglePause(int index) { com.sdzjz.node.NodeConfig.togglePause(nodeCfgHost, index); } // m541 下沉共用
+
+    /** 切换开关节点 开/关。 */
+    public void toggleSwitch(int index) { com.sdzjz.node.NodeConfig.toggleSwitch(nodeCfgHost, index); } // m541 下沉共用
+
+    /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单。 */
+    public void toggleFilterEntry(int index, String id) { com.sdzjz.node.NodeConfig.toggleFilterEntry(nodeCfgHost, index, id); } // m541 下沉共用
 
     /** 设置传感器：监测物品 + 阈值 + 方向（低于/高于放行）。 */
-    public void setSensorConfig(int index, String id, long threshold, boolean less) {
-        if (index < 0 || index >= g.machineNodes.size()) return;
-        ItemStack s = g.machineNodes.get(index);
-        if (!com.sdzjz.node.NodeTags.isSensor(s) && !com.sdzjz.node.NodeTags.isExtractor(s)) return; // m160 抽取节点内置自动启停同走此口
-        CompoundTag n = com.sdzjz.node.NodeTags.nbtOf(s);
-        if ("§clear".equals(id)) n.remove("si"); // m160 清除感应（传感/抽取通用）
-        else if (id != null && !id.isEmpty()) n.putString("si", id);
-        n.putLong("sv", Math.max(0, Math.min(1_000_000_000_000L, threshold)));
-        n.putBoolean("sl", less);
-        com.sdzjz.item.ItemData.write(s, n);
-        setChanged();
-        syncToClient();
-    }
+    public void setSensorConfig(int index, String id, long threshold, boolean less) { com.sdzjz.node.NodeConfig.setSensorConfig(nodeCfgHost, index, id, threshold, less); } // m541 下沉共用
 
     /** 传感器闸门是否放行：未配置=直通；否则按监测库存量与阈值比较。
      *  监测目标：连了 存储→传感器 供料线=监测那个库；否则=默认主存储（绑定>有线>无线>卫星）。 */
@@ -2253,40 +2201,7 @@ public class StructureCoreBlockEntity extends BlockEntity implements com.sdzjz.l
     }
 
     /** 设置自动合成机节点的目标产物（画布徽章点选，走 NodeTargetPayload）。 */
-    public void setNodeTarget(int index, String id) {
-        if (index < 0 || index >= g.machineNodes.size()) return;
-        ItemStack s = g.machineNodes.get(index);
-        boolean cropOk = s.getItem() instanceof com.sdzjz.item.CropFarmItem && com.sdzjz.machine.CropFarms.has(id);
-        boolean brewOk = s.getItem() instanceof com.sdzjz.item.BrewingTowerItem
-                && com.sdzjz.machine.BrewPlanner.targetStack(id) != null; // m131b 目标串服务端校验
-        boolean enchOk = s.getItem() instanceof com.sdzjz.item.EnchantFactoryItem
-                && com.sdzjz.machine.EnchantPlanner.targetStack(this.level, id) != null; // m132 目标串服务端校验
-        boolean tradeOk = s.getItem() instanceof com.sdzjz.item.VillagerTraderItem
-                && com.sdzjz.machine.TradePlanner.valid(id); // m146 目标串服务端校验
-        boolean dupOk = s.getItem() instanceof com.sdzjz.item.DuplicatorItem
-                && com.sdzjz.item.DuplicatorItem.validTarget(id); // m334 目标=物品id 服务端校验
-        boolean sealOk = s.getItem() instanceof com.sdzjz.item.ChunkRemoverItem
-                && com.sdzjz.item.ChunkRemoverItem.validSealBlock(id); // m396 封边材料（移除器的 setNodeTarget 槽 m376 起本就空着=复用零新协议；服务端校验"必须有方块形态"）
-        if (!(s.getItem() instanceof AutoCrafterItem) && !cropOk && !brewOk && !enchOk && !tradeOk && !dupOk && !sealOk) return;
-        CompoundTag n = com.sdzjz.item.ItemData.copyOf(s);
-        if (sealOk) { // m396 封边材料：单选写 zsb（清回默认走菜单 #zsbd 哨兵）
-            n.putString("zsb", id);
-        } else if (cropOk) { // m93 多选 toggle：在列表则移除，否则加入（≤8）；旧单选 ct 自动并入
-            java.util.List<String> cur = com.sdzjz.node.NodeTags.cropList(s);
-            if (cur.contains(id)) cur.remove(id);
-            else if (cur.size() < 8) cur.add(id);
-            net.minecraft.nbt.ListTag l = new net.minecraft.nbt.ListTag();
-            for (String c : cur) l.add(net.minecraft.nbt.StringTag.valueOf(c));
-            n.put("crops", l);
-            n.remove("ct");
-        } else {
-            n.putString("ct", id);
-            n.remove("cr"); // m235 换目标即回"自动"（旧手选配方不属于新目标）
-        }
-        com.sdzjz.item.ItemData.write(s, n);
-        setChanged();
-        syncToClient();
-    }
+    public void setNodeTarget(int index, String id) { com.sdzjz.node.NodeConfig.setNodeTarget(nodeCfgHost, index, id); } // m541 下沉共用
 
     public boolean addNodeUpgrade(Player player, int index, int type) {
         if (!addNodeUpgradeRaw(player, index, type)) return false;

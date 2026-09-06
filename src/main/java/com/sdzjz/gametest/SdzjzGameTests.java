@@ -1372,4 +1372,35 @@ public class SdzjzGameTests implements FabricGameTest {
         ctx.succeed();
     }
 
+
+    /** m541（真移植·1.20.1 结构核心补全第一刀）：节点配置操作层下沉 xplat NodeConfig 后，主线宿主口「装了没」判官
+     *  （m523 教训②：带默认值的口默认关是静默的）——区块族/信标哨兵住宿主：#zy 该让区块过滤器 Y 挡 +1、#bfl 该让信标等级
+     *  0→1；通用段照旧：过滤节点名单加入。任一条没装=哨兵会落到通用名单段被当成名单项，这里当场红。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void node_config_legacy_host_special_entries_installed(GameTestHelper ctx) {
+        BlockPos rel = new BlockPos(0, 1, 0);
+        ctx.setBlock(rel, ModBlocks.STRUCTURE_CORE.defaultBlockState());
+        if (!(ctx.getBlockEntity(rel) instanceof com.sdzjz.block.StructureCoreBlockEntity be)) {
+            ctx.fail("结构核心方块实体未生成");
+            return;
+        }
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.CHUNK_FILTER));    // 0
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.INFINITE_BEACON)); // 1
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.FILTER_NODE));     // 2
+        be.g.machineNodes.add(new ItemStack(com.sdzjz.registry.ModItems.EXTRACTOR_NODE));  // 3
+        int p0 = com.sdzjz.item.ChunkFilterItem.preset(be.g.machineNodes.get(0));
+        be.toggleFilterEntry(0, "#zy");
+        int p1 = com.sdzjz.item.ChunkFilterItem.preset(be.g.machineNodes.get(0));
+        ctx.assertTrue(p1 == (p0 + 1) % com.sdzjz.item.ChunkFilterItem.PRESETS, "主线宿主 #zy 该让 Y 挡 +1（宿主口没装？），实得 " + p0 + "→" + p1);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterList(be.g.machineNodes.get(0)).isEmpty(), "#zy 不该被当成名单项写进 fl");
+        be.toggleFilterEntry(1, "#bfl");
+        ctx.assertTrue(com.sdzjz.item.InfiniteBeaconItem.level(be.g.machineNodes.get(1)) == 1, "主线宿主 #bfl 该让信标等级 0→1（宿主口没装？）");
+        be.toggleFilterEntry(2, "minecraft:sand");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterList(be.g.machineNodes.get(2)).contains("minecraft:sand"), "通用名单段该照旧加入");
+        be.toggleFilterEntry(3, "#xr");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.extractorRate(be.g.machineNodes.get(3)) == 4096, "#xr 共用段该从默认 512 换到 4096");
+        be.togglePause(2);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.nodePaused(be.g.machineNodes.get(2)), "togglePause 转发壳该生效");
+        ctx.succeed();
+    }
 }

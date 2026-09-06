@@ -344,4 +344,98 @@ public final class RetroCanvasTests implements FabricGameTest {
         ctx.assertTrue(rejected2, "组名 200 字该在解码期拒收（上限 " + NodePayloads120.GROUP_NAME_MAX + "）");
         ctx.succeed();
     }
+
+    /** m541（真移植·1.20.1 结构核心补全第一刀）：节点配置五操作（与主线同一份 xplat NodeConfig）——暂停翻转 /
+     *  开关·抽取同口翻转且普通机器不响应 / 过滤名单加移·黑白切换·#xr 五挡换挡·64 封顶 / 传感器写三键·阈值钳 1e12·§clear·
+     *  普通机器拒 / 自动合成机目标写 ct 且普通机器拒；外加五包编解码往返与有界解码红线（m291 对位）。
+     *  **本世代宿主口默认关**：区块族哨兵 #zy 在本世代必须"落到通用名单段被拒"而不是抛异常。 */
+    @GameTest(template = EMPTY_STRUCTURE)
+    public void canvas_node_config_five_ops_and_payload_bounds(GameTestHelper ctx) {
+        StructureCore120 c = canvas(ctx);
+        c.addNode(node("cobble_maker", 10, 10));   // 0 普通机器
+        c.addNode(node("switch_node", 20, 10));    // 1
+        c.addNode(node("extractor_node", 30, 10)); // 2
+        c.addNode(node("filter_node", 40, 10));    // 3
+        c.addNode(node("sensor_node", 50, 10));    // 4
+        c.addNode(node("auto_crafter", 60, 10));   // 5
+        java.util.function.IntFunction<ItemStack> n = i -> c.g.machineNodes.get(i); // m510 教训：addNode 存副本，读图里那份
+        // ① 暂停
+        c.togglePause(0);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.nodePaused(n.apply(0)), "togglePause 该写 np=true");
+        c.togglePause(0);
+        ctx.assertTrue(!com.sdzjz.node.NodeTags.nodePaused(n.apply(0)), "再切该回 false");
+        // ② 开关 / 抽取启停同口（m154）；普通机器不响应
+        boolean so0 = com.sdzjz.node.NodeTags.switchOn(n.apply(1));
+        c.toggleSwitch(1);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.switchOn(n.apply(1)) != so0, "开关节点 so 该翻转");
+        boolean xo0 = com.sdzjz.node.NodeTags.extractorOn(n.apply(2));
+        c.toggleSwitch(2);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.extractorOn(n.apply(2)) != xo0, "抽取节点 xo 该翻转（开关包同口）");
+        c.toggleSwitch(0);
+        ctx.assertTrue(!com.sdzjz.node.NodeTags.viewOf(n.apply(0)).contains("so") && !com.sdzjz.node.NodeTags.viewOf(n.apply(0)).contains("xo"),
+                "普通机器不该响应开关包");
+        // ③ 过滤名单：加→在；再加→移；空串=黑白切换；#xr 换挡（默认 512→4096）；名单封顶 64；普通机器不响应；#zy 哨兵本世代默认关=落到名单段被拒
+        c.toggleFilterEntry(3, "minecraft:sand");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterList(n.apply(3)).contains("minecraft:sand"), "名单该加入 sand");
+        c.toggleFilterEntry(3, "minecraft:sand");
+        ctx.assertTrue(!com.sdzjz.node.NodeTags.filterList(n.apply(3)).contains("minecraft:sand"), "再点该移除 sand");
+        boolean fb0 = com.sdzjz.node.NodeTags.filterBlacklist(n.apply(3));
+        c.toggleFilterEntry(3, "");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterBlacklist(n.apply(3)) != fb0, "空串该切黑白名单");
+        long r0 = com.sdzjz.node.NodeTags.extractorRate(n.apply(2));
+        c.toggleFilterEntry(2, "#xr");
+        long r1 = com.sdzjz.node.NodeTags.extractorRate(n.apply(2));
+        ctx.assertTrue(r0 == 512 && r1 == 4096, "#xr 该从默认 512 换到 4096，实得 " + r0 + "→" + r1);
+        for (int k = 0; k < 70; k++) c.toggleFilterEntry(3, "minecraft:x" + k);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterList(n.apply(3)).size() == 64, "名单该封顶 64，实得 " + com.sdzjz.node.NodeTags.filterList(n.apply(3)).size());
+        c.toggleFilterEntry(0, "minecraft:sand");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.filterList(n.apply(0)).isEmpty(), "普通机器不该响应名单包");
+        c.toggleFilterEntry(3, "#zy"); // 区块族哨兵：本世代宿主默认关 → 走通用名单段=当成一条名单项（主线在 ChunkFilterItem 才拦）；只要不抛、不写 zp
+        ctx.assertTrue(com.sdzjz.node.NodeTags.viewOf(n.apply(3)).getInt("zp") == 0, "本世代 #zy 不该写 zp");
+        // ④ 传感器：写 si/sv/sl，阈值钳 1e12；空 id 不改物品；§clear 清 si；普通机器拒；抽取节点同口（m160）
+        c.setSensorConfig(4, "minecraft:cobblestone", 5_000_000_000_000L, true);
+        ctx.assertTrue("minecraft:cobblestone".equals(com.sdzjz.node.NodeTags.sensorItem(n.apply(4)))
+                && com.sdzjz.node.NodeTags.sensorThreshold(n.apply(4)) == 1_000_000_000_000L
+                && com.sdzjz.node.NodeTags.sensorLess(n.apply(4)), "传感器三键该写入且阈值钳到 1e12");
+        c.setSensorConfig(4, "", 77, false);
+        ctx.assertTrue("minecraft:cobblestone".equals(com.sdzjz.node.NodeTags.sensorItem(n.apply(4)))
+                && com.sdzjz.node.NodeTags.sensorThreshold(n.apply(4)) == 77 && !com.sdzjz.node.NodeTags.sensorLess(n.apply(4)),
+                "空 id 只改阈值与方向、保留监测物品");
+        c.setSensorConfig(4, "§clear", 77, false);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.sensorItem(n.apply(4)).isEmpty(), "§clear 该清监测物品");
+        c.setSensorConfig(2, "minecraft:dirt", 9, true);
+        ctx.assertTrue("minecraft:dirt".equals(com.sdzjz.node.NodeTags.sensorItem(n.apply(2))), "抽取节点自动启停该走同口");
+        c.setSensorConfig(0, "minecraft:dirt", 9, true);
+        ctx.assertTrue(com.sdzjz.node.NodeTags.sensorItem(n.apply(0)).isEmpty(), "普通机器不该响应传感器包");
+        // ⑤ 目标：自动合成机写 ct（m235 换目标清 cr）；普通机器拒
+        c.setNodeTarget(5, "minecraft:piston");
+        ctx.assertTrue("minecraft:piston".equals(com.sdzjz.node.NodeTags.craftTarget(n.apply(5))), "自动合成机该写 ct");
+        c.setNodeTarget(0, "minecraft:piston");
+        ctx.assertTrue(com.sdzjz.node.NodeTags.craftTarget(n.apply(0)).isEmpty(), "普通机器不该收目标");
+        // ⑥ 五包往返 + 有界红线（串包 128 顶，解码期拒）
+        BlockPos pos = ctx.absolutePos(new BlockPos(0, 1, 0));
+        var b1 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeSensor(pos, 4, "minecraft:cobblestone", 123456789012L, true).write(b1);
+        var s1 = new NodePayloads120.NodeSensor(b1);
+        ctx.assertTrue(s1.pos().equals(pos) && s1.index() == 4 && "minecraft:cobblestone".equals(s1.item()) && s1.threshold() == 123456789012L && s1.less(),
+                "NodeSensor 五字段往返该逐位一致");
+        var b2 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeFilter(pos, 3, "#xr").write(b2);
+        var f2 = new NodePayloads120.NodeFilter(b2);
+        ctx.assertTrue(f2.index() == 3 && "#xr".equals(f2.entry()), "NodeFilter 往返该一致");
+        var b3 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeTarget(pos, 5, "minecraft:piston").write(b3);
+        ctx.assertTrue("minecraft:piston".equals(new NodePayloads120.NodeTarget(b3).target()), "NodeTarget 往返该一致");
+        var b4 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodePause(pos, 7).write(b4);
+        var b5 = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        new NodePayloads120.NodeSwitch(pos, 8).write(b5);
+        ctx.assertTrue(new NodePayloads120.NodePause(b4).index() == 7 && new NodePayloads120.NodeSwitch(b5).index() == 8, "Pause/Switch 往返该一致");
+        var evil = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        evil.writeBlockPos(pos); evil.writeVarInt(3); evil.writeUtf("a".repeat(200));
+        boolean rejected = false;
+        try { new NodePayloads120.NodeFilter(evil); } catch (io.netty.handler.codec.DecoderException e) { rejected = true; }
+        ctx.assertTrue(rejected, "NodeFilter 200 字 entry 该在解码期拒收（上限 " + NodePayloads120.CFG_STR_MAX + "）");
+        ctx.succeed();
+    }
 }

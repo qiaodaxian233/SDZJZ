@@ -171,6 +171,47 @@ final class StructureCoreMenu120 extends AbstractContainerMenu {
         pushSnapshot(player, core, packet.pos());
     }
 
+    // ===== m541（真移植·1.20.1 结构核心补全第一刀）：节点配置五包接收器——主线 Sdzjz 接收器原文顺序
+    // （前验 viewingCore→coreFor / 串长熔断 128 / 一行转发共用 NodeConfig）+ 本世代收尾=直推新快照即时反馈。=====
+
+    static void handlePause(NodePayloads120.NodePause packet, net.minecraft.server.level.ServerPlayer player) {
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.togglePause(packet.index());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleSwitch(NodePayloads120.NodeSwitch packet, net.minecraft.server.level.ServerPlayer player) {
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.toggleSwitch(packet.index());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleFilter(NodePayloads120.NodeFilter packet, net.minecraft.server.level.ServerPlayer player) {
+        if (packet.entry().length() > 128) return; // 主线同顶（解码期已有界，这里是接收器自己的第二道）
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.toggleFilterEntry(packet.index(), packet.entry());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleSensor(NodePayloads120.NodeSensor packet, net.minecraft.server.level.ServerPlayer player) {
+        if (packet.item().length() > 128) return;
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.setSensorConfig(packet.index(), packet.item(), packet.threshold(), packet.less());
+        pushSnapshot(player, core, packet.pos());
+    }
+
+    static void handleTarget(NodePayloads120.NodeTarget packet, net.minecraft.server.level.ServerPlayer player) {
+        if (packet.target().length() > 128) return;
+        StructureCore120 core = coreFor(player, packet.pos());
+        if (core == null) return;
+        core.setNodeTarget(packet.index(), packet.target());
+        pushSnapshot(player, core, packet.pos());
+    }
+
     // ===== m458（④c）：机器↔存储连线 =====
 
     /** 端点扫描（可测，force=真忽略缓存）：BFS 可达存储核心=端点（kind=0，蓝本口径首位）；

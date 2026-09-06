@@ -151,4 +151,91 @@ final class NodePayloads120 {
 
         @Override public PacketType<?> getType() { return TYPE; }
     }
+
+    // ===== m541（真移植·1.20.1 结构核心补全第一刀）：节点配置五包——对位主线 NodePause/NodeSwitch/NodeFilter/
+    // NodeSensor/NodeTarget（字段、语义、串长上限 128 逐位同主线接收器 `length() > 128 → 丢`）；服务端落点=
+    // xplat NodeConfig 五方法（两代同一份）。串一律走 Net120.readBoundedUtf（m291 有界解码红线）。=====
+    static final int CFG_STR_MAX = 128; // 主线三串包接收器同顶（entry/item/target）
+
+    /** 暂停/恢复节点（m110b）：服务端 NodeConfig.togglePause。 */
+    record NodePause(BlockPos pos, int index) implements FabricPacket {
+        static final PacketType<NodePause> TYPE =
+                PacketType.create(new ResourceLocation("sdzjz", "node_pause"), NodePause::new);
+
+        NodePause(FriendlyByteBuf buf) { this(buf.readBlockPos(), buf.readVarInt()); }
+
+        @Override public void write(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeVarInt(index);
+        }
+
+        @Override public PacketType<?> getType() { return TYPE; }
+    }
+
+    /** 开关节点开/关；抽取节点启停走同一包（m154，服务端 NodeConfig.toggleSwitch 分派）。 */
+    record NodeSwitch(BlockPos pos, int index) implements FabricPacket {
+        static final PacketType<NodeSwitch> TYPE =
+                PacketType.create(new ResourceLocation("sdzjz", "node_switch"), NodeSwitch::new);
+
+        NodeSwitch(FriendlyByteBuf buf) { this(buf.readBlockPos(), buf.readVarInt()); }
+
+        @Override public void write(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeVarInt(index);
+        }
+
+        @Override public PacketType<?> getType() { return TYPE; }
+    }
+
+    /** 过滤名单一条加/移；entry 空串=切换 白名单↔黑名单；"#xr"/"#cr" 等哨兵=换挡（主线同一收包口）。 */
+    record NodeFilter(BlockPos pos, int index, String entry) implements FabricPacket {
+        static final PacketType<NodeFilter> TYPE =
+                PacketType.create(new ResourceLocation("sdzjz", "node_filter"), NodeFilter::new);
+
+        NodeFilter(FriendlyByteBuf buf) { this(buf.readBlockPos(), buf.readVarInt(), Net120.readBoundedUtf(buf, CFG_STR_MAX)); }
+
+        @Override public void write(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeVarInt(index);
+            buf.writeUtf(entry, CFG_STR_MAX);
+        }
+
+        @Override public PacketType<?> getType() { return TYPE; }
+    }
+
+    /** 传感器/抽取自动启停：监测物品（空=不改，"§clear"=清除）+ 阈值 + 方向（less=低于放行）。 */
+    record NodeSensor(BlockPos pos, int index, String item, long threshold, boolean less) implements FabricPacket {
+        static final PacketType<NodeSensor> TYPE =
+                PacketType.create(new ResourceLocation("sdzjz", "node_sensor"), NodeSensor::new);
+
+        NodeSensor(FriendlyByteBuf buf) {
+            this(buf.readBlockPos(), buf.readVarInt(), Net120.readBoundedUtf(buf, CFG_STR_MAX), buf.readVarLong(), buf.readBoolean());
+        }
+
+        @Override public void write(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeVarInt(index);
+            buf.writeUtf(item, CFG_STR_MAX);
+            buf.writeVarLong(threshold);
+            buf.writeBoolean(less);
+        }
+
+        @Override public PacketType<?> getType() { return TYPE; }
+    }
+
+    /** 目标（合成目标/作物多选/药水/附魔/交易/复制/封边，服务端 NodeConfig.setNodeTarget 逐类校验）。 */
+    record NodeTarget(BlockPos pos, int index, String target) implements FabricPacket {
+        static final PacketType<NodeTarget> TYPE =
+                PacketType.create(new ResourceLocation("sdzjz", "node_target"), NodeTarget::new);
+
+        NodeTarget(FriendlyByteBuf buf) { this(buf.readBlockPos(), buf.readVarInt(), Net120.readBoundedUtf(buf, CFG_STR_MAX)); }
+
+        @Override public void write(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeVarInt(index);
+            buf.writeUtf(target, CFG_STR_MAX);
+        }
+
+        @Override public PacketType<?> getType() { return TYPE; }
+    }
 }

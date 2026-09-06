@@ -215,15 +215,56 @@ public final class CanvasScreen120 extends AbstractContainerScreen<StructureCore
     }
 
     // ===== m513（真移植·A7a）：节点菜单 / 存储连线菜单条目——主线 openNodeMenu / 存储端点右键菜单原文，只装本世代有的操作 =====
-    // 本世代机制面=m457 四操作（放/移/摘/连）+ m458 存储连线（三态循环）+ m192 分组；暂停/融合拆解/目标拾取器/方块名单/白名单/监测/
-    // 信标/区块清理器等条目背后的机制本世代没有，**不装**（m489 "搬工艺不搬本世代没有的功能区"）。装配助手 mi/mt 与主线同名（m509 留壳）。
-    /** 主线 openNodeMenu 原文骨架：标题带=机器名 → 断开全部连线 → 组合两入口（m264）→ 取出机器（危险项垫底红显）→ 取消。 */
+    // 本世代机制面=m457 四操作（放/移/摘/连）+ m458 存储连线（三态循环）+ m192 分组 + **m541 节点配置五包**（暂停/开关/抽取启停·换挡/
+    // 传感器方向·清除/过滤黑白切换——主线条目原文，`p`→`menu.corePos`、`ClientNet`→`ClientNet120`+本世代包名）；融合拆解/目标拾取器/
+    // 方块名单/白名单/监测物品/信标/区块清理器等条目背后的机制本世代还没有（拾取器一族随 m542 下沉，机型随 C5），**不装**
+    // （m489 "搬工艺不搬本世代没有的功能区"）。装配助手 mi/mt 与主线同名（m509 留壳）。
+    /** 主线 openNodeMenu 原文骨架：标题带=机器名 → 暂停/恢复 → 断开全部连线 → 逻辑节点配置条目 → 组合两入口（m264）→ 取出机器（危险项垫底红显）→ 取消。 */
     private void openNodeMenu(int idx, int atX, int atY) {
         if (idx < 0 || idx >= g.machineNodes.size()) return;
         final ItemStack st = g.machineNodes.get(idx);
+        final net.minecraft.core.BlockPos p = menu.corePos; // 主线 `p = menu.blockPos()` 对位
         clearMenu();
         cmenu.title(st.getHoverName().getString()); // m148 标题带=机器名
+        if (com.sdzjz.node.NodeTags.nodePaused(st)) // m313 暂停态图标换用户设计贴图，恢复态保留绿染料
+            addMenu("恢复运行", mi(net.minecraft.world.item.Items.LIME_DYE),
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodePause(p, idx)); });
+        else
+            addMenu("暂停节点", mt("pause_node"), 0,
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodePause(p, idx)); });
         addMenu("断开全部连线", mt("disconnect_all"), 2, () -> clearLinksOfMachine(idx)); // m313 用户图标
+        if (com.sdzjz.node.NodeTags.isFilter(st)) {
+            // 「配置过滤物品…」拾取器条目随 m542（拾取器下沉）装；黑白切换主线原文先到
+            addMenu(com.sdzjz.node.NodeTags.filterBlacklist(st) ? "切为白名单" : "切为黑名单", mi(net.minecraft.world.item.Items.PAPER),
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeFilter(p, idx, "")); });
+        }
+        if (com.sdzjz.node.NodeTags.isSwitch(st)) {
+            addMenu(com.sdzjz.node.NodeTags.switchOn(st) ? "切为:关闭" : "切为:开启", mi(net.minecraft.world.item.Items.LEVER), 2,
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeSwitch(p, idx)); });
+        }
+        if (com.sdzjz.node.NodeTags.isExtractor(st)) { // m154 启停复用开关收包口
+            addMenu(com.sdzjz.node.NodeTags.extractorOn(st) ? "停止抽取" : "开始抽取", mi(net.minecraft.world.item.Items.PISTON), 2,
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeSwitch(p, idx)); });
+            addMenu("抽取量: " + com.sdzjz.node.NodeTags.extractorRate(st) + "/轮 → 换挡", // m163a 五挡循环 64→512→4096→32768→262144
+                    mi(net.minecraft.world.item.Items.HOPPER),
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeFilter(p, idx, "#xr")); });
+            // 「抽取白名单…」「自动启停·监测物品…」两条拾取器条目随 m542 装
+            if (!com.sdzjz.node.NodeTags.sensorItem(st).isEmpty()) {
+                addMenu(com.sdzjz.node.NodeTags.sensorLess(st) ? "改为:高于阈值才抽" : "改为:低于阈值才抽",
+                        mi(net.minecraft.world.item.Items.REPEATER),
+                        () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeSensor(p, idx, "",
+                                com.sdzjz.node.NodeTags.sensorThreshold(st), !com.sdzjz.node.NodeTags.sensorLess(st))); });
+                addMenu("清除自动启停", mi(net.minecraft.world.item.Items.BARRIER),
+                        () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeSensor(p, idx, "§clear",
+                                com.sdzjz.node.NodeTags.sensorThreshold(st), com.sdzjz.node.NodeTags.sensorLess(st))); });
+            }
+        }
+        if (com.sdzjz.node.NodeTags.isSensor(st)) {
+            // 「监测物品…」拾取器条目随 m542 装；方向翻转主线原文先到
+            addMenu(com.sdzjz.node.NodeTags.sensorLess(st) ? "改为:高于阈值放行" : "改为:低于阈值放行", mi(net.minecraft.world.item.Items.REPEATER),
+                    () -> { if (p != null) ClientNet120.toServer(new NodePayloads120.NodeSensor(p, idx, "",
+                            com.sdzjz.node.NodeTags.sensorThreshold(st), !com.sdzjz.node.NodeTags.sensorLess(st))); });
+        }
         if (groupsOn()) { // m264 组合两入口（作者点名：Shift左键多选后能组合，相连的也能组合）——纯客户端拼成员集走 m191 建组包
             java.util.LinkedHashSet<Integer> selPlus = new java.util.LinkedHashSet<>(selected);
             selPlus.removeIf(k -> k < 0 || k >= g.machineNodes.size());

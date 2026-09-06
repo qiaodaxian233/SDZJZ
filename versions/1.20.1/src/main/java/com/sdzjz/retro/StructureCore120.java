@@ -835,4 +835,31 @@ final class StructureCore120 extends BlockEntity implements com.sdzjz.node.Route
         return com.sdzjz.node.RouteBrain.allGatesClosed(brainHost, world, outTargetsOf(from));
     }
 
+
+    // ===== m541（真移植·1.20.1 结构核心补全第一刀）：节点配置操作层——与主线同一份 xplat node/NodeConfig =====
+    // 五方法（暂停/开关·抽取启停/过滤名单·换挡哨兵/传感器/目标）是客户端五包的服务端落点；此前本世代
+    // 一个都没有——逻辑节点的判定/清运 m473~m499 早在共用件里跑，玩家却没有入口去设置。
+    // 宿主口三项主线专属校验（trade/dup/seal）与区块族/信标七段哨兵本世代**默认关**（对应机型 C5 到序时接上，
+    // 接法=把主线 LegacyNodeConfigHost 那段原文照搬进这里）。changed()=只落盘：快照由接收器直推（m506 同律）。
+    private final com.sdzjz.node.NodeConfig.Host nodeCfgHost = new com.sdzjz.node.NodeConfig.Host() {
+        @Override public com.sdzjz.node.CanvasGraphState graph() { return g; }
+        @Override public Object level() { return level; }
+        @Override public void changed() { setChanged(); }
+    };
+
+    /** 切换节点 暂停/运行（m110b）。 */
+    void togglePause(int index) { com.sdzjz.node.NodeConfig.togglePause(nodeCfgHost, index); }
+
+    /** 切换开关节点 开/关（抽取节点启停同口，m154）。 */
+    void toggleSwitch(int index) { com.sdzjz.node.NodeConfig.toggleSwitch(nodeCfgHost, index); }
+
+    /** 加/移一条过滤名单项（已在名单=移除）；id 为空串=切换 白名单↔黑名单；#xr/#cr 哨兵=换挡。 */
+    void toggleFilterEntry(int index, String id) { com.sdzjz.node.NodeConfig.toggleFilterEntry(nodeCfgHost, index, id); }
+
+    /** 设置传感器：监测物品 + 阈值 + 方向（低于/高于放行）；抽取节点自动启停同口（m160）。 */
+    void setSensorConfig(int index, String id, long threshold, boolean less) { com.sdzjz.node.NodeConfig.setSensorConfig(nodeCfgHost, index, id, threshold, less); }
+
+    /** 设置节点目标（自动合成/作物多选/药水/附魔…，服务端逐类校验）。 */
+    void setNodeTarget(int index, String id) { com.sdzjz.node.NodeConfig.setNodeTarget(nodeCfgHost, index, id); }
+
 }
